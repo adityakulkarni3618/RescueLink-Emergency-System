@@ -211,29 +211,41 @@ io.on('connection', (socket) => {
     // data: { reqId, accepted }
     const req = activeRequests[data.reqId];
     if (!req) return;
-    req.status = data.accepted ? 'ambulance_accepted' : 'ambulance_rejected';
+    
     if (data.accepted) {
+        req.status = 'ambulance_accepted';
         req.ambulanceSocket = socket.id;
+        
+        // IMMEDIATELY notify the user BEFORE any async work
+        // This prevents the race condition where request-hospital overwrites the status
+        io.to(req.userSocket).emit('ambulance-request-response', { ...req });
+        
         if (ambulances[socket.id]) {
             ambulances[socket.id].available = false;
-            
-            // Fetch exact road route from Ambulance to User
-            const route = await getOSRMRoute(ambulances[socket.id].location, req.userLocation);
-            if (route) req.routePath = route;
-            
             io.emit('ambulances-update', ambulances);
+            
+            // Fetch road route in background, send as separate event when ready
+            const route = await getOSRMRoute(ambulances[socket.id].location, req.userLocation);
+            if (route) {
+              req.routePath = route;
+              io.to(req.userSocket).emit('route-update', { reqId: req.id, routePath: route });
+              io.to(req.ambulanceSocket).emit('route-update', { reqId: req.id, routePath: route });
+            }
         }
+    } else {
+        req.status = 'ambulance_rejected';
+        io.to(req.userSocket).emit('ambulance-request-response', { ...req });
     }
-    io.to(req.userSocket).emit('ambulance-request-response', req);
-    io.to(req.ambulanceSocket).emit('ambulance-request-response', req); // Let ambulance know route too
   });
 
   socket.on('request-hospital', (data) => {
-    // data: { reqId, hospitalSocketId }
+    // data: { reqId, hospitalSocketId, fieldReport, previousReports }
     const req = activeRequests[data.reqId];
     if (!req) return;
     req.hospitalSocket = data.hospitalSocketId;
     req.status = 'pending_hospital';
+    if (data.fieldReport) req.fieldReport = data.fieldReport;
+    if (data.previousReports) req.previousReports = data.previousReports;
     io.to(data.hospitalSocketId).emit('incoming-hospital-request', req);
   });
 
@@ -252,6 +264,14 @@ io.on('connection', (socket) => {
     io.to(req.userSocket).emit('hospital-request-response', req);
     io.to(req.ambulanceSocket).emit('hospital-request-response', req);
     io.to(socket.id).emit('hospital-request-response', req); // Send back to hospital too
+  });
+
+  // ── Reroute Hospital (ambulance switches destination) ───────────────────
+  socket.on('reroute-hospital', (data) => {
+    // data: { reqId, previousReports, newHospitalId }
+    console.log(`[REROUTE] Ambulance rerouting. Previous reports: ${data.previousReports?.length || 0}`);
+    // Forward previous reports to all hospital sockets so the new one picks them up
+    io.emit('reroute-reports', { previousReports: data.previousReports, newHospitalId: data.newHospitalId });
   });
 
   // ── Disconnect ─────────────────────────────────────────────────────────────
