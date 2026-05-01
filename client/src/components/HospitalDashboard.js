@@ -1,0 +1,992 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, ReferenceLine,
+} from 'recharts';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import VideoCall from './VideoCall';
+
+// Fix leaflet default icon
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
+
+// Custom ambulance marker
+const ambulanceIcon = L.divIcon({
+  className: '',
+  html: `<div style="
+    width:36px; height:36px; background:rgba(255,100,50,0.9);
+    border:2px solid rgba(255,150,100,0.8); border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:18px; box-shadow:0 0 20px rgba(255,100,50,0.6);
+    animation:pulse 1.5s ease infinite;
+  ">🚑</div>
+  <style>@keyframes pulse{0%,100%{box-shadow:0 0 10px rgba(255,100,50,0.4)}50%{box-shadow:0 0 30px rgba(255,100,50,0.8)}}</style>`,
+  iconSize: [36, 36],
+  iconAnchor: [18, 18],
+});
+
+const hospitalIcon = L.divIcon({
+  className: '',
+  html: `<div style="
+    width:32px; height:32px; background:rgba(0,200,255,0.9);
+    border:2px solid rgba(100,220,255,0.8); border-radius:6px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px; box-shadow:0 0 15px rgba(0,200,255,0.4);
+  ">🏥</div>`,
+  iconSize: [32, 32],
+  iconAnchor: [16, 16],
+});
+
+export const HOSPITALS = [
+  {
+    id: 'narayangaon',
+    name: 'Narayangaon District Hospital',
+    pos: { lat: 19.1901, lng: 73.9501 },
+  },
+  {
+    id: 'junnar',
+    name: 'Junnar City Clinic',
+    pos: { lat: 19.2040, lng: 73.8820 },
+  },
+  {
+    id: 'pune',
+    name: 'Pune General Trauma Center',
+    pos: { lat: 18.5204, lng: 73.8567 },
+  }
+];
+
+/* ─── Map recenter helper ─────────────────────────────────────────────────── */
+function MapUpdater({ center }) {
+  const map = useMap();
+  useEffect(() => {
+    if (center) map.panTo([center.lat, center.lng], { animate: true, duration: 1 });
+  }, [center, map]);
+  return null;
+}
+
+/* ─── Alert beep using Web Audio API ─────────────────────────────────────── */
+function playAlertBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [880, 1320, 880].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0.3, ctx.currentTime + i * 0.15);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.15 + 0.12);
+      osc.start(ctx.currentTime + i * 0.15);
+      osc.stop(ctx.currentTime + i * 0.15 + 0.12);
+    });
+  } catch (e) {}
+}
+
+/* ─── Live Chart component ────────────────────────────────────────────────── */
+function VitalChart({ data, dataKey, color, label, unit, critHigh, critLow, domain }) {
+  const lastVal = data.length > 0 ? data[data.length - 1][dataKey] : null;
+  const isCrit = lastVal !== null && ((critHigh && lastVal > critHigh) || (critLow && lastVal < critLow));
+
+  return (
+    <div style={{
+      background: 'rgba(5,15,40,0.8)',
+      border: `1px solid ${isCrit ? 'rgba(255,80,80,0.5)' : 'rgba(0,200,255,0.12)'}`,
+      borderRadius: 10, padding: 16,
+      transition: 'border-color 0.3s',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: isCrit ? '#ff6060' : 'rgba(160,200,255,0.5)', letterSpacing: '0.1em' }}>
+          {label} {isCrit && '⚠'}
+        </div>
+        <div style={{ fontFamily: "'Share Tech Mono'", fontSize: 22, color: isCrit ? '#ff4444' : color, fontWeight: 700 }}>
+          {lastVal ?? '--'} <span style={{ fontSize: 11, color: 'rgba(160,200,255,0.4)' }}>{unit}</span>
+        </div>
+      </div>
+      <ResponsiveContainer width="100%" height={80}>
+        <LineChart data={data} margin={{ top: 2, right: 2, left: -30, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,200,255,0.05)" />
+          <YAxis domain={domain} tick={{ fontSize: 9, fill: 'rgba(160,200,255,0.3)', fontFamily: "'Share Tech Mono'" }} />
+          <XAxis hide />
+          <Tooltip
+            contentStyle={{ background: '#050d1a', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 6, fontSize: 11 }}
+            labelStyle={{ display: 'none' }}
+            formatter={(v) => [`${v} ${unit}`, label]}
+          />
+          {critHigh && <ReferenceLine y={critHigh} stroke="rgba(255,80,80,0.3)" strokeDasharray="4 4" />}
+          {critLow && <ReferenceLine y={critLow} stroke="rgba(255,80,80,0.3)" strokeDasharray="4 4" />}
+          <Line
+            type="monotone" dataKey={dataKey} stroke={isCrit ? '#ff4444' : color}
+            strokeWidth={2} dot={false} isAnimationActive={false}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+/* ─── Auto-Triage Logic ───────────────────────────────────────────────────── */
+function calculateTriage(vitals) {
+  if (!vitals) return { level: 'PENDING', color: 'rgba(160,200,255,0.4)', label: 'AWAITING DATA' };
+  
+  if (vitals.spo2 < 90 || vitals.heartRate > 130 || vitals.heartRate < 40 || vitals.systolic < 90) {
+    return { level: 'RED', color: '#ff4444', label: 'IMMEDIATE (RED)' };
+  }
+  if (vitals.spo2 < 94 || vitals.heartRate > 110 || vitals.heartRate < 50 || vitals.systolic > 160 || vitals.temperature > 39) {
+    return { level: 'YELLOW', color: '#ffb800', label: 'URGENT (YELLOW)' };
+  }
+  return { level: 'GREEN', color: '#00ff88', label: 'STABLE (GREEN)' };
+}
+
+/* ─── Patient panel ───────────────────────────────────────────────────────── */
+function PatientPanel({ patient, vitals }) {
+  if (!patient) return (
+    <div style={{
+      background: 'rgba(5,15,40,0.8)', border: '1px solid rgba(0,200,255,0.12)',
+      borderRadius: 10, padding: 20, textAlign: 'center',
+    }}>
+      <div style={{ fontSize: 32, marginBottom: 12 }}>🔍</div>
+      <div style={{ color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'", fontSize: 12 }}>
+        AWAITING PATIENT SELECTION<br />FROM AMBULANCE UNIT
+      </div>
+    </div>
+  );
+
+  const riskColors = { HIGH: '#ff4444', MEDIUM: '#ffb800', LOW: '#00ff88' };
+
+  return (
+    <div style={{
+      background: 'rgba(5,15,40,0.8)', border: '1px solid rgba(0,200,255,0.2)',
+      borderRadius: 10, padding: 20,
+    }}>
+      <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', letterSpacing: '0.1em', marginBottom: 16 }}>
+        PATIENT RECORD — {patient.id}
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: '#e0eaff', marginBottom: 2 }}>{patient.name}</div>
+          <div style={{ fontSize: 13, color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'" }}>
+            Age: {patient.age} · Blood: {patient.bloodGroup}
+          </div>
+        </div>
+        
+        {/* Dynamic Triage Badge */}
+        {vitals && (
+          <div style={{
+            padding: '6px 12px', borderRadius: 4,
+            background: `${calculateTriage(vitals).color}22`,
+            border: `1px solid ${calculateTriage(vitals).color}66`,
+            color: calculateTriage(vitals).color,
+            fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700,
+            animation: calculateTriage(vitals).level === 'RED' ? 'pulse 1.5s infinite' : 'none',
+          }}>
+            {calculateTriage(vitals).label}
+          </div>
+        )}
+      </div>
+
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 11, color: '#ff6b6b', fontFamily: "'Orbitron'", letterSpacing: '0.1em', marginBottom: 6 }}>
+          ⚠ ALLERGIES
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {patient.allergies.length === 0 ? (
+            <span style={{ color: '#00ff88', fontSize: 12, fontFamily: "'Share Tech Mono'" }}>NONE KNOWN</span>
+          ) : patient.allergies.map(a => (
+            <span key={a} style={{
+              padding: '3px 10px', background: 'rgba(255,80,80,0.15)',
+              border: '1px solid rgba(255,80,80,0.3)', borderRadius: 4,
+              color: '#ff8888', fontSize: 12, fontFamily: "'Share Tech Mono'",
+            }}>{a}</span>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", letterSpacing: '0.1em', marginBottom: 6 }}>
+          MEDICAL HISTORY
+        </div>
+        {patient.medicalHistory.map((h, i) => (
+          <div key={i} style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', marginBottom: 3, paddingLeft: 12, borderLeft: '2px solid rgba(0,200,255,0.3)' }}>
+            {h}
+          </div>
+        ))}
+      </div>
+
+      {patient.currentMedications.length > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", letterSpacing: '0.1em', marginBottom: 6 }}>
+            CURRENT MEDICATIONS
+          </div>
+          {patient.currentMedications.map((m, i) => (
+            <div key={i} style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', marginBottom: 3 }}>
+              💊 {m}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'", marginTop: 8 }}>
+        EC: {patient.emergencyContact}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Hospital Readiness Panel ────────────────────────────────────────────── */
+function ResourcePanel({ socket }) {
+  const [resources, setResources] = useState({
+    otPrepared: false,
+    ventilatorReady: false,
+    cardiologistAssigned: false,
+    bloodBankAlerted: false,
+  });
+
+  useEffect(() => {
+    if (!socket) return;
+    const handler = (data) => setResources(data);
+    socket.on('resources-update', handler);
+    return () => socket.off('resources-update', handler);
+  }, [socket]);
+
+  const toggle = (key) => {
+    const updated = { ...resources, [key]: !resources[key] };
+    setResources(updated);
+    if (socket) socket.emit('resources-update', updated);
+  };
+
+  const items = [
+    { key: 'otPrepared', label: 'OT PREPARED', icon: '🔪', desc: 'Operation theater ready' },
+    { key: 'ventilatorReady', label: 'VENTILATOR READY', icon: '🫁', desc: 'Mechanical ventilator standby' },
+    { key: 'cardiologistAssigned', label: 'CARDIOLOGIST ON CALL', icon: '🫀', desc: 'Specialist assigned & alerted' },
+    { key: 'bloodBankAlerted', label: 'BLOOD BANK ALERTED', icon: '🩸', desc: 'Cross-match initiated' },
+  ];
+
+  const readyCount = Object.values(resources).filter(Boolean).length;
+
+  return (
+    <div style={{
+      background: 'rgba(5,15,40,0.8)', border: '1px solid rgba(0,200,255,0.12)',
+      borderRadius: 10, padding: 20,
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', letterSpacing: '0.1em' }}>
+          HOSPITAL READINESS
+        </div>
+        <div style={{
+          fontFamily: "'Share Tech Mono'", fontSize: 13,
+          color: readyCount === 4 ? '#00ff88' : readyCount > 0 ? '#ffb800' : 'rgba(160,200,255,0.4)',
+        }}>
+          {readyCount}/4 READY
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        {items.map(({ key, label, icon, desc }) => (
+          <div
+            key={key}
+            onClick={() => toggle(key)}
+            style={{
+              padding: '12px',
+              background: resources[key] ? 'rgba(0,255,100,0.1)' : 'rgba(0,200,255,0.04)',
+              border: `1px solid ${resources[key] ? 'rgba(0,255,100,0.4)' : 'rgba(0,200,255,0.12)'}`,
+              borderRadius: 8, cursor: 'pointer', transition: 'all 0.2s',
+            }}
+          >
+            <div style={{ fontSize: 20, marginBottom: 4 }}>{icon}</div>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 10, color: resources[key] ? '#00ff88' : 'rgba(160,200,255,0.5)', letterSpacing: '0.05em', marginBottom: 2 }}>
+              {label}
+            </div>
+            <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.35)' }}>{desc}</div>
+            <div style={{ marginTop: 6, fontFamily: "'Share Tech Mono'", fontSize: 11, color: resources[key] ? '#00ff88' : 'rgba(160,200,255,0.3)' }}>
+              {resources[key] ? '✓ READY' : '○ PENDING'}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Chat Panel ──────────────────────────────────────────────────────────── */
+function ChatPanel({ socket, messages }) {
+  const [msg, setMsg] = useState('');
+  const bottomRef = useRef();
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const send = () => {
+    if (!msg.trim() || !socket) return;
+    socket.emit('chat-message', { text: msg, from: 'hospital', fromLabel: '🏥 Dr. Command' });
+    setMsg('');
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '8px', minHeight: 0 }}>
+        {messages.length === 0 && (
+          <div style={{ color: 'rgba(160,200,255,0.3)', fontSize: 12, textAlign: 'center', marginTop: 20, fontFamily: "'Share Tech Mono'" }}>
+            No messages yet
+          </div>
+        )}
+        {messages.map((m) => (
+          <div key={m.id} style={{ marginBottom: 8, textAlign: m.from === 'hospital' ? 'right' : 'left' }}>
+            <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', marginBottom: 2, fontFamily: "'Share Tech Mono'" }}>
+              {m.fromLabel}
+            </div>
+            <div style={{
+              display: 'inline-block', padding: '8px 12px', borderRadius: 8, maxWidth: '80%',
+              background: m.from === 'hospital' ? 'rgba(0,200,255,0.15)' : 'rgba(255,107,53,0.15)',
+              border: m.from === 'hospital' ? '1px solid rgba(0,200,255,0.25)' : '1px solid rgba(255,107,53,0.25)',
+              color: '#e0eaff', fontSize: 13,
+            }}>
+              {m.image && <img src={m.image} alt="Upload" style={{ width: '100%', borderRadius: 4, marginBottom: m.text ? 8 : 0 }} />}
+              {m.text && <div>{m.text}</div>}
+            </div>
+          </div>
+        ))}
+        <div ref={bottomRef} />
+      </div>
+      <div style={{ display: 'flex', gap: 8, padding: '8px 0 0' }}>
+        <input
+          value={msg}
+          onChange={e => setMsg(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && send()}
+          placeholder="Guide paramedic..."
+          style={{
+            flex: 1, background: 'rgba(0,200,255,0.06)', border: '1px solid rgba(0,200,255,0.2)',
+            borderRadius: 6, padding: '8px 12px', color: '#e0eaff', fontSize: 13,
+            fontFamily: "'Rajdhani'", outline: 'none',
+          }}
+        />
+        <button onClick={send} style={{
+          background: 'rgba(0,200,255,0.15)', border: '1px solid rgba(0,200,255,0.35)',
+          borderRadius: 6, padding: '8px 14px', color: '#00c8ff',
+          cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700,
+        }}>SEND</button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Handover Report Modal ─────────────────────────────────────────────── */
+function HandoverModal({ patient, vitals, notes, onClose }) {
+  if (!patient) return null;
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,5,15,0.9)', zIndex: 1000,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(5px)'
+    }}>
+      <div style={{
+        background: '#0a1526', border: '1px solid #00c8ff', borderRadius: 12,
+        width: '90%', maxWidth: 800, maxHeight: '90vh', overflowY: 'auto',
+        boxShadow: '0 0 30px rgba(0,200,255,0.2)'
+      }}>
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(0,200,255,0.2)', display: 'flex', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 18, color: '#00c8ff', fontWeight: 700, letterSpacing: '0.1em' }}>
+              🏥 PATIENT HANDOVER REPORT
+            </div>
+            <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'" }}>
+              GENERATED BY AI ASSISTANT • {new Date().toLocaleString()}
+            </div>
+          </div>
+          <button onClick={onClose} style={{
+            background: 'transparent', border: 'none', color: '#ff4444', fontSize: 24, cursor: 'pointer'
+          }}>×</button>
+        </div>
+        
+        <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {/* Patient Details */}
+          <div>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 12, color: '#88ff88', letterSpacing: '0.1em', marginBottom: 8 }}>📋 PATIENT DEMOGRAPHICS</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, background: 'rgba(0,200,255,0.05)', padding: 16, borderRadius: 8 }}>
+              <div><span style={{color: 'rgba(160,200,255,0.5)'}}>Name:</span> {patient.name}</div>
+              <div><span style={{color: 'rgba(160,200,255,0.5)'}}>ID:</span> {patient.id}</div>
+              <div><span style={{color: 'rgba(160,200,255,0.5)'}}>Age:</span> {patient.age}</div>
+              <div><span style={{color: 'rgba(160,200,255,0.5)'}}>Blood Group:</span> <span style={{color: '#ff4444', fontWeight: 700}}>{patient.bloodGroup}</span></div>
+            </div>
+          </div>
+          
+          {/* AI Summary */}
+          <div>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 12, color: '#ffb800', letterSpacing: '0.1em', marginBottom: 8 }}>🤖 AI TRANSIT SUMMARY</div>
+            <div style={{ background: 'rgba(255,180,0,0.1)', borderLeft: '4px solid #ffb800', padding: 16, borderRadius: '0 8px 8px 0', fontSize: 14, lineHeight: 1.5 }}>
+              Patient transported with {vitals ? `latest SpO2 at ${vitals.spo2}% and HR ${vitals.heartRate} bpm` : 'pending vitals'}. 
+              {notes.length > 0 ? ` ${notes.length} incident notes recorded during transit. Priority attention recommended based on field reports.` : ' No critical incidents reported by paramedics.'}
+            </div>
+          </div>
+
+          {/* Vitals Snapshot */}
+          <div>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 12, color: '#00c8ff', letterSpacing: '0.1em', marginBottom: 8 }}>📈 LATEST VITALS SNAPSHOT</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+              {vitals ? Object.entries(vitals).filter(([k]) => !['timestamp', 't'].includes(k)).map(([k, v]) => (
+                <div key={k} style={{ background: 'rgba(0,200,255,0.05)', padding: '10px 16px', borderRadius: 6, border: '1px solid rgba(0,200,255,0.1)' }}>
+                  <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.5)', textTransform: 'uppercase' }}>{k}</div>
+                  <div style={{ fontSize: 18, color: '#e0eaff', fontFamily: "'Share Tech Mono'", fontWeight: 700 }}>{v}</div>
+                </div>
+              )) : <div style={{color:'rgba(255,255,255,0.3)'}}>No vitals recorded</div>}
+            </div>
+          </div>
+
+          {/* Incident Notes Log */}
+          {notes.length > 0 && (
+            <div>
+              <div style={{ fontFamily: "'Orbitron'", fontSize: 12, color: '#ff6b6b', letterSpacing: '0.1em', marginBottom: 8 }}>📝 PARAMEDIC FIELD NOTES</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {notes.map((n, i) => (
+                  <div key={i} style={{ background: 'rgba(255,100,100,0.05)', padding: 12, borderRadius: 6, borderLeft: '2px solid #ff6b6b' }}>
+                    <span style={{ fontSize: 10, color: 'rgba(255,100,100,0.5)', fontFamily: "'Share Tech Mono'" }}>{new Date(n.timestamp).toLocaleTimeString()}</span><br/>
+                    {n.note}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        
+        <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(0,200,255,0.2)', textAlign: 'right', background: 'rgba(0,0,0,0.2)' }}>
+          <button onClick={() => { alert("Report sent to EMR system!"); onClose(); }} style={{
+            background: '#00c8ff', color: '#000', border: 'none', padding: '10px 24px', borderRadius: 6,
+            fontFamily: "'Orbitron'", fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s'
+          }}>SAVE TO EMR</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Main HospitalDashboard ─────────────────────────────────────────────── */
+const MAX_HISTORY = 30;
+
+export default function HospitalDashboard({ socket, connected }) {
+  const [chartData, setChartData] = useState([]);
+  const [latestVitals, setLatestVitals] = useState(null);
+  const [location, setLocation] = useState(null);
+  const [locationHistory, setLocationHistory] = useState([]);
+  const [patient, setPatient] = useState(null);
+  const [isCritical, setIsCritical] = useState(false);
+  const [critReasons, setCritReasons] = useState([]);
+  const [alertCount, setAlertCount] = useState(0);
+  const [messages, setMessages] = useState([]);
+  const [incidentNotes, setIncidentNotes] = useState([]);
+  const [connectedRoles, setConnectedRoles] = useState({ ambulance: 0, hospital: 0 });
+  const [aiAlert, setAiAlert] = useState(null);
+  const [showHandover, setShowHandover] = useState(false);
+  const [activeHospitalId, setActiveHospitalId] = useState(HOSPITALS[0].id);
+  const [isHandoverSyncing, setIsHandoverSyncing] = useState(false);
+  const [incomingRequest, setIncomingRequest] = useState(null);
+  const [routePath, setRoutePath] = useState(null);
+  const critTimeoutRef = useRef(null);
+
+  const activeHospital = HOSPITALS.find(h => h.id === activeHospitalId) || HOSPITALS[0];
+
+  useEffect(() => {
+    if (!socket || !connected) return;
+    
+    // Register Hospital immediately
+    socket.emit('register-hospital', { location: activeHospital.pos, available: true, id: activeHospital.id, name: activeHospital.name });
+
+    socket.on('vitals-update', (data) => {
+      setLatestVitals(data);
+      setChartData(prev => [...prev.slice(-(MAX_HISTORY - 1)), { ...data, t: Date.now() }]);
+    });
+
+    socket.on('bulk-vitals-update', (bulkData) => {
+      if (!bulkData || bulkData.length === 0) return;
+      setLatestVitals(bulkData[bulkData.length - 1]);
+      setChartData(prev => {
+        const newData = bulkData.map(d => ({ ...d, t: d.timestamp || Date.now() }));
+        return [...prev, ...newData].slice(-MAX_HISTORY);
+      });
+    });
+
+    socket.on('location-update', (data) => {
+      setLocation(data);
+      setLocationHistory(prev => [...prev.slice(-99), [data.lat, data.lng]]);
+      if (data.destinationId) {
+        setActiveHospitalId(prev => {
+          if (prev !== data.destinationId) {
+            setIsHandoverSyncing(true);
+            setTimeout(() => setIsHandoverSyncing(false), 2500);
+            return data.destinationId;
+          }
+          return prev;
+        });
+      }
+    });
+
+    socket.on('patient-data', (data) => setPatient(data));
+
+    socket.on('critical-alert', (data) => {
+      setIsCritical(true);
+      setCritReasons(data.reasons);
+      setAlertCount(c => c + 1);
+      playAlertBeep();
+      clearTimeout(critTimeoutRef.current);
+      critTimeoutRef.current = setTimeout(() => setIsCritical(false), 8000);
+    });
+
+    const onHistory = (msgs) => setMessages(msgs);
+    const onChatMessage = (msg) => setMessages(prev => [...prev, msg]);
+    const onNote = (n) => setIncidentNotes(prev => [n, ...prev].slice(0, 10));
+    const onRoles = (roles) => setConnectedRoles(roles);
+    
+    const onAiAlert = (data) => {
+      setAiAlert(data);
+      setTimeout(() => setAiAlert(null), 10000);
+    };
+    
+    const onIncomingHospitalRequest = (req) => {
+      setIncomingRequest(req);
+    };
+
+    const onHospitalResponse = (req) => {
+      if (req.status === 'hospital_accepted' && req.routePath) {
+        setRoutePath(req.routePath.map(pos => [pos.lat, pos.lng]));
+      }
+    };
+    
+    socket.on('chat-history', onHistory);
+    socket.on('chat-message', onChatMessage);
+    socket.on('incident-note', onNote);
+    socket.on('roles-update', onRoles);
+    socket.on('ai-prediction-alert', onAiAlert);
+    socket.on('incoming-hospital-request', onIncomingHospitalRequest);
+    socket.on('hospital-request-response', onHospitalResponse);
+
+    return () => {
+      socket.off('vitals-update');
+      socket.off('bulk-vitals-update');
+      socket.off('location-update');
+      socket.off('patient-data');
+      socket.off('critical-alert');
+      socket.off('chat-history', onHistory);
+      socket.off('chat-message', onChatMessage);
+      socket.off('incident-note', onNote);
+      socket.off('roles-update', onRoles);
+      socket.off('ai-prediction-alert', onAiAlert);
+      socket.off('incoming-hospital-request', onIncomingHospitalRequest);
+      socket.off('hospital-request-response', onHospitalResponse);
+    };
+  }, [socket, connected]);
+
+  const dismissAlert = () => {
+    setIsCritical(false);
+    clearTimeout(critTimeoutRef.current);
+  };
+
+  const acceptRequest = () => {
+    if (!socket || !incomingRequest) return;
+    socket.emit('hospital-response', { reqId: incomingRequest.id, accepted: true });
+    setIncomingRequest(null);
+  };
+
+  const rejectRequest = () => {
+    if (!socket || !incomingRequest) return;
+    socket.emit('hospital-response', { reqId: incomingRequest.id, accepted: false });
+    setIncomingRequest(null);
+  };
+
+  return (
+    <div style={{
+      minHeight: '100vh',
+      background: isCritical
+        ? 'radial-gradient(ellipse at 50% 20%, #1a0505 0%, #050d1a 60%)'
+        : 'radial-gradient(ellipse at 50% 20%, #050a1e 0%, #050d1a 70%)',
+      fontFamily: "'Rajdhani', sans-serif",
+      color: '#e0eaff',
+      transition: 'background 0.5s ease',
+    }}>
+      <style>{`
+        @keyframes critBg {
+          0%,100% { opacity: 0; }
+          50% { opacity: 1; }
+        }
+        @keyframes slideDown {
+          from { opacity: 0; transform: translateY(-20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes blink { 0%,49%{opacity:1}50%,100%{opacity:0} }
+      `}</style>
+
+      {showHandover && (
+        <HandoverModal 
+          patient={patient} 
+          vitals={latestVitals} 
+          notes={incidentNotes} 
+          onClose={() => setShowHandover(false)} 
+        />
+      )}
+
+      {/* Incoming Request Modal */}
+      {incomingRequest && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 10000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(5px)'
+        }}>
+          <div style={{
+            background: '#0a1e3a', border: '2px solid #00c8ff', borderRadius: 12, padding: 30,
+            width: 400, textAlign: 'center', boxShadow: '0 0 30px rgba(0,200,255,0.3)'
+          }}>
+            <div style={{ fontSize: 40, marginBottom: 10 }}>🚨</div>
+            <h2 style={{ color: '#00c8ff', fontFamily: "'Orbitron'", margin: '0 0 10px' }}>INCOMING ADMISSION REQUEST</h2>
+            <p style={{ color: '#ccc', marginBottom: 20 }}>
+              Emergency Request from User/Ambulance.<br/>
+              Patient details: {incomingRequest.patientDetails?.name || 'Unknown'}<br/>
+              Risk Level: <span style={{ color: '#ffb800', fontWeight: 'bold' }}>{incomingRequest.patientDetails?.riskLevel || 'Unknown'}</span>
+            </p>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+              <button onClick={acceptRequest} style={{
+                padding: '10px 20px', background: '#00c8ff', border: 'none', borderRadius: 6,
+                color: '#000', fontWeight: 'bold', cursor: 'pointer', fontFamily: "'Orbitron'"
+              }}>ACCEPT ADMISSION</button>
+              <button onClick={rejectRequest} style={{
+                padding: '10px 20px', background: '#ff4444', border: 'none', borderRadius: 6,
+                color: '#fff', fontWeight: 'bold', cursor: 'pointer', fontFamily: "'Orbitron'"
+              }}>REJECT</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Handover Syncing Overlay */}
+      {isHandoverSyncing && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1000,
+          background: 'rgba(5, 13, 26, 0.85)', backdropFilter: 'blur(5px)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          color: '#00c8ff', fontFamily: "'Orbitron'",
+        }}>
+          <div style={{ fontSize: 48, marginBottom: 16, animation: 'pulse-ring 1s infinite' }}>🔄</div>
+          <div style={{ fontSize: 24, letterSpacing: '0.1em', fontWeight: 700, marginBottom: 8 }}>
+            HANDOVER PROTOCOL INITIATED
+          </div>
+          <div style={{ fontSize: 14, fontFamily: "'Share Tech Mono'", color: '#e0eaff', opacity: 0.8 }}>
+            SYNCING ENTIRE TRANSIT HISTORY TO {activeHospital.name.toUpperCase()}...
+          </div>
+          <div style={{ width: 300, height: 4, background: 'rgba(0,200,255,0.2)', marginTop: 20, borderRadius: 2, overflow: 'hidden' }}>
+            <div style={{ width: '100%', height: '100%', background: '#00c8ff', animation: 'progress 2.5s ease-in-out' }} />
+          </div>
+          <style>{`
+            @keyframes progress { 0% { width: 0%; } 50% { width: 70%; } 100% { width: 100%; } }
+          `}</style>
+        </div>
+      )}
+
+      {/* Critical overlay flash */}
+      {isCritical && (
+        <div style={{
+          position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 100,
+          background: 'rgba(255,0,0,0.06)',
+          animation: 'critBg 0.6s ease infinite',
+        }} />
+      )}
+
+      {/* Header */}
+      <div style={{
+        background: 'rgba(3,8,22,0.95)',
+        borderBottom: `1px solid ${isCritical ? 'rgba(255,80,80,0.4)' : 'rgba(0,200,255,0.15)'}`,
+        padding: '0 24px',
+        display: 'flex', alignItems: 'center', gap: 20, height: 60,
+        backdropFilter: 'blur(10px)', transition: 'border-color 0.3s',
+      }}>
+        <div style={{ fontSize: 22 }}>🏥</div>
+        <div>
+          <div style={{ fontFamily: "'Orbitron'", fontSize: 14, fontWeight: 700, color: '#00c8ff', letterSpacing: '0.1em' }}>
+            HOSPITAL COMMAND CENTER — DR. DASHBOARD
+          </div>
+          <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>
+            {activeHospital.name.toUpperCase()} · EMERGENCY WING
+          </div>
+        </div>
+
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 24, alignItems: 'center' }}>
+          
+          {/* Handover Button */}
+          {patient && (
+            <button onClick={() => setShowHandover(true)} style={{
+              background: 'rgba(0,200,255,0.15)', border: '1px solid #00c8ff',
+              padding: '8px 16px', borderRadius: 6, color: '#00c8ff',
+              fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700,
+              cursor: 'pointer', letterSpacing: '0.05em', transition: 'all 0.2s'
+            }}>
+              📄 GENERATE REPORT
+            </button>
+          )}
+
+          {/* Connection indicators */}
+          {[
+            { label: '🚑 AMBULANCE', count: connectedRoles.ambulance, color: '#ff8855' },
+            { label: '🏥 DOCTORS', count: connectedRoles.hospital, color: '#00c8ff' },
+          ].map(({ label, count, color }) => (
+            <div key={label} style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'", letterSpacing: '0.1em' }}>{label}</div>
+              <div style={{ fontFamily: "'Share Tech Mono'", fontSize: 18, color: count > 0 ? color : 'rgba(160,200,255,0.2)', fontWeight: 700 }}>{count}</div>
+            </div>
+          ))}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{
+              width: 10, height: 10, borderRadius: '50%',
+              background: connected ? '#00ff88' : '#ff4444',
+              boxShadow: connected ? '0 0 8px #00ff88' : '0 0 8px #ff4444',
+            }} />
+            <span style={{ fontSize: 12, color: connected ? '#00ff88' : '#ff4444', fontFamily: "'Share Tech Mono'" }}>
+              {connected ? 'LIVE' : 'DISCONNECTED'}
+            </span>
+          </div>
+
+          {alertCount > 0 && (
+            <div style={{
+              padding: '4px 14px', background: 'rgba(255,40,40,0.15)',
+              border: '1px solid rgba(255,80,80,0.4)', borderRadius: 4,
+              fontFamily: "'Orbitron'", fontSize: 11, color: '#ff6060',
+              animation: 'blink 1s step-end infinite',
+            }}>
+              ⚠ {alertCount} ALERT{alertCount > 1 ? 'S' : ''}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Critical alert banner */}
+      <div style={{ position: 'relative', zIndex: 50 }}>
+        {aiAlert && (
+          <div style={{
+            background: 'linear-gradient(90deg, rgba(255,180,0,0.2) 0%, rgba(255,180,0,0.05) 100%)',
+            borderBottom: '2px solid rgba(255,180,0,0.6)',
+            padding: '12px 24px',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            animation: 'slideDown 0.3s ease',
+          }}>
+            <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+              <span style={{ fontSize: 24 }}>🤖</span>
+              <div>
+                <div style={{ fontFamily: "'Orbitron'", fontSize: 13, color: '#ffb800', fontWeight: 700, letterSpacing: '0.1em' }}>
+                  AI PREDICTION ALERT
+                </div>
+                <div style={{ fontSize: 12, color: 'rgba(255,200,100,0.9)', fontFamily: "'Share Tech Mono'", marginTop: 2 }}>
+                  {aiAlert.message}
+                </div>
+              </div>
+            </div>
+            <button onClick={() => setAiAlert(null)} style={{
+              padding: '6px 16px', background: 'rgba(255,180,0,0.1)',
+              border: '1px solid rgba(255,180,0,0.3)', borderRadius: 4,
+              color: '#ffb800', fontFamily: "'Orbitron'", fontSize: 10, cursor: 'pointer',
+            }}>ACKNOWLEDGE</button>
+          </div>
+        )}
+
+        {isCritical && !aiAlert && (
+          <div style={{
+            background: 'rgba(255,30,30,0.2)', borderBottom: '2px solid rgba(255,80,80,0.5)',
+            padding: '12px 24px',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            animation: 'slideDown 0.3s ease',
+          }}>
+            <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+              <span style={{ fontSize: 24 }}>🚨</span>
+              <div>
+                <div style={{ fontFamily: "'Orbitron'", fontSize: 13, color: '#ff4444', fontWeight: 700, letterSpacing: '0.1em' }}>
+                  CRITICAL PATIENT ALERT
+                </div>
+                <div style={{ fontSize: 12, color: 'rgba(255,160,160,0.8)', fontFamily: "'Share Tech Mono'", marginTop: 2 }}>
+                  {critReasons.join(' · ')}
+                </div>
+              </div>
+            </div>
+            <button onClick={dismissAlert} style={{
+              padding: '6px 16px', background: 'rgba(255,80,80,0.2)',
+              border: '1px solid rgba(255,80,80,0.4)', borderRadius: 4,
+              color: '#ff8888', fontFamily: "'Orbitron'", fontSize: 10, cursor: 'pointer',
+            }}>ACKNOWLEDGE</button>
+          </div>
+        )}
+      </div>
+
+      {/* Main grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 320px', height: `calc(100vh - ${isCritical ? 114 : 60}px)` }}>
+
+        {/* LEFT: Charts + Map */}
+        <div style={{ padding: 20, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', letterSpacing: '0.1em' }}>
+            LIVE VITALS MONITORING
+          </div>
+
+          {chartData.length === 0 ? (
+            <div style={{
+              flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'rgba(160,200,255,0.3)', fontFamily: "'Share Tech Mono'", fontSize: 13,
+              flexDirection: 'column', gap: 12,
+            }}>
+              <div style={{ fontSize: 40 }}>📡</div>
+              <div>AWAITING AMBULANCE STREAM...</div>
+              <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.2)' }}>Start streaming from the Ambulance window</div>
+            </div>
+          ) : (
+            <>
+              <VitalChart data={chartData} dataKey="heartRate" color="#ff6b6b" label="HEART RATE" unit="bpm" critHigh={110} critLow={50} domain={[40, 140]} />
+              <VitalChart data={chartData} dataKey="spo2" color="#00c8ff" label="SpO2 SATURATION" unit="%" critLow={92} domain={[85, 102]} />
+              <VitalChart data={chartData} dataKey="systolic" color="#ffb800" label="SYSTOLIC BP" unit="mmHg" critHigh={150} domain={[70, 200]} />
+              <VitalChart data={chartData} dataKey="respRate" color="#88ff88" label="RESPIRATORY RATE" unit="br/min" critHigh={25} critLow={12} domain={[8, 40]} />
+              <VitalChart data={chartData} dataKey="temperature" color="#ff88aa" label="TEMPERATURE" unit="°C" critHigh={38.5} domain={[34, 42]} />
+            </>
+          )}
+
+          {/* Incident notes */}
+          {incidentNotes.length > 0 && (
+            <div style={{
+              background: 'rgba(255,180,0,0.06)', border: '1px solid rgba(255,180,0,0.2)',
+              borderRadius: 10, padding: 16,
+            }}>
+              <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#ffb800', letterSpacing: '0.1em', marginBottom: 10 }}>
+                📋 FIELD NOTES FROM PARAMEDIC
+              </div>
+              {incidentNotes.map((n, i) => (
+                <div key={i} style={{ fontSize: 13, color: 'rgba(160,200,255,0.8)', marginBottom: 6, paddingLeft: 12, borderLeft: '2px solid rgba(255,180,0,0.3)' }}>
+                  {n.note}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* CENTRE: Map + Patient */}
+        <div style={{ padding: '20px 10px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16, borderLeft: '1px solid rgba(0,200,255,0.08)' }}>
+          {/* Map */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', letterSpacing: '0.1em' }}>
+                🗺 LIVE AMBULANCE TRACKING
+              </div>
+              {location?.trafficDelay && (
+                <div style={{ fontFamily: "'Share Tech Mono'", fontSize: 10, color: '#ffb800', animation: 'blink 1s step-end infinite' }}>
+                  ⚠ HEAVY TRAFFIC DELAY
+                </div>
+              )}
+            </div>
+            <div style={{
+              borderRadius: 10, overflow: 'hidden',
+              border: '1px solid rgba(0,200,255,0.2)',
+              height: 320, position: 'relative',
+            }}>
+              <MapContainer
+                center={[19.2, 73.9]}
+                zoom={12}
+                style={{ height: '100%', width: '100%', background: '#050d1a' }}
+                zoomControl={false}
+              >
+                <TileLayer
+                  url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                  attribution='&copy; OpenStreetMap &copy; CARTO'
+                />
+                {location && (
+                  <>
+                    <Marker position={[location.lat, location.lng]} icon={ambulanceIcon}>
+                      <Popup><strong>🚑 Ambulance</strong><br />Lat: {location.lat.toFixed(4)}<br />Lng: {location.lng.toFixed(4)}</Popup>
+                    </Marker>
+                    <MapUpdater center={location} />
+                  </>
+                )}
+                <Marker position={[activeHospital.pos.lat, activeHospital.pos.lng]} icon={hospitalIcon}>
+                  <Popup><strong>🏥 {activeHospital.name}</strong></Popup>
+                </Marker>
+                {routePath && (
+                  <Polyline positions={routePath} color="#00ff88" weight={5} opacity={0.7} dashArray="10, 10" />
+                )}
+                {locationHistory.length > 1 && (
+                  <Polyline positions={locationHistory} color={location?.trafficDelay ? "#ffb800" : "#00c8ff"} weight={2} opacity={0.5} dashArray="6,4" />
+                )}
+              </MapContainer>
+
+              {!location && (
+                <div style={{
+                  position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'rgba(5,15,40,0.7)', flexDirection: 'column', gap: 8, zIndex: 1000,
+                }}>
+                  <div style={{ fontSize: 24 }}>📡</div>
+                  <div style={{ color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'", fontSize: 12 }}>
+                    GPS SIGNAL PENDING...
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Patient Record */}
+          <div>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', letterSpacing: '0.1em', marginBottom: 12 }}>
+              📋 PATIENT RECORD
+            </div>
+            <PatientPanel patient={patient} vitals={latestVitals} />
+          </div>
+
+          {/* Hospital Readiness */}
+          <div>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', letterSpacing: '0.1em', marginBottom: 12 }}>
+              ⚙ RESOURCE PREPARATION
+            </div>
+            <ResourcePanel socket={socket} />
+          </div>
+        </div>
+
+        {/* RIGHT: Chat */}
+        <div style={{
+          background: 'rgba(3,8,20,0.95)',
+          borderLeft: '1px solid rgba(0,200,255,0.1)',
+          display: 'flex', flexDirection: 'column', overflow: 'hidden',
+        }}>
+          <div style={{
+            padding: '16px 20px',
+            borderBottom: '1px solid rgba(0,200,255,0.1)',
+            fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', letterSpacing: '0.1em',
+          }}>
+            📞 PARAMEDIC COMM LINK
+          </div>
+
+          <VideoCall socket={socket} />
+
+          {/* Quick directives */}
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(0,200,255,0.08)' }}>
+            <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'", marginBottom: 8, letterSpacing: '0.1em' }}>
+              QUICK DIRECTIVES
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {[
+                'Administer O2 at 15L/min',
+                'Start IV line – 0.9% NaCl',
+                'Give Aspirin 325mg now',
+                'Do NOT give morphine – allergy',
+                'ETA: prepare trauma bay 2',
+              ].map(d => (
+                <button key={d} onClick={() => socket?.emit('chat-message', { text: d, from: 'hospital', fromLabel: '🏥 Dr. Command' })}
+                  style={{
+                    padding: '6px 10px', textAlign: 'left',
+                    background: 'rgba(0,200,255,0.06)', border: '1px solid rgba(0,200,255,0.15)',
+                    borderRadius: 5, color: 'rgba(160,200,255,0.7)', fontSize: 11,
+                    cursor: 'pointer', transition: 'all 0.2s', fontFamily: "'Rajdhani'",
+                  }}
+                >{d}</button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ flex: 1, padding: '12px 16px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <ChatPanel socket={socket} messages={messages} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
