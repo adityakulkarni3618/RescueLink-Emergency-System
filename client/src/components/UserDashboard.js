@@ -51,6 +51,7 @@ export default function UserDashboard({ socket, connected }) {
   const [assignedAmbulanceId, setAssignedAmbulanceId] = useState(null);
   const [assignedHospitalId, setAssignedHospitalId] = useState(null);
   const [routePath, setRoutePath] = useState(null);
+  const [liveAmbulanceLoc, setLiveAmbulanceLoc] = useState(null);
   const [simulatedAmbulances, setSimulatedAmbulances] = useState([]);
 
   // Helper distance function
@@ -135,12 +136,27 @@ export default function UserDashboard({ socket, connected }) {
         alert('Hospital rejected the request. Please try another.');
       }
     });
+    // Live ambulance position tracking (like Ola/Uber)
+    socket.on('location-update', (data) => {
+      if (data && data.lat && data.lng) {
+        setLiveAmbulanceLoc({ lat: data.lat, lng: data.lng });
+      }
+    });
+
+    // Route update (arrives after OSRM fetch completes)
+    socket.on('route-update', (data) => {
+      if (data.routePath) {
+        setRoutePath(data.routePath.map(pos => [pos.lat, pos.lng]));
+      }
+    });
 
     return () => {
       socket.off('ambulances-update');
       socket.off('hospitals-update');
       socket.off('ambulance-request-response');
       socket.off('hospital-request-response');
+      socket.off('location-update');
+      socket.off('route-update');
     };
   }, [socket]);
 
@@ -219,13 +235,42 @@ export default function UserDashboard({ socket, connected }) {
         )}
 
         {requestStatus === 'ambulance_accepted' && (
-          <div>
-            <div style={{ padding: '15px', border: '1px solid #00ff88', backgroundColor: '#00ff8822', borderRadius: '8px', marginBottom: '20px' }}>
-              <h3 style={{ color: '#00ff88', margin: '0 0 5px 0' }}>Ambulance Dispatched</h3>
-              <p style={{ margin: 0, fontSize: '14px' }}>Ambulance is en route to your location. The paramedics are currently evaluating the best hospital for admission.</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ padding: '12px', border: '1px solid #00ff88', backgroundColor: '#00ff8815', borderRadius: '8px' }}>
+              <h3 style={{ color: '#00ff88', margin: '0 0 5px 0' }}>✅ Ambulance Dispatched</h3>
+              <p style={{ margin: 0, fontSize: '13px', color: '#ccc' }}>Ambulance is en route to your location.</p>
+              <div style={{ marginTop: 8, padding: '8px', backgroundColor: '#000', borderRadius: '4px', textAlign: 'center' }}>
+                <span style={{ fontSize: '11px', color: '#888' }}>REQ ID:</span> <span style={{ color: '#00ff88', fontWeight: 'bold' }}>{activeReqId}</span>
+              </div>
             </div>
-            <h3 style={{ color: '#00c8ff' }}>2. Awaiting Hospital Selection</h3>
-            <p style={{ color: '#888', fontSize: '12px' }}>The paramedic unit is sending an admission request to the most suitable hospital...</p>
+
+            {/* Assigned Ambulance Info */}
+            <div style={{ padding: '12px', border: '1px solid rgba(255,107,53,0.4)', backgroundColor: 'rgba(255,107,53,0.08)', borderRadius: '8px' }}>
+              <div style={{ fontSize: 11, color: '#ff6b35', fontWeight: 'bold', marginBottom: 6, letterSpacing: 1 }}>🚑 ASSIGNED AMBULANCE</div>
+              <div style={{ fontSize: 13, color: '#ccc' }}>Unit ID: <span style={{ color: '#ff6b35' }}>{assignedAmbulanceId?.slice(-6)?.toUpperCase() || 'N/A'}</span></div>
+              <div style={{ fontSize: 13, color: '#ccc' }}>Status: <span style={{ color: '#00ff88' }}>EN ROUTE TO YOU</span></div>
+              {liveAmbulanceLoc && (
+                <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>
+                  📍 {liveAmbulanceLoc.lat.toFixed(4)}°N, {liveAmbulanceLoc.lng.toFixed(4)}°E
+                </div>
+              )}
+            </div>
+
+            {/* Live ETA */}
+            {liveAmbulanceLoc && userLocation && (
+              <div style={{ padding: '15px', border: '1px solid rgba(0,255,136,0.3)', backgroundColor: 'rgba(0,255,136,0.06)', borderRadius: '8px', textAlign: 'center' }}>
+                <div style={{ fontSize: 11, color: '#00ff88', fontWeight: 'bold', letterSpacing: 1, marginBottom: 4 }}>⏱ ESTIMATED ARRIVAL</div>
+                <div style={{ fontSize: 28, color: '#00ff88', fontWeight: 'bold', fontFamily: "'Share Tech Mono', monospace" }}>
+                  {Math.max(1, Math.ceil(calcDist(userLocation, liveAmbulanceLoc) / 0.6))} min
+                </div>
+                <div style={{ fontSize: 11, color: '#888' }}>{calcDist(userLocation, liveAmbulanceLoc).toFixed(2)} km away</div>
+              </div>
+            )}
+
+            <div style={{ padding: '10px', border: '1px solid rgba(0,200,255,0.2)', borderRadius: '8px', background: 'rgba(0,200,255,0.04)' }}>
+              <div style={{ fontSize: 11, color: '#00c8ff', fontWeight: 'bold', letterSpacing: 1 }}>⏳ AWAITING HOSPITAL SELECTION</div>
+              <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>Paramedic is evaluating the best hospital...</div>
+            </div>
           </div>
         )}
 
@@ -237,12 +282,45 @@ export default function UserDashboard({ socket, connected }) {
         )}
 
         {requestStatus === 'hospital_accepted' && (
-          <div style={{ padding: '20px', border: '1px solid #00c8ff', backgroundColor: '#00c8ff22', borderRadius: '8px', flex: 1 }}>
-            <h3 style={{ color: '#00c8ff', margin: '0 0 10px 0' }}>Emergency Routed Successfully</h3>
-            <p style={{ fontSize: '14px', color: '#ccc' }}>Ambulance is tracking your location and navigating to the destination hospital.</p>
-            <div style={{ marginTop: '20px', padding: '10px', backgroundColor: '#000', borderRadius: '4px', textAlign: 'center' }}>
-              <span style={{ fontSize: '12px', color: '#888' }}>REQ ID:</span> {activeReqId}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 15, flex: 1 }}>
+            <div style={{ padding: '15px', border: '1px solid #00c8ff', backgroundColor: '#00c8ff15', borderRadius: '8px' }}>
+              <h3 style={{ color: '#00c8ff', margin: '0 0 10px 0' }}>✅ Emergency Routed Successfully</h3>
+              <div style={{ marginTop: 10, padding: '10px', backgroundColor: '#000', borderRadius: '4px', textAlign: 'center' }}>
+                <span style={{ fontSize: '12px', color: '#888' }}>REQ ID:</span> <span style={{ color: '#00ff88', fontWeight: 'bold' }}>{activeReqId}</span>
+              </div>
             </div>
+
+            {/* Assigned Ambulance Info */}
+            <div style={{ padding: '12px', border: '1px solid rgba(255,107,53,0.4)', backgroundColor: 'rgba(255,107,53,0.08)', borderRadius: '8px' }}>
+              <div style={{ fontSize: 11, color: '#ff6b35', fontWeight: 'bold', marginBottom: 8, letterSpacing: 1 }}>🚑 ASSIGNED AMBULANCE</div>
+              <div style={{ fontSize: 13, color: '#ccc' }}>Unit ID: <span style={{ color: '#ff6b35' }}>{assignedAmbulanceId?.slice(-6)?.toUpperCase() || 'N/A'}</span></div>
+              <div style={{ fontSize: 13, color: '#ccc' }}>Status: <span style={{ color: '#00ff88' }}>EN ROUTE</span></div>
+              {ambulances[assignedAmbulanceId]?.location && (
+                <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>
+                  📍 {ambulances[assignedAmbulanceId].location.lat.toFixed(4)}°N, {ambulances[assignedAmbulanceId].location.lng.toFixed(4)}°E
+                </div>
+              )}
+            </div>
+
+            {/* Assigned Hospital Info */}
+            {assignedHospitalId && hospitals[assignedHospitalId] && (
+              <div style={{ padding: '12px', border: '1px solid rgba(0,200,255,0.4)', backgroundColor: 'rgba(0,200,255,0.08)', borderRadius: '8px' }}>
+                <div style={{ fontSize: 11, color: '#00c8ff', fontWeight: 'bold', marginBottom: 8, letterSpacing: 1 }}>🏥 DESTINATION HOSPITAL</div>
+                <div style={{ fontSize: 13, color: '#ccc' }}>Name: <span style={{ color: '#00c8ff' }}>{hospitals[assignedHospitalId].name || 'Hospital Command'}</span></div>
+                <div style={{ fontSize: 13, color: '#ccc' }}>Distance: <span style={{ color: '#ffb800' }}>{calcDist(userLocation, hospitals[assignedHospitalId].location).toFixed(2)} km</span></div>
+              </div>
+            )}
+
+            {/* Live ETA */}
+            {ambulances[assignedAmbulanceId]?.location && userLocation && (
+              <div style={{ padding: '15px', border: '1px solid rgba(0,255,136,0.3)', backgroundColor: 'rgba(0,255,136,0.06)', borderRadius: '8px', textAlign: 'center' }}>
+                <div style={{ fontSize: 11, color: '#00ff88', fontWeight: 'bold', letterSpacing: 1, marginBottom: 4 }}>⏱ ESTIMATED ARRIVAL</div>
+                <div style={{ fontSize: 28, color: '#00ff88', fontWeight: 'bold', fontFamily: "'Share Tech Mono', monospace" }}>
+                  {Math.max(1, Math.ceil(calcDist(userLocation, ambulances[assignedAmbulanceId].location) / 0.6))} min
+                </div>
+                <div style={{ fontSize: 11, color: '#888' }}>{calcDist(userLocation, ambulances[assignedAmbulanceId].location).toFixed(2)} km away</div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -289,6 +367,20 @@ export default function UserDashboard({ socket, connected }) {
               </Marker>
             );
           })}
+
+          {/* Live Assigned Ambulance Marker (always visible after dispatch) */}
+          {assignedAmbulanceId && liveAmbulanceLoc && requestStatus !== 'idle' && (
+            <Marker position={liveAmbulanceLoc} icon={ambulanceIcon}>
+              <Popup>
+                <div style={{ color: '#333' }}>
+                  <strong>🚑 Your Ambulance</strong><br />
+                  🔴 En Route to you<br />
+                  📍 {liveAmbulanceLoc.lat.toFixed(4)}°N, {liveAmbulanceLoc.lng.toFixed(4)}°E
+                </div>
+              </Popup>
+            </Marker>
+          )}
+
 
           {/* Hospital Markers */}
           {Object.entries(hospitals).map(([id, hosp]) => {

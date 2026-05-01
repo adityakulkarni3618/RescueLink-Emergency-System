@@ -380,6 +380,9 @@ export default function AmbulanceStreamer({ socket, connected }) {
   const [assignedHospital, setAssignedHospital] = useState(null); // { reqId, hospitalSocketId }
   const [networkHospitals, setNetworkHospitals] = useState({}); // Dynamic hospitals from server
   const [routePath, setRoutePath] = useState(null);
+  const [previousReports, setPreviousReports] = useState([]);
+  const [arrivedAtUser, setArrivedAtUser] = useState(false);
+  const [arrivalCountdown, setArrivalCountdown] = useState(null); // seconds remaining
   
   const vitalsRef = useRef(vitals);
   vitalsRef.current = vitals;
@@ -447,6 +450,9 @@ export default function AmbulanceStreamer({ socket, connected }) {
     socket.on('ambulance-request-response', onAmbulanceResponse);
     socket.on('hospital-request-response', onHospitalResponse);
     socket.on('hospitals-update', onHospitalsUpdate);
+    socket.on('route-update', (data) => {
+      if (data.routePath) setRoutePath(data.routePath.map(pos => [pos.lat, pos.lng]));
+    });
     
     return () => {
       socket.off('chat-history', onHistory);
@@ -457,6 +463,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
       socket.off('ambulance-request-response', onAmbulanceResponse);
       socket.off('hospital-request-response', onHospitalResponse);
       socket.off('hospitals-update', onHospitalsUpdate);
+      socket.off('route-update');
     };
   }, [socket, connected]);
 
@@ -577,55 +584,59 @@ export default function AmbulanceStreamer({ socket, connected }) {
     if (!socket || !incomingRequest) return;
     socket.emit('ambulance-response', { reqId: incomingRequest.id, accepted: true });
     setAssignedUser(incomingRequest);
-    
-    // Automatically find best hospital based on condition and distance
-    const condition = incomingRequest.patientDetails?.condition || 'General'; 
-    let bestHosp = null;
-    let bestScore = -Infinity;
-    
-    // Fallback if no network hospitals: use static HOSPITALS
-    const hList = Object.keys(networkHospitals).length > 0 
-        ? Object.entries(networkHospitals).map(([id, h]) => ({ id, ...h }))
-        : HOSPITALS;
-
-    hList.forEach((hosp) => {
-        // if using network, check availability
-        if (hosp.socketId && !hosp.available) return;
-        
-        let score = 0;
-        const dist = calcDist(location, hosp.location || hosp.pos);
-        score -= dist * 10; // penalty for distance
-        
-        // Analyze condition
-        const res = hosp.resources || hosp.simulatedResources || {};
-        if (condition === 'Cardiac Arrest') {
-            if (res.cardiologistAssigned) score += 100;
-            if (res.ventilatorReady) score += 50;
-        } else {
-            if (res.otPrepared) score += 50;
-            if (res.bloodBankAlerted) score += 30;
-        }
-        
-        if (score > bestScore) {
-           bestScore = score;
-           bestHosp = hosp;
-        }
-    });
-
-    if (bestHosp) {
-       // if we found a network hospital, request it
-       if (bestHosp.socketId) {
-           socket.emit('request-hospital', { reqId: incomingRequest.id, hospitalSocketId: bestHosp.socketId });
-           console.log(`[AI Routing] Requested hospital: ${bestHosp.name} (Score: ${bestScore.toFixed(1)})`);
-           setSelectedHospital({ ...bestHosp, pos: bestHosp.location, baseDistance: 15 });
-       } else {
-           // It's a static fallback, just set it
-           setSelectedHospital(bestHosp);
-       }
-    }
-
+    setArrivedAtUser(false);
+    // Start arrival countdown (simulate ~15 seconds for demo)
+    const eta = Math.max(10, Math.ceil(calcDist(location, incomingRequest.userLocation) / 0.6) * 2);
+    setArrivalCountdown(Math.min(eta, 20)); // cap at 20s for demo
     setIncomingRequest(null);
   };
+
+  // Arrival countdown timer — when it hits 0, ambulance "arrives" and triggers hospital flow
+  useEffect(() => {
+    if (arrivalCountdown === null || arrivalCountdown <= 0) return;
+    const timer = setTimeout(() => {
+      if (arrivalCountdown <= 1) {
+        setArrivalCountdown(0);
+        setArrivedAtUser(true);
+        // NOW generate field report and send hospital request
+        if (socket && assignedUser) {
+          const v = vitalsRef.current;
+          const condition = assignedUser.patientDetails?.condition || 'General';
+          const fieldReport = {
+            generatedAt: new Date().toLocaleString(),
+            condition,
+            riskLevel: assignedUser.patientDetails?.riskLevel || 'CRITICAL',
+            initialVitals: { heartRate: v.heartRate, spo2: v.spo2, systolic: v.systolic, diastolic: v.diastolic, respRate: v.respRate, temperature: v.temperature, bloodGlucose: v.bloodGlucose },
+            triageLevel: v.spo2 < 92 || v.heartRate > 130 ? 'RED — IMMEDIATE' : v.spo2 < 94 || v.heartRate > 110 ? 'YELLOW — URGENT' : 'GREEN — STABLE',
+            requiredServices: condition === 'Cardiac Arrest' ? ['Cardiologist On Call','Ventilator','Cardiac ICU','Defibrillator'] : condition === 'Trauma' ? ['OT Prepared','Blood Bank','Trauma Bay','Surgeon On Call'] : ['General Assessment','IV Access','Monitoring'],
+            fieldNotes: `Patient presenting with ${condition}. Initial assessment: HR ${v.heartRate}bpm, SpO2 ${v.spo2}%, BP ${v.systolic}/${v.diastolic}mmHg. ${v.spo2 < 94 ? 'Supplemental O2 initiated.' : 'Vitals within acceptable range.'} ${v.heartRate > 110 ? 'Tachycardia noted, continuous monitoring.' : ''}`,
+          };
+          // Find best hospital
+          const hList = Object.keys(networkHospitals).length > 0 ? Object.entries(networkHospitals).map(([id, h]) => ({ id, ...h })) : HOSPITALS;
+          let bestHosp = null, bestScore = -Infinity;
+          hList.forEach(hosp => {
+            if (hosp.socketId && !hosp.available) return;
+            let score = -calcDist(location, hosp.location || hosp.pos) * 10;
+            const res = hosp.resources || hosp.simulatedResources || {};
+            if (condition === 'Cardiac Arrest') { if (res.cardiologistAssigned) score += 100; if (res.ventilatorReady) score += 50; }
+            else { if (res.otPrepared) score += 50; if (res.bloodBankAlerted) score += 30; }
+            if (score > bestScore) { bestScore = score; bestHosp = hosp; }
+          });
+          if (bestHosp) {
+            if (bestHosp.socketId) {
+              socket.emit('request-hospital', { reqId: assignedUser.id, hospitalSocketId: bestHosp.socketId, fieldReport, previousReports: previousReports.length > 0 ? previousReports : undefined });
+              setSelectedHospital({ ...bestHosp, pos: bestHosp.location, baseDistance: 15 });
+            } else {
+              setSelectedHospital(bestHosp);
+            }
+          }
+        }
+      } else {
+        setArrivalCountdown(prev => prev - 1);
+      }
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [arrivalCountdown, socket, assignedUser]);
 
   const rejectRequest = () => {
     if (!socket || !incomingRequest) return;
@@ -809,6 +820,37 @@ export default function AmbulanceStreamer({ socket, connected }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 0, height: 'calc(100vh - 60px)' }}>
         {/* Main panel */}
         <div style={{ padding: 24, overflowY: 'auto' }}>
+
+          {/* IDLE STATE — No patient assigned yet */}
+          {!assignedUser && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400, gap: 20 }}>
+              <div style={{ fontSize: 60, opacity: 0.3 }}>🚑</div>
+              <div style={{ fontFamily: "'Orbitron'", fontSize: 18, color: 'rgba(160,200,255,0.3)', letterSpacing: '0.15em' }}>AWAITING DISPATCH</div>
+              <div style={{ fontSize: 13, color: 'rgba(160,200,255,0.2)', textAlign: 'center', maxWidth: 400 }}>
+                Ambulance unit is online and ready. Patient vitals and details will appear here once a dispatch request is accepted.
+              </div>
+              <div style={{ padding: '8px 20px', border: '1px solid rgba(0,255,136,0.3)', borderRadius: 6, fontSize: 11, fontFamily: "'Share Tech Mono'", color: '#00ff88', background: 'rgba(0,255,136,0.05)' }}>
+                ● UNIT ONLINE — STANDING BY
+              </div>
+            </div>
+          )}
+
+          {/* ACTIVE STATE — show EN ROUTE or VITALS based on arrival */}
+          {assignedUser && !arrivedAtUser && (
+            <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:400, gap:20 }}>
+              <div style={{ fontSize:60 }}>🚑</div>
+              <div style={{ fontFamily:"'Orbitron'", fontSize:18, color:'#ff6b35', letterSpacing:'0.15em' }}>EN ROUTE TO PATIENT</div>
+              <div style={{ fontSize:60, fontWeight:'bold', fontFamily:"'Share Tech Mono', monospace", color:'#00ff88' }}>
+                {arrivalCountdown !== null ? `${arrivalCountdown}s` : '--'}
+              </div>
+              <div style={{ fontSize:12, color:'rgba(160,200,255,0.4)' }}>Estimated time until arrival at patient location</div>
+              <div style={{ width:200, height:6, background:'rgba(0,200,255,0.1)', borderRadius:3, overflow:'hidden' }}>
+                <div style={{ height:'100%', width: arrivalCountdown !== null ? `${Math.max(0, 100 - (arrivalCountdown / 20 * 100))}%` : '0%', background:'linear-gradient(90deg, #00c8ff, #00ff88)', borderRadius:3, transition:'width 1s linear' }} />
+              </div>
+            </div>
+          )}
+
+          {assignedUser && arrivedAtUser && (<>
 
           {/* Patient selector */}
           <div style={{
@@ -999,13 +1041,41 @@ export default function AmbulanceStreamer({ socket, connected }) {
                       </div>
                       {!isSelected && (
                         <button onClick={() => {
+                          // Save previous hospital report snapshot before rerouting
+                          if (selectedHospital) {
+                            const triage = vitalsRef.current;
+                            const snapshot = {
+                              hospitalName: selectedHospital.name,
+                              timestamp: new Date().toLocaleString(),
+                              triageColor: triage.spo2 < 92 || triage.heartRate > 130 ? '#ff4444' : triage.spo2 < 94 || triage.heartRate > 110 ? '#ffb800' : '#00ff88',
+                              triageLabel: triage.spo2 < 92 || triage.heartRate > 130 ? 'IMMEDIATE (RED)' : triage.spo2 < 94 || triage.heartRate > 110 ? 'URGENT (YELLOW)' : 'STABLE (GREEN)',
+                              vitals: { ...triage },
+                              notes: `Rerouted from ${selectedHospital.name} to ${hosp.name}. Reason: Better facilities or closer proximity.`
+                            };
+                            const updatedReports = [...previousReports, snapshot];
+                            setPreviousReports(updatedReports);
+                            // Emit reroute event so the new hospital gets prior reports
+                            if (socket && assignedUser) {
+                              socket.emit('reroute-hospital', {
+                                reqId: assignedUser.id,
+                                previousReports: updatedReports,
+                                newHospitalId: hosp.id,
+                              });
+                            }
+                          }
                           setSelectedHospital(hosp);
+                          setRoutePath(null);
                           socket.emit('bulk-vitals-update', fullJourneyVitalsRef.current);
+                          // If there's a network hospital with this ID, request it
+                          const netHosp = Object.entries(networkHospitals).find(([_, h]) => h.id === hosp.id);
+                          if (netHosp && assignedUser) {
+                            socket.emit('request-hospital', { reqId: assignedUser.id, hospitalSocketId: netHosp[0] });
+                          }
                         }} style={{
-                          padding: '4px 10px', background: 'rgba(0,200,255,0.05)',
-                          border: '1px solid rgba(0,200,255,0.3)', borderRadius: 4,
-                          color: '#00c8ff', fontFamily: "'Orbitron'", fontSize: 9, cursor: 'pointer'
-                        }}>REROUTE</button>
+                          padding: '4px 10px', background: 'rgba(255,100,100,0.1)',
+                          border: '1px solid rgba(255,100,100,0.4)', borderRadius: 4,
+                          color: '#ff6b6b', fontFamily: "'Orbitron'", fontSize: 9, cursor: 'pointer'
+                        }}>🔄 REROUTE</button>
                       )}
                       {isSelected && (
                         <div style={{ fontSize: 10, color: '#00c8ff', fontFamily: "'Orbitron'", fontWeight: 700, padding: '4px 10px', background: 'rgba(0,200,255,0.1)', borderRadius: 4 }}>
@@ -1073,6 +1143,8 @@ export default function AmbulanceStreamer({ socket, connected }) {
               }}>SEND</button>
             </div>
           </div>
+
+          </>)}
         </div>
 
         {/* Chat sidebar */}
