@@ -62,6 +62,8 @@ function RoleSelector({ onSelect }) {
   const [typed, setTyped] = useState('');
   const full = 'RESCUELINK EMERGENCY CARE SYSTEM v2.0';
 
+
+
   useEffect(() => {
     let i = 0;
     const t = setInterval(() => {
@@ -239,9 +241,10 @@ function RoleSelector({ onSelect }) {
         ))}
       </div>
 
-      <p style={{ marginTop: 40, color: 'rgba(160,200,255,0.25)', fontSize: 11, letterSpacing: '0.2em', fontFamily: "'Share Tech Mono'" }}>
-        OPEN IN THREE WINDOWS FOR LIVE DEMO · USER + AMBULANCE + HOSPITAL
+      <p style={{ marginTop: 40, color: 'rgba(0,255,136,0.5)', fontSize: 13, letterSpacing: '0.2em', fontFamily: "'Orbitron'", fontWeight: 'bold', textShadow: '0 0 10px rgba(0,255,136,0.3)' }}>
+        WELCOME TO KARMAYOGI GUDAKESHA SYSTEM
       </p>
+
     </div>
   );
 }
