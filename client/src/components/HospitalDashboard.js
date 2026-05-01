@@ -44,21 +44,14 @@ const hospitalIcon = L.divIcon({
 });
 
 export const HOSPITALS = [
-  {
-    id: 'narayangaon',
-    name: 'Narayangaon District Hospital',
-    pos: { lat: 19.1901, lng: 73.9501 },
-  },
-  {
-    id: 'junnar',
-    name: 'Junnar City Clinic',
-    pos: { lat: 19.2040, lng: 73.8820 },
-  },
-  {
-    id: 'pune',
-    name: 'Pune General Trauma Center',
-    pos: { lat: 18.5204, lng: 73.8567 },
-  }
+  { id: 'narayangaon', name: 'Narayangaon District Hospital', pos: { lat: 19.1901, lng: 73.9501 } },
+  { id: 'junnar', name: 'Junnar City Clinic', pos: { lat: 19.2040, lng: 73.8820 } },
+  { id: 'pune', name: 'Pune General Trauma Center', pos: { lat: 18.5204, lng: 73.8567 } },
+  { id: 'otur', name: 'Otur Rural Health Center', pos: { lat: 19.1562, lng: 73.9750 } },
+  { id: 'manchar', name: 'Manchar Multispeciality Hospital', pos: { lat: 19.0047, lng: 73.9552 } },
+  { id: 'chakan', name: 'Chakan Industrial Hospital', pos: { lat: 18.7610, lng: 73.8630 } },
+  { id: 'shirur', name: 'Shirur Cardiac & Neuro Center', pos: { lat: 18.8271, lng: 74.3798 } },
+  { id: 'alephata', name: 'Alephata Primary Health Center', pos: { lat: 19.1350, lng: 73.8250 } },
 ];
 
 /* ─── Map recenter helper ─────────────────────────────────────────────────── */
@@ -378,7 +371,8 @@ function ChatPanel({ socket, messages }) {
 }
 
 /* ─── Handover Report Modal ─────────────────────────────────────────────── */
-function HandoverModal({ patient, vitals, notes, onClose, previousReports }) {
+function HandoverModal({ patient, vitals, notes, onClose, previousReports, onSave }) {
+
   if (!patient) return null;
   const triage = calculateTriage(vitals);
   const now = new Date();
@@ -563,24 +557,79 @@ function HandoverModal({ patient, vitals, notes, onClose, previousReports }) {
         </div>
 
         <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(0,200,255,0.2)', display: 'flex', justifyContent: 'space-between', background: 'rgba(0,0,0,0.2)' }}>
-          <button onClick={() => { const el = document.createElement('a'); el.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(`HANDOVER REPORT — ${patient.name} — ${now.toLocaleString()}`)); el.setAttribute('download', `handover_${patient.id}_${Date.now()}.txt`); el.click(); }} style={{
+          <button onClick={() => {
+            const reportText = `
+=========================================
+      RESCUELINK CLINICAL REPORT
+=========================================
+DATE: ${now.toLocaleString()}
+PATIENT: ${patient.name} (${patient.id})
+AGE: ${patient.age} | BLOOD: ${patient.bloodGroup}
+-----------------------------------------
+TRIAGE: ${triage.label.toUpperCase()}
+RISK SCORE: ${riskScore}/10
+-----------------------------------------
+VITALS SNAPSHOT:
+- Heart Rate: ${vitals?.heartRate} bpm
+- SpO2: ${vitals?.spo2}%
+- Blood Pressure: ${vitals?.systolic}/${vitals?.diastolic} mmHg
+- Temp: ${vitals?.temperature}°C
+- Glucose: ${vitals?.bloodGlucose} mg/dL
+-----------------------------------------
+PARAMEDIC NOTES:
+${notes.length > 0 ? notes.map(n => `[${new Date(n.timestamp).toLocaleTimeString()}] ${n.note}`).join('\n') : 'No field notes recorded.'}
+=========================================
+`;
+            const el = document.createElement('a');
+            el.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(reportText));
+            el.setAttribute('download', `REPORT_${patient.id}_${Date.now()}.txt`);
+            el.click();
+          }} style={{
             background: 'rgba(0,200,255,0.1)', color: '#00c8ff', border: '1px solid rgba(0,200,255,0.3)', padding: '10px 24px', borderRadius: 6,
             fontFamily: "'Orbitron'", fontSize: 12, fontWeight: 700, cursor: 'pointer'
           }}>📥 DOWNLOAD</button>
-          <button onClick={() => { alert("Report sent to EMR system!"); onClose(); }} style={{
+          <button onClick={() => {
+            const reportObj = { 
+              id: patient.id, 
+              name: patient.name, 
+              time: now.toLocaleString(), 
+              triage: triage.label,
+              color: triage.color,
+              risk: riskScore
+            };
+            // In a real app this goes to a DB. For demo, we save to local state + alert.
+            alert(`✅ Patient ${patient.name} record successfully transmitted to Hospital EMR (Epic/Cerner Protocol).`);
+            onSave(reportObj);
+            onClose();
+          }} style={{
             background: '#00c8ff', color: '#000', border: 'none', padding: '10px 24px', borderRadius: 6,
             fontFamily: "'Orbitron'", fontSize: 12, fontWeight: 700, cursor: 'pointer'
           }}>SAVE TO EMR</button>
+
         </div>
       </div>
     </div>
   );
 }
 
-/* ─── Main HospitalDashboard ─────────────────────────────────────────────── */
-const MAX_HISTORY = 30;
+/* ─── Hospital Credentials DB (Demo) ─────────────────────────────────── */
+const HOSPITAL_CREDENTIALS = [
+  { hospitalId: 'HOSP-001', password: 'hospital001', name: 'Narayangaon District Hospital', adminName: 'Dr. Anil Joshi', internalId: 'narayangaon' },
+  { hospitalId: 'HOSP-002', password: 'hospital002', name: 'Junnar City Clinic', adminName: 'Dr. Priya Mane', internalId: 'junnar' },
+  { hospitalId: 'HOSP-003', password: 'hospital003', name: 'Pune General Trauma Center', adminName: 'Dr. Rajesh Kulkarni', internalId: 'pune' },
+  { hospitalId: 'HOSP-004', password: 'hospital004', name: 'Manchar Multispeciality Hospital', adminName: 'Dr. Sunita Pawar', internalId: 'manchar' },
+  { hospitalId: 'HOSP-005', password: 'hospital005', name: 'Shirur Cardiac & Neuro Center', adminName: 'Dr. Vikram Desai', internalId: 'shirur' },
+];
 
 export default function HospitalDashboard({ socket, connected }) {
+  // ── Auth State ──
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authHospital, setAuthHospital] = useState(null);
+  const [loginId, setLoginId] = useState('');
+  const [loginPass, setLoginPass] = useState('');
+  const [loginError, setLoginError] = useState('');
+
+  const MAX_HISTORY = 30;
   const [chartData, setChartData] = useState([]);
   const [latestVitals, setLatestVitals] = useState(null);
   const [location, setLocation] = useState(null);
@@ -591,6 +640,9 @@ export default function HospitalDashboard({ socket, connected }) {
   const [alertCount, setAlertCount] = useState(0);
   const [messages, setMessages] = useState([]);
   const [incidentNotes, setIncidentNotes] = useState([]);
+  const [savedReports, setSavedReports] = useState([]);
+  const [showArchives, setShowArchives] = useState(false);
+
   const [connectedRoles, setConnectedRoles] = useState({ ambulance: 0, hospital: 0 });
   const [aiAlert, setAiAlert] = useState(null);
   const [showHandover, setShowHandover] = useState(false);
@@ -599,14 +651,49 @@ export default function HospitalDashboard({ socket, connected }) {
   const [incomingRequest, setIncomingRequest] = useState(null);
   const [routePath, setRoutePath] = useState(null);
   const [previousReports, setPreviousReports] = useState([]);
-  const [admissionStep, setAdmissionStep] = useState(0); // 0=summary, 1=report, 2=services
+  const [admissionStep, setAdmissionStep] = useState(0);
   const [readyServices, setReadyServices] = useState({ otPrepared: false, ventilatorReady: false, cardiologistAssigned: false, bloodBankAlerted: false });
+  const [trafficDelay, setTrafficDelay] = useState(false);
+  const [rerouteAlert, setRerouteAlert] = useState(null);
   const critTimeoutRef = useRef(null);
+
+
+  const handleLogin = () => {
+    const inputId = loginId.trim();
+    const inputPass = loginPass.trim();
+    
+    console.log(`[LOGIN] Attempting login with ID: "${inputId}" and Pass: "${inputPass}"`);
+
+    const found = HOSPITAL_CREDENTIALS.find(c => {
+      const normalizedInput = inputId.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      const normalizedId = c.hospitalId.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      const passMatch = c.password === inputPass;
+      
+      if (normalizedId === normalizedInput) {
+        console.log(`[LOGIN] ID Match Found: ${c.hospitalId}. Password Match: ${passMatch}`);
+      }
+      
+      return normalizedId === normalizedInput && passMatch;
+    });
+
+    if (found) {
+      console.log(`[LOGIN] Success! Authenticated as ${found.name}`);
+      setAuthHospital(found);
+      setIsAuthenticated(true);
+      setLoginError('');
+      if (found.internalId) setActiveHospitalId(found.internalId);
+      if (socket) socket.emit('register-hospital', { hospitalId: found.hospitalId, name: found.name, adminName: found.adminName, id: found.internalId });
+    } else {
+      console.warn(`[LOGIN] Failed. No matching credentials found.`);
+      setLoginError('Invalid Hospital ID or Password');
+    }
+  };
 
   const activeHospital = HOSPITALS.find(h => h.id === activeHospitalId) || HOSPITALS[0];
 
   useEffect(() => {
     if (!socket || !connected) return;
+
     
     // Register Hospital immediately
     socket.emit('register-hospital', { location: activeHospital.pos, available: true, id: activeHospital.id, name: activeHospital.name });
@@ -627,7 +714,9 @@ export default function HospitalDashboard({ socket, connected }) {
 
     socket.on('location-update', (data) => {
       setLocation(data);
+      if (data.trafficDelay !== undefined) setTrafficDelay(data.trafficDelay);
       setLocationHistory(prev => [...prev.slice(-99), [data.lat, data.lng]]);
+
       if (data.destinationId) {
         setActiveHospitalId(prev => {
           if (prev !== data.destinationId) {
@@ -663,7 +752,13 @@ export default function HospitalDashboard({ socket, connected }) {
     
     const onIncomingHospitalRequest = (req) => {
       setIncomingRequest(req);
+      if (req.previousReports) setPreviousReports(req.previousReports);
+      if (req.arrivedAtUser) setArrivedAtUser(true);
+      if (req.fieldReport) {
+        setLatestVitals(req.fieldReport.vitals || { heartRate: 75, spo2: 98, systolic: 120, diastolic: 80, temperature: 37.0, respRate: 16, glucose: 100 });
+      }
     };
+
 
     const onHospitalResponse = (req) => {
       if (req.status === 'hospital_accepted' && req.routePath) {
@@ -679,12 +774,26 @@ export default function HospitalDashboard({ socket, connected }) {
     socket.on('incoming-hospital-request', onIncomingHospitalRequest);
     socket.on('hospital-request-response', onHospitalResponse);
     
+    socket.on('reroute-hospital', (data) => {
+       // If we were the previous hospital but now it's diverted elsewhere, clear our view
+       if (incomingRequest && data.newHospitalId && data.newHospitalId !== (authHospital?.hospitalId || activeHospitalId)) {
+         setIncomingRequest(null);
+         setArrivedAtUser(false);
+         setPreviousReports([]);
+       }
+    });
+
     socket.on('reroute-reports', (data) => {
-      if (data.previousReports && data.previousReports.length > 0) {
+      // Only accept reroute reports if they are intended for THIS hospital
+      if ((data.newHospitalId === activeHospitalId || data.newHospitalId === authHospital?.hospitalId) && data.previousReports) {
         setPreviousReports(data.previousReports);
+        const lastReport = data.previousReports[data.previousReports.length - 1];
+        setRerouteAlert(`Patient diverted from ${lastReport.hospitalName}`);
+        setTimeout(() => setRerouteAlert(null), 8000);
         console.log(`[REROUTE] Received ${data.previousReports.length} prior hospital reports.`);
       }
     });
+
 
     return () => {
       socket.off('vitals-update');
@@ -701,6 +810,35 @@ export default function HospitalDashboard({ socket, connected }) {
       socket.off('hospital-request-response', onHospitalResponse);
     };
   }, [socket, connected]);
+
+  if (!isAuthenticated) {
+    return (
+      <div style={{ minHeight:'100vh', background:'radial-gradient(ellipse at 80% 20%, #0a1e3a 0%, #050d1a 60%)', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:"'Rajdhani', sans-serif" }}>
+        <div style={{ background:'rgba(5,20,45,0.9)', border:'2px solid rgba(0,200,255,0.3)', borderRadius:16, padding:40, width:420, boxShadow:'0 0 40px rgba(0,200,255,0.1)' }}>
+          <div style={{ textAlign:'center', marginBottom:30 }}>
+            <div style={{ fontSize:50, marginBottom:8 }}>🏥</div>
+            <div style={{ fontFamily:"'Orbitron'", fontSize:18, color:'#00c8ff', letterSpacing:'0.15em' }}>HOSPITAL UNIT LOGIN</div>
+            <div style={{ fontSize:12, color:'rgba(160,200,255,0.4)', fontFamily:"'Share Tech Mono'", marginTop:4 }}>RESCUELINK COMMAND CENTER v2.0</div>
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+            <div>
+              <label style={{ fontSize:11, color:'rgba(160,200,255,0.5)', fontFamily:"'Orbitron'", letterSpacing:'0.1em', display:'block', marginBottom:4 }}>HOSPITAL ID</label>
+              <input value={loginId} onChange={e=>setLoginId(e.target.value)} placeholder="e.g. HOSP-001" style={{ width:'100%', padding:'10px 14px', background:'rgba(0,200,255,0.05)', border:'1px solid rgba(0,200,255,0.2)', borderRadius:6, color:'#e0eaff', fontSize:14, fontFamily:"'Share Tech Mono'", outline:'none', boxSizing:'border-box' }} />
+            </div>
+            <div>
+              <label style={{ fontSize:11, color:'rgba(160,200,255,0.5)', fontFamily:"'Orbitron'", letterSpacing:'0.1em', display:'block', marginBottom:4 }}>PASSWORD</label>
+              <input type="password" value={loginPass} onChange={e=>setLoginPass(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleLogin()} placeholder="Enter hospital password" style={{ width:'100%', padding:'10px 14px', background:'rgba(0,200,255,0.05)', border:'1px solid rgba(0,200,255,0.2)', borderRadius:6, color:'#e0eaff', fontSize:14, fontFamily:"'Share Tech Mono'", outline:'none', boxSizing:'border-box' }} />
+            </div>
+            {loginError && <div style={{ color:'#ff4444', fontSize:12, fontFamily:"'Share Tech Mono'", textAlign:'center' }}>⚠ {loginError}</div>}
+            <button onClick={handleLogin} style={{ padding:'12px', background:'rgba(0,200,255,0.15)', border:'1px solid rgba(0,200,255,0.4)', borderRadius:8, color:'#00c8ff', fontFamily:"'Orbitron'", fontSize:13, fontWeight:700, cursor:'pointer', letterSpacing:'0.1em' }}>AUTHENTICATE & CONNECT</button>
+          </div>
+          <div style={{ marginTop:20, fontSize:10, color:'rgba(160,200,255,0.25)', fontFamily:"'Share Tech Mono'", textAlign:'center', lineHeight:1.6 }}>
+            Demo Hospitals: HOSP-001 to HOSP-005<br/>Password: hospital + number (e.g. hospital001)
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const dismissAlert = () => {
     setIsCritical(false);
@@ -754,9 +892,38 @@ export default function HospitalDashboard({ socket, connected }) {
           vitals={latestVitals} 
           notes={incidentNotes} 
           previousReports={previousReports}
-          onClose={() => setShowHandover(false)} 
-        />
-      )}
+        onSave={(report) => setSavedReports(prev => [report, ...prev].slice(0, 10))}
+        onClose={() => setShowHandover(false)} 
+      />
+    )}
+
+    {/* Saved Reports Archive Sidebar/Modal */}
+    {showArchives && (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 11000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)' }}>
+        <div style={{ background: '#0a1e3a', border: '1px solid #00c8ff', borderRadius: 12, width: 450, maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 0 30px rgba(0,200,255,0.4)', padding: 24 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+            <div style={{ fontFamily:"'Orbitron'", color:'#00c8ff', fontSize:14 }}>📜 EMR ARCHIVES (RECENT SAVES)</div>
+            <button onClick={() => setShowArchives(false)} style={{ background:'transparent', border:'none', color:'#ff4444', fontSize:20, cursor:'pointer' }}>×</button>
+          </div>
+          {savedReports.length === 0 ? (
+            <div style={{ textAlign:'center', color:'#555', padding:40, fontFamily:"'Share Tech Mono'" }}>NO SAVED RECORDS FOUND</div>
+          ) : (
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {savedReports.map((r, i) => (
+                <div key={i} style={{ background:'rgba(0,200,255,0.05)', border:'1px solid rgba(0,200,255,0.1)', borderRadius:8, padding:12 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+                    <span style={{ fontWeight:'bold', color:'#e0eaff' }}>{r.name}</span>
+                    <span style={{ color: r.color, fontSize:10, fontFamily:"'Orbitron'" }}>{r.triage}</span>
+                  </div>
+                  <div style={{ fontSize:11, color:'rgba(160,200,255,0.4)', fontFamily:"'Share Tech Mono'" }}>ID: {r.id} • Saved at {r.time.split(',')[1]}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    )}
+
 
       {/* Incoming Request Modal — Multi-step */}
       {incomingRequest && (
@@ -887,10 +1054,10 @@ export default function HospitalDashboard({ socket, connected }) {
         <div style={{ fontSize: 22 }}>🏥</div>
         <div>
           <div style={{ fontFamily: "'Orbitron'", fontSize: 14, fontWeight: 700, color: '#00c8ff', letterSpacing: '0.1em' }}>
-            HOSPITAL COMMAND CENTER — DR. DASHBOARD
+            {authHospital?.hospitalId || 'HOSPITAL'} — {authHospital?.adminName || 'DR. DASHBOARD'}
           </div>
           <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>
-            {activeHospital.name.toUpperCase()} · EMERGENCY WING
+            {authHospital?.name?.toUpperCase() || activeHospital.name.toUpperCase()} · EMERGENCY WING
           </div>
         </div>
 
@@ -907,6 +1074,16 @@ export default function HospitalDashboard({ socket, connected }) {
               📄 GENERATE REPORT
             </button>
           )}
+
+          <button onClick={() => setShowArchives(true)} style={{
+            background: 'rgba(160,200,255,0.05)', border: '1px solid rgba(160,200,255,0.2)',
+            padding: '8px 16px', borderRadius: 6, color: 'rgba(160,200,255,0.7)',
+            fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700,
+            cursor: 'pointer', letterSpacing: '0.05em', transition: 'all 0.2s'
+          }}>
+            📜 ARCHIVES {savedReports.length > 0 && <span style={{ color:'#00ff88', marginLeft:4 }}>({savedReports.length})</span>}
+          </button>
+
 
           {/* Connection indicators */}
           {[
@@ -971,6 +1148,22 @@ export default function HospitalDashboard({ socket, connected }) {
             }}>ACKNOWLEDGE</button>
           </div>
         )}
+        
+        {rerouteAlert && (
+          <div style={{
+            background: 'linear-gradient(90deg, rgba(255,180,0,0.3) 0%, rgba(255,180,0,0.1) 100%)',
+            borderBottom: '2px solid #ffb800',
+            padding: '12px 24px',
+            display: 'flex', alignItems: 'center', gap: 12,
+            animation: 'slideDown 0.4s ease-out'
+          }}>
+            <span style={{ fontSize: 18 }}>🔄</span>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 12, color: '#ffb800', fontWeight: 700, letterSpacing: '0.05em' }}>
+              DIVERTER ALERT: <span style={{ color: '#fff', fontWeight: 500 }}>{rerouteAlert}</span>
+            </div>
+          </div>
+        )}
+
 
         {isCritical && !aiAlert && (
           <div style={{
@@ -1054,7 +1247,7 @@ export default function HospitalDashboard({ socket, connected }) {
               <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', letterSpacing: '0.1em' }}>
                 🗺 LIVE AMBULANCE TRACKING
               </div>
-              {location?.trafficDelay && (
+              {trafficDelay && (
                 <div style={{ fontFamily: "'Share Tech Mono'", fontSize: 10, color: '#ffb800', animation: 'blink 1s step-end infinite' }}>
                   ⚠ HEAVY TRAFFIC DELAY
                 </div>
@@ -1075,7 +1268,7 @@ export default function HospitalDashboard({ socket, connected }) {
                   url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
                   attribution='&copy; OpenStreetMap &copy; CARTO'
                 />
-                {location && (
+                {location && location.lat && (
                   <>
                     <Marker position={[location.lat, location.lng]} icon={ambulanceIcon}>
                       <Popup><strong>🚑 Ambulance</strong><br />Lat: {location.lat.toFixed(4)}<br />Lng: {location.lng.toFixed(4)}</Popup>
@@ -1083,14 +1276,16 @@ export default function HospitalDashboard({ socket, connected }) {
                     <MapUpdater center={location} />
                   </>
                 )}
-                <Marker position={[activeHospital.pos.lat, activeHospital.pos.lng]} icon={hospitalIcon}>
-                  <Popup><strong>🏥 {activeHospital.name}</strong></Popup>
-                </Marker>
+                {activeHospital && activeHospital.pos && (
+                  <Marker position={[activeHospital.pos.lat, activeHospital.pos.lng]} icon={hospitalIcon}>
+                    <Popup><strong>🏥 {activeHospital.name}</strong></Popup>
+                  </Marker>
+                )}
                 {routePath && (
                   <Polyline positions={routePath} color="#00ff88" weight={5} opacity={0.7} dashArray="10, 10" />
                 )}
                 {locationHistory.length > 1 && (
-                  <Polyline positions={locationHistory} color={location?.trafficDelay ? "#ffb800" : "#00c8ff"} weight={2} opacity={0.5} dashArray="6,4" />
+                  <Polyline positions={locationHistory} color={trafficDelay ? "#ffb800" : "#00c8ff"} weight={2} opacity={0.5} dashArray="6,4" />
                 )}
               </MapContainer>
 
@@ -1115,6 +1310,51 @@ export default function HospitalDashboard({ socket, connected }) {
             </div>
             <PatientPanel patient={patient} vitals={latestVitals} />
           </div>
+
+          {/* Previous Hospital Reports (Reroute History) */}
+          {previousReports && previousReports.length > 0 && (
+            <div style={{
+              background: 'rgba(0,255,136,0.06)', border: '1px solid rgba(0,255,136,0.2)',
+              borderRadius: 10, padding: 16, marginTop: 4
+            }}>
+              <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00ff88', letterSpacing: '0.1em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                🔄 REROUTE HISTORY <span style={{ fontSize: 9, opacity: 0.6 }}>(PRIOR HOSPITALS)</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {previousReports.map((report, i) => (
+                  <div key={i} style={{ 
+                    fontSize: 12, 
+                    borderLeft: `2px solid ${report.triageColor || '#00ff88'}`, 
+                    paddingLeft: 12,
+                    marginBottom: i < previousReports.length - 1 ? 8 : 0,
+                    paddingBottom: i < previousReports.length - 1 ? 8 : 0,
+                    borderBottom: i < previousReports.length - 1 ? '1px solid rgba(160,200,255,0.05)' : 'none'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                      <div style={{ color: '#e0eaff', fontWeight: 600, fontFamily: "'Rajdhani'" }}>{report.hospitalName}</div>
+                      <div style={{ 
+                        fontSize: 9, padding: '2px 6px', borderRadius: 3, 
+                        background: `${report.triageColor}22`, color: report.triageColor,
+                        fontFamily: "'Orbitron'", fontWeight: 700
+                      }}>{report.triageLabel}</div>
+                    </div>
+                    <div style={{ color: 'rgba(160,200,255,0.4)', fontSize: 10, fontFamily: "'Share Tech Mono'", marginBottom: 6 }}>{report.timestamp}</div>
+                    <div style={{ color: 'rgba(160,200,255,0.7)', fontSize: 11, lineHeight: 1.4, fontStyle: 'italic' }}>
+                      "{report.notes}"
+                    </div>
+                    {report.vitals && (
+                      <div style={{ display: 'flex', gap: 8, marginTop: 6, opacity: 0.8 }}>
+                        <div style={{ fontSize: 9, color: '#ff6b6b' }}>❤️ {report.vitals.heartRate}</div>
+                        <div style={{ fontSize: 9, color: '#00c8ff' }}>💧 {report.vitals.spo2}%</div>
+                        <div style={{ fontSize: 9, color: '#ffb800' }}>🩸 {report.vitals.systolic}/{report.vitals.diastolic}</div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
 
           {/* Hospital Readiness */}
           <div>

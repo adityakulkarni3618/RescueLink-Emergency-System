@@ -52,45 +52,14 @@ const userIcon = L.divIcon({
 });
 
 export const HOSPITALS = [
-  {
-    id: 'narayangaon',
-    name: 'Narayangaon District Hospital',
-    type: 'live',
-    pos: { lat: 19.1901, lng: 73.9501 },
-    baseDistance: 12.4,
-    simulatedResources: {
-      otPrepared: true,
-      ventilatorReady: true,
-      cardiologistAssigned: true,
-      bloodBankAlerted: true,
-    }
-  },
-  {
-    id: 'junnar',
-    name: 'Junnar City Clinic',
-    type: 'simulated',
-    pos: { lat: 19.2040, lng: 73.8820 },
-    baseDistance: 3.2,
-    simulatedResources: {
-      otPrepared: true,
-      ventilatorReady: false,
-      cardiologistAssigned: false,
-      bloodBankAlerted: true,
-    }
-  },
-  {
-    id: 'pune',
-    name: 'Pune General Trauma Center',
-    type: 'simulated',
-    pos: { lat: 18.5204, lng: 73.8567 },
-    baseDistance: 78.5,
-    simulatedResources: {
-      otPrepared: true,
-      ventilatorReady: true,
-      cardiologistAssigned: true,
-      bloodBankAlerted: true,
-    }
-  }
+  { id: 'narayangaon', name: 'Narayangaon District Hospital', type: 'live', pos: { lat: 19.1901, lng: 73.9501 }, baseDistance: 12.4, simulatedResources: { otPrepared: true, ventilatorReady: true, cardiologistAssigned: true, bloodBankAlerted: true } },
+  { id: 'junnar', name: 'Junnar City Clinic', type: 'simulated', pos: { lat: 19.2040, lng: 73.8820 }, baseDistance: 3.2, simulatedResources: { otPrepared: true, ventilatorReady: false, cardiologistAssigned: false, bloodBankAlerted: true } },
+  { id: 'pune', name: 'Pune General Trauma Center', type: 'simulated', pos: { lat: 18.5204, lng: 73.8567 }, baseDistance: 78.5, simulatedResources: { otPrepared: true, ventilatorReady: true, cardiologistAssigned: true, bloodBankAlerted: true } },
+  { id: 'otur', name: 'Otur Rural Health Center', type: 'simulated', pos: { lat: 19.1562, lng: 73.9750 }, baseDistance: 8.1, simulatedResources: { otPrepared: false, ventilatorReady: false, cardiologistAssigned: false, bloodBankAlerted: true } },
+  { id: 'manchar', name: 'Manchar Multispeciality Hospital', type: 'simulated', pos: { lat: 19.0047, lng: 73.9552 }, baseDistance: 22.0, simulatedResources: { otPrepared: true, ventilatorReady: true, cardiologistAssigned: false, bloodBankAlerted: true } },
+  { id: 'chakan', name: 'Chakan Industrial Hospital', type: 'simulated', pos: { lat: 18.7610, lng: 73.8630 }, baseDistance: 45.0, simulatedResources: { otPrepared: true, ventilatorReady: true, cardiologistAssigned: true, bloodBankAlerted: false } },
+  { id: 'shirur', name: 'Shirur Cardiac & Neuro Center', type: 'simulated', pos: { lat: 18.8271, lng: 74.3798 }, baseDistance: 55.0, simulatedResources: { otPrepared: true, ventilatorReady: true, cardiologistAssigned: true, bloodBankAlerted: true } },
+  { id: 'alephata', name: 'Alephata Primary Health Center', type: 'simulated', pos: { lat: 19.1350, lng: 73.8250 }, baseDistance: 15.0, simulatedResources: { otPrepared: false, ventilatorReady: false, cardiologistAssigned: false, bloodBankAlerted: false } },
 ];
 
 function lerp(a, b, t) { return a + (b - a) * t; }
@@ -221,13 +190,12 @@ function AmbulanceResourcePanel({ resources }) {
   );
 }
 
-const PATIENTS = ['PAT-001', 'PAT-002', 'PAT-003', 'PAT-004', 'PAT-005'];
+const PATIENTS = ['PAT-001','PAT-002','PAT-003','PAT-004','PAT-005','PAT-006','PAT-007','PAT-008','PAT-009','PAT-010'];
 const PATIENT_NAMES = {
-  'PAT-001': 'Rajesh Kumar (58M)',
-  'PAT-002': 'Sunita Sharma (34F)',
-  'PAT-003': 'Arjun Patel (72M)',
-  'PAT-004': 'Kavya Nair (26F)',
-  'PAT-005': 'Mohammed Ansari (45M)',
+  'PAT-001': 'Rajesh Kumar (58M)', 'PAT-002': 'Sunita Sharma (34F)', 'PAT-003': 'Arjun Patel (72M)',
+  'PAT-004': 'Kavya Nair (26F)', 'PAT-005': 'Mohammed Ansari (45M)', 'PAT-006': 'Priya Deshmukh (41F)',
+  'PAT-007': 'Vikram Jadhav (63M)', 'PAT-008': 'Meera Kulkarni (29F)', 'PAT-009': 'Ravi Shinde (55M)',
+  'PAT-010': 'Ananya Patil (38F)',
 };
 
 /* ─── Chat panel ─────────────────────────────────────────────────────────── */
@@ -350,40 +318,55 @@ function ChatPanel({ socket, messages }) {
   );
 }
 
+/* ─── Ambulance Credentials DB (Demo) ─────────────────────────────────── */
+const AMBULANCE_CREDENTIALS = [
+  { unitId: 'AMB-101', password: 'rescue101', driverName: 'Suresh Patil', vehicleNo: 'MH-14-AB-2201', type: 'ALS' },
+  { unitId: 'AMB-102', password: 'rescue102', driverName: 'Deepak Jadhav', vehicleNo: 'MH-14-CD-3305', type: 'BLS' },
+  { unitId: 'AMB-103', password: 'rescue103', driverName: 'Rohit Sharma', vehicleNo: 'MH-14-EF-4410', type: 'ALS' },
+  { unitId: 'AMB-104', password: 'rescue104', driverName: 'Santosh Gaikwad', vehicleNo: 'MH-14-GH-5507', type: 'BLS' },
+  { unitId: 'AMB-105', password: 'rescue105', driverName: 'Manoj Kale', vehicleNo: 'MH-14-IJ-6602', type: 'ALS' },
+];
+
 /* ─── Main AmbulanceStreamer ─────────────────────────────────────────────── */
 export default function AmbulanceStreamer({ socket, connected }) {
+  // ── Auth State ──
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authUnit, setAuthUnit] = useState(null); // logged in unit details
+  const [loginId, setLoginId] = useState('');
+  const [loginPass, setLoginPass] = useState('');
+  const [loginError, setLoginError] = useState('');
   const [vitals, setVitals] = useState(generateVitals(null));
   const [streaming, setStreaming] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState('');
   const [routeProgress, setRouteProgress] = useState(0);
-  const [location, setLocation] = useState({ lat: 18.5204, lng: 73.8567 }); // default Pune
+  const [location, setLocation] = useState({ lat: 18.5204, lng: 73.8567 });
   const [elapsed, setElapsed] = useState(0);
   const [messages, setMessages] = useState([]);
   const [incidentNote, setIncidentNote] = useState('');
   const [isListeningNote, setIsListeningNote] = useState(false);
-  const [hospitalResources, setHospitalResources] = useState({
-    otPrepared: false,
-    ventilatorReady: false,
-    cardiologistAssigned: false,
-    bloodBankAlerted: false,
-  });
+  const [hospitalResources, setHospitalResources] = useState({ otPrepared: false, ventilatorReady: false, cardiologistAssigned: false, bloodBankAlerted: false });
   const [aiAlert, setAiAlert] = useState(null);
   const [simulateCrisis, setSimulateCrisis] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
   const [simulateTraffic, setSimulateTraffic] = useState(false);
+  const trafficRef = useRef(false);
+  useEffect(() => { trafficRef.current = simulateTraffic; }, [simulateTraffic]);
+
   const [locationHistory, setLocationHistory] = useState([]);
   const [selectedHospital, setSelectedHospital] = useState(HOSPITALS[0]);
-  
-  // ── Dispatch State ──
   const [incomingRequest, setIncomingRequest] = useState(null);
-  const [assignedUser, setAssignedUser] = useState(null); // { userLocation, patientDetails, reqId }
-  const [assignedHospital, setAssignedHospital] = useState(null); // { reqId, hospitalSocketId }
-  const [networkHospitals, setNetworkHospitals] = useState({}); // Dynamic hospitals from server
+  const [assignedUser, setAssignedUser] = useState(null);
+  const [assignedHospital, setAssignedHospital] = useState(null);
+  const [networkHospitals, setNetworkHospitals] = useState({});
   const [routePath, setRoutePath] = useState(null);
   const [previousReports, setPreviousReports] = useState([]);
+  const [requestAccepted, setRequestAccepted] = useState(false);
   const [arrivedAtUser, setArrivedAtUser] = useState(false);
-  const [arrivalCountdown, setArrivalCountdown] = useState(null); // seconds remaining
-  
+  const [arrivalCountdown, setArrivalCountdown] = useState(20);
+  const [rerouteTarget, setRerouteTarget] = useState(null);
+  const [shareHistory, setShareHistory] = useState(true);
+
+
   const vitalsRef = useRef(vitals);
   vitalsRef.current = vitals;
   const vitalsHistoryRef = useRef([]);
@@ -394,6 +377,24 @@ export default function AmbulanceStreamer({ socket, connected }) {
   const offlineBacklog = useRef([]);
   const fullJourneyVitalsRef = useRef([]);
   const geoWatchIdRef = useRef(null);
+  const arrivedRef = useRef(false);
+  const patientRef = useRef('');
+  useEffect(() => { arrivedRef.current = arrivedAtUser; }, [arrivedAtUser]);
+  useEffect(() => { patientRef.current = selectedPatient; }, [selectedPatient]);
+
+
+  const handleLogin = () => {
+    const found = AMBULANCE_CREDENTIALS.find(c => c.unitId === loginId.toUpperCase() && c.password === loginPass);
+    if (found) {
+      setAuthUnit(found);
+      setIsAuthenticated(true);
+      setLoginError('');
+      if (socket) socket.emit('register-ambulance', { location: { lat: 19.2, lng: 73.88 }, available: true, unitId: found.unitId, driverName: found.driverName, vehicleNo: found.vehicleNo, type: found.type });
+    } else {
+      setLoginError('Invalid Unit ID or Password');
+    }
+  };
+
 
   // Socket listeners
   useEffect(() => {
@@ -513,7 +514,15 @@ export default function AmbulanceStreamer({ socket, connected }) {
           const newPos = { lat: pos.coords.latitude + 0.005, lng: pos.coords.longitude + 0.005 };
           setLocation(newPos);
           setLocationHistory(h => [...h.slice(-99), [newPos.lat, newPos.lng]]);
-          socket.emit('location-update', newPos);
+          // Broad cast destination hospital ID to help User Unit look up location correctly
+          socket.emit('location-update', { 
+            ...newPos, 
+            trafficDelay: trafficRef.current, 
+            arrivedAtUser: arrivedRef.current, 
+            selectedPatient: patientRef.current, 
+            destinationId: selectedHospital?.hospitalId || selectedHospital?.id, 
+            simulationOn: true 
+          });
         },
         (err) => console.warn('GPS Error', err),
         { enableHighAccuracy: true }
@@ -527,6 +536,84 @@ export default function AmbulanceStreamer({ socket, connected }) {
       }
     };
   }, [streaming, socket, connected]);
+
+  // Arrival countdown timer — when it hits 0, ambulance "arrives" and triggers hospital flow
+  useEffect(() => {
+    if (requestAccepted && !arrivedAtUser && arrivalCountdown > 0) {
+      const timer = setTimeout(() => {
+        const next = arrivalCountdown - 1;
+        setArrivalCountdown(next);
+        if (socket) socket.emit('arrival-countdown', { reqId: incomingRequest?.id, seconds: next });
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (requestAccepted && arrivalCountdown === 0 && !arrivedAtUser) {
+      setArrivedAtUser(true);
+      if (socket) socket.emit('ambulance-arrived', { reqId: incomingRequest?.id });
+      // NOW generate field report and send hospital request
+      if (socket && assignedUser) {
+        const v = vitalsRef.current;
+        const condition = assignedUser.patientDetails?.condition || 'General';
+        const fieldReport = {
+          generatedAt: new Date().toLocaleString(),
+          condition,
+          riskLevel: assignedUser.patientDetails?.riskLevel || 'CRITICAL',
+          initialVitals: { heartRate: v.heartRate, spo2: v.spo2, systolic: v.systolic, diastolic: v.diastolic, respRate: v.respRate, temperature: v.temperature, bloodGlucose: v.bloodGlucose },
+          triageLevel: v.spo2 < 92 || v.heartRate > 130 ? 'RED — IMMEDIATE' : v.spo2 < 94 || v.heartRate > 110 ? 'YELLOW — URGENT' : 'GREEN — STABLE',
+          requiredServices: condition === 'Cardiac Arrest' ? ['Cardiologist On Call','Ventilator','Cardiac ICU','Defibrillator'] : condition === 'Trauma' ? ['OT Prepared','Blood Bank','Trauma Bay','Surgeon On Call'] : ['General Assessment','IV Access','Monitoring'],
+          fieldNotes: `Patient presenting with ${condition}. Initial assessment: HR ${v.heartRate}bpm, SpO2 ${v.spo2}%, BP ${v.systolic}/${v.diastolic}mmHg. ${v.spo2 < 94 ? 'Supplemental O2 initiated.' : 'Vitals within acceptable range.'} ${v.heartRate > 110 ? 'Tachycardia noted, continuous monitoring.' : ''}`,
+        };
+        // Find best hospital
+        const hList = Object.keys(networkHospitals).length > 0 ? Object.entries(networkHospitals).map(([id, h]) => ({ id, ...h })) : HOSPITALS;
+        let bestHosp = null, bestScore = -Infinity;
+        hList.forEach(hosp => {
+          if (hosp.socketId && !hosp.available) return;
+          let score = -calcDist(location, hosp.location || hosp.pos) * 10;
+          const res = hosp.resources || hosp.simulatedResources || {};
+          if (condition === 'Cardiac Arrest') { if (res.cardiologistAssigned) score += 100; if (res.ventilatorReady) score += 50; }
+          else { if (res.otPrepared) score += 50; if (res.bloodBankAlerted) score += 30; }
+          if (score > bestScore) { bestScore = score; bestHosp = hosp; }
+        });
+        if (bestHosp) {
+          if (bestHosp.socketId) {
+            socket.emit('request-hospital', { reqId: assignedUser.id, hospitalSocketId: bestHosp.socketId, fieldReport, previousReports: previousReports.length > 0 ? previousReports : undefined });
+            setSelectedHospital({ ...bestHosp, pos: bestHosp.location, baseDistance: 15 });
+          } else {
+            setSelectedHospital(bestHosp);
+          }
+        }
+      }
+    }
+  }, [arrivalCountdown, socket, assignedUser, requestAccepted, arrivedAtUser, incomingRequest, location, networkHospitals, previousReports]);
+
+  // ── Auth Gate ──
+  if (!isAuthenticated) {
+    return (
+      <div style={{ minHeight:'100vh', background:'radial-gradient(ellipse at 20% 20%, #0f1e0a 0%, #050d1a 60%)', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:"'Rajdhani', sans-serif" }}>
+        <div style={{ background:'rgba(5,20,45,0.9)', border:'2px solid rgba(0,255,136,0.3)', borderRadius:16, padding:40, width:420, boxShadow:'0 0 40px rgba(0,255,136,0.1)' }}>
+          <div style={{ textAlign:'center', marginBottom:30 }}>
+            <div style={{ fontSize:50, marginBottom:8 }}>🚑</div>
+            <div style={{ fontFamily:"'Orbitron'", fontSize:18, color:'#00ff88', letterSpacing:'0.15em' }}>AMBULANCE UNIT LOGIN</div>
+            <div style={{ fontSize:12, color:'rgba(160,200,255,0.4)', fontFamily:"'Share Tech Mono'", marginTop:4 }}>RESCUELINK FIELD TERMINAL v2.0</div>
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+            <div>
+              <label style={{ fontSize:11, color:'rgba(160,200,255,0.5)', fontFamily:"'Orbitron'", letterSpacing:'0.1em', display:'block', marginBottom:4 }}>UNIT ID</label>
+              <input value={loginId} onChange={e=>setLoginId(e.target.value)} placeholder="e.g. AMB-101" style={{ width:'100%', padding:'10px 14px', background:'rgba(0,255,136,0.05)', border:'1px solid rgba(0,255,136,0.2)', borderRadius:6, color:'#e0eaff', fontSize:14, fontFamily:"'Share Tech Mono'", outline:'none', boxSizing:'border-box' }} />
+            </div>
+            <div>
+              <label style={{ fontSize:11, color:'rgba(160,200,255,0.5)', fontFamily:"'Orbitron'", letterSpacing:'0.1em', display:'block', marginBottom:4 }}>PASSWORD</label>
+              <input type="password" value={loginPass} onChange={e=>setLoginPass(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleLogin()} placeholder="Enter unit password" style={{ width:'100%', padding:'10px 14px', background:'rgba(0,255,136,0.05)', border:'1px solid rgba(0,255,136,0.2)', borderRadius:6, color:'#e0eaff', fontSize:14, fontFamily:"'Share Tech Mono'", outline:'none', boxSizing:'border-box' }} />
+            </div>
+            {loginError && <div style={{ color:'#ff4444', fontSize:12, fontFamily:"'Share Tech Mono'", textAlign:'center' }}>⚠ {loginError}</div>}
+            <button onClick={handleLogin} style={{ padding:'12px', background:'rgba(0,255,136,0.15)', border:'1px solid rgba(0,255,136,0.4)', borderRadius:8, color:'#00ff88', fontFamily:"'Orbitron'", fontSize:13, fontWeight:700, cursor:'pointer', letterSpacing:'0.1em', transition:'all 0.2s' }}>AUTHENTICATE & CONNECT</button>
+          </div>
+          <div style={{ marginTop:20, fontSize:10, color:'rgba(160,200,255,0.25)', fontFamily:"'Share Tech Mono'", textAlign:'center', lineHeight:1.6 }}>
+            Demo Units: AMB-101 to AMB-105<br/>Password: rescue + unit number (e.g. rescue101)
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const toggleStreaming = () => setStreaming(s => !s);
 
@@ -544,8 +631,13 @@ export default function AmbulanceStreamer({ socket, connected }) {
 
   const selectPatient = (id) => {
     setSelectedPatient(id);
-    if (socket) socket.emit('patient-selected', id);
+    if (socket) {
+      socket.emit('patient-selected', id);
+      // Immediately tell the user we have arrived and enrolled the patient
+      socket.emit('ambulance-arrived', { patientId: id });
+    }
   };
+
 
   const sendNote = () => {
     if (!incidentNote.trim() || !socket) return;
@@ -572,7 +664,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
 
   // Rough distance calc
   const calcDist = (pos1, pos2) => {
-    if (!pos1 || !pos2) return 0;
+    if (!pos1 || !pos2 || !pos1.lat || !pos2.lat) return 0;
     const R = 6371; // km
     const dLat = (pos2.lat - pos1.lat) * Math.PI / 180;
     const dLng = (pos2.lng - pos1.lng) * Math.PI / 180;
@@ -580,10 +672,12 @@ export default function AmbulanceStreamer({ socket, connected }) {
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   };
 
+
   const acceptRequest = () => {
     if (!socket || !incomingRequest) return;
     socket.emit('ambulance-response', { reqId: incomingRequest.id, accepted: true });
     setAssignedUser(incomingRequest);
+    setRequestAccepted(true);
     setArrivedAtUser(false);
     // Start arrival countdown (simulate ~15 seconds for demo)
     const eta = Math.max(10, Math.ceil(calcDist(location, incomingRequest.userLocation) / 0.6) * 2);
@@ -591,52 +685,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
     setIncomingRequest(null);
   };
 
-  // Arrival countdown timer — when it hits 0, ambulance "arrives" and triggers hospital flow
-  useEffect(() => {
-    if (arrivalCountdown === null || arrivalCountdown <= 0) return;
-    const timer = setTimeout(() => {
-      if (arrivalCountdown <= 1) {
-        setArrivalCountdown(0);
-        setArrivedAtUser(true);
-        // NOW generate field report and send hospital request
-        if (socket && assignedUser) {
-          const v = vitalsRef.current;
-          const condition = assignedUser.patientDetails?.condition || 'General';
-          const fieldReport = {
-            generatedAt: new Date().toLocaleString(),
-            condition,
-            riskLevel: assignedUser.patientDetails?.riskLevel || 'CRITICAL',
-            initialVitals: { heartRate: v.heartRate, spo2: v.spo2, systolic: v.systolic, diastolic: v.diastolic, respRate: v.respRate, temperature: v.temperature, bloodGlucose: v.bloodGlucose },
-            triageLevel: v.spo2 < 92 || v.heartRate > 130 ? 'RED — IMMEDIATE' : v.spo2 < 94 || v.heartRate > 110 ? 'YELLOW — URGENT' : 'GREEN — STABLE',
-            requiredServices: condition === 'Cardiac Arrest' ? ['Cardiologist On Call','Ventilator','Cardiac ICU','Defibrillator'] : condition === 'Trauma' ? ['OT Prepared','Blood Bank','Trauma Bay','Surgeon On Call'] : ['General Assessment','IV Access','Monitoring'],
-            fieldNotes: `Patient presenting with ${condition}. Initial assessment: HR ${v.heartRate}bpm, SpO2 ${v.spo2}%, BP ${v.systolic}/${v.diastolic}mmHg. ${v.spo2 < 94 ? 'Supplemental O2 initiated.' : 'Vitals within acceptable range.'} ${v.heartRate > 110 ? 'Tachycardia noted, continuous monitoring.' : ''}`,
-          };
-          // Find best hospital
-          const hList = Object.keys(networkHospitals).length > 0 ? Object.entries(networkHospitals).map(([id, h]) => ({ id, ...h })) : HOSPITALS;
-          let bestHosp = null, bestScore = -Infinity;
-          hList.forEach(hosp => {
-            if (hosp.socketId && !hosp.available) return;
-            let score = -calcDist(location, hosp.location || hosp.pos) * 10;
-            const res = hosp.resources || hosp.simulatedResources || {};
-            if (condition === 'Cardiac Arrest') { if (res.cardiologistAssigned) score += 100; if (res.ventilatorReady) score += 50; }
-            else { if (res.otPrepared) score += 50; if (res.bloodBankAlerted) score += 30; }
-            if (score > bestScore) { bestScore = score; bestHosp = hosp; }
-          });
-          if (bestHosp) {
-            if (bestHosp.socketId) {
-              socket.emit('request-hospital', { reqId: assignedUser.id, hospitalSocketId: bestHosp.socketId, fieldReport, previousReports: previousReports.length > 0 ? previousReports : undefined });
-              setSelectedHospital({ ...bestHosp, pos: bestHosp.location, baseDistance: 15 });
-            } else {
-              setSelectedHospital(bestHosp);
-            }
-          }
-        }
-      } else {
-        setArrivalCountdown(prev => prev - 1);
-      }
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [arrivalCountdown, socket, assignedUser]);
+
 
   const rejectRequest = () => {
     if (!socket || !incomingRequest) return;
@@ -680,10 +729,10 @@ export default function AmbulanceStreamer({ socket, connected }) {
         <div style={{ fontSize: 22 }}>🚑</div>
         <div>
           <div style={{ fontFamily: "'Orbitron'", fontSize: 14, fontWeight: 700, color: '#88ff88', letterSpacing: '0.1em' }}>
-            AMBULANCE UNIT — PARAMEDIC CONSOLE
+            {authUnit?.unitId || 'AMBULANCE'} — PARAMEDIC CONSOLE
           </div>
           <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>
-            RESCUELINK FIELD TERMINAL v2.0
+            {authUnit ? `${authUnit.driverName} · ${authUnit.vehicleNo} · ${authUnit.type}` : 'RESCUELINK FIELD TERMINAL v2.0'}
           </div>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 20, alignItems: 'center' }}>
@@ -710,7 +759,14 @@ export default function AmbulanceStreamer({ socket, connected }) {
           {/* Streaming & Network toggles */}
           <div style={{ display: 'flex', gap: 12 }}>
             <button
-              onClick={() => setSimulateTraffic(!simulateTraffic)}
+              onClick={() => {
+                const newState = !simulateTraffic;
+                setSimulateTraffic(newState);
+                trafficRef.current = newState;
+                if (socket && location) {
+                  socket.emit('location-update', { ...location, trafficDelay: newState });
+                }
+              }}
               style={{
                 padding: '8px 20px',
                 background: simulateTraffic ? 'rgba(255,200,0,0.2)' : 'rgba(0,200,255,0.05)',
@@ -722,6 +778,27 @@ export default function AmbulanceStreamer({ socket, connected }) {
             >
               {simulateTraffic ? '⚠️ TRAFFIC JAM' : '🚗 SIMULATE TRAFFIC'}
             </button>
+
+            <button
+              onClick={() => {
+                if (!location) return;
+                const newLoc = { lat: location.lat + 0.0008, lng: location.lng + 0.0008 };
+                setLocation(newLoc);
+                setLocationHistory(h => [...h.slice(-99), [newLoc.lat, newLoc.lng]]);
+                if (socket) socket.emit('location-update', { ...newLoc, trafficDelay: simulateTraffic, arrivedAtUser: arrivedRef.current, selectedPatient: patientRef.current, destinationId: selectedHospital?.id, simulationOn: true });
+              }}
+              style={{
+                padding: '8px 20px',
+                background: 'rgba(0,255,136,0.1)',
+                border: '1px solid rgba(0,255,136,0.4)',
+                borderRadius: 6, color: '#00ff88',
+                fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                letterSpacing: '0.1em', transition: 'all 0.2s',
+              }}
+            >
+              🚀 SIMULATE MOVEMENT
+            </button>
+
             <button
               onClick={toggleOffline}
               style={{
@@ -837,18 +914,15 @@ export default function AmbulanceStreamer({ socket, connected }) {
 
           {/* ACTIVE STATE — show EN ROUTE or VITALS based on arrival */}
           {assignedUser && !arrivedAtUser && (
-            <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:400, gap:20 }}>
-              <div style={{ fontSize:60 }}>🚑</div>
-              <div style={{ fontFamily:"'Orbitron'", fontSize:18, color:'#ff6b35', letterSpacing:'0.15em' }}>EN ROUTE TO PATIENT</div>
-              <div style={{ fontSize:60, fontWeight:'bold', fontFamily:"'Share Tech Mono', monospace", color:'#00ff88' }}>
-                {arrivalCountdown !== null ? `${arrivalCountdown}s` : '--'}
-              </div>
-              <div style={{ fontSize:12, color:'rgba(160,200,255,0.4)' }}>Estimated time until arrival at patient location</div>
-              <div style={{ width:200, height:6, background:'rgba(0,200,255,0.1)', borderRadius:3, overflow:'hidden' }}>
-                <div style={{ height:'100%', width: arrivalCountdown !== null ? `${Math.max(0, 100 - (arrivalCountdown / 20 * 100))}%` : '0%', background:'linear-gradient(90deg, #00c8ff, #00ff88)', borderRadius:3, transition:'width 1s linear' }} />
-              </div>
-            </div>
+             <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:400, gap:20 }}>
+               <div style={{ fontSize:60 }}>🚑</div>
+               <div style={{ fontFamily:"'Orbitron'", fontSize:18, color:'#ff6b35', letterSpacing:'0.15em' }}>EN ROUTE TO PATIENT</div>
+               <div style={{ fontSize:14, color:'rgba(160,200,255,0.6)', textAlign: 'center', maxWidth: 300 }}>
+                 AMBULANCE IS DISPATCHED AND HEADED TO YOUR LOCATION. STAND BY FOR PATIENT ENROLLMENT.
+               </div>
+             </div>
           )}
+
 
           {assignedUser && arrivedAtUser && (<>
 
@@ -895,12 +969,14 @@ export default function AmbulanceStreamer({ socket, connected }) {
             )}
           </div>
 
-          {/* Vitals Grid */}
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <div style={{ fontFamily: "'Orbitron'", fontSize: 12, color: '#88ff88', letterSpacing: '0.1em' }}>
-                LIVE PATIENT VITALS {streaming && <span style={{ color: '#ff4444', animation: 'blink 1s step-end infinite' }}>● REC</span>}
-              </div>
+          {/* Vitals Grid - Only shown when patient is selected */}
+          {selectedPatient ? (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <div style={{ fontFamily: "'Orbitron'", fontSize: 12, color: '#88ff88', letterSpacing: '0.1em' }}>
+                  LIVE PATIENT VITALS {streaming && <span style={{ color: '#ff4444', animation: 'blink 1s step-end infinite' }}>● REC</span>}
+                </div>
+
               <button 
                 onClick={() => setSimulateCrisis(!simulateCrisis)}
                 style={{
@@ -927,6 +1003,18 @@ export default function AmbulanceStreamer({ socket, connected }) {
                 critical={vitals.glucose > 200 || vitals.glucose < 70} />
             </div>
           </div>
+          ) : (
+            <div style={{ 
+              padding: '40px 20px', textAlign: 'center', background: 'rgba(0,0,0,0.2)', 
+              borderRadius: 10, border: '1px dashed rgba(160,200,255,0.2)', marginBottom: 20 
+            }}>
+              <div style={{ fontSize: 30, marginBottom: 10 }}>📋</div>
+              <div style={{ fontFamily: "'Orbitron'", fontSize: 12, color: 'rgba(160,200,255,0.4)' }}>
+                SELECT A PATIENT ABOVE TO START VITALS MONITORING
+              </div>
+            </div>
+          )}
+
 
           {/* Location & ETA */}
           <div style={{
@@ -987,18 +1075,27 @@ export default function AmbulanceStreamer({ socket, connected }) {
                   url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
                   attribution='&copy; OpenStreetMap'
                 />
-                <Marker position={[location.lat, location.lng]} icon={ambulanceIcon}>
-                  <Popup><strong>🚑 Ambulance</strong><br />Lat: {location.lat.toFixed(4)}<br />Lng: {location.lng.toFixed(4)}</Popup>
-                </Marker>
-                {assignedUser && (
+                {location && location.lat && (
+                  <Marker position={[location.lat, location.lng]} icon={ambulanceIcon}>
+                    <Popup><strong>🚑 Ambulance</strong><br />Lat: {location.lat.toFixed(4)}<br />Lng: {location.lng.toFixed(4)}</Popup>
+                  </Marker>
+                )}
+                {assignedUser && assignedUser.userLocation && (
                   <Marker position={[assignedUser.userLocation.lat, assignedUser.userLocation.lng]} icon={userIcon}>
                     <Popup><strong>🧍 Emergency Location</strong></Popup>
                   </Marker>
                 )}
-                {/* Note: In a real system, we'd dynamically add the hospital marker based on assignedHospital */}
-                <Marker position={[selectedHospital.pos.lat, selectedHospital.pos.lng]} icon={hospitalIcon}>
-                  <Popup><strong>🏥 {selectedHospital.name}</strong></Popup>
-                </Marker>
+                {selectedHospital && (selectedHospital.pos || selectedHospital.location) && (
+                  <Marker 
+                    position={[
+                      selectedHospital.pos ? selectedHospital.pos.lat : selectedHospital.location.lat, 
+                      selectedHospital.pos ? selectedHospital.pos.lng : selectedHospital.location.lng
+                    ]} 
+                    icon={hospitalIcon}
+                  >
+                    <Popup><strong>🏥 {selectedHospital.name}</strong></Popup>
+                  </Marker>
+                )}
                 {routePath && (
                   <Polyline positions={routePath} color="#00ff88" weight={5} opacity={0.7} dashArray="10, 10" />
                 )}
@@ -1040,38 +1137,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
                         </div>
                       </div>
                       {!isSelected && (
-                        <button onClick={() => {
-                          // Save previous hospital report snapshot before rerouting
-                          if (selectedHospital) {
-                            const triage = vitalsRef.current;
-                            const snapshot = {
-                              hospitalName: selectedHospital.name,
-                              timestamp: new Date().toLocaleString(),
-                              triageColor: triage.spo2 < 92 || triage.heartRate > 130 ? '#ff4444' : triage.spo2 < 94 || triage.heartRate > 110 ? '#ffb800' : '#00ff88',
-                              triageLabel: triage.spo2 < 92 || triage.heartRate > 130 ? 'IMMEDIATE (RED)' : triage.spo2 < 94 || triage.heartRate > 110 ? 'URGENT (YELLOW)' : 'STABLE (GREEN)',
-                              vitals: { ...triage },
-                              notes: `Rerouted from ${selectedHospital.name} to ${hosp.name}. Reason: Better facilities or closer proximity.`
-                            };
-                            const updatedReports = [...previousReports, snapshot];
-                            setPreviousReports(updatedReports);
-                            // Emit reroute event so the new hospital gets prior reports
-                            if (socket && assignedUser) {
-                              socket.emit('reroute-hospital', {
-                                reqId: assignedUser.id,
-                                previousReports: updatedReports,
-                                newHospitalId: hosp.id,
-                              });
-                            }
-                          }
-                          setSelectedHospital(hosp);
-                          setRoutePath(null);
-                          socket.emit('bulk-vitals-update', fullJourneyVitalsRef.current);
-                          // If there's a network hospital with this ID, request it
-                          const netHosp = Object.entries(networkHospitals).find(([_, h]) => h.id === hosp.id);
-                          if (netHosp && assignedUser) {
-                            socket.emit('request-hospital', { reqId: assignedUser.id, hospitalSocketId: netHosp[0] });
-                          }
-                        }} style={{
+                        <button onClick={() => setRerouteTarget(hosp)} style={{
                           padding: '4px 10px', background: 'rgba(255,100,100,0.1)',
                           border: '1px solid rgba(255,100,100,0.4)', borderRadius: 4,
                           color: '#ff6b6b', fontFamily: "'Orbitron'", fontSize: 9, cursor: 'pointer'
@@ -1164,8 +1230,94 @@ export default function AmbulanceStreamer({ socket, connected }) {
           <div style={{ flex: 1, padding: '12px 16px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             <ChatPanel socket={socket} messages={messages} />
           </div>
+          {/* Reroute Confirmation Modal */}
+          {rerouteTarget && (
+            <div style={{
+              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: 20
+            }}>
+              <div style={{
+                width: '100%', maxWidth: 450, background: '#050d1a', border: '1px solid #ff4444',
+                borderRadius: 12, padding: 24, boxShadow: '0 0 50px rgba(255,0,0,0.2)'
+              }}>
+                <div style={{ fontFamily: "'Orbitron'", color: '#ff4444', fontSize: 16, marginBottom: 16 }}>⚠️ CONFIRM REROUTE</div>
+                <div style={{ fontSize: 14, color: '#e0eaff', marginBottom: 20, lineHeight: 1.5 }}>
+                  You are changing destination to <span style={{ color: '#00c8ff', fontWeight: 'bold' }}>{rerouteTarget.name}</span>.<br />
+                  Current connected hospital: <span style={{ color: '#ffb800' }}>{selectedHospital.name}</span>.
+                </div>
+                
+                <div style={{ 
+                  background: 'rgba(255,255,255,0.05)', padding: 16, borderRadius: 8, marginBottom: 24,
+                  border: '1px solid rgba(255,255,255,0.1)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }} onClick={() => setShareHistory(!shareHistory)}>
+                    <div style={{ 
+                      width: 20, height: 20, border: '2px solid #00c8ff', borderRadius: 4,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: shareHistory ? '#00c8ff' : 'transparent'
+                    }}>
+                      {shareHistory && <span style={{ color: '#050d1a', fontWeight: 'bold' }}>✓</span>}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, color: '#fff', fontWeight: 600 }}>Share Clinical History?</div>
+                      <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)' }}>Transmits previous hospital's reports & triage notes.</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <button onClick={() => setRerouteTarget(null)} style={{
+                    flex: 1, padding: 12, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.2)',
+                    color: '#fff', borderRadius: 6, cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 12
+                  }}>CANCEL</button>
+                  <button onClick={() => {
+                    const hosp = rerouteTarget;
+                    if (selectedHospital) {
+                      const triage = vitalsRef.current;
+                      const snapshot = {
+                        hospitalName: selectedHospital.name,
+                        timestamp: new Date().toLocaleString(),
+                        triageColor: triage.spo2 < 92 || triage.heartRate > 130 ? '#ff4444' : triage.spo2 < 94 || triage.heartRate > 110 ? '#ffb800' : '#00ff88',
+                        triageLabel: triage.spo2 < 92 || triage.heartRate > 130 ? 'IMMEDIATE (RED)' : triage.spo2 < 94 || triage.heartRate > 110 ? 'URGENT (YELLOW)' : 'STABLE (GREEN)',
+                        vitals: { ...triage },
+                        notes: `Rerouted from ${selectedHospital.name} to ${hosp.name}. Reason: Tactical reroute.`
+                      };
+                      const updatedReports = [...previousReports, snapshot];
+                      setPreviousReports(updatedReports);
+                      
+                      // Notify network
+                      const netHosp = Object.entries(networkHospitals).find(([_, h]) => h.id === hosp.id);
+                      if (socket && assignedUser) {
+                        if (netHosp) {
+                          socket.emit('request-hospital', { 
+                            reqId: assignedUser.id, 
+                            hospitalSocketId: netHosp[0],
+                            fieldReport: snapshot,
+                            previousReports: shareHistory ? updatedReports : undefined,
+                            arrivedAtUser: true
+                          });
+                        }
+                        socket.emit('reroute-hospital', {
+                          reqId: assignedUser.id,
+                          newHospitalId: hosp.id,
+                          newHospitalName: hosp.name
+                        });
+                      }
+                    }
+                    setSelectedHospital(hosp);
+                    setRoutePath(null);
+                    setRerouteTarget(null);
+                  }} style={{
+                    flex: 2, padding: 12, background: '#ff4444', border: 'none',
+                    color: '#fff', borderRadius: 6, cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 12, fontWeight: 'bold'
+                  }}>CONFIRM REROUTE</button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
+
   );
 }

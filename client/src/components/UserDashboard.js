@@ -53,6 +53,13 @@ export default function UserDashboard({ socket, connected }) {
   const [routePath, setRoutePath] = useState(null);
   const [liveAmbulanceLoc, setLiveAmbulanceLoc] = useState(null);
   const [simulatedAmbulances, setSimulatedAmbulances] = useState([]);
+  const [isAmbulanceArrived, setIsAmbulanceArrived] = useState(false);
+  const [simulationActive, setSimulationActive] = useState(false);
+  const [locationHistory, setLocationHistory] = useState([]);
+
+
+
+
 
   // Helper distance function
   const calcDist = (pos1, pos2) => {
@@ -140,8 +147,14 @@ export default function UserDashboard({ socket, connected }) {
     socket.on('location-update', (data) => {
       if (data && data.lat && data.lng) {
         setLiveAmbulanceLoc({ lat: data.lat, lng: data.lng });
+        setLocationHistory(prev => [...prev.slice(-99), [data.lat, data.lng]]);
+        if (data.arrivedAtUser) setIsAmbulanceArrived(true);
+        if (data.simulationOn) setSimulationActive(true);
+        if (data.destinationId) setAssignedHospitalId(data.destinationId);
       }
     });
+
+
 
     // Route update (arrives after OSRM fetch completes)
     socket.on('route-update', (data) => {
@@ -149,6 +162,18 @@ export default function UserDashboard({ socket, connected }) {
         setRoutePath(data.routePath.map(pos => [pos.lat, pos.lng]));
       }
     });
+
+    socket.on('arrival-countdown', (data) => {
+      setArrivalCountdown(data.seconds);
+      if (data.seconds === 0) setRequestStatus('arrived');
+    });
+
+    socket.on('ambulance-arrived', (data) => {
+      setRequestStatus('arrived');
+      setArrivalCountdown(0);
+      setIsAmbulanceArrived(true);
+    });
+
 
     return () => {
       socket.off('ambulances-update');
@@ -246,9 +271,15 @@ export default function UserDashboard({ socket, connected }) {
 
             {/* Assigned Ambulance Info */}
             <div style={{ padding: '12px', border: '1px solid rgba(255,107,53,0.4)', backgroundColor: 'rgba(255,107,53,0.08)', borderRadius: '8px' }}>
-              <div style={{ fontSize: 11, color: '#ff6b35', fontWeight: 'bold', marginBottom: 6, letterSpacing: 1 }}>🚑 ASSIGNED AMBULANCE</div>
+              <div style={{ fontSize: 11, color: '#ff6b35', fontWeight: 'bold', marginBottom: 6, letterSpacing: 1 }}>
+                🚑 {simulationActive ? 'EN ROUTE TO HOSPITAL' : isAmbulanceArrived ? 'AMBULANCE ARRIVED' : 'AMBULANCE DISPATCHED'}
+              </div>
               <div style={{ fontSize: 13, color: '#ccc' }}>Unit ID: <span style={{ color: '#ff6b35' }}>{assignedAmbulanceId?.slice(-6)?.toUpperCase() || 'N/A'}</span></div>
-              <div style={{ fontSize: 13, color: '#ccc' }}>Status: <span style={{ color: '#00ff88' }}>EN ROUTE TO YOU</span></div>
+              <div style={{ fontSize: 13, color: '#ccc' }}>
+                Status: <span style={{ color: '#00ff88' }}>
+                  {simulationActive ? 'URGENT TRANSPORT' : isAmbulanceArrived ? 'ARRIVED AT YOUR LOCATION' : 'EN ROUTE TO YOU'}
+                </span>
+              </div>
               {liveAmbulanceLoc && (
                 <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>
                   📍 {liveAmbulanceLoc.lat.toFixed(4)}°N, {liveAmbulanceLoc.lng.toFixed(4)}°E
@@ -257,13 +288,35 @@ export default function UserDashboard({ socket, connected }) {
             </div>
 
             {/* Live ETA */}
-            {liveAmbulanceLoc && userLocation && (
+            {(liveAmbulanceLoc || (assignedAmbulanceId && ambulances[assignedAmbulanceId]?.location)) && userLocation && (
               <div style={{ padding: '15px', border: '1px solid rgba(0,255,136,0.3)', backgroundColor: 'rgba(0,255,136,0.06)', borderRadius: '8px', textAlign: 'center' }}>
-                <div style={{ fontSize: 11, color: '#00ff88', fontWeight: 'bold', letterSpacing: 1, marginBottom: 4 }}>⏱ ESTIMATED ARRIVAL</div>
-                <div style={{ fontSize: 28, color: '#00ff88', fontWeight: 'bold', fontFamily: "'Share Tech Mono', monospace" }}>
-                  {Math.max(1, Math.ceil(calcDist(userLocation, liveAmbulanceLoc) / 0.6))} min
+                <div style={{ fontSize: 11, color: '#00ff88', fontWeight: 'bold', letterSpacing: 1, marginBottom: 4 }}>
+                  {simulationActive 
+                    ? '⏱ ETA TO HOSPITAL' 
+                    : '⏱ ESTIMATED ARRIVAL'}
                 </div>
-                <div style={{ fontSize: 11, color: '#888' }}>{calcDist(userLocation, liveAmbulanceLoc).toFixed(2)} km away</div>
+                <div style={{ fontSize: 28, color: '#00ff88', fontWeight: 'bold', fontFamily: "'Share Tech Mono', monospace" }}>
+                  {isAmbulanceArrived && !simulationActive ? (
+                    'ARRIVED'
+                  ) : (
+                    (() => {
+                      const ambLoc = (assignedAmbulanceId && ambulances[assignedAmbulanceId]?.location) || liveAmbulanceLoc;
+                      const targetLoc = (simulationActive && assignedHospitalId && hospitals[assignedHospitalId]?.location) 
+                        ? hospitals[assignedHospitalId].location 
+                        : userLocation;
+                      return Math.max(1, Math.ceil(calcDist(ambLoc, targetLoc) / 0.6)) + ' min';
+                    })()
+                  )}
+                </div>
+                <div style={{ fontSize: 11, color: '#888' }}>
+                  {(() => {
+                    const ambLoc = (assignedAmbulanceId && ambulances[assignedAmbulanceId]?.location) || liveAmbulanceLoc;
+                    const targetLoc = (simulationActive && assignedHospitalId && hospitals[assignedHospitalId]?.location) 
+                      ? hospitals[assignedHospitalId].location 
+                      : userLocation;
+                    return calcDist(ambLoc, targetLoc).toFixed(2);
+                  })()} km {simulationActive ? 'to destination' : 'away'}
+                </div>
               </div>
             )}
 
@@ -273,6 +326,8 @@ export default function UserDashboard({ socket, connected }) {
             </div>
           </div>
         )}
+
+
 
         {requestStatus === 'pending_hospital' && (
           <div style={{ padding: '20px', border: '1px solid #ffcc00', backgroundColor: '#ffcc0022', borderRadius: '8px' }}>
@@ -341,58 +396,55 @@ export default function UserDashboard({ socket, connected }) {
             </Marker>
           )}
 
-          {/* Ambulance Markers */}
-          {topAmbs.map((amb) => {
+          {/* Available Ambulance Markers - Only shown when idle */}
+          {requestStatus === 'idle' && topAmbs.map((amb) => {
             if (!amb.location) return null;
-            // Hide other ambulances if one is already assigned
-            if (assignedAmbulanceId && assignedAmbulanceId !== amb.id && !amb.isSimulated) return null;
-            if (assignedAmbulanceId && amb.isSimulated) return null;
-
             return (
               <Marker key={amb.id} position={amb.location} icon={ambulanceIcon}>
                 <Popup>
                   <div style={{ color: '#333' }}>
                     <strong>Ambulance Unit</strong><br />
-                    {amb.available ? '🟢 Available' : '🔴 En Route'}<br />
-                    {requestStatus === 'idle' && amb.available && (
-                      <button 
-                        onClick={() => requestAmbulance(amb.id)}
-                        style={{ marginTop: '10px', width: '100%', padding: '5px', backgroundColor: '#ff6b35', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                      >
-                        Request Dispatch
-                      </button>
-                    )}
+                    🟢 Available<br />
+                    <button 
+                      onClick={() => requestAmbulance(amb.id)}
+                      style={{ marginTop: '10px', width: '100%', padding: '5px', backgroundColor: '#ff6b35', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                    >
+                      Request Dispatch
+                    </button>
                   </div>
                 </Popup>
               </Marker>
             );
           })}
 
-          {/* Live Assigned Ambulance Marker (always visible after dispatch) */}
+          {/* Live Assigned Ambulance Marker */}
           {assignedAmbulanceId && liveAmbulanceLoc && requestStatus !== 'idle' && (
             <Marker position={liveAmbulanceLoc} icon={ambulanceIcon}>
               <Popup>
                 <div style={{ color: '#333' }}>
                   <strong>🚑 Your Ambulance</strong><br />
-                  🔴 En Route to you<br />
+                  {isAmbulanceArrived ? '🟢 Arrived' : '🔴 En Route'}<br />
                   📍 {liveAmbulanceLoc.lat.toFixed(4)}°N, {liveAmbulanceLoc.lng.toFixed(4)}°E
                 </div>
               </Popup>
             </Marker>
           )}
 
+          {locationHistory.length > 1 && (
+            <Polyline positions={locationHistory} color="#00c8ff" weight={3} opacity={0.5} />
+          )}
 
           {/* Hospital Markers */}
           {Object.entries(hospitals).map(([id, hosp]) => {
             if (!hosp.location) return null;
-            // Hide other hospitals if one is assigned
-            if (assignedHospitalId && assignedHospitalId !== id) return null;
-
+            if (isAmbulanceArrived && assignedHospitalId && assignedHospitalId !== id) return null;
+            
             return (
               <Marker key={id} position={hosp.location} icon={hospitalIcon}>
                 <Popup>
                   <div style={{ color: '#333' }}>
-                    <strong>Hospital Command</strong><br />
+                    <strong>🏥 {hosp.name}</strong><br />
+                    {assignedHospitalId === id ? '🟢 Destination Hospital' : 'Available Hospital'}
                   </div>
                 </Popup>
               </Marker>
