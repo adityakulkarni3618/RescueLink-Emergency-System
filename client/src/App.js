@@ -55,6 +55,53 @@ const styles = `
   .cursor-blink {
     animation: blink 1s step-end infinite;
   }
+
+  /* Light Theme Overrides - Deep Coverage */
+  [data-theme='light'] body { background: #f0f2f5 !important; color: #2d3748 !important; }
+  [data-theme='light'] .scanline { background: linear-gradient(90deg, transparent, rgba(0,100,255,0.05), transparent); }
+  
+  [data-theme='light'] .app-root { transition: background-color 0.5s ease, color 0.5s ease; }
+
+  /* Target all Dashboard containers and Panels */
+  [data-theme='light'] div[style*="background"], 
+  [data-theme='light'] div[style*="background-color"] { 
+    background-color: #ffffff !important; 
+    border-color: #e2e8f0 !important;
+    color: #2d3748 !important;
+    transition: all 0.5s ease;
+  }
+
+  /* Specific Override for semi-transparent Dark Blue panels */
+  [data-theme='light'] div[style*="rgba(5, 20, 45"],
+  [data-theme='light'] div[style*="rgba(10, 22, 48"],
+  [data-theme='light'] div[style*="rgba(5, 15, 40"] { 
+    background: #ffffff !important; 
+    border-color: #cbd5e0 !important; 
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+  }
+
+  /* Text & Typography Polish */
+  [data-theme='light'] h1, [data-theme='light'] h2, [data-theme='light'] h3, 
+  [data-theme='light'] div[style*="color: #e0eaff"],
+  [data-theme='light'] div[style*="color: #fff"] { color: #1a202c !important; }
+
+  [data-theme='light'] div[style*="color: rgba(160,200,255,0.4)"],
+  [data-theme='light'] span[style*="color: rgba(160,200,255,0.4)"] { color: #718096 !important; }
+
+  /* Buttons and Inputs */
+  [data-theme='light'] input, [data-theme='light'] textarea { 
+    background: #f7fafc !important; 
+    color: #1a202c !important; 
+    border: 1px solid #cbd5e0 !important; 
+  }
+  
+  [data-theme='light'] button[style*="background: rgba(255,255,255,0.05)"] { 
+    background: #edf2f7 !important; 
+    color: #2d3748 !important; 
+  }
+
+  /* Keep brand accents (Green/Blue/Orange) but adjust for readability */
+  [data-theme='light'] .theme-toggle:hover { transform: scale(1.1); }
 `;
 
 /* ─── Role Selector Screen ──────────────────────────────────────────────── */
@@ -254,6 +301,11 @@ export default function App() {
   const [role, setRole] = useState(null);
   const socketRef = useRef(null);
   const [connected, setConnected] = useState(false);
+  const [theme, setTheme] = useState('dark');
+
+  useEffect(() => {
+    document.body.setAttribute('data-theme', theme);
+  }, [theme]);
 
   useEffect(() => {
     if (!role) return;
@@ -274,12 +326,46 @@ export default function App() {
   if (!role) return <RoleSelector onSelect={setRole} />;
 
   return (
-    <>
+    <div className="app-root">
       <style>{styles}</style>
       <div className="scanline" />
+      
+      {/* Premium Theme Switcher */}
+      <div 
+        onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+        style={{
+          position: 'fixed', top: 25, right: 25, zIndex: 10000,
+          width: 70, height: 34, borderRadius: 20,
+          background: theme === 'dark' ? 'rgba(0,200,255,0.05)' : 'rgba(0,0,0,0.05)',
+          border: `1px solid ${theme === 'dark' ? '#00c8ff' : '#cbd5e0'}`,
+          cursor: 'pointer', display: 'flex', alignItems: 'center',
+          padding: '0 4px', transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+          boxShadow: theme === 'dark' ? '0 0 15px rgba(0,200,255,0.2)' : 'none'
+        }}
+      >
+        <div style={{
+          width: 26, height: 26, borderRadius: '50%',
+          background: theme === 'dark' ? '#00c8ff' : '#ffffff',
+          boxShadow: theme === 'dark' ? '0 0 10px #00c8ff' : '0 2px 5px rgba(0,0,0,0.2)',
+          transform: `translateX(${theme === 'dark' ? '36px' : '0px'})`,
+          transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14
+        }}>
+          {theme === 'dark' ? '🌙' : '☀️'}
+        </div>
+        <span style={{
+          position: 'absolute', left: theme === 'dark' ? 10 : 36,
+          fontSize: 10, fontFamily: "'Orbitron'", fontWeight: 700,
+          color: theme === 'dark' ? '#00c8ff' : '#718096',
+          transition: 'all 0.4s ease', opacity: 0.8
+        }}>
+          {theme === 'dark' ? 'DARK' : 'LIGHT'}
+        </span>
+      </div>
+
       {role === 'user' && <UserDashboard socket={socketRef.current} connected={connected} />}
       {role === 'ambulance' && <AmbulanceStreamer socket={socketRef.current} connected={connected} />}
       {role === 'hospital' && <HospitalDashboard socket={socketRef.current} connected={connected} />}
-    </>
+    </div>
   );
 }

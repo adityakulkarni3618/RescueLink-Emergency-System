@@ -1300,7 +1300,9 @@ export default function AmbulanceStreamer({ socket, connected }) {
                         socket.emit('reroute-hospital', {
                           reqId: assignedUser.id,
                           newHospitalId: hosp.id,
-                          newHospitalName: hosp.name
+                          newHospitalName: hosp.name,
+                          fieldReport: snapshot,
+                          previousReports: shareHistory ? updatedReports : undefined
                         });
                       }
                     }

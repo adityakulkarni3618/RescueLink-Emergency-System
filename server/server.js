@@ -268,10 +268,10 @@ io.on('connection', (socket) => {
 
   // ── Reroute Hospital (ambulance switches destination) ───────────────────
   socket.on('reroute-hospital', (data) => {
-    // data: { reqId, previousReports, newHospitalId }
-    console.log(`[REROUTE] Ambulance rerouting. Previous reports: ${data.previousReports?.length || 0}`);
-    // Forward previous reports to all hospital sockets so the new one picks them up
-    io.emit('reroute-reports', { previousReports: data.previousReports, newHospitalId: data.newHospitalId });
+    // data: { reqId, newHospitalId, newHospitalName }
+    console.log(`[REROUTE] Ambulance rerouting to ${data.newHospitalName}`);
+    // Broadcast the reroute event so the old hospital knows to log out and the new one knows to log in
+    io.emit('reroute-hospital', data);
   });
 
   // ── Disconnect ─────────────────────────────────────────────────────────────
