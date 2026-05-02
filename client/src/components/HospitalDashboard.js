@@ -654,7 +654,11 @@ export default function HospitalDashboard({ socket, connected }) {
   const [admissionStep, setAdmissionStep] = useState(0);
   const [readyServices, setReadyServices] = useState({ otPrepared: false, ventilatorReady: false, cardiologistAssigned: false, bloodBankAlerted: false });
   const [trafficDelay, setTrafficDelay] = useState(false);
+  const [arrivedAtUser, setArrivedAtUser] = useState(false);
   const [rerouteAlert, setRerouteAlert] = useState(null);
+  const [autoSync, setAutoSync] = useState(true); // Toggle for auto-authentication
+  const autoSyncRef = useRef(true);
+  useEffect(() => { autoSyncRef.current = autoSync; }, [autoSync]);
   const critTimeoutRef = useRef(null);
 
 
@@ -775,24 +779,45 @@ export default function HospitalDashboard({ socket, connected }) {
     socket.on('hospital-request-response', onHospitalResponse);
     
     socket.on('reroute-hospital', (data) => {
-       // If we were the previous hospital but now it's diverted elsewhere, clear our view
-       if (incomingRequest && data.newHospitalId && data.newHospitalId !== (authHospital?.hospitalId || activeHospitalId)) {
-         setIncomingRequest(null);
-         setArrivedAtUser(false);
-         setPreviousReports([]);
+       const myCurrentId = authHospital?.hospitalId || activeHospitalId;
+       const isAlreadyMe = data.newHospitalId === authHospital?.hospitalId || data.newHospitalId === activeHospitalId;
+
+       // Use ref to check current toggle state inside the socket listener
+       if (autoSyncRef.current && data.newHospitalId && !isAlreadyMe) {
+         const newHospCreds = HOSPITAL_CREDENTIALS.find(c => 
+           c.internalId === data.newHospitalId || c.hospitalId === data.newHospitalId
+         );
+
+         if (newHospCreds) {
+           console.log(`[REROUTE] Auto-switching dashboard to ${newHospCreds.name}`);
+           setRerouteAlert(`REROUTING: Switching to ${newHospCreds.name}...`);
+           
+           setTimeout(() => {
+             setIsAuthenticated(true);
+             setAuthHospital(newHospCreds);
+             if (newHospCreds.internalId) setActiveHospitalId(newHospCreds.internalId);
+             
+             // Bootstrap with the data sent in the reroute packet
+             if (data.fieldReport) {
+               setIncomingRequest({ id: data.reqId, fieldReport: data.fieldReport });
+               setLatestVitals(data.fieldReport.vitals);
+             }
+             if (data.previousReports) setPreviousReports(data.previousReports);
+             setArrivedAtUser(true);
+
+             socket.emit('register-hospital', { 
+               hospitalId: newHospCreds.hospitalId, 
+               name: newHospCreds.name, 
+               adminName: newHospCreds.adminName, 
+               id: newHospCreds.internalId 
+             });
+
+             setRerouteAlert(null);
+           }, 2000);
+         }
        }
     });
 
-    socket.on('reroute-reports', (data) => {
-      // Only accept reroute reports if they are intended for THIS hospital
-      if ((data.newHospitalId === activeHospitalId || data.newHospitalId === authHospital?.hospitalId) && data.previousReports) {
-        setPreviousReports(data.previousReports);
-        const lastReport = data.previousReports[data.previousReports.length - 1];
-        setRerouteAlert(`Patient diverted from ${lastReport.hospitalName}`);
-        setTimeout(() => setRerouteAlert(null), 8000);
-        console.log(`[REROUTE] Received ${data.previousReports.length} prior hospital reports.`);
-      }
-    });
 
 
     return () => {
@@ -1117,6 +1142,26 @@ export default function HospitalDashboard({ socket, connected }) {
               ⚠ {alertCount} ALERT{alertCount > 1 ? 'S' : ''}
             </div>
           )}
+
+          {/* Auto-Sync Toggle */}
+          <div 
+            onClick={() => setAutoSync(!autoSync)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '4px 10px',
+              background: autoSync ? 'rgba(0,255,136,0.1)' : 'rgba(255,255,255,0.05)',
+              border: `1px solid ${autoSync ? 'rgba(0,255,136,0.3)' : 'rgba(255,255,255,0.1)'}`,
+              borderRadius: 20, cursor: 'pointer', transition: 'all 0.3s'
+            }}
+          >
+            <div style={{
+              width: 8, height: 8, borderRadius: '50%',
+              background: autoSync ? '#00ff88' : '#888',
+              boxShadow: autoSync ? '0 0 8px #00ff88' : 'none'
+            }} />
+            <span style={{ fontSize: 10, fontFamily: "'Orbitron'", color: autoSync ? '#00ff88' : '#888', letterSpacing: 1 }}>
+              AUTO-SYNC: {autoSync ? 'ON' : 'OFF'}
+            </span>
+          </div>
         </div>
       </div>
 
