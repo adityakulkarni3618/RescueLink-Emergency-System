@@ -299,7 +299,7 @@ function RoleSelector({ onSelect }) {
 /* ─── Main App ──────────────────────────────────────────────────────────── */
 export default function App() {
   const [role, setRole] = useState(null);
-  const socketRef = useRef(null);
+  const [socket, setSocket] = useState(null);
   const [connected, setConnected] = useState(false);
   const [theme, setTheme] = useState('dark');
 
@@ -310,21 +310,22 @@ export default function App() {
   useEffect(() => {
     if (!role) return;
 
-    const socket = io(SERVER_URL, {
+    const newSocket = io(SERVER_URL, {
       query: { role },
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,
     });
 
-    socketRef.current = socket;
-    socket.on('connect', () => setConnected(true));
-    socket.on('disconnect', () => setConnected(false));
+    setSocket(newSocket);
+    newSocket.on('connect', () => setConnected(true));
+    newSocket.on('disconnect', () => setConnected(false));
 
-    return () => socket.disconnect();
+    return () => newSocket.disconnect();
   }, [role]);
 
   if (!role) return <RoleSelector onSelect={setRole} />;
 
+  // Special case: Hospital can connect to see alerts even before logging in
   return (
     <div className="app-root">
       <style>{styles}</style>
@@ -363,9 +364,9 @@ export default function App() {
         </span>
       </div>
 
-      {role === 'user' && <UserDashboard socket={socketRef.current} connected={connected} />}
-      {role === 'ambulance' && <AmbulanceStreamer socket={socketRef.current} connected={connected} />}
-      {role === 'hospital' && <HospitalDashboard socket={socketRef.current} connected={connected} />}
+      {role === 'user' && <UserDashboard socket={socket} connected={connected} />}
+      {role === 'ambulance' && <AmbulanceStreamer socket={socket} connected={connected} />}
+      {role === 'hospital' && <HospitalDashboard socket={socket} connected={connected} />}
     </div>
   );
 }
