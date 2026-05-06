@@ -56,6 +56,7 @@ export default function UserDashboard({ socket, connected }) {
   const [isAmbulanceArrived, setIsAmbulanceArrived] = useState(false);
   const [simulationActive, setSimulationActive] = useState(false);
   const [locationHistory, setLocationHistory] = useState([]);
+  const [arrivalCountdown, setArrivalCountdown] = useState(null);
 
 
 
@@ -137,11 +138,22 @@ export default function UserDashboard({ socket, connected }) {
       if (req.status === 'hospital_accepted') {
         setRequestStatus('hospital_accepted');
         setAssignedHospitalId(req.hospitalSocket);
+        // Sync the ready services from the hospital
+        if (req.readyServices) {
+          setHospitals(prev => ({
+            ...prev,
+            [req.hospitalSocket]: { ...prev[req.hospitalSocket], readyServices: req.readyServices }
+          }));
+        }
         if (req.routePath) setRoutePath(req.routePath.map(pos => [pos.lat, pos.lng]));
       } else {
         setRequestStatus('ambulance_accepted');
         alert('Hospital rejected the request. Please try another.');
       }
+    });
+
+    socket.on('ambulance-arrived', () => {
+      setIsAmbulanceArrived(true);
     });
     // Live ambulance position tracking (like Ola/Uber)
     socket.on('location-update', (data) => {
@@ -359,19 +371,47 @@ export default function UserDashboard({ socket, connected }) {
 
             {/* Assigned Hospital Info */}
             {assignedHospitalId && hospitals[assignedHospitalId] && (
-              <div style={{ padding: '12px', border: '1px solid rgba(0,200,255,0.4)', backgroundColor: 'rgba(0,200,255,0.08)', borderRadius: '8px' }}>
-                <div style={{ fontSize: 11, color: '#00c8ff', fontWeight: 'bold', marginBottom: 8, letterSpacing: 1 }}>🏥 DESTINATION HOSPITAL</div>
-                <div style={{ fontSize: 13, color: '#ccc' }}>Name: <span style={{ color: '#00c8ff' }}>{hospitals[assignedHospitalId].name || 'Hospital Command'}</span></div>
-                <div style={{ fontSize: 13, color: '#ccc' }}>Distance: <span style={{ color: '#ffb800' }}>{calcDist(userLocation, hospitals[assignedHospitalId].location).toFixed(2)} km</span></div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ padding: '12px', border: '1px solid rgba(0,200,255,0.4)', backgroundColor: 'rgba(0,200,255,0.08)', borderRadius: '8px' }}>
+                  <div style={{ fontSize: 11, color: '#00c8ff', fontWeight: 'bold', marginBottom: 8, letterSpacing: 1 }}>🏥 DESTINATION HOSPITAL</div>
+                  <div style={{ fontSize: 13, color: '#ccc' }}>Name: <span style={{ color: '#00c8ff' }}>{hospitals[assignedHospitalId].name || 'Hospital Command'}</span></div>
+                  <div style={{ fontSize: 13, color: '#ccc' }}>Distance: <span style={{ color: '#ffb800' }}>{calcDist(userLocation, hospitals[assignedHospitalId].location).toFixed(2)} km</span></div>
+                </div>
+
+                {/* Readiness Panel */}
+                {hospitals[assignedHospitalId].readyServices && (
+                  <div style={{ padding: '12px', background: 'rgba(0,255,136,0.05)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 8 }}>
+                    <div style={{ fontSize: 10, color: '#00ff88', fontWeight: 'bold', marginBottom: 8, letterSpacing: 1 }}>⚙ HOSPITAL PREPARATION</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                      {[
+                        { key: 'otPrepared', label: 'OT Ready', icon: '🔪' },
+                        { key: 'ventilatorReady', label: 'Ventilator', icon: '🫁' },
+                        { key: 'cardiologistAssigned', label: 'Specialist', icon: '👨‍⚕️' },
+                        { key: 'bloodBankAlerted', label: 'Blood Bank', icon: '🩸' }
+                      ].map(s => (
+                        <div key={s.key} style={{ fontSize: 11, color: hospitals[assignedHospitalId].readyServices[s.key] ? '#00ff88' : 'rgba(160,200,255,0.3)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <span>{hospitals[assignedHospitalId].readyServices[s.key] ? '✅' : '⏳'}</span>
+                          <span>{s.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
             {/* Live ETA */}
             {ambulances[assignedAmbulanceId]?.location && userLocation && (
               <div style={{ padding: '15px', border: '1px solid rgba(0,255,136,0.3)', backgroundColor: 'rgba(0,255,136,0.06)', borderRadius: '8px', textAlign: 'center' }}>
-                <div style={{ fontSize: 11, color: '#00ff88', fontWeight: 'bold', letterSpacing: 1, marginBottom: 4 }}>⏱ ESTIMATED ARRIVAL</div>
+                <div style={{ fontSize: 11, color: '#00ff88', fontWeight: 'bold', letterSpacing: 1, marginBottom: 4 }}>
+                  {arrivalCountdown !== null ? '🚨 ARRIVING IN' : '⏱ ESTIMATED ARRIVAL'}
+                </div>
                 <div style={{ fontSize: 28, color: '#00ff88', fontWeight: 'bold', fontFamily: "'Share Tech Mono', monospace" }}>
-                  {Math.max(1, Math.ceil(calcDist(userLocation, ambulances[assignedAmbulanceId].location) / 0.6))} min
+                  {arrivalCountdown !== null ? (
+                    `${arrivalCountdown}s`
+                  ) : (
+                    `${Math.max(1, Math.ceil(calcDist(userLocation, ambulances[assignedAmbulanceId].location) / 0.6))} min`
+                  )}
                 </div>
                 <div style={{ fontSize: 11, color: '#888' }}>{calcDist(userLocation, ambulances[assignedAmbulanceId].location).toFixed(2)} km away</div>
               </div>
