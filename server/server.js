@@ -27,8 +27,7 @@ const { sendPushNotification, sendTopicNotification } = require('./utils/pushNot
 // NOTE: @socket.io/cluster-adapter only works inside a Node.js cluster (PM2/master-worker).
 // It is disabled here for standalone dev. In production with PM2, enable it in a cluster entrypoint.
 
-// FIX C7: JWT secret MUST come from environment in production
-const JWT_SECRET = process.env.JWT_SECRET || 'EnterpriseRescueLinkSecret_2026_REPLACE_IN_PROD';
+const { JWT_SECRET } = require('./utils/config');
 
 function authenticateToken(req, res, next) {
   return verifyToken()(req, res, next);
