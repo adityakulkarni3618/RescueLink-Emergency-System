@@ -491,9 +491,15 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: '*',
-    methods: ['GET', 'POST'],
-  },
+    origin: (origin, callback) => {
+      if (!origin || ALLOWED_ORIGINS.some(o => origin.startsWith(o))) {
+        return callback(null, true);
+      }
+      callback(new Error(`Socket CORS policy violation: ${origin} not allowed`));
+    },
+    credentials: true,
+    methods: ['GET', 'POST']
+  }
 });
 app.set('socketio', io);
 
