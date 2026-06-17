@@ -411,70 +411,7 @@ app.post('/api/hie/verify', async (req, res) => {
 });
 
 
-// ─── OFFICIAL ABDM (AYUSHMAN BHARAT) API ENDPOINTS ─────────────────────────
-app.post('/api/abdm/auth', authenticateToken, async (req, res) => {
-  const { abhaAddress } = req.body;
-  if (!abhaAddress) return res.status(400).json({ error: "ABHA Address Required" });
-  try {
-    const token = await getAbdmAccessToken();
-    if (!token) {
-      console.log(`[ABDM MOCK] Requested auth for ${abhaAddress}`);
-      return res.json({ status: "SUCCESS", transactionId: `TXN-${Date.now()}` });
-    }
-    const response = await axios.post(`${ABDM_CONFIG.gatewayUrl}/v0.5/users/auth/fetch-modes`, 
-      {
-        requestId: `REQ-${Date.now()}`,
-        timestamp: new Date().toISOString(),
-        query: { id: abhaAddress, purpose: "LINK" }
-      },
-      { headers: { 'Authorization': `Bearer ${token}`, 'X-CM-ID': 'sbx' } }
-    );
-    res.json({ status: "SUCCESS", transactionId: response.data.transactionId || `TXN-${Date.now()}` });
-  } catch (err) {
-    res.status(500).json({ error: "Gateway Error", detail: err.response?.data || err.message });
-  }
-});
 
-app.post('/api/abdm/verify', authenticateToken, async (req, res) => {
-  const { transactionId, otp, abhaAddress } = req.body;
-  try {
-    let patientName = 'ABDM Patient';
-    let patientGender = 'U';
-    
-    const token = await getAbdmAccessToken();
-    if (token) { // Fallback bypass for demo
-      const response = await axios.post(`${ABDM_CONFIG.gatewayUrl}/v0.5/users/auth/on-confirm`, 
-        {
-          requestId: `REQ-${Date.now()}`,
-          timestamp: new Date().toISOString(),
-          transactionId: transactionId,
-          credential: { authCode: otp }
-        },
-        { headers: { 'Authorization': `Bearer ${token}`, 'X-CM-ID': 'sbx' } }
-      );
-      patientName = response.data.auth?.patient?.name || patientName;
-      patientGender = response.data.auth?.patient?.gender || patientGender;
-    }
-
-    // Create linked longitudinal record in Mongoose/MongoDB
-    let patient = await Patient.findOne({ abhaId: abhaAddress });
-    if (!patient) {
-      patient = new Patient({
-        abhaId: abhaAddress,
-        name: patientName,
-        gender: patientGender,
-        yearOfBirth: '1990',
-        careContexts: []
-      });
-      await patient.save();
-    }
-
-    logAudit('ABHA_VERIFY', `ABHA ${abhaAddress} verified and linked`, { targetAbhaId: abhaAddress });
-    res.json(patient);
-  } catch (err) {
-    res.status(401).json({ error: "Invalid OTP", detail: err.response?.data || err.message });
-  }
-});
 
 // Official HIP Callback for discovering care contexts (Mission records)
 app.post('/v0.5/care-contexts/discover', async (req, res) => {
