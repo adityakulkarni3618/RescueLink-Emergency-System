@@ -6,8 +6,7 @@ const { User, AuditLog } = require('../utils/db');
 const { verifyToken } = require('../middleware/auth');
 const { blacklistToken } = require('../utils/redis');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_key_change_this_in_production_min_32_chars';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '8h';
+const { JWT_SECRET, JWT_EXPIRES_IN } = require('../utils/config');
 
 const { validate, loginBody } = require('../middleware/validate');
 
