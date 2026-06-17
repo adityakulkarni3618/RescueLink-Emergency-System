@@ -381,7 +381,7 @@ app.post('/api/hie/verify', async (req, res) => {
   const { transactionId, otp, nationalId } = req.body;
   
   // FALLBACK: If simulated or Local DB entry exists
-  if (!ABDM_CONFIG.isLive || otp === '123456') {
+  if (!ABDM_CONFIG.isLive) {
     const searchId = nationalId.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     let foundPatient = null;
     for (const [id, data] of Object.entries(patients)) {
@@ -442,7 +442,7 @@ app.post('/api/abdm/verify', authenticateToken, async (req, res) => {
     let patientGender = 'U';
     
     const token = await getAbdmAccessToken();
-    if (token && otp !== '123456') { // Fallback bypass for demo
+    if (token) { // Fallback bypass for demo
       const response = await axios.post(`${ABDM_CONFIG.gatewayUrl}/v0.5/users/auth/on-confirm`, 
         {
           requestId: `REQ-${Date.now()}`,
