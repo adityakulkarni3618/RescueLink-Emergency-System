@@ -735,8 +735,9 @@ function startVirtualAmbulanceSimulation(reqId, virtualAmbId) {
           req.incidentLocation = req.userLocation;
           req.status = 'admission_request';
 
-          availableHospitalSockets.forEach(sid => {
-            io.to(sid).emit('incoming-hospital-request', { ...req, incidentLocation: req.incidentLocation });
+          const uniqueHospitalIds = [...new Set(availableHospitalSockets.map(sid => hospitals[sid]?.id).filter(Boolean))];
+          uniqueHospitalIds.forEach(hospId => {
+            io.to(`hospital:${hospId}`).emit('incoming-hospital-request', { ...req, incidentLocation: req.incidentLocation });
           });
           console.log(`[Sim Dispatch] Broadcasted admission request to ${availableHospitalSockets.length} hospitals.`);
 
@@ -904,7 +905,12 @@ app.post('/api/hospital/capacity', authenticateToken, async (req, res) => {
 
 app.get('/api/patients', authenticateToken, async (req, res) => {
   try {
+    const whereClause = {};
+    if (['doctor', 'hospital_admin', 'paramedic'].includes(req.user.role)) {
+      whereClause.hospital_id = req.user.hospital_id;
+    }
     const list = await PatientModel.findAll({
+      where: whereClause,
       attributes: ['id', 'name', 'name_masked', 'blood_group', 'dob']
     });
     return res.json(list.map(p => ({
@@ -921,7 +927,11 @@ app.get('/api/patients', authenticateToken, async (req, res) => {
 
 app.get('/api/patients/:id', authenticateToken, async (req, res) => {
   try {
-    const patient = await PatientModel.findByPk(req.params.id);
+    const whereClause = { id: req.params.id };
+    if (['doctor', 'hospital_admin', 'paramedic'].includes(req.user.role)) {
+      whereClause.hospital_id = req.user.hospital_id;
+    }
+    const patient = await PatientModel.findOne({ where: whereClause });
     if (!patient) return res.status(404).json({ error: 'Patient not found' });
     return res.json({
       id: patient.id,
@@ -991,6 +1001,11 @@ const spawnIncidentZones = (centerLoc) => {
 io.on('connection', (socket) => {
   let role = socket.handshake.query.role || 'unknown';
   console.log(`[CONNECT] ${role.toUpperCase()} connected — ${socket.id}`);
+
+  if (socket.user && socket.user.hospital_id) {
+    socket.join(`hospital:${socket.user.hospital_id}`);
+    console.log(`[SOCKET JOIN] User ${socket.user.email} joined hospital room: hospital:${socket.user.hospital_id}`);
+  }
 
   if (role === 'user') connectedRoles.user++;
   if (role === 'ambulance') connectedRoles.ambulance++;
@@ -1461,6 +1476,7 @@ io.on('connection', (socket) => {
 
     hospitals[socket.id] = { ...data, ...registryData, pos: { lat: data.lat || data.pos?.lat || account?.lat, lng: data.lng || data.pos?.lng || account?.lng }, socketId: socket.id, isBusy: false };
     socket.join('global_hospitals');
+    socket.join(`hospital:${id}`);
     
     // Recovery for already accepted active missions
     const activeMissions = Object.values(activeRequests).filter(r => r.hospitalId === id && r.status !== 'completed' && r.status !== 'admission_request' && r.status !== 'advance_notice');
@@ -1733,7 +1749,7 @@ io.on('connection', (socket) => {
       req.unitId = ambulances[socket.id]?.unitId;
       req.userSocket = data.userSocket || req.userSocket;
 
-      io.emit('incoming-hospital-request', {
+      io.to('global_hospitals').emit('incoming-hospital-request', {
         id: req.id,
         status: 'advance_notice',
         ambulanceName: ambulances[socket.id]?.name || 'Unit',
@@ -1788,12 +1804,18 @@ io.on('connection', (socket) => {
         const hasBeds = hosp.availableICUBeds === undefined || hosp.availableICUBeds > 0;
         return hasBeds;
       });
-      availableSockets.forEach(sid => {
-        io.to(sid).emit('incoming-hospital-request', { ...req, incidentLocation: req.incidentLocation });
+      const uniqueHospitalIds = [...new Set(availableSockets.map(sid => hospitals[sid]?.id).filter(Boolean))];
+      uniqueHospitalIds.forEach(hospId => {
+        io.to(`hospital:${hospId}`).emit('incoming-hospital-request', { ...req, incidentLocation: req.incidentLocation });
       });
       console.log(`[SMART DIVERT] Broadcasted to ${availableSockets.length} available hospitals, diverted from ${Object.keys(hospitals).length - availableSockets.length} full hospitals.`);
     } else if (data.hospitalSocketId) {
-      io.to(data.hospitalSocketId).emit('incoming-hospital-request', { ...req, incidentLocation: req.incidentLocation });
+      const hospId = hospitals[data.hospitalSocketId]?.id;
+      if (hospId) {
+        io.to(`hospital:${hospId}`).emit('incoming-hospital-request', { ...req, incidentLocation: req.incidentLocation });
+      } else {
+        io.to(data.hospitalSocketId).emit('incoming-hospital-request', { ...req, incidentLocation: req.incidentLocation });
+      }
     }
   });
 
@@ -1886,6 +1908,9 @@ io.on('connection', (socket) => {
     if (req.userSocket) io.to(req.userSocket).emit('hospital-request-response', { ...req, hospitalSocket: req.hospitalSocket });
     if (req.ambulanceSocket) io.to(req.ambulanceSocket).emit('hospital-request-response', { ...req, hospitalSocket: req.hospitalSocket });
     io.to(socket.id).emit('hospital-request-response', { ...req, hospitalSocket: req.hospitalSocket });
+    if (req.hospitalId) {
+      io.to(`hospital:${req.hospitalId}`).emit('hospital-request-response', { ...req, hospitalSocket: req.hospitalSocket });
+    }
 
     // If it was a broadcasted request, notify all other hospitals to "withdraw" the alert
     if (isAccepted) {
@@ -1904,7 +1929,12 @@ io.on('connection', (socket) => {
       const oldHospSocket = io.sockets.sockets.get(req.hospitalSocket);
       if (oldHospSocket) oldHospSocket.leave(`mission_${reqId}`);
       hospitals[req.hospitalSocket].isBusy = false;
-      io.to(req.hospitalSocket).emit('mission-completed', { reqId, reason: 'rerouted' });
+      const oldHospId = hospitals[req.hospitalSocket]?.id;
+      if (oldHospId) {
+        io.to(`hospital:${oldHospId}`).emit('mission-completed', { reqId, reason: 'rerouted' });
+      } else {
+        io.to(req.hospitalSocket).emit('mission-completed', { reqId, reason: 'rerouted' });
+      }
       console.log(`[REROUTE] Freed Hospital ${hospitals[req.hospitalSocket].name}`);
     }
 
@@ -1939,7 +1969,9 @@ io.on('connection', (socket) => {
         console.error('[DB ERROR] Failed to update mission status on complete:', err);
       }
       // Notify hospital and user
-      if (req.hospitalSocket) {
+      if (req.hospitalId) {
+        io.to(`hospital:${req.hospitalId}`).emit('mission-completed', { reqId });
+      } else if (req.hospitalSocket) {
         io.to(req.hospitalSocket).emit('mission-completed', { reqId });
         if (req.hospitalSocket && hospitals[req.hospitalSocket]) {
           hospitals[req.hospitalSocket].activeMissionsCount = Math.max(0, (hospitals[req.hospitalSocket].activeMissionsCount || 1) - 1);
