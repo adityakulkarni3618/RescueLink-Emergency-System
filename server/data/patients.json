@@ -1,7 +1,8 @@
-[
-  {
+{
+  "PAT-001": {
     "id": "PAT-001",
-    "name": "Rajesh Kumar",
+    "nationalId": "UHI-0001-0001-0001",
+    "name": "James Hartley",
     "age": 58,
     "bloodGroup": "B+",
     "allergies": ["Penicillin", "Aspirin"],
@@ -10,14 +11,15 @@
       "Type 2 Diabetes (diagnosed 2020)",
       "Coronary Artery Disease (stent placed 2022)"
     ],
-    "emergencyContact": "Priya Kumar – +91-98765-43210",
+    "emergencyContact": "Sarah Hartley – +1-555-0101",
     "currentMedications": ["Metformin 500mg", "Amlodipine 5mg", "Atorvastatin 10mg"],
     "lastVisit": "2024-11-15",
     "riskLevel": "HIGH"
   },
-  {
+  "PAT-002": {
     "id": "PAT-002",
-    "name": "Sunita Sharma",
+    "nationalId": "UHI-0002-0002-0002",
+    "name": "Maria Santos",
     "age": 34,
     "bloodGroup": "O+",
     "allergies": ["Sulfa drugs"],
@@ -25,14 +27,15 @@
       "Asthma (since childhood)",
       "Migraine (diagnosed 2019)"
     ],
-    "emergencyContact": "Amit Sharma – +91-87654-32109",
+    "emergencyContact": "Carlos Santos – +44-7700-900123",
     "currentMedications": ["Salbutamol inhaler", "Sumatriptan 50mg"],
     "lastVisit": "2024-12-01",
     "riskLevel": "MEDIUM"
   },
-  {
+  "PAT-003": {
     "id": "PAT-003",
-    "name": "Arjun Patel",
+    "nationalId": "UHI-0003-0003-0003",
+    "name": "Robert Chen",
     "age": 72,
     "bloodGroup": "A-",
     "allergies": ["Ibuprofen", "Morphine"],
@@ -41,29 +44,31 @@
       "Atrial Fibrillation (diagnosed 2021)",
       "Hip Replacement Surgery (2023)"
     ],
-    "emergencyContact": "Meena Patel – +91-76543-21098",
+    "emergencyContact": "Linda Chen – +61-400-000123",
     "currentMedications": ["Warfarin 5mg", "Bisoprolol 5mg", "Erythropoietin injections"],
     "lastVisit": "2025-01-10",
     "riskLevel": "HIGH"
   },
-  {
+  "PAT-004": {
     "id": "PAT-004",
-    "name": "Kavya Nair",
+    "nationalId": "UHI-0004-0004-0004",
+    "name": "Aisha Mohammed",
     "age": 26,
     "bloodGroup": "AB+",
     "allergies": [],
     "medicalHistory": [
       "Epilepsy (controlled, last seizure 2023)",
-      "Iron-deficiency Anemia"
+      "Iron-deficiency Anaemia"
     ],
-    "emergencyContact": "Ravi Nair – +91-65432-10987",
+    "emergencyContact": "Omar Mohammed – +971-50-000-1234",
     "currentMedications": ["Sodium Valproate 500mg", "Iron supplements"],
     "lastVisit": "2025-02-20",
     "riskLevel": "MEDIUM"
   },
-  {
+  "PAT-005": {
     "id": "PAT-005",
-    "name": "Mohammed Ansari",
+    "nationalId": "UHI-0005-0005-0005",
+    "name": "Thomas Weber",
     "age": 45,
     "bloodGroup": "O-",
     "allergies": ["Latex", "Codeine"],
@@ -71,9 +76,35 @@
       "No significant past medical history",
       "Fractured radius (2019, fully healed)"
     ],
-    "emergencyContact": "Fatima Ansari – +91-54321-09876",
+    "emergencyContact": "Anna Weber – +49-30-000-1234",
     "currentMedications": [],
     "lastVisit": "2024-08-05",
     "riskLevel": "LOW"
+  },
+  "PAT-006": {
+    "id": "PAT-006",
+    "nationalId": "1234-5678-9012",
+    "name": "Aditya Kulkarni (Verified)",
+    "age": 28,
+    "bloodGroup": "B+",
+    "allergies": ["None Known"],
+    "medicalHistory": ["Regular Checkup 2024"],
+    "emergencyContact": "Guardian – +91 98765 43210",
+    "currentMedications": [],
+    "lastVisit": "2025-05-01",
+    "riskLevel": "LOW"
+  },
+  "PAT-007": {
+    "id": "PAT-007",
+    "nationalId": "303535904939",
+    "name": "Aditya Kulkarni (Verified)",
+    "age": 28,
+    "bloodGroup": "B+",
+    "allergies": ["None Known"],
+    "medicalHistory": ["Regular Checkup 2024"],
+    "emergencyContact": "Guardian – +91 98765 43210",
+    "currentMedications": [],
+    "lastVisit": "2025-05-10",
+    "riskLevel": "LOW"
   }
-]
+}

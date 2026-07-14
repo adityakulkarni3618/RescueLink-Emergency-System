@@ -2,23 +2,33 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const { User, AuditLog } = require('../utils/db');
 const { verifyToken } = require('../middleware/auth');
 const { blacklistToken } = require('../utils/redis');
 
 const { JWT_SECRET, JWT_EXPIRES_IN } = require('../utils/config');
-
 const { validate, loginBody } = require('../middleware/validate');
+
+// Helper to generate a rotated refresh token
+async function generateAndSaveRefreshToken(user) {
+  const refreshToken = crypto.randomBytes(40).toString('hex');
+  user.refresh_token = refreshToken;
+  if (user && typeof user.save === 'function') {
+    await user.save();
+  }
+  return refreshToken;
+}
 
 /**
  * @route POST /api/auth/login
- * @desc Authenticate user and get token
+ * @desc Authenticate user and get token (Enforces MFA for doctor/admin roles in production)
  */
 router.post('/login', validate(loginBody), async (req, res) => {
   const { email, id, password } = req.body;
   const loginIdentifier = email || id;
   
-  console.log(`[AUTH] Login attempt for: ${loginIdentifier} (original: ${email || id})`);
+  console.log(`[AUTH] Login attempt for: ${loginIdentifier}`);
 
   try {
     const user = await User.findOne({ where: { email: loginIdentifier, is_active: true } });
@@ -28,13 +38,29 @@ router.post('/login', validate(loginBody), async (req, res) => {
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
-
     if (!isMatch) {
       console.log(`[AUTH] Password mismatch for: ${loginIdentifier}`);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Check if user has MFA enabled
+    // Enforce MFA setup/check for doctor and admin roles in production environment only
+    const requiresMfaEnforcement = ['doctor', 'hospital_admin', 'city_admin'].includes(user.role) && process.env.NODE_ENV === 'production';
+    
+    if (requiresMfaEnforcement && !user.totp_secret) {
+      console.log(`[AUTH] MFA setup required for critical role: ${user.email} (${user.role})`);
+      const setupToken = jwt.sign(
+        { id: user.id, requiresMfaSetup: true },
+        JWT_SECRET,
+        { expiresIn: '10m' }
+      );
+      return res.status(403).json({
+        requiresMfaSetup: true,
+        setupToken,
+        message: 'Multi-factor authentication (MFA) registration is mandatory for this role.'
+      });
+    }
+
+    // Check if user already has MFA enabled
     if (user.totp_secret) {
       const mfaToken = jwt.sign(
         { id: user.id, requiresMFA: true },
@@ -47,8 +73,8 @@ router.post('/login', validate(loginBody), async (req, res) => {
       });
     }
 
-    // Generate token
-    const token = jwt.sign(
+    // Generate short-lived Access Token & rotated Refresh Token
+    const accessToken = jwt.sign(
       {
         id: user.id,
         name: user.name,
@@ -59,6 +85,8 @@ router.post('/login', validate(loginBody), async (req, res) => {
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
+
+    const refreshToken = await generateAndSaveRefreshToken(user);
 
     // Write to AuditLog
     await AuditLog.create({
@@ -72,7 +100,8 @@ router.post('/login', validate(loginBody), async (req, res) => {
 
     console.log(`[AUTH] Login success: ${user.email} (${user.role})`);
     return res.json({
-      token,
+      token: accessToken,
+      refreshToken,
       user: {
         id: user.id,
         name: user.name,
@@ -127,7 +156,9 @@ router.post('/verify-mfa', async (req, res) => {
           // Remove the used backup code
           backupCodes.splice(i, 1);
           user.backup_codes = backupCodes;
-          await user.save();
+          if (user && typeof user.save === 'function') {
+            await user.save();
+          }
           break;
         }
       }
@@ -137,8 +168,8 @@ router.post('/verify-mfa', async (req, res) => {
       return res.status(400).json({ error: 'Invalid verification code' });
     }
 
-    // Generate full token
-    const token = jwt.sign(
+    // Generate token
+    const accessToken = jwt.sign(
       {
         id: user.id,
         name: user.name,
@@ -149,6 +180,8 @@ router.post('/verify-mfa', async (req, res) => {
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
+
+    const refreshToken = await generateAndSaveRefreshToken(user);
 
     // Audit log
     await AuditLog.create({
@@ -161,7 +194,8 @@ router.post('/verify-mfa', async (req, res) => {
     });
 
     return res.json({
-      token,
+      token: accessToken,
+      refreshToken,
       user: {
         id: user.id,
         name: user.name,
@@ -175,7 +209,6 @@ router.post('/verify-mfa', async (req, res) => {
     return res.status(401).json({ error: 'MFA token has expired or is invalid' });
   }
 });
-
 
 /**
  * @route POST /api/auth/logout
@@ -194,6 +227,13 @@ router.post('/logout', verifyToken(), async (req, res) => {
           await blacklistToken(token, ttl);
         }
       }
+    }
+
+    // Clear refresh token in DB
+    const user = await User.findByPk(req.user.id);
+    if (user && typeof user.save === 'function') {
+      user.refresh_token = null;
+      await user.save();
     }
 
     // Write to AuditLog
@@ -221,7 +261,7 @@ router.post('/logout', verifyToken(), async (req, res) => {
 router.get('/me', verifyToken(), async (req, res) => {
   try {
     const user = await User.findByPk(req.user.id, {
-      attributes: { exclude: ['password'] }
+      attributes: { exclude: ['password', 'refresh_token'] }
     });
 
     if (!user) {
@@ -237,16 +277,22 @@ router.get('/me', verifyToken(), async (req, res) => {
 
 /**
  * @route POST /api/auth/refresh
- * @desc Refresh valid token
+ * @desc Rotate refresh token and generate new access token
  */
-router.post('/refresh', verifyToken(), async (req, res) => {
+router.post('/refresh', async (req, res) => {
+  const { refreshToken, userId } = req.body;
+  if (!refreshToken || !userId) {
+    return res.status(400).json({ error: 'Refresh token and User ID are required' });
+  }
+
   try {
-    const user = await User.findByPk(req.user.id);
-    if (!user || !user.is_active) {
-      return res.status(403).json({ error: 'Forbidden: Account deactivated' });
+    const user = await User.findByPk(userId);
+    if (!user || !user.is_active || user.refresh_token !== refreshToken) {
+      return res.status(403).json({ error: 'Forbidden: Invalid refresh token' });
     }
 
-    const token = jwt.sign(
+    // Generate new Access Token
+    const accessToken = jwt.sign(
       {
         id: user.id,
         name: user.name,
@@ -258,8 +304,14 @@ router.post('/refresh', verifyToken(), async (req, res) => {
       { expiresIn: JWT_EXPIRES_IN }
     );
 
-    console.log(`[AUTH] Token refreshed for: ${user.email}`);
-    return res.json({ token });
+    // Rotate refresh token
+    const newRefreshToken = await generateAndSaveRefreshToken(user);
+
+    console.log(`[AUTH] Token rotated and refreshed for: ${user.email}`);
+    return res.json({
+      token: accessToken,
+      refreshToken: newRefreshToken
+    });
   } catch (err) {
     console.error('[AUTH ERROR] Refresh token handler error:', err);
     return res.status(500).json({ error: 'Internal Server Error refreshing token' });

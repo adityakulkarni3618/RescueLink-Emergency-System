@@ -47,11 +47,13 @@ function calculateNEWS2(hr, sp, sys, rr, temp) {
   return score;
 }
 
+const { validate, syncBatchBody } = require('../middleware/validate');
+
 /**
  * @route POST /api/sync/batch
  * @desc Sync offline-queued vitals and GPS logs for an active incident
  */
-router.post('/batch', verifyToken(['paramedic', 'doctor', 'hospital_admin']), async (req, res) => {
+router.post('/batch', verifyToken(['paramedic', 'doctor', 'hospital_admin']), validate(syncBatchBody), async (req, res) => {
   const { incidentId, gpsQueue, vitalsQueue } = req.body;
   
   if (!incidentId) {
