@@ -53,6 +53,7 @@ module.exports = {
   TWILIO_ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID || 'mock_account_sid',
   TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN || 'mock_auth_token',
   TWILIO_WHATSAPP_FROM: process.env.TWILIO_WHATSAPP_FROM || 'whatsapp:+14155238886',
+  TWILIO_PHONE_NUMBER: process.env.TWILIO_PHONE_NUMBER || '+15017122661',
   RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID || 'rzp_test_mockKeyId12345',
   RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET || 'mockKeySecret1234567890'
 };
