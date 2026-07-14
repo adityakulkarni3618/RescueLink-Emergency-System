@@ -6,8 +6,9 @@ const { verifyToken } = require('../middleware/auth');
 const { Incident, AuditLog } = require('../utils/db');
 
 // Initialize Razorpay Client
-const rzpKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_test_mockKeyId12345';
-const rzpKeySecret = process.env.RAZORPAY_KEY_SECRET || 'mockKeySecret1234567890';
+const config = require('../utils/config');
+const rzpKeyId = config.RAZORPAY_KEY_ID;
+const rzpKeySecret = config.RAZORPAY_KEY_SECRET;
 
 const rzp = new Razorpay({
   key_id: rzpKeyId,

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 export default function MassCasualtyPanel({ socket }) {
   const [activeMci, setActiveMci] = useState(null);
@@ -212,7 +212,7 @@ export default function MassCasualtyPanel({ socket }) {
       ['TOTAL TRIAGED', totalCount]
     ];
     
-    doc.autoTable({
+    autoTable(doc, {
       startY: 110,
       head: [['Classification', 'Count']],
       body: summaryData,
@@ -231,7 +231,7 @@ export default function MassCasualtyPanel({ socket }) {
     doc.setFont('helvetica', 'bold');
     doc.text('Casualty Roster', 15, doc.lastAutoTable.finalY + 15);
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: doc.lastAutoTable.finalY + 20,
       head: [['#', 'Victim Name', 'Triage Tag', 'Time Triaged']],
       body: victimsRoster.length > 0 ? victimsRoster : [['-', 'No casualties triaged yet', '-', '-']],

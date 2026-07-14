@@ -1,6 +1,6 @@
 const forge = require('node-forge');
 
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'a_very_secure_secret_key_32_characters_long'; // Should be 32 bytes
+const { ENCRYPTION_KEY } = require('./config');
 
 /**
  * Encrypts a string using AES-GCM-256

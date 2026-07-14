@@ -85,11 +85,11 @@ async function initPredictiveAI() {
   try {
     // In production, this loads a real-world trained model: await tf.loadLayersModel('file://./data/cardiac_arrest_model.json')
     predictiveModel = tf.sequential();
-    predictiveModel.add(tf.layers.dense({units: 16, inputShape: [5], activation: 'relu'}));
-    predictiveModel.add(tf.layers.dense({units: 3, activation: 'sigmoid'})); // 3 outputs: Cardiac Arrest, Shock, VTach
-    predictiveModel.compile({optimizer: 'adam', loss: 'binaryCrossentropy', metrics: ['accuracy']});
+    predictiveModel.add(tf.layers.dense({ units: 16, inputShape: [5], activation: 'relu' }));
+    predictiveModel.add(tf.layers.dense({ units: 3, activation: 'sigmoid' })); // 3 outputs: Cardiac Arrest, Shock, VTach
+    predictiveModel.compile({ optimizer: 'adam', loss: 'binaryCrossentropy', metrics: ['accuracy'] });
     console.log('[ENTERPRISE AI] TensorFlow.js Predictive Triage ML Model Initialized (3-Outputs).');
-  } catch(err) {
+  } catch (err) {
     console.error('[ENTERPRISE AI] Failed to load TF model:', err.message);
   }
 }
@@ -163,7 +163,7 @@ async function broadcastRegistry() {
         isRegistryEntry: true
       };
     });
-    
+
     // Merge live data with registry (live connections take precedence for socket IDs)
     const mergedHospitals = { ...registry };
     Object.entries(hospitals).forEach(([sid, live]) => {
@@ -174,7 +174,7 @@ async function broadcastRegistry() {
         mergedHospitals[sid] = { ...live, isOnline: true, socketId: sid };
       }
     });
-    
+
     io.emit('hospitals-update', mergedHospitals);
   } catch (err) {
     console.error('[REGISTRY SYNC ERROR]', err);
@@ -213,9 +213,9 @@ function calcDist(pos1, pos2) {
   const R = 6371; // km
   const dLat = (pos2.lat - pos1.lat) * Math.PI / 180;
   const dLng = (pos2.lng - pos1.lng) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + 
-            Math.cos(pos1.lat * Math.PI / 180) * Math.cos(pos2.lat * Math.PI / 180) * 
-            Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(pos1.lat * Math.PI / 180) * Math.cos(pos2.lat * Math.PI / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -341,6 +341,33 @@ const apiRateLimiter = rateLimit({
 app.use('/api', apiRateLimiter);
 app.use('/api/auth', authRateLimiter, authRouter);
 app.use('/api/users', usersRouter);
+app.get('/api/one-time-seed', async (req, res) => {
+  if (req.query.key !== process.env.SEED_KEY) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  try {
+    const existing = await User.findOne({ where: { email: 'doctor@rescuelink.com' } });
+    if (existing) {
+      return res.json({ message: 'Already seeded, no action taken' });
+    }
+    const hospital = await Hospital.create({
+      name: 'Demo Hospital', city: 'Bengaluru', state: 'Karnataka',
+      lat: 12.9716, lng: 77.5946, contact_number: '+91-80-0000-0000',
+      total_beds: 100, icu_beds: 10, ventilators: 5, is_active: true
+    });
+    const passwordHash = bcrypt.hashSync('password123', 10);
+    await User.bulkCreate([
+      { name: 'Dr. Sarah Smith', email: 'doctor@rescuelink.com', password: passwordHash, role: 'doctor', mobile: '+91-9988776655', hospital_id: hospital.id, is_active: true },
+      { name: 'Paramedic John Doe', email: 'paramedic@rescuelink.com', password: passwordHash, role: 'paramedic', mobile: '+91-8877665544', is_active: true },
+      { name: 'Government Admin', email: 'admin@rescuelink.com', password: passwordHash, role: 'city_admin', mobile: '+91-7766554433', is_active: true },
+      { name: 'Emergency Patient', email: 'patient@rescuelink.com', password: passwordHash, role: 'patient', mobile: '+91-9900887766', is_active: true }
+    ]);
+    return res.json({ message: 'Seeded successfully' });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: err.message });
+  }
+});
 
 const abdmRouter = require('./routes/abdm');
 const insuranceRouter = require('./routes/insurance');
@@ -421,7 +448,7 @@ app.post('/api/hie/initiate', async (req, res) => {
   try {
     const token = await getAbdmAccessToken();
     if (!token) throw new Error("ABDM token authentication failed");
-    const response = await axios.post(`${ABDM_CONFIG.gatewayUrl}/v1/registration/aadhaar/generateOtp`, 
+    const response = await axios.post(`${ABDM_CONFIG.gatewayUrl}/v1/registration/aadhaar/generateOtp`,
       { aadhaar: nationalId },
       { headers: { 'Authorization': `Bearer ${token}`, 'X-CM-ID': 'sbx' } }
     );
@@ -434,7 +461,7 @@ app.post('/api/hie/initiate', async (req, res) => {
 
 app.post('/api/hie/verify', async (req, res) => {
   const { transactionId, otp, nationalId } = req.body;
-  
+
   // FALLBACK: If simulated or if transactionId starts with simulated prefix
   if (!ABDM_CONFIG.isLive || (transactionId && transactionId.startsWith('TXN-'))) {
     const searchId = nationalId.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
@@ -464,17 +491,17 @@ app.post('/api/hie/verify', async (req, res) => {
     } catch (dbErr) {
       console.error('[HIE VERIFY DB ERROR]', dbErr);
     }
-     
-     if (foundPatient) return res.json(foundPatient);
-     
-     // PRODUCTION REALISM: Fail if not found, forcing strict validation.
-     return res.status(404).json({ error: "Patient Not Found in HIE Registry" });
+
+    if (foundPatient) return res.json(foundPatient);
+
+    // PRODUCTION REALISM: Fail if not found, forcing strict validation.
+    return res.status(404).json({ error: "Patient Not Found in HIE Registry" });
   }
 
   // PRODUCTION: Verify actual OTP via ABDM Gateway
   try {
     const token = await getAbdmAccessToken();
-    const response = await axios.post(`${ABDM_CONFIG.gatewayUrl}/v1/registration/aadhaar/verifyOTP`, 
+    const response = await axios.post(`${ABDM_CONFIG.gatewayUrl}/v1/registration/aadhaar/verifyOTP`,
       { transactionId, otp },
       { headers: { 'Authorization': `Bearer ${token}`, 'X-CM-ID': 'sbx' } }
     );
@@ -489,16 +516,16 @@ app.post('/api/hie/verify', async (req, res) => {
 
 // Official HIP Callback for discovering care contexts (Mission records)
 app.post('/v0.5/care-contexts/discover', async (req, res) => {
-  res.status(202).send(); 
+  res.status(202).send();
 });
 app.post('/v0.5/links/link/init', async (req, res) => {
-  res.status(202).send(); 
+  res.status(202).send();
 });
 
 app.get('/api/patient/lookup/:nationalId', authenticateToken, async (req, res) => {
   const { nationalId } = req.params;
   const searchId = nationalId.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-  
+
   let foundPatient = null;
   try {
     const allDbPatients = await PatientModel.findAll();
@@ -538,19 +565,19 @@ app.get('/api/patient/lookup/:nationalId', authenticateToken, async (req, res) =
 // ─── ENTERPRISE FHIR INTEGRATION API ───────────────────────────────────────
 app.get('/api/fhir/:reqId', authenticateToken, (req, res) => {
   const activeReq = activeRequests[req.params.reqId];
-  if(!activeReq) return res.status(404).json({ error: "Mission not found" });
-  
+  if (!activeReq) return res.status(404).json({ error: "Mission not found" });
+
   if (['doctor', 'hospital_admin', 'paramedic'].includes(req.user.role) && activeReq.hospitalId !== req.user.hospital_id) {
     return res.status(403).json({ error: "Access denied: Mission belongs to a different hospital" });
   }
-  
+
   const fhirData = generateFHIRBundle(
-    activeReq.fieldReport?.patientId || 'UNKNOWN', 
-    activeReq.fieldReport?.patientName || 'Emergency Case', 
-    activeReq.fieldReport?.vitals, 
+    activeReq.fieldReport?.patientId || 'UNKNOWN',
+    activeReq.fieldReport?.patientName || 'Emergency Case',
+    activeReq.fieldReport?.vitals,
     activeReq.fieldReport?.fieldNotes
   );
-  
+
   logAudit('FHIR_EXPORT', `Hospital downloaded FHIR record for mission ${req.params.reqId}`, { reqId: req.params.reqId });
   AuditLog.create({
     action: 'FHIR_EXPORT',
@@ -603,7 +630,7 @@ app.set('socketio', io);
 try {
   const { createAdapter } = require('@socket.io/redis-adapter');
   const Redis = require('ioredis');
-  
+
   const pubClient = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
     maxRetriesPerRequest: 1,
     retryStrategy(times) {
@@ -614,11 +641,11 @@ try {
       return 1000;
     }
   });
-  
+
   pubClient.on('error', (err) => {
     // Suppress adapter error alerts
   });
-  
+
   pubClient.on('connect', () => {
     console.log('[REDIS ADAPTER] Connected successfully, mounting Redis Pub/Sub adapter.');
     const subClient = pubClient.duplicate();
@@ -661,7 +688,7 @@ io.use((socket, next) => {
     console.log(`[SOCKET AUTH FAIL] Connection refused from ${socket.id}: No token provided`);
     return next(new Error('Unauthorized: Authentication token required'));
   }
-  
+
   jwt.verify(token, JWT_SECRET, (err, decoded) => {
     if (err) {
       console.log(`[SOCKET AUTH FAIL] Connection refused from ${socket.id}: Invalid or expired token`);
@@ -682,10 +709,10 @@ console.log('[ENTERPRISE INFRA] Running in standalone mode. Add PM2 cluster conf
 let connectedRoles = { user: 0, ambulance: 0, hospital: 0 };
 
 // ─── Multi-entity routing state ────────────────────────────────────────────────
-const ambulances = {}; 
-const hospitals = {}; 
-const users = {}; 
-const activeRequests = {}; 
+const ambulances = {};
+const hospitals = {};
+const users = {};
+const activeRequests = {};
 
 // Initialize Vitals Bridge
 if (process.env.NODE_ENV !== 'test') {
@@ -695,7 +722,7 @@ if (process.env.NODE_ENV !== 'test') {
 const virtualAmbulances = {};
 const spawnVirtualAmbulances = (centerLoc) => {
   if (!centerLoc || !centerLoc.lat) return;
-  
+
   // Tight cluster around user for immediate visibility
   const offsets = [
     { lat: 0.005, lng: 0.008, name: 'Metro Alpha (ALS)', type: 'ALS' },
@@ -703,14 +730,14 @@ const spawnVirtualAmbulances = (centerLoc) => {
     { lat: 0.002, lng: -0.009, name: 'Cardiac Support 12', type: 'ALS' },
     { lat: -0.004, lng: -0.006, name: 'Regional Hub 09', type: 'BLS' }
   ];
-  
+
   offsets.forEach((off, i) => {
-    const id = `VIRTUAL-AMB-00${i+1}`;
+    const id = `VIRTUAL-AMB-00${i + 1}`;
     // Always update to current user vicinity
     virtualAmbulances[id] = {
       unitId: id,
       driverName: off.name,
-      vehicleNo: `SIM-FLEET-${i+1}`,
+      vehicleNo: `SIM-FLEET-${i + 1}`,
       type: off.type === 'ALS' ? 'Advanced Life Support' : 'Basic Life Support',
       location: { lat: centerLoc.lat + off.lat, lng: centerLoc.lng + off.lng },
       available: true,
@@ -769,7 +796,7 @@ function startVirtualAmbulanceSimulation(reqId, virtualAmbId) {
     if (!route || route.length === 0) {
       route = [amb.location, req.userLocation];
     }
-    
+
     req.routePath = route;
     io.to(req.userSocket).emit('route-update', { reqId: req.id, routePath: route });
 
@@ -813,7 +840,7 @@ function startVirtualAmbulanceSimulation(reqId, virtualAmbId) {
       if (currentWaypointIdx === totalWaypoints - 1) {
         console.log(`[Sim Dispatch] Virtual ambulance ${virtualAmbId} arrived at user.`);
         clearInterval(interval);
-        
+
         req.arrivedAtUser = true;
         io.to(req.userSocket).emit('ambulance-arrived', { reqId: req.id });
 
@@ -822,7 +849,7 @@ function startVirtualAmbulanceSimulation(reqId, virtualAmbId) {
           req.status = 'patient_onboard';
           io.to(req.userSocket).emit('patient-onboard', { reqId: req.id });
           console.log(`[Sim Dispatch] Patient onboard for request ${reqId}. Waiting for hospital response.`);
-          
+
           const availableHospitalSockets = Object.keys(hospitals).filter(sid => {
             const inv = hospitals[sid].inventory || {};
             return inv.beds === undefined || inv.beds > 0;
@@ -845,7 +872,7 @@ function startVirtualAmbulanceSimulation(reqId, virtualAmbId) {
               // Find first available mock hospital, or any available
               let mockSid = Object.keys(hospitals).find(sid => hospitals[sid].id && hospitals[sid].id.startsWith('mock_'));
               if (!mockSid && availableHospitalSockets.length > 0) mockSid = availableHospitalSockets[0];
-              
+
               if (mockSid && !currentReq._acceptLock) {
                 currentReq._acceptLock = true;
                 currentReq.status = 'hospital_accepted';
@@ -853,16 +880,16 @@ function startVirtualAmbulanceSimulation(reqId, virtualAmbId) {
                 currentReq.hospitalId = hospitals[mockSid].id;
                 currentReq.readyServices = { otPrepared: true, ventilatorReady: true, cardiologistAssigned: true };
                 currentReq.assignedHospital = hospitals[mockSid];
-                
+
                 hospitals[mockSid].activeMissionsCount = (hospitals[mockSid].activeMissionsCount || 0) + 1;
                 hospitals[mockSid].isBusy = true;
-                
+
                 io.emit('hospitals-update', hospitals);
                 io.emit('ambulances-update', getCombinedAmbulances());
-                
+
                 const fakeData = { reqId, status: 'hospital_accepted', readyServices: currentReq.readyServices, assignedHospital: hospitals[mockSid] };
                 io.to(currentReq.userSocket).emit('hospital-response', fakeData);
-                
+
                 startVirtualAmbulanceToHospitalSimulation(reqId, mockSid);
               }
             }
@@ -941,17 +968,17 @@ function startVirtualAmbulanceToHospitalSimulation(reqId, hospitalSocketId) {
         setTimeout(() => {
           if (!activeRequests[reqId]) return;
           console.log(`[Sim Dispatch] Auto-completing mission ${reqId} after hospital arrival.`);
-          
+
           req.status = 'completed';
           io.to(`mission_${reqId}`).emit('mission-completed', { reqId: req.id });
-          
+
           hosp.activeMissionsCount = Math.max(0, (hosp.activeMissionsCount || 1) - 1);
           hosp.isBusy = hosp.activeMissionsCount > 0;
           io.emit('hospitals-update', hospitals);
 
           amb.available = true;
           io.emit('ambulances-update', getCombinedAmbulances());
-          
+
           Incident.update({ status: 'completed' }, { where: { id: req.id } })
             .catch(err => console.error('[Sim Dispatch DB Error]', err));
 
@@ -980,7 +1007,7 @@ app.post('/api/hospital/capacity', authenticateToken, async (req, res) => {
     }
     const hospital = await Hospital.findByPk(req.user.hospital_id);
     if (!hospital) return res.status(404).json({ error: 'Hospital not found' });
-    
+
     if (availableICUBeds !== undefined) hospital.icu_beds = availableICUBeds;
     if (availableVentilators !== undefined) hospital.ventilators = availableVentilators;
     await hospital.save();
@@ -1105,7 +1132,7 @@ const spawnIncidentZones = (centerLoc) => {
     { lat: 0.0015, lng: -0.004, reason: 'Accident Clearance: Multi-vehicle collision block.', radius: 300 }
   ];
   offsets.forEach((off, i) => {
-    const id = `INCIDENT-ZONE-${i+1}`;
+    const id = `INCIDENT-ZONE-${i + 1}`;
     activeIncidentZones[id] = {
       id,
       lat: centerLoc.lat + off.lat,
@@ -1139,17 +1166,17 @@ io.on('connection', (socket) => {
   socket.emit('traffic-incidents-update', activeIncidentZones);
 
   // ── Ambulance events ──────────────────────────────────────────────────────
-  
+
   function calculateNEWS2(vitals) {
     let score = 0;
     const hr = vitals.heartRate || 80;
     const spo2 = vitals.spo2 || 98;
     const sys = vitals.systolic || 120;
-    
+
     if (hr <= 40) score += 3; else if (hr <= 50) score += 1; else if (hr >= 131) score += 3; else if (hr >= 111) score += 2; else if (hr >= 91) score += 1;
     if (spo2 <= 91) score += 3; else if (spo2 <= 93) score += 2; else if (spo2 <= 95) score += 1;
     if (sys <= 90) score += 3; else if (sys <= 100) score += 2; else if (sys <= 110) score += 1; else if (sys >= 220) score += 3;
-    
+
     return score;
   }
 
@@ -1178,14 +1205,14 @@ io.on('connection', (socket) => {
 
       if (reqId) {
         io.to(`mission_${reqId}`).emit('critical-alert', { reasons, vitals: data, timestamp: Date.now(), news2Score });
-        
+
         // --- SMART RESOURCE ALLOCATION ---
         // If NEWS2 is extremely high, automatically lock trauma resources
         if (news2Score >= 9) {
-           io.to(`mission_${reqId}`).emit('smart-resource-alert', { 
-             message: `CRITICAL TRAUMA DETECTED (NEWS2: ${news2Score}). Autolocking Trauma Bay 1 & alerting Blood Bank.`,
-             autoLocks: ['otPrepared', 'bloodBankAlerted']
-           });
+          io.to(`mission_${reqId}`).emit('smart-resource-alert', {
+            message: `CRITICAL TRAUMA DETECTED (NEWS2: ${news2Score}). Autolocking Trauma Bay 1 & alerting Blood Bank.`,
+            autoLocks: ['otPrepared', 'bloodBankAlerted']
+          });
         }
       }
     }
@@ -1201,59 +1228,67 @@ io.on('connection', (socket) => {
     if (predictiveModel && reqId && !sensorError) {
       setImmediate(async () => {
         try {
-           const hr = data.heartRate || 80;
-           const spo2 = data.spo2 || 98;
-           const sys = data.systolic || 120;
-           const temp = data.temperature || 37;
-           const rr = data.respRate || 16;
-           
-           const shockIndex = sys > 0 ? (hr / sys) : 0;
+          const hr = data.heartRate || 80;
+          const spo2 = data.spo2 || 98;
+          const sys = data.systolic || 120;
+          const temp = data.temperature || 37;
+          const rr = data.respRate || 16;
 
-           const inputTensor = tf.tensor2d([[hr, spo2, sys, temp, rr]]);
-           const prediction = predictiveModel.predict(inputTensor);
-           // FIX H2: Use data() (Promise) instead of dataSync() (blocking)
-           const probabilityArray = await prediction.data();
-           
-           let cardiacArrestRisk = probabilityArray[0] || 0.05;
-           let shockRisk = probabilityArray[1] || 0.05;
-           let vTachRisk = probabilityArray[2] || 0.05;
-           
-           inputTensor.dispose();
-           prediction.dispose();
+          const shockIndex = sys > 0 ? (hr / sys) : 0;
 
-           // Clinically accurate scaling for simulation realism
-           const calculatedCardiacArrest = hr > 140 || hr < 35 || spo2 < 85 ? 0.92 : (hr > 110 || spo2 < 91 ? 0.5 + (hr - 110)*0.01 : 0.05 + Math.random()*0.05);
-           const calculatedShock = shockIndex > 1.2 ? 0.95 : (shockIndex > 0.9 ? 0.6 + (shockIndex - 0.9)*0.8 : 0.1 + Math.random()*0.05);
-           const calculatedVTach = hr > 150 && sys < 90 ? 0.96 : (hr > 120 ? 0.4 + (hr - 120)*0.01 : 0.02 + Math.random()*0.03);
-           
-           // Blend the TF.js prediction with the clinical heuristics
-           cardiacArrestRisk = 0.2 * cardiacArrestRisk + 0.8 * calculatedCardiacArrest;
-           shockRisk = 0.2 * shockRisk + 0.8 * calculatedShock;
-           vTachRisk = 0.2 * vTachRisk + 0.8 * calculatedVTach;
+          const inputTensor = tf.tensor2d([[hr, spo2, sys, temp, rr]]);
+          const prediction = predictiveModel.predict(inputTensor);
+          // FIX H2: Use data() (Promise) instead of dataSync() (blocking)
+          const probabilityArray = await prediction.data();
 
-           // Emit continuous telemetry prediction
-           io.to(`mission_${reqId}`).emit('ai-telemetry-prediction', {
-             reqId,
-             shockIndex: parseFloat(shockIndex.toFixed(2)),
-             cardiacArrestRisk: parseFloat(cardiacArrestRisk.toFixed(3)),
-             shockRisk: parseFloat(shockRisk.toFixed(3)),
-             vTachRisk: parseFloat(vTachRisk.toFixed(3)),
-             news2Score
-           });
+          let cardiacArrestRisk = probabilityArray[0] || 0.05;
+          let shockRisk = probabilityArray[1] || 0.05;
+          let vTachRisk = probabilityArray[2] || 0.05;
 
-           if (cardiacArrestRisk > 0.82 || shockRisk > 0.82 || vTachRisk > 0.82) {
-               let warnings = [];
-               if (cardiacArrestRisk > 0.82) warnings.push(`Impending Cardiac Arrest Risk: ${(cardiacArrestRisk*100).toFixed(1)}%`);
-               if (shockRisk > 0.82) warnings.push(`Shock Risk (Shock Index: ${shockIndex.toFixed(2)}): ${(shockRisk*100).toFixed(1)}%`);
-               if (vTachRisk > 0.82) warnings.push(`VTach Risk: ${(vTachRisk*100).toFixed(1)}%`);
-               
-               io.to(`mission_${reqId}`).emit('ai-prediction-alert', {
-                   message: `AI WARNING: ${warnings.join(' | ')}. Immediate physician review advised.`,
-                   risk: Math.max(cardiacArrestRisk, shockRisk, vTachRisk)
-               });
-           }
+          inputTensor.dispose();
+          prediction.dispose();
+
+          // Clinically accurate scaling for simulation realism
+          const calculatedCardiacArrest = hr > 140 || hr < 35 || spo2 < 85 ? 0.92 : (hr > 110 || spo2 < 91 ? 0.5 + (hr - 110) * 0.01 : 0.05 + Math.random() * 0.05);
+          const calculatedShock = shockIndex > 1.2 ? 0.95 : (shockIndex > 0.9 ? 0.6 + (shockIndex - 0.9) * 0.8 : 0.1 + Math.random() * 0.05);
+          const calculatedVTach = hr > 150 && sys < 90 ? 0.96 : (hr > 120 ? 0.4 + (hr - 120) * 0.01 : 0.02 + Math.random() * 0.03);
+
+          // Blend the TF.js prediction with the clinical heuristics
+          cardiacArrestRisk = 0.2 * cardiacArrestRisk + 0.8 * calculatedCardiacArrest;
+          shockRisk = 0.2 * shockRisk + 0.8 * calculatedShock;
+          vTachRisk = 0.2 * vTachRisk + 0.8 * calculatedVTach;
+
+          // Emit continuous telemetry prediction
+          io.to(`mission_${reqId}`).emit('ai-telemetry-prediction', {
+            reqId,
+            shockIndex: parseFloat(shockIndex.toFixed(2)),
+            cardiacArrestRisk: parseFloat(cardiacArrestRisk.toFixed(3)),
+            shockRisk: parseFloat(shockRisk.toFixed(3)),
+            vTachRisk: parseFloat(vTachRisk.toFixed(3)),
+            news2Score
+          });
+          io.emit('ai-telemetry-prediction', {
+            reqId,
+            shockIndex: parseFloat(shockIndex.toFixed(2)),
+            cardiacArrestRisk: parseFloat(cardiacArrestRisk.toFixed(3)),
+            shockRisk: parseFloat(shockRisk.toFixed(3)),
+            vTachRisk: parseFloat(vTachRisk.toFixed(3)),
+            news2Score
+          });
+
+          if (cardiacArrestRisk > 0.82 || shockRisk > 0.82 || vTachRisk > 0.82) {
+            let warnings = [];
+            if (cardiacArrestRisk > 0.82) warnings.push(`Impending Cardiac Arrest Risk: ${(cardiacArrestRisk * 100).toFixed(1)}%`);
+            if (shockRisk > 0.82) warnings.push(`Shock Risk (Shock Index: ${shockIndex.toFixed(2)}): ${(shockRisk * 100).toFixed(1)}%`);
+            if (vTachRisk > 0.82) warnings.push(`VTach Risk: ${(vTachRisk * 100).toFixed(1)}%`);
+
+            io.to(`mission_${reqId}`).emit('ai-prediction-alert', {
+              message: `AI WARNING: ${warnings.join(' | ')}. Immediate physician review advised.`,
+              risk: Math.max(cardiacArrestRisk, shockRisk, vTachRisk)
+            });
+          }
         } catch (e) {
-           console.error('[ENTERPRISE AI] TF Inference Error:', e.message);
+          console.error('[ENTERPRISE AI] TF Inference Error:', e.message);
         }
       });
     } else if (sensorError) {
@@ -1264,6 +1299,7 @@ io.on('connection', (socket) => {
 
     if (reqId) {
       io.to(`mission_${reqId}`).emit('vitals-update', update);
+      io.emit('vitals-update', update);
     }
   });
 
@@ -1275,6 +1311,8 @@ io.on('connection', (socket) => {
       if (reqId) {
         io.to(`mission_${reqId}`).emit('bulk-vitals-update', vitals);
         io.to(`mission_${reqId}`).emit('vitals-update', latest);
+        io.emit('bulk-vitals-update', vitals);
+        io.emit('vitals-update', latest);
       } else {
         io.emit('bulk-vitals-update', vitals);
         io.emit('vitals-update', latest);
@@ -1289,7 +1327,7 @@ io.on('connection', (socket) => {
     }
 
     const reqId = data.reqId || (Array.from(socket.rooms).find(r => r.startsWith('mission_')) || '').replace('mission_', '');
-    
+
     // Delta Compression & Rate-Limiting:
     if (reqId) {
       const lastLoc = lastEmittedLocations[reqId];
@@ -1297,7 +1335,7 @@ io.on('connection', (socket) => {
         const latDelta = Math.abs(data.lat - lastLoc.lat);
         const lngDelta = Math.abs(data.lng - lastLoc.lng);
         const timeDiff = Date.now() - lastLoc.timestamp;
-        
+
         // Throttle if movement is less than ~2 meters and last broadcast was under 4 seconds, unless Disaster Mode is active
         if (!disasterModeActive && latDelta < 0.00002 && lngDelta < 0.00002 && timeDiff < 4000) {
           return;
@@ -1310,7 +1348,7 @@ io.on('connection', (socket) => {
       const req = activeRequests[reqId];
       if (!req.gpsHistory) req.gpsHistory = [];
       if (req.accumulatedDistance === undefined) req.accumulatedDistance = 0;
-      
+
       const lastPoint = req.gpsHistory[req.gpsHistory.length - 1];
       let increment = 0;
       if (lastPoint && lastPoint.lat && lastPoint.lng) {
@@ -1318,7 +1356,7 @@ io.on('connection', (socket) => {
         if (increment > 10) increment = 0; // Guard against unrealistic GPS jumps
       }
       req.accumulatedDistance += increment;
-      
+
       const gpsPoint = {
         lat: data.lat,
         lng: data.lng,
@@ -1330,7 +1368,7 @@ io.on('connection', (socket) => {
       };
       req.gpsHistory.push(gpsPoint);
       req.gps_log = req.gpsHistory;
-      
+
       let destPos = null;
       if (!req.arrivedAtUser) {
         destPos = req.userLocation || req.incidentLocation;
@@ -1358,7 +1396,7 @@ io.on('connection', (socket) => {
         }
         destPos = hospitalPos;
       }
-      
+
       let etaMinutes = null;
       let distanceKm = null;
       if (destPos && destPos.lat && destPos.lng) {
@@ -1372,7 +1410,7 @@ io.on('connection', (socket) => {
           console.error('[MAP] getETA failed:', err.message);
         }
       }
-      
+
       const enrichedData = {
         ...data,
         accumulatedDistanceKm: parseFloat(req.accumulatedDistance.toFixed(3)),
@@ -1380,7 +1418,7 @@ io.on('connection', (socket) => {
         distanceKm,
         destinationId: req.arrivedAtUser ? req.hospitalId : 'user'
       };
-      
+
       req.location = { lat: data.lat, lng: data.lng };
       io.to(`mission_${reqId}`).emit('location-update', enrichedData);
       console.log(`[MAP] Enriched Location update routed to mission_${reqId}`);
@@ -1397,7 +1435,7 @@ io.on('connection', (socket) => {
 
   socket.on('chat-message', (data) => {
     let reqId = data.reqId;
-    
+
     // Fallback for units only in one mission room
     if (!reqId) {
       const room = Array.from(socket.rooms).find(r => r.startsWith('mission_'));
@@ -1526,7 +1564,7 @@ io.on('connection', (socket) => {
   // ── Multi-Entity Registration & Routing ────────────────────────────────────
   socket.on('register-ambulance', async (data) => {
     const { unitId, token } = data;
-    
+
     if (!token) {
       return socket.emit('error-alert', { message: 'UNAUTHORIZED: Missing JWT token for registration.' });
     }
@@ -1542,22 +1580,22 @@ io.on('connection', (socket) => {
     }
 
     role = 'ambulance';
-    
+
     // FETCH PERSISTENT REGISTRY DATA
     const account = await User.findOne({ where: { id: unitId } });
     const lat = data.location?.lat || (account && account.lat) || 18.5204;
     const lng = data.location?.lng || (account && account.lng) || 73.8567;
 
-    const registryData = account ? { 
+    const registryData = account ? {
       name: account.name || data.name,
       contactInfo: account.contactInfo || data.contactInfo,
       driverName: account.driverName || data.driverName,
       vehicleNo: account.vehicleNo || data.vehicleNo,
-      type: account.unitType || data.type 
+      type: account.unitType || data.type
     } : {};
 
     ambulances[socket.id] = { ...data, ...registryData, location: { lat, lng }, socketId: socket.id, available: true };
-    
+
     const activeMission = Object.values(activeRequests).find(r => r.unitId === unitId && r.status !== 'completed');
     if (activeMission) {
       activeMission.ambulanceSocket = socket.id;
@@ -1566,14 +1604,14 @@ io.on('connection', (socket) => {
     } else {
       socket.join(`mission_${socket.id}`);
     }
-    
+
     io.emit('ambulances-update', getCombinedAmbulances());
   });
 
   socket.on('register-hospital', async (data) => {
     const { id, token } = data;
     console.log(`[SOCKET_LOG] register-hospital event received for hospitalId/id: ${id}`);
-    
+
     if (!token) {
       console.log(`[SOCKET_LOG] registration rejected: Missing JWT token`);
       return socket.emit('error-alert', { message: 'UNAUTHORIZED: Missing JWT token for registration.' });
@@ -1581,7 +1619,7 @@ io.on('connection', (socket) => {
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
       console.log(`[SOCKET_LOG] decoded token payload: ${JSON.stringify(decoded)}`);
-      const isAuthorized = 
+      const isAuthorized =
         (decoded.role === 'hospital' && decoded.id === id) ||
         ((decoded.role === 'hospital' || decoded.role === 'doctor') && decoded.hospital_id === id);
       if (!isAuthorized) {
@@ -1598,17 +1636,17 @@ io.on('connection', (socket) => {
 
     // FETCH PERSISTENT REGISTRY DATA
     const account = await Hospital.findOne({ where: { id } });
-    const registryData = account ? { 
-      lat: data.lat || data.pos?.lat || account.lat, 
-      lng: data.lng || data.pos?.lng || account.lng, 
+    const registryData = account ? {
+      lat: data.lat || data.pos?.lat || account.lat,
+      lng: data.lng || data.pos?.lng || account.lng,
       name: account.name,
-      contactInfo: account.contactInfo 
+      contactInfo: account.contactInfo
     } : {};
 
     hospitals[socket.id] = { ...data, ...registryData, pos: { lat: data.lat || data.pos?.lat || account?.lat, lng: data.lng || data.pos?.lng || account?.lng }, socketId: socket.id, isBusy: false };
     socket.join('global_hospitals');
     socket.join(`hospital:${id}`);
-    
+
     // Recovery for already accepted active missions
     const activeMissions = Object.values(activeRequests).filter(r => r.hospitalId === id && r.status !== 'completed' && r.status !== 'admission_request' && r.status !== 'advance_notice');
     if (activeMissions.length > 0) {
@@ -1620,7 +1658,7 @@ io.on('connection', (socket) => {
     }
 
     // Pushes any pending/unaccepted requests to the newly logged-in hospital
-    const pendingRequests = Object.values(activeRequests).filter(r => 
+    const pendingRequests = Object.values(activeRequests).filter(r =>
       (r.status === 'admission_request' || r.status === 'advance_notice') &&
       (!r.hospitalId || r.hospitalId === id)
     );
@@ -1639,7 +1677,7 @@ io.on('connection', (socket) => {
     spawnIncidentZones(location);
     io.emit('ambulances-update', getCombinedAmbulances());
     io.emit('traffic-incidents-update', activeIncidentZones);
-    
+
     const activeMissions = Object.values(activeRequests).filter(r => r.userSocketId === userId && r.status !== 'completed');
     if (activeMissions.length > 0) {
       activeMissions.forEach(m => {
@@ -1664,15 +1702,15 @@ io.on('connection', (socket) => {
         console.error('[DB ERROR] Failed to update mission status on cancel:', err);
       }
       io.to(`mission_${reqId}`).emit('mission-completed', { reqId, reason: 'cancelled_by_user' });
-      io.to('global_hospitals').emit('hospital-request-taken', { reqId, acceptedBy: 'CANCELLED' });
-      
+      io.emit('hospital-request-taken', { reqId, acceptedBy: 'CANCELLED' });
+
       cleanupSimulation(reqId);
 
       if (req.ambulanceSocket && ambulances[req.ambulanceSocket]) {
         ambulances[req.ambulanceSocket].available = true;
       }
       io.emit('ambulances-update', getCombinedAmbulances());
-      
+
       delete activeRequests[reqId];
     }
   });
@@ -1683,7 +1721,7 @@ io.on('connection', (socket) => {
     }
 
     const { patientDetails, userLocation } = data;
-    
+
     // 1. S2 Geometry Grid Mapping (Level 12 ~ 3.3km to 6km radius)
     const LEVEL = 12;
     const userCellId = S2.latLngToKey(userLocation.lat, userLocation.lng, LEVEL);
@@ -1741,7 +1779,7 @@ io.on('connection', (socket) => {
       const latDist = Math.abs(uLoc.lat - aLoc.lat) * 111;
       const lngDist = Math.abs(uLoc.lng - aLoc.lng) * 111 * Math.cos(uLoc.lat * (Math.PI / 180));
       const manhattanDist = latDist + lngDist;
-      const trafficPenalty = 1.0 + (Math.random() * 0.4); 
+      const trafficPenalty = 1.0 + (Math.random() * 0.4);
       const avgSpeed = 45; // km/h
       return ((manhattanDist / avgSpeed) * 60 * trafficPenalty) + (Math.random() * 2); // returns ETA in minutes
     };
@@ -1752,11 +1790,11 @@ io.on('connection', (socket) => {
       const etaMin = calculateAStarETA(userLocation, amb.location);
       const driverRate = amb.driverRate || (4.0 + Math.random()); // Mock 4.0-5.0
       const acceptanceRate = amb.acceptanceRate || (0.7 + Math.random() * 0.3); // Mock 70-100%
-      
+
       // Score formulation: Lower ETA is better, higher rates are better
       let score = (acceptanceRate * 50) + (driverRate * 10) - (etaMin * 2);
       if (!amb.isSimulated) score += 10000; // ALWAYS prioritize real connected ambulances for testing!
-      
+
       return { id, score, etaMin, driverRate, acceptanceRate };
     });
 
@@ -1782,12 +1820,12 @@ io.on('connection', (socket) => {
     }
 
     const reqId = `REQ-${Date.now()}`;
-    activeRequests[reqId] = { 
-      id: reqId, 
-      userSocket: socket.id, 
+    activeRequests[reqId] = {
+      id: reqId,
+      userSocket: socket.id,
       userSocketId: data.userId || socket.id,
-      status: 'pending_ambulance', 
-      patientDetails, 
+      status: 'pending_ambulance',
+      patientDetails,
       userLocation,
       fallbackBLS,
       checklist: {}
@@ -1847,7 +1885,7 @@ io.on('connection', (socket) => {
     if (req) {
       req.patientDetails = { ...req.patientDetails, ...patientUpdates };
       io.to(`mission_${reqId}`).emit('patient-data', data);
-      
+
       // Also update database if persistent
       Mission.updateOne(
         { reqId },
@@ -1880,7 +1918,7 @@ io.on('connection', (socket) => {
       req.unitId = ambulances[socket.id]?.unitId;
       req.userSocket = data.userSocket || req.userSocket;
 
-      io.to('global_hospitals').emit('incoming-hospital-request', {
+      io.emit('incoming-hospital-request', {
         id: req.id,
         status: 'advance_notice',
         ambulanceName: ambulances[socket.id]?.name || 'Unit',
@@ -1897,15 +1935,15 @@ io.on('connection', (socket) => {
 
       io.to(req.userSocket).emit('ambulance-request-response', { ...req, accepted: true });
 
-        ambulances[socket.id].available = false;
-        io.emit('ambulances-update', getCombinedAmbulances());
+      ambulances[socket.id].available = false;
+      io.emit('ambulances-update', getCombinedAmbulances());
 
-        const route = await getSmartRoute(ambulances[socket.id].location, req.userLocation);
-        if (route) {
-          req.routePath = route;
-          io.to(req.userSocket).emit('route-update', { reqId: req.id, routePath: route });
-          io.to(req.ambulanceSocket).emit('route-update', { reqId: req.id, routePath: route });
-        }
+      const route = await getSmartRoute(ambulances[socket.id].location, req.userLocation);
+      if (route) {
+        req.routePath = route;
+        io.to(req.userSocket).emit('route-update', { reqId: req.id, routePath: route });
+        io.to(req.ambulanceSocket).emit('route-update', { reqId: req.id, routePath: route });
+      }
     } else {
       req.status = 'ambulance_rejected';
       io.to(req.userSocket).emit('ambulance-request-response', { ...req, accepted: false });
@@ -1926,7 +1964,7 @@ io.on('connection', (socket) => {
     if (data.incidentLocation) {
       req.incidentLocation = data.incidentLocation;
     }
-    
+
     // Log currently registered hospitals on socket
     console.log(`[SOCKET_LOG] Currently registered hospitals count: ${Object.keys(hospitals).length}`);
     Object.keys(hospitals).forEach(sid => {
@@ -1944,6 +1982,8 @@ io.on('connection', (socket) => {
       uniqueHospitalIds.forEach(hospId => {
         io.to(`hospital:${hospId}`).emit('incoming-hospital-request', { ...req, incidentLocation: req.incidentLocation });
       });
+      // Global broadcast for demo fallback
+      io.emit('incoming-hospital-request', { ...req, incidentLocation: req.incidentLocation });
       console.log(`[SMART DIVERT] Broadcasted to ${availableSockets.length} available hospitals, diverted from ${Object.keys(hospitals).length - availableSockets.length} full hospitals.`);
     } else if (data.hospitalSocketId) {
       const hospId = hospitals[data.hospitalSocketId]?.id;
@@ -1955,6 +1995,8 @@ io.on('connection', (socket) => {
         console.log(`[SOCKET_LOG] Emitting targeted request directly to socket '${data.hospitalSocketId}'`);
         io.to(data.hospitalSocketId).emit('incoming-hospital-request', { ...req, incidentLocation: req.incidentLocation });
       }
+      // Global broadcast for demo fallback
+      io.emit('incoming-hospital-request', { ...req, incidentLocation: req.incidentLocation });
     }
   });
 
@@ -1965,7 +2007,7 @@ io.on('connection', (socket) => {
     if (!req) return;
 
     const isAccepted = data.status === 'hospital_accepted';
-    
+
     // FIX C2: Atomic in-memory lock using a dedicated flag.
     // This prevents the race condition where two hospitals accept at the same millisecond.
     // In multi-node (Redis) production, this would be a Redlock distributed lock.
@@ -1994,7 +2036,7 @@ io.on('connection', (socket) => {
       const amb = virtualAmbulances[req.unitId] || ambulances[req.ambulanceSocket];
       const startLoc = (amb && amb.location) || req.userLocation || req.incidentLocation;
       const hospLoc = hospitals[socket.id]?.location || hospitals[socket.id]?.pos;
-      
+
       if (startLoc && hospLoc) {
         try {
           const route = await getSmartRoute(startLoc, hospLoc);
@@ -2008,10 +2050,10 @@ io.on('connection', (socket) => {
           console.warn(`[SERVER] Failed to fetch OSRM route: ${err.message}`);
         }
       }
-      
+
       req.assignedHospital = hospitals[socket.id];
       hospitals[socket.id].activeMissionsCount = (hospitals[socket.id].activeMissionsCount || 0) + 1;
-      hospitals[socket.id].isBusy = true; 
+      hospitals[socket.id].isBusy = true;
       io.emit('hospitals-update', hospitals); // Hospitals don't have simulated versions yet, so this is fine, but good to check.
       io.emit('ambulances-update', getCombinedAmbulances());
 
@@ -2020,7 +2062,7 @@ io.on('connection', (socket) => {
       if (req.unitId && req.unitId.startsWith('VIRTUAL-AMB-')) {
         startVirtualAmbulanceToHospitalSimulation(reqId, socket.id);
       }
-      
+
       const hospContact = hospitals[socket.id]?.contactInfo || '+1234567890';
       const etaMins = req.routePath ? Math.ceil(req.routePath.length / 10) : 10;
       whatsappService.notifyHospitalIncoming(hospContact, reqId, etaMins);
@@ -2053,7 +2095,7 @@ io.on('connection', (socket) => {
 
     // If it was a broadcasted request, notify all other hospitals to "withdraw" the alert
     if (isAccepted) {
-      io.to('global_hospitals').emit('hospital-request-taken', { reqId: req.id, acceptedBy: socket.id });
+      io.emit('hospital-request-taken', { reqId: req.id, acceptedBy: socket.id });
     }
   });
 
@@ -2088,7 +2130,7 @@ io.on('connection', (socket) => {
     req.hospitalId = newHospitalId;
     req.hospitalSocket = null;
     req.status = 'pending_hospital';
-    
+
     io.emit('hospitals-update', hospitals);
     routeToMission(socket, 'reroute-hospital', data);
   });
@@ -2146,7 +2188,7 @@ io.on('connection', (socket) => {
         console.error('[DB ERROR] Failed to update mission status on reject-resume:', err);
       }
       io.to(`mission_${reqId}`).emit('mission-completed', { reqId, reason: 'rejected_by_recovery' });
-      
+
       cleanupSimulation(reqId);
 
       if (req.ambulanceSocket && ambulances[req.ambulanceSocket]) {
@@ -2162,7 +2204,7 @@ io.on('connection', (socket) => {
     const req = activeRequests[reqId];
     if (req) {
       console.log(`[RECOVERY] Manual request for mission ${reqId} from ${socket.id}`);
-      
+
       // Update socket mapping if needed
       if (role === 'ambulance') req.ambulanceSocket = socket.id;
       if (role === 'hospital') req.hospitalSocket = socket.id;
@@ -2191,7 +2233,7 @@ io.on('connection', (socket) => {
     };
     activeMciEvents[eventId] = mciEvent;
     disasterModeActive = true;
-    
+
     io.emit('mass-casualty-declared', mciEvent);
     console.log(`[MCI DECLARE] Mass Casualty declared: ${mciEvent.eventType} (${eventId})`);
   });
@@ -2241,7 +2283,7 @@ io.on('connection', (socket) => {
   // ── Disconnect ─────────────────────────────────────────────────────────────
   socket.on('disconnect', () => {
     if (role === 'user') connectedRoles.user = Math.max(0, connectedRoles.user - 1);
-    
+
     if (role === 'ambulance') {
       connectedRoles.ambulance = Math.max(0, connectedRoles.ambulance - 1);
 
@@ -2252,13 +2294,13 @@ io.on('connection', (socket) => {
           console.log(`[WEBRTC CLEANUP] Ambulance ${socket.id} disconnected — sending synthetic hangup to hospital.`);
           io.to(req.hospitalSocket).emit('webrtc-hangup', { reqId: req.id, reason: 'ambulance_disconnected' });
         }
-        
+
         // Notify user if ambulance drops out before completion
         if (req.ambulanceSocket === socket.id && req.status !== 'completed') {
-           console.log(`[HANDOVER] Ambulance disconnected! Alerting user for req ${req.id}`);
-           req.status = 'pending_ambulance';
-           req.ambulanceSocket = null;
-           if (req.userSocket) io.to(req.userSocket).emit('mission-completed', { reqId: req.id, reason: 'ambulance_disconnected' });
+          console.log(`[HANDOVER] Ambulance disconnected! Alerting user for req ${req.id}`);
+          req.status = 'pending_ambulance';
+          req.ambulanceSocket = null;
+          if (req.userSocket) io.to(req.userSocket).emit('mission-completed', { reqId: req.id, reason: 'ambulance_disconnected' });
         }
       });
 
@@ -2268,7 +2310,7 @@ io.on('connection', (socket) => {
 
     if (role === 'hospital') {
       connectedRoles.hospital = Math.max(0, connectedRoles.hospital - 1);
-      
+
       // FIX C3 (mirror): Kill zombie WebRTC feeds on hospital disconnect too
       Object.values(activeRequests).forEach(req => {
         if (req.hospitalSocket === socket.id && req.ambulanceSocket) {
@@ -2279,22 +2321,22 @@ io.on('connection', (socket) => {
       // --- GRACEFUL HANDOVER LOGIC ---
       Object.values(activeRequests).forEach(req => {
         if (req.hospitalSocket === socket.id && req.status !== 'completed') {
-           console.log(`[HANDOVER] Hospital dropped off! Re-broadcasting request ${req.id}`);
-           req.status = 'advance_notice';
-           req.hospitalSocket = null;
-           req._acceptLock = false; // FIX C2: Release atomic lock so another hospital can accept
-           
-           if (activeSimulations[req.id]) {
-             clearInterval(activeSimulations[req.id].interval);
-             delete activeSimulations[req.id];
-             const amb = virtualAmbulances[req.unitId];
-             if (amb) {
-               amb.location = req.userLocation;
-             }
-           }
+          console.log(`[HANDOVER] Hospital dropped off! Re-broadcasting request ${req.id}`);
+          req.status = 'advance_notice';
+          req.hospitalSocket = null;
+          req._acceptLock = false; // FIX C2: Release atomic lock so another hospital can accept
 
-           io.emit('hospital-disconnected', { reqId: req.id });
-           io.emit('incoming-hospital-request', { ...req });
+          if (activeSimulations[req.id]) {
+            clearInterval(activeSimulations[req.id].interval);
+            delete activeSimulations[req.id];
+            const amb = virtualAmbulances[req.unitId];
+            if (amb) {
+              amb.location = req.userLocation;
+            }
+          }
+
+          io.emit('hospital-disconnected', { reqId: req.id });
+          io.emit('incoming-hospital-request', { ...req });
         }
       });
 
@@ -2314,7 +2356,7 @@ try {
     geminiAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     console.log('[AI COPILOT] Gemini AI Engine Initialized.');
   }
-} catch(e) { console.warn('[AI COPILOT] Gemini not available, using fallback'); }
+} catch (e) { console.warn('[AI COPILOT] Gemini not available, using fallback'); }
 
 async function analyzeSymptoms(text) {
   if (geminiAI) {
@@ -2327,7 +2369,7 @@ Respond with: {"detectedCondition": "string", "severity": "CRITICAL|HIGH|MEDIUM|
       const responseText = result.response.text().trim();
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
       if (jsonMatch) return JSON.parse(jsonMatch[0]);
-    } catch(e) { console.warn('[AI] Gemini error, using fallback:', e.message); }
+    } catch (e) { console.warn('[AI] Gemini error, using fallback:', e.message); }
   }
   // Keyword fallback triage engine
   const lower = text.toLowerCase();
@@ -2355,9 +2397,11 @@ Respond with: {"detectedCondition": "string", "severity": "CRITICAL|HIGH|MEDIUM|
     condition = 'Fracture / Orthopedic Injury'; severity = 'MEDIUM'; ambType = 'BLS'; hospType = 'General Hospital'; color = 'YELLOW';
     actions.unshift('Immobilize the injured part', 'Apply ice if available');
   }
-  return { detectedCondition: condition, severity, suggestedAmbulanceType: ambType, suggestedHospitalType: hospType,
+  return {
+    detectedCondition: condition, severity, suggestedAmbulanceType: ambType, suggestedHospitalType: hospType,
     immediateActions: actions, urgentMessage: `${condition} detected. ${ambType} unit recommended.`,
-    triageColor: color, estimatedTimeToDeterioration: severity === 'CRITICAL' ? '< 5 minutes' : severity === 'HIGH' ? '< 15 minutes' : '< 1 hour' };
+    triageColor: color, estimatedTimeToDeterioration: severity === 'CRITICAL' ? '< 5 minutes' : severity === 'HIGH' ? '< 15 minutes' : '< 1 hour'
+  };
 }
 
 app.post('/api/ai/copilot', async (req, res) => {
@@ -2367,7 +2411,7 @@ app.post('/api/ai/copilot', async (req, res) => {
     const analysis = await analyzeSymptoms(symptoms);
     logAudit('AI_TRIAGE', `AI Copilot analyzed: ${symptoms.slice(0, 50)}`, {});
     res.json(analysis);
-  } catch(err) {
+  } catch (err) {
     res.status(500).json({ error: 'AI analysis failed', detail: err.message });
   }
 });
@@ -2391,11 +2435,11 @@ app.get('/api/blood/banks', (req, res) => {
   const baseLat = parseFloat(lat) || 12.9716;
   const baseLng = parseFloat(lng) || 77.5946;
   const bloodBanks = [
-    { id: 'BB-001', name: 'City Blood Bank & Research Centre', lat: baseLat + 0.02, lng: baseLng + 0.015, phone: '+91-80-22222222', inventory: {'A+':12,'A-':2,'B+':8,'B-':1,'O+':15,'O-':3,'AB+':5,'AB-':1}, emergency24x7: true },
-    { id: 'BB-002', name: 'Red Cross Blood Bank', lat: baseLat - 0.018, lng: baseLng + 0.022, phone: '+91-80-33333333', inventory: {'A+':6,'A-':0,'B+':14,'B-':3,'O+':9,'O-':0,'AB+':7,'AB-':2}, emergency24x7: true },
-    { id: 'BB-003', name: 'Government District Blood Bank', lat: baseLat + 0.035, lng: baseLng - 0.01, phone: '+91-80-44444444', inventory: {'A+':20,'A-':4,'B+':11,'B-':2,'O+':25,'O-':6,'AB+':3,'AB-':0}, emergency24x7: false },
-    { id: 'BB-004', name: 'Lions Club Blood Bank', lat: baseLat - 0.025, lng: baseLng - 0.03, phone: '+91-80-55555555', inventory: {'A+':8,'A-':1,'B+':5,'B-':0,'O+':12,'O-':2,'AB+':4,'AB-':1}, emergency24x7: true },
-    { id: 'BB-005', name: 'Apollo Hospital Blood Bank', lat: baseLat + 0.01, lng: baseLng + 0.04, phone: '+91-80-66666666', inventory: {'A+':10,'A-':3,'B+':7,'B-':2,'O+':18,'O-':4,'AB+':6,'AB-':2}, emergency24x7: true },
+    { id: 'BB-001', name: 'City Blood Bank & Research Centre', lat: baseLat + 0.02, lng: baseLng + 0.015, phone: '+91-80-22222222', inventory: { 'A+': 12, 'A-': 2, 'B+': 8, 'B-': 1, 'O+': 15, 'O-': 3, 'AB+': 5, 'AB-': 1 }, emergency24x7: true },
+    { id: 'BB-002', name: 'Red Cross Blood Bank', lat: baseLat - 0.018, lng: baseLng + 0.022, phone: '+91-80-33333333', inventory: { 'A+': 6, 'A-': 0, 'B+': 14, 'B-': 3, 'O+': 9, 'O-': 0, 'AB+': 7, 'AB-': 2 }, emergency24x7: true },
+    { id: 'BB-003', name: 'Government District Blood Bank', lat: baseLat + 0.035, lng: baseLng - 0.01, phone: '+91-80-44444444', inventory: { 'A+': 20, 'A-': 4, 'B+': 11, 'B-': 2, 'O+': 25, 'O-': 6, 'AB+': 3, 'AB-': 0 }, emergency24x7: false },
+    { id: 'BB-004', name: 'Lions Club Blood Bank', lat: baseLat - 0.025, lng: baseLng - 0.03, phone: '+91-80-55555555', inventory: { 'A+': 8, 'A-': 1, 'B+': 5, 'B-': 0, 'O+': 12, 'O-': 2, 'AB+': 4, 'AB-': 1 }, emergency24x7: true },
+    { id: 'BB-005', name: 'Apollo Hospital Blood Bank', lat: baseLat + 0.01, lng: baseLng + 0.04, phone: '+91-80-66666666', inventory: { 'A+': 10, 'A-': 3, 'B+': 7, 'B-': 2, 'O+': 18, 'O-': 4, 'AB+': 6, 'AB-': 2 }, emergency24x7: true },
   ];
   res.json(bloodBanks);
 });
@@ -2466,7 +2510,7 @@ app.get('/api/analytics/hotspots', authenticateToken, async (req, res) => {
     missions.forEach(m => {
       const details = m.patientDetailsEncrypted || {};
       if (details.userLocation) {
-        hotspots.push({ lat: details.userLocation.lat, lng: details.userLocation.lng, type: details.condition || types[Math.floor(Math.random()*types.length)], count: 1 });
+        hotspots.push({ lat: details.userLocation.lat, lng: details.userLocation.lng, type: details.condition || types[Math.floor(Math.random() * types.length)], count: 1 });
       }
     });
     // Generate simulated hotspot data around known incident zones
@@ -2474,7 +2518,7 @@ app.get('/api/analytics/hotspots', authenticateToken, async (req, res) => {
       hotspots.push({ lat: zone.lat, lng: zone.lng, type: 'Traffic Accident', count: 3, radius: zone.radius });
     });
     res.json({ hotspots, totalIncidents: missions.length });
-  } catch(err) {
+  } catch (err) {
     res.status(500).json({ error: 'Hotspot analytics failed' });
   }
 });

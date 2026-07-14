@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 
 const ALGORITHM = 'aes-256-cbc';
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'a_very_secure_secret_key_32_characters_long'; // Must be 32 chars
+const { ENCRYPTION_KEY } = require('./config');
 const IV_LENGTH = 16;
 
 /**
