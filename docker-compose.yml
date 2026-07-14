@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: rescuelink-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: rescuelink
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: your_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: rescuelink-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rescuelink-server
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=rescuelink
+      - DB_USER=postgres
+      - DB_PASSWORD=your_password
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=EnterpriseRescueLinkSecret_2026_REPLACE_IN_PROD
+      - JWT_EXPIRES_IN=8h
+      - SERIAL_PORT_PATH=
+      - GOOGLE_MAPS_API_KEY=mock_google_maps_key
+      - RAZORPAY_KEY_ID=rzp_test_mockKeyId12345
+      - RAZORPAY_KEY_SECRET=mockKeySecret1234567890
+      - ABDM_CLIENT_ID=SBX_000000
+      - ABDM_CLIENT_SECRET=xxxx-xxxx-xxxx-xxxx
+      - TWILIO_ACCOUNT_SID=mock_account_sid
+      - TWILIO_AUTH_TOKEN=mock_auth_token
+      - TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
+      - DAILY_CO_API_KEY=mock_daily_co_key
+    ports:
+      - "5000:5000"
+    depends_on:
+      - postgres
+      - redis
+
+  client:
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    container_name: rescuelink-client
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - server
+
+volumes:
+  postgres_data:
+  redis_data:

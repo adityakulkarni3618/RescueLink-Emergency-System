@@ -1,146 +1,85 @@
-#  RescueLink — Real-Time Emergency Care System
-### Web Wizards 2.0 Hackathon · Healthcare Emergency Track
+# RescueLink: Real-Time Emergency Care Coordination Platform
+
+RescueLink is an enterprise-grade emergency care system designed to coordinate real-time patient telemetry, GPS ambulance routing, and secure hospital resource allocation.
 
 ---
 
-##  Architecture Overview
+## 1. System Architecture
 
-```
-emergency-care-system/
-├── server/                  ← Node.js + Express + Socket.io backend
-│   ├── server.js            ← Main server with all socket events
-│   ├── data/patients.json   ← Mock patient database (5 patients)
-│   └── package.json
-│
-├── client/                  ← React.js frontend
-│   ├── public/index.html
-│   └── src/
-│       ├── App.js           ← Role selector + socket connection
-│       └── components/
-│           ├── AmbulanceStreamer.js   ← Paramedic console
-│           └── HospitalDashboard.js  ← Doctor command center
-│
-└── README.md
-```
+Below is the production architecture illustrating the flow from the ambulance edge to the Postgres-backed core API server and external national gateways (ABDM).
 
----
+```mermaid
+graph TD
+    subgraph Ambulance Edge (PWA Client)
+        A[Vitals IoT Bridge / Serial] -->|HL7 ORU| B(Ambulance Streamer App)
+        B -->|Socket.io Telemetry| C[Nginx Proxy]
+        B -.->|Offline Mode Caching| B
+    end
 
-##  Quick Start (5 minutes)
+    subgraph API Gateway / Server Node
+        C -->|Port 443 / TLS| D[Express Application Server]
+        D -->|Rate Limiter & Helmet| E{Authentication / MFA}
+        E -->|Doctor / Admin Role| F[maskSensitiveData Middleware]
+    end
 
-### Step 1: Install & Start Backend
-```bash
-cd emergency-care-system/server
-npm install
-node server.js
-# Server runs on http://localhost:5000
-```
+    subgraph Persistence Layer
+        F -->|AES-256-GCM Cryptography| G[(PostgreSQL System of Record)]
+        G -->|Append-Only Logs| H[(Immutable Audit Logs)]
+    end
 
-### Step 2: Install & Start Frontend
-```bash
-cd emergency-care-system/client
-npm install
-npm start
-# React app runs on http://localhost:3000
-```
-
-### Step 3: Demo Setup (IMPORTANT for judges!)
-1. Open **two browser windows** side-by-side at `http://localhost:3000`
-2. **Window 1** → Click **"AMBULANCE UNIT"**
-3. **Window 2** → Click **"HOSPITAL COMMAND"**
-4. On the Ambulance window → Click **"▶ START STREAM"**
-5. Watch vitals appear live on the Hospital dashboard!
-
----
-
-## Features Implemented
-
-| Feature | Component | Status |
-|---|---|---|
-| Live vitals streaming (HR, SpO2, BP, Temp, RR, Glucose) | AmbulanceStreamer | Yes |
-| Real-time line graphs (hospital monitor style) | HospitalDashboard | Yes |
-| Live ambulance GPS tracking on Leaflet map | HospitalDashboard | Yes |
-| Route simulation (Junnar → Narayangaon) | AmbulanceStreamer | Yes |
-| Critical alert (red flash + audio beep) | HospitalDashboard | Yes |
-| Two-way text communication | Both | Yes |
-| Quick medical directives (doctor → paramedic) | HospitalDashboard | Yes |
-| Patient medical history lookup | HospitalDashboard | Yes |
-| Hospital resource readiness toggles | HospitalDashboard | Yes |
-| Incident notes from field | AmbulanceStreamer | Yes |
-| Connection status indicators | Both | Yes |
-| Dark command-center UI theme | Both | Yes |
-
----
-
-## Demo Script (for judges)
-
-### Scene 1 — Normal transit
-- Show vitals streaming live (HR ~78 bpm, SpO2 ~97%)
-- Show ambulance marker moving along the route on the map
-- Show chat working (send a message from ambulance, see it on hospital)
-
-### Scene 2 — Critical event (trigger manually)
-In `AmbulanceStreamer.js`, temporarily change the vitals range to force critical:
-```js
-heartRate: Math.round(clamp(jitter(prev?.heartRate ?? 115, 3), 112, 130)),
-spo2: Math.round(clamp(jitter(prev?.spo2 ?? 89, 1), 87, 91)),
-```
-→ Hospital screen flashes red + plays alert beep automatically!
-
-### Scene 3 — Patient record
-- On ambulance, click **PAT-001** (Rajesh Kumar — HIGH RISK cardiac patient)
-- Hospital immediately shows: blood group B+, Penicillin/Aspirin allergy, CAD history
-- Doctor sends quick directive: **"Do NOT give morphine – allergy"**
-
-### Scene 4 — Resource preparation
-- On hospital screen, toggle: OT Prepared ✓, Cardiologist Assigned ✓
-- Explain: "Hospital is now proactively preparing before the patient arrives"
-
----
-
-## Socket Events Reference
-
-| Event | Direction | Payload |
-|---|---|---|
-| `vitals-update` | Amb → Server → Hospital | `{ heartRate, spo2, systolic, diastolic, temperature, respRate, glucose }` |
-| `location-update` | Amb → Server → Hospital | `{ lat, lng }` |
-| `patient-selected` | Amb → Server → Hospital | `"PAT-001"` |
-| `critical-alert` | Server → All | `{ reasons[], vitals, timestamp }` |
-| `resources-update` | Hospital ↔ Server ↔ Amb | `{ otPrepared, ventilatorReady, ... }` |
-| `chat-message` | Both ↔ Server ↔ Both | `{ text, from, fromLabel }` |
-| `incident-note` | Amb → Server → Hospital | `{ note, from }` |
-| `roles-update` | Server → All | `{ ambulance: N, hospital: N }` |
-
----
-
-## npm Dependencies
-
-### Server
-```
-express, socket.io, cors
-```
-
-### Client
-```
-react, react-dom, react-scripts
-socket.io-client      ← Real-time socket communication
-recharts              ← Live vital sign charts
-react-leaflet         ← Interactive ambulance tracking map
-leaflet               ← Map library
-lucide-react          ← Icons
+    subgraph External National Gateways
+        D -->|Green Corridor| I[Google Maps Directions API]
+        D -->|Health Records Link| J[ABDM Gateway Callbacks]
+    end
 ```
 
 ---
 
-## Scalability & Future Scope
+## 2. Tech Stack
 
-- **IoT Integration**: Replace simulated vitals with real medical sensors (BLE/WiFi)
-- **WebRTC Video**: Add video call between paramedic and doctor
-- **Multi-Ambulance**: Dashboard can track multiple ambulances simultaneously
-- **AI Triage**: ML model to predict severity from vital trends
-- **EHR Integration**: Connect to hospital's actual patient database (HL7/FHIR)
-- **NHM API**: Integrate with National Health Mission's emergency response systems
+- **Backend**: Node.js, Express, Socket.io, Sequelize ORM.
+- **Frontend**: React.js, Leaflet Maps, offline PWA Service Worker.
+- **Database**: PostgreSQL (system of record), SQLite (automatic local fallback), Redis (blacklists).
+- **Security**: AES-256-GCM application-layer encryption, TOTP Multi-factor authentication.
+- **Deployments**: Docker, docker-compose, SSL/TLS Nginx.
 
 ---
 
-*Built for Web Wizards 2.0 Hackathon — Healthcare Emergency Track*
-*Team: [Your Team Name] · Maharashtra, India*
+## 3. Compliance and Operational Index
+
+RescueLink is built from the ground up for healthcare compliance audits:
+- **Database Schema**: [SCHEMA.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/SCHEMA.md)
+- **Security hardening & Threat Model**: [SECURITY.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/SECURITY.md)
+- **Production Deployments**: [DEPLOYMENT.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/DEPLOYMENT.md)
+- **Data Erasure & Purge Specifications**: [DATA_HANDLING.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/DATA_HANDLING.md)
+- **DPDP Act 2023 Compliance**: [PRIVACY_POLICY.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/PRIVACY_POLICY.md)
+- **ABDM Sandbox Integration Guide**: [ABDM_INTEGRATION.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/docs/ABDM_INTEGRATION.md)
+- **Hardware Monitor Hookup (Philips/GE)**: [VITALS_HARDWARE_SETUP.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/docs/VITALS_HARDWARE_SETUP.md)
+- **Incident Response Manual**: [RUNBOOK.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/RUNBOOK.md)
+
+---
+
+## 4. Local Quickstart
+
+### Prerequisites
+- Node.js v18+
+- PostgreSQL / SQLite
+
+### Installation
+1. Install server dependencies:
+   ```bash
+   cd server
+   npm install
+   ```
+2. Configure environment:
+   ```bash
+   cp .env.example .env
+   ```
+3. Run migrations and database seeds:
+   ```bash
+   npm run seed
+   ```
+4. Start development server:
+   ```bash
+   npm run dev
+   ```
