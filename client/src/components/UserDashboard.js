@@ -1,7 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-leaflet';
+import React, { useState, useEffect, useRef } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import VideoCall from './VideoCall';
+import { showAlert } from '../utils/alert';
+import AIEmergencyCopilot from './AIEmergencyCopilot';
+import CPRGuidance from './CPRGuidance';
+import BloodEmergencyNetwork from './BloodEmergencyNetwork';
+import AmbulanceMarketplace from './AmbulanceMarketplace';
+
 
 // Fix leaflet icon issue
 delete L.Icon.Default.prototype._getIconUrl;
@@ -34,475 +41,1294 @@ const hospitalIcon = new L.DivIcon({
 });
 
 // Helper component to center map on user
+function SmartMapController({ userLoc, ambulanceLoc, manualCenter }) {
+  const map = useMap();
+  const lastBoundsRef = useRef(null);
+
+  useEffect(() => {
+    if (manualCenter) {
+      map.setView(manualCenter, 13, { animate: true });
+      return;
+    }
+
+    if (userLoc && ambulanceLoc) {
+      const bounds = L.latLngBounds([
+        [userLoc.lat, userLoc.lng],
+        [ambulanceLoc.lat, ambulanceLoc.lng]
+      ]);
+      const boundsStr = bounds.toBBoxString();
+      if (boundsStr !== lastBoundsRef.current) {
+        map.fitBounds(bounds, { padding: [50, 50], animate: true });
+        lastBoundsRef.current = boundsStr;
+      }
+    } else if (userLoc) {
+      map.panTo([userLoc.lat, userLoc.lng], { animate: true });
+    }
+  }, [userLoc, ambulanceLoc, manualCenter, map]);
+
+  return null;
+}
+
 function MapCenterer({ center }) {
   const map = useMap();
   useEffect(() => {
-    if (center) map.setView(center, map.getZoom());
+    if (center) {
+      const pos = center.lat ? [center.lat, center.lng] : center;
+      map.setView(pos, map.getZoom(), { animate: true });
+    }
   }, [center, map]);
   return null;
+}
+
+
+let audioCtx = null;
+function playAlertBeep() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const ctx = audioCtx;
+    [880, 1320].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = freq; osc.type = 'sine';
+      gain.gain.setValueAtTime(0.3, ctx.currentTime + i * 0.1);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + i * 0.1 + 0.08);
+      osc.start(ctx.currentTime + i * 0.1); osc.stop(ctx.currentTime + i * 0.1 + 0.08);
+    });
+  } catch (e) { }
+}
+
+function calcDist(pos1, pos2) {
+  if (!pos1 || !pos2) return Infinity;
+  const p1 = pos1.lat ? pos1 : { lat: pos1[0], lng: pos1[1] };
+  const p2 = pos2.lat ? pos2 : { lat: pos2[0], lng: pos2[1] };
+  const R = 6371; // km
+  const dLat = (p2.lat - p1.lat) * Math.PI / 180;
+  const dLng = (p2.lng - p1.lng) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + 
+            Math.cos(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) * 
+            Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 export default function UserDashboard({ socket, connected }) {
   const [userLocation, setUserLocation] = useState(null);
   const [ambulances, setAmbulances] = useState({});
   const [hospitals, setHospitals] = useState({});
-  const [requestStatus, setRequestStatus] = useState('idle');
-  const [activeReqId, setActiveReqId] = useState(null);
-  const [assignedAmbulanceId, setAssignedAmbulanceId] = useState(null);
-  const [assignedHospitalId, setAssignedHospitalId] = useState(null);
-  const [routePath, setRoutePath] = useState(null);
+  const [trafficIncidents, setTrafficIncidents] = useState({});
+  const [requestStatus, setRequestStatus] = useState(localStorage.getItem('user_requestStatus') || 'idle');
+  const [activeReqId, setActiveReqId] = useState(localStorage.getItem('user_activeReqId') || null);
+  const [assignedAmbulanceId, setAssignedAmbulanceId] = useState(localStorage.getItem('user_assignedAmbulanceId') || null);
+  const [userId] = useState(() => {
+    let id = localStorage.getItem('user_persistent_id');
+    if (!id) {
+      id = 'USR-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+      localStorage.setItem('user_persistent_id', id);
+    }
+    return id;
+  });
   const [liveAmbulanceLoc, setLiveAmbulanceLoc] = useState(null);
-  const [simulatedAmbulances, setSimulatedAmbulances] = useState([]);
   const [isAmbulanceArrived, setIsAmbulanceArrived] = useState(false);
-  const [simulationActive, setSimulationActive] = useState(false);
+  const [patientData, setPatientData] = useState({ name: '', age: '', condition: '', bloodGroup: '' });
   const [locationHistory, setLocationHistory] = useState([]);
-  const [arrivalCountdown, setArrivalCountdown] = useState(null);
+  const [routePath, setRoutePath] = useState(null);
+  const [assignedHospitalId, setAssignedHospitalId] = useState(null);
+  const [assignedHospitalInfo, setAssignedHospitalInfo] = useState(null);
+  const [mapCenter, setMapCenter] = useState(null);
+  const [missions, setMissions] = useState({});
+  const [currentReqId, setCurrentReqId] = useState(localStorage.getItem('user_currentReqId') || null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [otpTransactionId, setOtpTransactionId] = useState(null);
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [tempNationalId, setTempNationalId] = useState('');
+  const [etaSeconds, setEtaSeconds] = useState(null);
+  const [sosMode, setSosMode] = useState(false);
+  const etaTimerRef = React.useRef(null);
 
+  const [locationMethod, setLocationMethod] = useState('detecting...');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [manualCenter, setManualCenter] = useState(null);
 
+  // ─── Enterprise Features State ──────────────────────────────────────────────
+  const [showAICopilot, setShowAICopilot] = useState(false);
+  const [showCPRGuide, setShowCPRGuide] = useState(false);
+  const [showBloodNetwork, setShowBloodNetwork] = useState(false);
+  const [showMarketplace, setShowMarketplace] = useState(false);
+  const [aiAnalysisResult, setAiAnalysisResult] = useState(null);
+  const [familyTrackingLink, setFamilyTrackingLink] = useState(null);
+  const [showFamilyLinkModal, setShowFamilyLinkModal] = useState(false);
+  const [accidentAlert, setAccidentAlert] = useState(null);
+  const [accidentCountdown, setAccidentCountdown] = useState(30);
+  const [greenCorridorActive, setGreenCorridorActive] = useState(null);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [voiceSosActive, setVoiceSosActive] = useState(false);
+  const [wearableConnected, setWearableConnected] = useState(false);
+  const SERVER_URL_CONST = process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin;
 
+  // ETA live countdown
+  useEffect(() => {
+    if (etaSeconds === null || isAmbulanceArrived) { if (etaTimerRef.current) clearInterval(etaTimerRef.current); return; }
+    if (etaTimerRef.current) clearInterval(etaTimerRef.current);
+    etaTimerRef.current = setInterval(() => setEtaSeconds(prev => prev > 1 ? prev - 1 : 0), 1000);
+    return () => clearInterval(etaTimerRef.current);
+  }, [etaSeconds, isAmbulanceArrived]);
 
+  // Recalculate ETA whenever ambulance moves
+  useEffect(() => {
+    if (!liveAmbulanceLoc || !userLocation || isAmbulanceArrived) return;
+    const distKm = calcDist(liveAmbulanceLoc, userLocation);
+    const eta = Math.round((distKm / 50) * 3600); // 50 km/h avg
+    setEtaSeconds(eta > 0 ? eta : 0);
+  }, [liveAmbulanceLoc, userLocation, isAmbulanceArrived]);
 
-  // Helper distance function
-  const calcDist = (pos1, pos2) => {
-    if (!pos1 || !pos2) return Infinity;
-    const R = 6371; // km
-    const dLat = (pos2.lat - pos1.lat) * Math.PI / 180;
-    const dLng = (pos2.lng - pos1.lng) * Math.PI / 180;
-    const a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(pos1.lat*Math.PI/180)*Math.cos(pos2.lat*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2);
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const handleManualSearch = async () => {
+    if (!searchQuery.trim()) return;
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`);
+      const data = await res.json();
+      if (data && data.length > 0) {
+        const newLoc = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+        setUserLocation(newLoc);
+        setManualCenter([newLoc.lat, newLoc.lng]);
+        setLocationMethod('manual');
+        if (socket) socket.emit('location-update', newLoc);
+      }
+    } catch (e) { console.error('Search failed', e); }
   };
 
-  // Get User Location
   useEffect(() => {
-    if (!navigator.geolocation) {
-      console.error('Geolocation is not supported by your browser');
-      // Fallback location for demo
-      setUserLocation({ lat: 18.5204, lng: 73.8567 }); // Pune
-      return;
-    }
+    const fetchIpLocation = async () => {
+      const providers = [
+        'https://ipapi.co/json/',
+        'https://ip-api.com/json'
+      ];
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setUserLocation({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        });
-      },
-      (error) => {
-        console.error('Error getting location', error);
-        setUserLocation({ lat: 18.5204, lng: 73.8567 });
-      },
-      { enableHighAccuracy: true }
-    );
+      for (const url of providers) {
+        try {
+          const res = await fetch(url);
+          const data = await res.json();
+          const lat = data.latitude || data.lat;
+          const lng = data.longitude || data.lon;
+          if (lat && lng) {
+            setLocationMethod('IP Geolocation');
+            return { lat, lng };
+          }
+        } catch (err) { console.warn(`Provider ${url} failed`); }
+      }
+      setLocationMethod('System Default');
+      return { lat: 12.9716, lng: 77.5946 }; // Bengaluru Fallback
+    };
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          setUserLocation(loc);
+          setLocationMethod('Native GPS');
+          setMapCenter([loc.lat, loc.lng]);
+        },
+        async (err) => {
+          console.warn('User Location Denied/Error', err);
+          const loc = await fetchIpLocation();
+          setUserLocation(loc);
+          setMapCenter([loc.lat, loc.lng]);
+        },
+        { enableHighAccuracy: true, timeout: 5000 }
+      );
+    } else {
+      // Manual Fallback: Place user in a neutral city center if GPS is missing/blocked
+      console.warn('Geolocation not supported/blocked - Using Manual Fallback');
+      fetchIpLocation().then(loc => {
+        setUserLocation(loc);
+        setMapCenter([loc.lat, loc.lng]);
+      });
+    }
   }, []);
 
-  // Generate Simulated Ambulances
-  useEffect(() => {
-    if (userLocation && simulatedAmbulances.length === 0) {
-      const fakes = [];
-      for (let i = 0; i < 4; i++) {
-        fakes.push({
-          id: `sim-amb-${i}`,
-          location: {
-            lat: userLocation.lat + (Math.random() - 0.5) * 0.05,
-            lng: userLocation.lng + (Math.random() - 0.5) * 0.05
-          },
-          available: true,
-          isSimulated: true
-        });
+  const simulateIdScan = async () => {
+    setIsScanning(true);
+    const nationalId = window.prompt(
+      '📡 GLOBAL HIE SCANNER\n\nEnter patient\'s Universal Health ID, Aadhaar, or ABHA Number:',
+      '303535904939'
+    );
+    if (!nationalId) { setIsScanning(false); return; }
+    
+    setTempNationalId(nationalId);
+    
+    try {
+      const SERVER_URL = process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin;
+      const res = await fetch(`${SERVER_URL}/api/hie/initiate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nationalId })
+      });
+      const data = await res.json();
+      
+      if (data.status === "SUCCESS") {
+        setOtpTransactionId(data.transactionId);
+        setShowOtpModal(true);
+      } else {
+        throw new Error(data.error);
       }
-      setSimulatedAmbulances(fakes);
+    } catch (e) {
+      showAlert(`⚠️ HIE Gateway Error: ${e.message}`);
+    } finally {
+      setIsScanning(false);
     }
-  }, [userLocation, simulatedAmbulances.length]);
+  };
 
-  // Socket Events
+  const verifyHieOtp = async (otp) => {
+    try {
+      const SERVER_URL = process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin;
+      const res = await fetch(`${SERVER_URL}/api/hie/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transactionId: otpTransactionId, otp, nationalId: tempNationalId })
+      });
+      const data = await res.json();
+      
+      if (data.error) throw new Error(data.error);
+
+      // Add a verified flag since it came from the secure gateway
+      setPatientData(prev => {
+        const verifiedData = { ...data, isVerified: true, name: data.name || prev.name };
+        if (currentReqId && socket) {
+          socket.emit('patient-data', { reqId: currentReqId, ...verifiedData });
+        }
+        return { ...prev, ...verifiedData };
+      });
+      setShowOtpModal(false);
+      setOtpTransactionId(null);
+    } catch (e) {
+      showAlert(`❌ Invalid OTP: ${e.message}`);
+    }
+  };
+
+  // HIGH-RELIABILITY: Sync current mission state to active display
   useEffect(() => {
-    if (!socket) return;
+    if (currentReqId && missions[currentReqId]) {
+      const m = missions[currentReqId];
+      if (m.ambulanceLocation) setLiveAmbulanceLoc(m.ambulanceLocation);
+      if (m.ambulanceSocket) setAssignedAmbulanceId(m.ambulanceSocket);
+      if (m.routePath && !routePath) setRoutePath(m.routePath.map(pos => [pos.lat, pos.lng]));
+      if (m.status) setRequestStatus(m.status);
+      if (m.arrived) setIsAmbulanceArrived(true);
+    }
+  }, [currentReqId, missions]);
+
+  // --- Offline Mode Listeners ---
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // --- Voice SOS Background Listener ---
+  useEffect(() => {
+    if (!voiceSosActive) return;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      showAlert("Voice SOS not supported in this browser.");
+      setVoiceSosActive(false);
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results)
+        .map(result => result[0].transcript)
+        .join('').toLowerCase();
+      
+      if (transcript.includes("help") || transcript.includes("emergency") || transcript.includes("accident")) {
+        playAlertBeep();
+        showAlert("🎙️ Voice SOS Detected! Triggering Emergency Sequence...");
+        setVoiceSosActive(false); // Stop listening
+        recognition.stop();
+        requestAmbulance(); // Fire request
+      }
+    };
+    
+    recognition.onerror = (e) => console.warn("Voice SOS Error", e);
+    recognition.start();
+    
+    return () => recognition.stop();
+  }, [voiceSosActive]);
+
+  useEffect(() => {
+    localStorage.setItem('user_requestStatus', requestStatus);
+    localStorage.setItem('user_currentReqId', currentReqId || '');
+    localStorage.setItem('user_assignedAmbulanceId', assignedAmbulanceId || '');
+  }, [requestStatus, currentReqId, assignedAmbulanceId]);
+
+  useEffect(() => {
+    if (!socket || !connected) return;
+    socket.emit('register-user', { userId, location: userLocation });
+
+    const onRejoin = (data) => {
+      console.log(`[PERSISTENCE] Rejoined mission ${data.id}`);
+      setMissions(prev => ({ ...prev, [data.id]: { ...data, status: data.status === 'pending_ambulance' ? 'searching' : 'accepted' } }));
+      if (!currentReqId) setCurrentReqId(data.id);
+      setRequestStatus(data.status === 'pending_ambulance' ? 'searching' : 'accepted');
+      if (data.ambulanceSocket) setAssignedAmbulanceId(data.ambulanceSocket);
+      if (data.routePath) setRoutePath(data.routePath.map(pos => [pos.lat, pos.lng]));
+    };
+
+    socket.on('rejoin-mission', onRejoin);
+    socket.on('active-missions-update', (data) => {
+        console.log('[RECOVERY] Multiple missions found:', data);
+        const newMissions = {};
+        data.forEach(m => {
+            newMissions[m.id] = { ...m, status: m.status === 'pending_ambulance' ? 'searching' : 'accepted' };
+            if (m.id === currentReqId && m.ambulanceSocket) {
+                setAssignedAmbulanceId(m.ambulanceSocket);
+                localStorage.setItem('user_assignedAmbulanceId', m.ambulanceSocket);
+            }
+        });
+        setMissions(prev => ({ ...prev, ...newMissions }));
+        if (!currentReqId && data.length > 0) setCurrentReqId(data[0].id);
+    });
 
     socket.on('ambulances-update', (data) => setAmbulances(data));
     socket.on('hospitals-update', (data) => setHospitals(data));
+    socket.on('traffic-incidents-update', (data) => setTrafficIncidents(data || {}));
 
     socket.on('ambulance-request-response', (req) => {
-      if (req.status === 'ambulance_accepted') {
-        setRequestStatus('ambulance_accepted');
-        setAssignedAmbulanceId(req.ambulanceSocket);
-        setActiveReqId(req.id);
-        if (req.routePath) setRoutePath(req.routePath.map(pos => [pos.lat, pos.lng]));
-      } else {
-        setRequestStatus('idle');
-        alert('Ambulance rejected the request. Please try another.');
-      }
-    });
+      setMissions(prev => ({
+        ...prev,
+        [req.id]: { ...req, status: req.accepted ? 'accepted' : 'idle' }
+      }));
 
-    socket.on('hospital-request-response', (req) => {
-      if (req.status === 'hospital_accepted') {
-        setRequestStatus('hospital_accepted');
-        setAssignedHospitalId(req.hospitalSocket);
-        // Sync the ready services from the hospital
-        if (req.readyServices) {
-          setHospitals(prev => ({
-            ...prev,
-            [req.hospitalSocket]: { ...prev[req.hospitalSocket], readyServices: req.readyServices }
-          }));
+      if (req.accepted) {
+        if (req.id === currentReqId || !currentReqId) {
+            setCurrentReqId(req.id);
+            setRequestStatus('accepted');
+            setAssignedAmbulanceId(req.ambulanceSocket);
+            if (req.routePath) setRoutePath(req.routePath.map(pos => [pos.lat, pos.lng]));
         }
-        if (req.routePath) setRoutePath(req.routePath.map(pos => [pos.lat, pos.lng]));
+        playAlertBeep();
       } else {
-        setRequestStatus('ambulance_accepted');
-        alert('Hospital rejected the request. Please try another.');
+        showAlert('Ambulance rejected the request. Please try another.');
       }
     });
 
-    socket.on('ambulance-arrived', () => {
-      setIsAmbulanceArrived(true);
-    });
-    // Live ambulance position tracking (like Ola/Uber)
     socket.on('location-update', (data) => {
-      if (data && data.lat && data.lng) {
+      const targetReqId = data.reqId;
+      if (targetReqId) {
+          setMissions(prev => {
+              const m = prev[targetReqId];
+              if (!m) return prev;
+              return {
+                  ...prev,
+                  [targetReqId]: { ...m, ambulanceLocation: { lat: data.lat, lng: data.lng } }
+              };
+          });
+      }
+
+      if (targetReqId === currentReqId || data.ambulanceSocket === assignedAmbulanceId) {
         setLiveAmbulanceLoc({ lat: data.lat, lng: data.lng });
-        setLocationHistory(prev => [...prev.slice(-99), [data.lat, data.lng]]);
-        if (data.arrivedAtUser) setIsAmbulanceArrived(true);
-        if (data.simulationOn) setSimulationActive(true);
+        setLocationHistory(prev => [...prev.slice(-49), [data.lat, data.lng]]);
+        if (data.arrivedAtUser) {
+          setIsAmbulanceArrived(true);
+          setRequestStatus('arriving');
+        }
         if (data.destinationId) setAssignedHospitalId(data.destinationId);
       }
     });
 
-
-
-    // Route update (arrives after OSRM fetch completes)
-    socket.on('route-update', (data) => {
-      if (data.routePath) {
-        setRoutePath(data.routePath.map(pos => [pos.lat, pos.lng]));
+    socket.on('ambulance-arrived', (data) => {
+      setMissions(prev => ({
+          ...prev,
+          [data.reqId]: { ...prev[data.reqId], arrived: true }
+      }));
+      if (data.reqId === currentReqId) {
+        setIsAmbulanceArrived(true);
+        setRequestStatus('arriving');
       }
     });
 
-    socket.on('arrival-countdown', (data) => {
-      setArrivalCountdown(data.seconds);
-      if (data.seconds === 0) setRequestStatus('arrived');
+    socket.on('request-acknowledged', (data) => {
+      setMissions(prev => ({ ...prev, [data.id]: { ...data, status: 'searching' } }));
+      setCurrentReqId(data.id);
+      setRequestStatus('searching');
     });
 
-    socket.on('ambulance-arrived', (data) => {
-      setRequestStatus('arrived');
-      setArrivalCountdown(0);
-      setIsAmbulanceArrived(true);
+    socket.on('mission-completed', (data) => {
+      const compReqId = data?.reqId;
+      console.log(`[MISSION] Completion received for ${compReqId}.`);
+      
+      if (data?.reason === 'ambulance_disconnected') {
+        showAlert("⚠️ CRITICAL: Your assigned ambulance lost connection. Please request a new dispatch immediately.");
+      }
+      
+      setMissions(prev => {
+          const next = { ...prev };
+          delete next[compReqId];
+          return next;
+      });
+
+      if (compReqId === currentReqId || !compReqId) {
+          setRequestStatus('idle');
+          setCurrentReqId(null);
+          setAssignedAmbulanceId(null);
+          setIsAmbulanceArrived(false);
+          setLiveAmbulanceLoc(null);
+          setAssignedHospitalId(null);
+          setAssignedHospitalInfo(null);
+          setEtaSeconds(null);
+          setSosMode(false);
+          localStorage.removeItem('user_currentReqId');
+      }
     });
 
+    socket.on('hospital-request-response', (req) => {
+      if (req.status === 'hospital_accepted' && req.assignedHospital) {
+        setAssignedHospitalInfo(req.assignedHospital);
+        if (req.assignedHospital?.id) setAssignedHospitalId(req.assignedHospital.id);
+      }
+    });
 
     return () => {
+      socket.off('rejoin-mission');
+      socket.off('active-missions-update');
       socket.off('ambulances-update');
       socket.off('hospitals-update');
+      socket.off('traffic-incidents-update');
       socket.off('ambulance-request-response');
-      socket.off('hospital-request-response');
       socket.off('location-update');
-      socket.off('route-update');
+      socket.off('ambulance-arrived');
+      socket.off('request-acknowledged');
+      socket.off('mission-completed');
+      socket.off('hospital-request-response');
     };
-  }, [socket]);
+  }, [socket, connected, userId, userLocation, currentReqId, assignedAmbulanceId, ambulances]);
 
-  const requestAmbulance = (ambulanceSocketId) => {
-    if (!socket) return alert('Connecting to server... Please wait.');
-    if (!userLocation) return alert('Waiting for location...');
-    setRequestStatus('pending_ambulance');
+  const requestAmbulance = (ambId, isSOS = false) => {
+    if (!socket || !userLocation) return;
+    const condition = isSOS ? 'SOS EMERGENCY — IMMEDIATE DISPATCH REQUIRED' : patientData.condition.trim();
+    if (!isSOS && !condition) {
+      showAlert("⚠️ Please describe the emergency condition before requesting dispatch.");
+      return;
+    }
+    setRequestStatus('searching');
+    if (isSOS) setSosMode(true);
     socket.emit('request-ambulance', {
-      ambulanceSocketId,
+      userId,
       userLocation,
-      patientDetails: { name: 'Emergency Patient', riskLevel: 'CRITICAL', condition: 'Cardiac Arrest' }
+      ambulanceId: ambId,
+      patientDetails: isSOS ? { name: 'Unknown (SOS)', age: '', condition, bloodGroup: '' } : patientData,
+      isEmergency: true
     });
   };
 
-  const requestHospital = (hospitalSocketId) => {
-    setRequestStatus('pending_hospital');
-    socket.emit('request-hospital', {
-      reqId: activeReqId,
-      hospitalSocketId
-    });
+  const requestSOSDispatch = () => {
+    if (!socket || !userLocation) { showAlert('Location not ready. Please wait a moment.'); return; }
+    if (!window.confirm('🚨 CONFIRM SOS DISPATCH\n\nThis will immediately alert the nearest ambulance.\nOnly use in a genuine emergency.')) return;
+    requestAmbulance(null, true);
   };
 
-  const mapCenter = userLocation || { lat: 18.5204, lng: 73.8567 };
-
-  // Combine and sort ambulances
-  const allAmbs = [
-    ...Object.entries(ambulances).map(([id, amb]) => ({ id, ...amb, isSimulated: false })),
-    ...simulatedAmbulances
-  ].filter(a => a.available)
-   .map(a => ({ ...a, distance: calcDist(userLocation, a.location) }));
-
-  allAmbs.sort((a, b) => a.distance - b.distance);
-  const topAmbs = allAmbs.slice(0, 5);
+  const topAmbs = Object.entries(ambulances)
+    .map(([id, a]) => {
+      // If ambulance has no location, assume it's at the local city center for demo visibility
+      const ambLoc = a.location || userLocation || { lat: 12.9716, lng: 77.5946 };
+      return { id, ...a, distance: calcDist(userLocation, ambLoc) };
+    })
+    .filter(a => a.available)
+    .sort((a, b) => a.distance - b.distance)
+    .slice(0, 10); // Increase visibility to 10 units
 
   return (
-    <div style={{ display: 'flex', height: '100vh', fontFamily: "'Rajdhani', sans-serif", backgroundColor: '#050d1a', color: 'white' }}>
-      
-      {/* Sidebar Panel */}
-      <div style={{ width: '350px', backgroundColor: '#0a1e3a', padding: '20px', borderRight: '1px solid #00c8ff40', display: 'flex', flexDirection: 'column', gap: '20px', overflowY: 'auto' }}>
-        <h2 style={{ color: '#00ff88', margin: 0, fontSize: '24px', letterSpacing: '2px' }}>EMERGENCY REQUEST</h2>
-        <div style={{ fontSize: '14px', color: connected ? '#00ff88' : '#ff3c3c' }}>
-          {connected ? '● SYSTEM CONNECTED' : '○ CONNECTING...'}
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#050a1e', color: '#e0eaff', fontFamily: "'Rajdhani', sans-serif" }}>
+      <style>{`
+        @keyframes pulse-ring {
+          0% { transform: scale(0.8); opacity: 1; }
+          100% { transform: scale(2.5); opacity: 0; }
+        }
+        @keyframes pulse-opacity {
+          0%, 100% { opacity: 1; filter: brightness(1); }
+          50% { opacity: 0.6; filter: brightness(1.5); }
+        }
+        @keyframes sosGlow {
+          0%, 100% { box-shadow: 0 0 20px rgba(255,30,30,0.3), 0 0 40px rgba(255,30,30,0.1); }
+          50% { box-shadow: 0 0 35px rgba(255,30,30,0.7), 0 0 60px rgba(255,30,30,0.3); }
+        }
+      `}</style>
+
+      {/* Header */}
+      <div style={{ background: 'rgba(5,15,40,0.95)', padding: '12px 450px 12px 24px', borderBottom: '1px solid rgba(0,200,255,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ fontSize: 24 }}>🚑</div>
+          <h1 style={{ margin: 0, fontSize: 20, fontFamily: "'Orbitron'", letterSpacing: 2, color: '#00c8ff' }}>RESCUELINK USER</h1>
+        </div>
+        <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
+          {/* 📡 LIVE NETWORK PULSE */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 12px', background: 'rgba(0,255,136,0.05)', borderRadius: 20, border: '1px solid rgba(0,255,136,0.2)' }}>
+            <div style={{ 
+              width: 8, height: 8, borderRadius: '50%', background: '#00ff88', 
+              boxShadow: '0 0 10px #00ff88', animation: 'pulse-opacity 1.5s infinite' 
+            }} />
+            <span style={{ fontSize: 10, color: '#00ff88', fontFamily: "'Orbitron'", letterSpacing: 1 }}>GATEWAY: ACTIVE</span>
+          </div>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, position: 'relative' }}>
+            <div style={{
+              width: 10, height: 10, borderRadius: '50%',
+              background: socket?.connected ? '#00ff88' : '#ff4444',
+              boxShadow: socket?.connected ? '0 0 12px #00ff88' : '0 0 8px #ff4444',
+              position: 'relative', zIndex: 2,
+              animation: socket?.connected ? 'pulse-opacity 1s ease-in-out infinite' : 'none'
+            }} />
+            {socket?.connected && (
+              <div style={{
+                position: 'absolute', inset: -4, borderRadius: '50%',
+                background: 'rgba(0,255,136,0.4)', animation: 'pulse-ring 2s ease-out infinite',
+                zIndex: 1
+              }} />
+            )}
+          </div>
+
+          {/* Mission Switcher */}
+        {Object.keys(missions).length > 1 && (
+          <div style={{ display: 'flex', gap: 10, padding: '10px 24px', background: 'rgba(0,200,255,0.05)', borderBottom: '1px solid rgba(0,200,255,0.1)' }}>
+            {Object.keys(missions).map(id => (
+              <button
+                key={id}
+                onClick={() => setCurrentReqId(id)}
+                style={{
+                  padding: '5px 12px',
+                  background: currentReqId === id ? '#00c8ff' : 'rgba(0,200,255,0.1)',
+                  border: `1px solid ${currentReqId === id ? '#00c8ff' : 'rgba(0,200,255,0.3)'}`,
+                  borderRadius: 4,
+                  color: currentReqId === id ? '#000' : '#00c8ff',
+                  fontSize: 11,
+                  fontFamily: "'Orbitron'",
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                {id}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div style={{ padding: '4px 12px', background: 'rgba(0,255,136,0.1)', color: '#00ff88', borderRadius: 20, fontSize: 12, border: '1px solid rgba(0,255,136,0.3)', fontFamily: "'Orbitron'" }}>
+          STATUS: {requestStatus.toUpperCase()}
         </div>
 
-        {requestStatus === 'idle' && (
-          <div>
-            <h3 style={{ color: '#00c8ff' }}>1. Select an Ambulance</h3>
-            <p style={{ color: '#888', fontSize: '12px' }}>Pick a nearby ambulance to request dispatch.</p>
-            {topAmbs.length === 0 && <p style={{ color: '#ffcc00' }}>Searching for online ambulances...</p>}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10 }}>
-              {topAmbs.map((amb, idx) => (
-                <div key={amb.id} style={{ background: 'rgba(0,200,255,0.05)', padding: '10px 15px', borderRadius: 6, border: '1px solid rgba(0,200,255,0.2)' }}>
-                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: 18 }}>🚑</span>
-                        <div>
-                          <div style={{ fontWeight: 'bold', fontSize: 14 }}>{amb.isSimulated ? `Unit ${idx + 1}` : 'Priority Unit'}</div>
-                          <div style={{ fontSize: 11, color: '#00ff88' }}>{amb.distance.toFixed(2)} km away</div>
-                        </div>
-                      </div>
-                      <button onClick={() => requestAmbulance(amb.id)} style={{ padding: '6px 12px', background: '#ff6b35', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontFamily: "'Rajdhani', sans-serif", fontWeight: 'bold' }}>
-                        Dispatch
-                      </button>
-                   </div>
+          <button
+            onClick={() => {
+              if (window.confirm("Switch user identity? All mission data will be cleared.")) {
+                localStorage.clear();
+                sessionStorage.clear();
+                window.location.reload();
+              }
+            }}
+            style={{
+              padding: '6px 12px', background: 'rgba(255,68,68,0.1)',
+              border: '1px solid rgba(255,68,68,0.3)', borderRadius: 4,
+              color: '#ff4444', fontFamily: "'Orbitron'", fontSize: 10, cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            🚪 LOGOUT / SWITCH
+          </button>
+        </div>
+      </div>
+
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        {/* Sidebar */}
+        <div style={{ width: 350, background: 'rgba(3,10,28,0.95)', borderRight: '1px solid rgba(0,200,255,0.1)', display: 'flex', flexDirection: 'column', padding: 24, overflowY: 'auto' }}>
+          
+          {/* === SOS PANIC BUTTON === */}
+          {requestStatus === 'idle' && (
+            <button
+              onClick={requestSOSDispatch}
+              style={{
+                width: '100%', padding: '18px', marginBottom: 16,
+                background: 'linear-gradient(135deg, rgba(255,30,30,0.25), rgba(220,0,0,0.15))',
+                border: '2px solid #ff2222', borderRadius: 10, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12,
+                animation: 'sosGlow 1.5s ease-in-out infinite', boxShadow: '0 0 20px rgba(255,30,30,0.3)',
+                transition: 'all 0.2s'
+              }}
+            >
+              <span style={{ fontSize: 28 }}>🆘</span>
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ fontFamily: "'Orbitron'", fontSize: 16, color: '#ff4444', fontWeight: 900, letterSpacing: '0.1em' }}>SOS EMERGENCY</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,100,100,0.7)', marginTop: 2 }}>Instantly alerts nearest ambulance</div>
+              </div>
+            </button>
+          )}
+
+          {/* === ENTERPRISE FEATURE QUICK ACCESS === */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
+            {[
+              { icon: '🧠', label: 'AI COPILOT', sublabel: 'Analyze symptoms', color: '#00c8ff', action: () => setShowAICopilot(true) },
+              { icon: '❤️', label: 'CPR GUIDE', sublabel: 'Life-saving mode', color: '#ff4444', action: () => setShowCPRGuide(true) },
+              { icon: '🩸', label: 'BLOOD NET', sublabel: 'Find blood banks', color: '#ff4444', action: () => setShowBloodNetwork(true) },
+              { icon: '🚑', label: 'MARKETPLACE', sublabel: 'Book ambulance', color: '#ffb800', action: () => setShowMarketplace(true) },
+              { icon: '🎙️', label: 'VOICE SOS', sublabel: voiceSosActive ? 'Listening...' : 'Say "Help"', color: voiceSosActive ? '#00ff88' : '#8888ff', action: () => setVoiceSosActive(!voiceSosActive) },
+              { icon: '⌚', label: 'WEARABLE', sublabel: wearableConnected ? 'Connected' : 'Pair Watch', color: wearableConnected ? '#00ff88' : '#aaaaaa', action: () => {
+                if (wearableConnected) {
+                  if (window.confirm('Simulate Fall Detection?')) {
+                    playAlertBeep();
+                    showAlert('⚠️ FALL DETECTED BY WEARABLE. Auto-Dispatching SOS...');
+                    requestAmbulance();
+                  }
+                } else {
+                  setWearableConnected(true);
+                  showAlert('⌚ Smartwatch Paired. Fall detection active.');
+                }
+              } },
+            ].map((btn, i) => (
+              <button key={i} onClick={btn.action} style={{
+                padding: '10px 4px', background: `${btn.color}15`,
+                border: `1px solid ${btn.color}40`, borderRadius: 8, cursor: 'pointer',
+                textAlign: 'center', transition: 'all 0.2s',
+                boxShadow: btn.label === 'VOICE SOS' && voiceSosActive ? `0 0 10px ${btn.color}40` : 'none'
+              }}>
+                <div style={{ fontSize: 18, marginBottom: 4 }}>{btn.icon}</div>
+                <div style={{ fontFamily: "'Orbitron'", fontSize: 8, color: btn.color, fontWeight: 700, letterSpacing: '0.05em' }}>{btn.label}</div>
+                <div style={{ fontSize: 8, color: 'rgba(160,200,255,0.5)', marginTop: 2 }}>{btn.sublabel}</div>
+              </button>
+            ))}
+          </div>
+
+          {/* Offline Mode Banner */}
+          {isOffline && (
+            <div style={{ background: 'rgba(255,184,0,0.1)', border: '2px solid #ffb800', borderRadius: 8, padding: 12, marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <span style={{ fontSize: 20 }}>📡</span>
+                <div>
+                  <div style={{ fontFamily: "'Orbitron'", fontSize: 12, color: '#ffb800', fontWeight: 700 }}>RURAL EMERGENCY MODE</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,184,0,0.8)' }}>No Internet Detected. Using SMS/USSD Fallback.</div>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <button onClick={() => window.open('sms:112?body=EMERGENCY%20SOS%20NEED%20AMBULANCE')} style={{ padding: '8px', background: 'rgba(255,184,0,0.2)', border: 'none', borderRadius: 6, color: '#ffb800', fontWeight: 'bold', fontSize: 11, cursor: 'pointer' }}>📩 SMS SOS (112)</button>
+                <button onClick={() => window.open('tel:*99#')} style={{ padding: '8px', background: 'rgba(255,184,0,0.2)', border: 'none', borderRadius: 6, color: '#ffb800', fontWeight: 'bold', fontSize: 11, cursor: 'pointer' }}>📞 USSD *99#</button>
+              </div>
+            </div>
+          )}
+
+          {/* === FAMILY TRACKING LINK === */}
+          {currentReqId && (
+            <div style={{ background: 'rgba(255,184,0,0.08)', border: '1px solid rgba(255,184,0,0.3)', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+              <div style={{ fontFamily: "'Orbitron'", fontSize: 10, color: '#ffb800', marginBottom: 8, letterSpacing: '0.1em' }}>👨‍👩‍👧 FAMILY TRACKING</div>
+              <div style={{ fontSize: 11, color: 'rgba(220,230,255,0.7)', marginBottom: 8, lineHeight: 1.5 }}>
+                Share this link with family to let them track you live.
+              </div>
+              <button onClick={() => {
+                const link = `${window.location.origin}/?role=family&reqId=${currentReqId}`;
+                setFamilyTrackingLink(link);
+                setShowFamilyLinkModal(true);
+              }} style={{
+                width: '100%', padding: '8px', background: 'rgba(255,184,0,0.1)',
+                border: '1px solid rgba(255,184,0,0.4)', borderRadius: 6, color: '#ffb800',
+                fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 700, cursor: 'pointer'
+              }}>📤 SHARE FAMILY LINK</button>
+            </div>
+          )}
+
+          {/* Green Corridor Active Banner */}
+          {greenCorridorActive && (
+            <div style={{ background: 'rgba(0,255,136,0.1)', border: '2px solid #00ff88', borderRadius: 8, padding: 12, marginBottom: 12, animation: 'sosGlow 2s ease infinite' }}>
+              <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00ff88', marginBottom: 4 }}>🟢 GREEN CORRIDOR ACTIVE</div>
+              <div style={{ fontSize: 11, color: 'rgba(0,255,136,0.7)' }}>Traffic signals cleared for your ambulance route</div>
+            </div>
+          )}
+
+          {/* === ETA & TRACKING PANEL (when active) === */}
+          {(currentReqId || requestStatus !== 'idle') && (
+            <div style={{
+              background: 'rgba(0,200,255,0.05)', border: '1px solid rgba(0,200,255,0.2)',
+              borderRadius: 10, padding: 16, marginBottom: 15,
+            }}>
+              {sosMode && (
+                <div style={{ background: 'rgba(255,30,30,0.15)', border: '1px solid #ff3333', borderRadius: 6, padding: '8px 12px', marginBottom: 12, fontFamily: "'Orbitron'", fontSize: 11, color: '#ff5555', textAlign: 'center', letterSpacing: '0.05em' }}>
+                  🆘 SOS DISPATCH ACTIVE
+                </div>
+              )}
+              <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Orbitron'", marginBottom: 4, textAlign: 'center' }}>ACTIVE MISSION ID</div>
+              <div style={{ fontSize: 14, color: '#00c8ff', fontWeight: 'bold', fontFamily: "'Orbitron'", letterSpacing: 1, textAlign: 'center', marginBottom: 12 }}>{currentReqId}</div>
+
+              {/* ETA Countdown */}
+              {etaSeconds !== null && !isAmbulanceArrived && liveAmbulanceLoc && (
+                <div style={{ background: 'rgba(255,184,0,0.08)', border: '1px solid rgba(255,184,0,0.3)', borderRadius: 8, padding: '12px', marginBottom: 12, textAlign: 'center' }}>
+                  <div style={{ fontSize: 10, color: 'rgba(255,184,0,0.7)', fontFamily: "'Orbitron'", marginBottom: 4 }}>🚑 ESTIMATED ARRIVAL</div>
+                  <div style={{ fontSize: 28, fontWeight: 900, fontFamily: "'Orbitron'", color: etaSeconds < 120 ? '#ff6b35' : '#ffb800' }}>
+                    {Math.floor(etaSeconds / 60)}:{String(etaSeconds % 60).padStart(2, '0')}
+                  </div>
+                  <div style={{ fontSize: 10, color: 'rgba(255,184,0,0.5)', marginTop: 2 }}>MIN : SEC</div>
+                </div>
+              )}
+              {isAmbulanceArrived && (
+                <div style={{ background: 'rgba(0,255,136,0.1)', border: '1px solid #00ff88', borderRadius: 8, padding: '10px', marginBottom: 12, textAlign: 'center', fontFamily: "'Orbitron'", fontSize: 12, color: '#00ff88' }}>
+                  ✅ AMBULANCE ARRIVED
+                </div>
+              )}
+
+              {/* Assigned Hospital Card */}
+              {assignedHospitalInfo && (
+                <div style={{ background: 'rgba(0,100,255,0.08)', border: '1px solid rgba(0,150,255,0.3)', borderRadius: 8, padding: '10px', marginBottom: 12 }}>
+                  <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", marginBottom: 4 }}>🏥 DESTINATION HOSPITAL</div>
+                  <div style={{ fontSize: 13, color: '#7dcfff', fontWeight: 'bold' }}>{assignedHospitalInfo.name || 'Assigned Hospital'}</div>
+                  {assignedHospitalInfo.contactInfo && <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.5)', marginTop: 4 }}>📞 {assignedHospitalInfo.contactInfo}</div>}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 8 }}>
+                <a href="tel:108" style={{
+                  flex: 1, padding: '10px', background: 'rgba(0,255,136,0.1)', border: '1px solid rgba(0,255,136,0.4)',
+                  borderRadius: 6, color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 'bold',
+                  textAlign: 'center', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4
+                }}>📞 CALL 108</a>
+                <button
+                  onClick={() => {
+                    if (window.confirm("Abort current request?")) {
+                      if (currentReqId && socket) socket.emit('cancel-request', { reqId: currentReqId });
+                      setRequestStatus('idle'); setCurrentReqId(null); setAssignedAmbulanceId(null);
+                      setRoutePath(null); setLiveAmbulanceLoc(null); setAssignedHospitalInfo(null);
+                      setEtaSeconds(null); setSosMode(false);
+                      localStorage.removeItem('user_currentReqId');
+                      setPatientData({ name: '', age: '', bloodGroup: 'O+', condition: '', isVerified: false });
+                    }
+                  }}
+                  style={{ flex: 1, padding: '10px', background: 'rgba(255,100,50,0.1)', border: '1px solid rgba(255,107,53,0.4)', borderRadius: 6, color: '#ff6b35', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 'bold', cursor: 'pointer' }}
+                >🚨 CANCEL</button>
+              </div>
+            </div>
+          )}
+
+          <div style={{ background: 'rgba(255,107,53,0.1)', padding: '16px', borderRadius: 8, border: '1px solid rgba(255,107,53,0.3)', marginBottom: 10 }}>
+            <h3 style={{ color: '#ff6b35', fontSize: 13, marginTop: 0, fontFamily: "'Orbitron'" }}>PATIENT INFORMATION</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <button 
+                onClick={simulateIdScan}
+                disabled={isScanning}
+                style={{
+                  width: '100%', padding: '12px', background: isScanning ? 'rgba(0,200,255,0.1)' : 'rgba(0,200,255,0.2)',
+                  border: '1px solid #00c8ff', borderRadius: 8, color: '#00c8ff',
+                  fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 'bold', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                  transition: 'all 0.3s'
+                }}
+              >
+                {isScanning ? '🛰️ ACCESSING HEALTH REGISTRY...' : '📡 SCAN UNIVERSAL HEALTH ID'}
+              </button>
+
+              <div style={{ textAlign: 'center', fontSize: 10, color: 'rgba(255,255,255,0.3)', margin: '5px 0' }}>— OR ENTER MANUALLY —</div>
+
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4 }}>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>PATIENT NAME</div>
+                  {patientData.isVerified && (
+                    <div style={{ 
+                      background: 'rgba(0,255,136,0.15)', color: '#00ff88', border: '1px solid #00ff88', 
+                      borderRadius: 12, padding: '2px 6px', fontSize: 9, fontFamily: "'Orbitron'", 
+                      display: 'flex', alignItems: 'center', gap: 4, boxShadow: '0 0 10px rgba(0,255,136,0.2)' 
+                    }}>
+                      <span style={{ fontSize: 10 }}>✅</span> ABDM VERIFIED
+                    </div>
+                  )}
+                </div>
+
+                <input 
+                  type="text" 
+                  value={patientData.name} 
+                  onChange={e => setPatientData({...patientData, name: e.target.value})}
+                  placeholder="Full Name"
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, padding: 8, color: '#fff', fontSize: 14 }}
+                />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', marginBottom: 4 }}>AGE</div>
+                  <input 
+                    type="number" 
+                    value={patientData.age} 
+                    onChange={e => setPatientData({...patientData, age: e.target.value})}
+                    placeholder="Age"
+                    style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, padding: 8, color: '#fff', fontSize: 14 }}
+                  />
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', marginBottom: 4 }}>BLOOD GROUP</div>
+                  <input 
+                    type="text" 
+                    value={patientData.bloodGroup} 
+                    onChange={e => setPatientData({...patientData, bloodGroup: e.target.value})}
+                    placeholder="O+, A-, etc."
+                    style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, padding: 8, color: '#fff', fontSize: 14 }}
+                  />
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', marginBottom: 4 }}>CRITICAL CONDITION (e.g. Heart Attack)</div>
+                <textarea 
+                  value={patientData.condition} 
+                  onChange={e => setPatientData({...patientData, condition: e.target.value})}
+                  placeholder="Describe the emergency..."
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, padding: 8, color: '#fff', fontSize: 14, minHeight: 60, resize: 'none' }}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <h3 style={{ color: '#00c8ff', fontSize: 13, marginTop: 10, fontFamily: "'Orbitron'" }}>NEARBY DISPATCH UNITS</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {topAmbs.length === 0 && <div style={{ color: '#888', fontSize: 12 }}>Waiting for GPS...</div>}
+              {topAmbs.map(amb => (
+                <div key={amb.id} style={{ 
+                  background: assignedAmbulanceId === amb.id ? 'rgba(0,255,136,0.1)' : 'rgba(255,255,255,0.03)', 
+                  border: `1px solid ${assignedAmbulanceId === amb.id ? '#00ff88' : 'rgba(255,255,255,0.1)'}`,
+                  borderRadius: 10, padding: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 'bold' }}>{amb.driverName || amb.name}</div>
+                    <div style={{ fontSize: 10, color: '#00c8ff', fontFamily: "'Orbitron'" }}>AVAILABLE</div>
+                  </div>
+                  {requestStatus === 'idle' && (
+                    <button 
+                      onClick={() => requestAmbulance(amb.id)}
+                      style={{ background: '#ff6b35', color: '#fff', border: 'none', borderRadius: 4, padding: '6px 12px', fontSize: 11, cursor: 'pointer', fontFamily: "'Orbitron'" }}
+                    >
+                      REQUEST
+                    </button>
+                  )}
+                  {assignedAmbulanceId === amb.id && (
+                    <div style={{ color: '#00ff88', fontSize: 18 }}>🛡️</div>
+                  )}
                 </div>
               ))}
             </div>
           </div>
-        )}
 
-        {requestStatus === 'pending_ambulance' && (
-          <div style={{ padding: '20px', border: '1px solid #ffcc00', backgroundColor: '#ffcc0022', borderRadius: '8px' }}>
-            <h3 style={{ color: '#ffcc00', margin: '0 0 10px 0' }}>Requesting Ambulance...</h3>
-            <p style={{ fontSize: '14px', color: '#ccc' }}>Waiting for ambulance unit to accept the dispatch request.</p>
-          </div>
-        )}
-
-        {requestStatus === 'ambulance_accepted' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ padding: '12px', border: '1px solid #00ff88', backgroundColor: '#00ff8815', borderRadius: '8px' }}>
-              <h3 style={{ color: '#00ff88', margin: '0 0 5px 0' }}>✅ Ambulance Dispatched</h3>
-              <p style={{ margin: 0, fontSize: '13px', color: '#ccc' }}>Ambulance is en route to your location.</p>
-              <div style={{ marginTop: 8, padding: '8px', backgroundColor: '#000', borderRadius: '4px', textAlign: 'center' }}>
-                <span style={{ fontSize: '11px', color: '#888' }}>REQ ID:</span> <span style={{ color: '#00ff88', fontWeight: 'bold' }}>{activeReqId}</span>
-              </div>
-            </div>
-
-            {/* Assigned Ambulance Info */}
-            <div style={{ padding: '12px', border: '1px solid rgba(255,107,53,0.4)', backgroundColor: 'rgba(255,107,53,0.08)', borderRadius: '8px' }}>
-              <div style={{ fontSize: 11, color: '#ff6b35', fontWeight: 'bold', marginBottom: 6, letterSpacing: 1 }}>
-                🚑 {simulationActive ? 'EN ROUTE TO HOSPITAL' : isAmbulanceArrived ? 'AMBULANCE ARRIVED' : 'AMBULANCE DISPATCHED'}
-              </div>
-              <div style={{ fontSize: 13, color: '#ccc' }}>Unit ID: <span style={{ color: '#ff6b35' }}>{assignedAmbulanceId?.slice(-6)?.toUpperCase() || 'N/A'}</span></div>
-              <div style={{ fontSize: 13, color: '#ccc' }}>
-                Status: <span style={{ color: '#00ff88' }}>
-                  {simulationActive ? 'URGENT TRANSPORT' : isAmbulanceArrived ? 'ARRIVED AT YOUR LOCATION' : 'EN ROUTE TO YOU'}
-                </span>
-              </div>
-              {liveAmbulanceLoc && (
-                <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>
-                  📍 {liveAmbulanceLoc.lat.toFixed(4)}°N, {liveAmbulanceLoc.lng.toFixed(4)}°E
-                </div>
-              )}
-            </div>
-
-            {/* Live ETA */}
-            {(liveAmbulanceLoc || (assignedAmbulanceId && ambulances[assignedAmbulanceId]?.location)) && userLocation && (
-              <div style={{ padding: '15px', border: '1px solid rgba(0,255,136,0.3)', backgroundColor: 'rgba(0,255,136,0.06)', borderRadius: '8px', textAlign: 'center' }}>
-                <div style={{ fontSize: 11, color: '#00ff88', fontWeight: 'bold', letterSpacing: 1, marginBottom: 4 }}>
-                  {simulationActive 
-                    ? '⏱ ETA TO HOSPITAL' 
-                    : '⏱ ESTIMATED ARRIVAL'}
-                </div>
-                <div style={{ fontSize: 28, color: '#00ff88', fontWeight: 'bold', fontFamily: "'Share Tech Mono', monospace" }}>
-                  {isAmbulanceArrived && !simulationActive ? (
-                    'ARRIVED'
-                  ) : (
-                    (() => {
-                      const ambLoc = (assignedAmbulanceId && ambulances[assignedAmbulanceId]?.location) || liveAmbulanceLoc;
-                      const targetLoc = (simulationActive && assignedHospitalId && hospitals[assignedHospitalId]?.location) 
-                        ? hospitals[assignedHospitalId].location 
-                        : userLocation;
-                      return Math.max(1, Math.ceil(calcDist(ambLoc, targetLoc) / 0.6)) + ' min';
-                    })()
-                  )}
-                </div>
-                <div style={{ fontSize: 11, color: '#888' }}>
-                  {(() => {
-                    const ambLoc = (assignedAmbulanceId && ambulances[assignedAmbulanceId]?.location) || liveAmbulanceLoc;
-                    const targetLoc = (simulationActive && assignedHospitalId && hospitals[assignedHospitalId]?.location) 
-                      ? hospitals[assignedHospitalId].location 
-                      : userLocation;
-                    return calcDist(ambLoc, targetLoc).toFixed(2);
-                  })()} km {simulationActive ? 'to destination' : 'away'}
-                </div>
-              </div>
-            )}
-
-            <div style={{ padding: '10px', border: '1px solid rgba(0,200,255,0.2)', borderRadius: '8px', background: 'rgba(0,200,255,0.04)' }}>
-              <div style={{ fontSize: 11, color: '#00c8ff', fontWeight: 'bold', letterSpacing: 1 }}>⏳ AWAITING HOSPITAL SELECTION</div>
-              <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>Paramedic is evaluating the best hospital...</div>
-            </div>
-          </div>
-        )}
-
-
-
-        {requestStatus === 'pending_hospital' && (
-          <div style={{ padding: '20px', border: '1px solid #ffcc00', backgroundColor: '#ffcc0022', borderRadius: '8px' }}>
-            <h3 style={{ color: '#ffcc00', margin: '0 0 10px 0' }}>Requesting Hospital...</h3>
-            <p style={{ fontSize: '14px', color: '#ccc' }}>Waiting for hospital to accept the incoming emergency.</p>
-          </div>
-        )}
-
-        {requestStatus === 'hospital_accepted' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 15, flex: 1 }}>
-            <div style={{ padding: '15px', border: '1px solid #00c8ff', backgroundColor: '#00c8ff15', borderRadius: '8px' }}>
-              <h3 style={{ color: '#00c8ff', margin: '0 0 10px 0' }}>✅ Emergency Routed Successfully</h3>
-              <div style={{ marginTop: 10, padding: '10px', backgroundColor: '#000', borderRadius: '4px', textAlign: 'center' }}>
-                <span style={{ fontSize: '12px', color: '#888' }}>REQ ID:</span> <span style={{ color: '#00ff88', fontWeight: 'bold' }}>{activeReqId}</span>
-              </div>
-            </div>
-
-            {/* Assigned Ambulance Info */}
-            <div style={{ padding: '12px', border: '1px solid rgba(255,107,53,0.4)', backgroundColor: 'rgba(255,107,53,0.08)', borderRadius: '8px' }}>
-              <div style={{ fontSize: 11, color: '#ff6b35', fontWeight: 'bold', marginBottom: 8, letterSpacing: 1 }}>🚑 ASSIGNED AMBULANCE</div>
-              <div style={{ fontSize: 13, color: '#ccc' }}>Unit ID: <span style={{ color: '#ff6b35' }}>{assignedAmbulanceId?.slice(-6)?.toUpperCase() || 'N/A'}</span></div>
-              <div style={{ fontSize: 13, color: '#ccc' }}>Status: <span style={{ color: '#00ff88' }}>EN ROUTE</span></div>
-              {ambulances[assignedAmbulanceId]?.location && (
-                <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>
-                  📍 {ambulances[assignedAmbulanceId].location.lat.toFixed(4)}°N, {ambulances[assignedAmbulanceId].location.lng.toFixed(4)}°E
-                </div>
-              )}
-            </div>
-
-            {/* Assigned Hospital Info */}
-            {assignedHospitalId && hospitals[assignedHospitalId] && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ padding: '12px', border: '1px solid rgba(0,200,255,0.4)', backgroundColor: 'rgba(0,200,255,0.08)', borderRadius: '8px' }}>
-                  <div style={{ fontSize: 11, color: '#00c8ff', fontWeight: 'bold', marginBottom: 8, letterSpacing: 1 }}>🏥 DESTINATION HOSPITAL</div>
-                  <div style={{ fontSize: 13, color: '#ccc' }}>Name: <span style={{ color: '#00c8ff' }}>{hospitals[assignedHospitalId].name || 'Hospital Command'}</span></div>
-                  <div style={{ fontSize: 13, color: '#ccc' }}>Distance: <span style={{ color: '#ffb800' }}>{calcDist(userLocation, hospitals[assignedHospitalId].location).toFixed(2)} km</span></div>
-                </div>
-
-                {/* Readiness Panel */}
-                {hospitals[assignedHospitalId].readyServices && (
-                  <div style={{ padding: '12px', background: 'rgba(0,255,136,0.05)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 8 }}>
-                    <div style={{ fontSize: 10, color: '#00ff88', fontWeight: 'bold', marginBottom: 8, letterSpacing: 1 }}>⚙ HOSPITAL PREPARATION</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                      {[
-                        { key: 'otPrepared', label: 'OT Ready', icon: '🔪' },
-                        { key: 'ventilatorReady', label: 'Ventilator', icon: '🫁' },
-                        { key: 'cardiologistAssigned', label: 'Specialist', icon: '👨‍⚕️' },
-                        { key: 'bloodBankAlerted', label: 'Blood Bank', icon: '🩸' }
-                      ].map(s => (
-                        <div key={s.key} style={{ fontSize: 11, color: hospitals[assignedHospitalId].readyServices[s.key] ? '#00ff88' : 'rgba(160,200,255,0.3)', display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <span>{hospitals[assignedHospitalId].readyServices[s.key] ? '✅' : '⏳'}</span>
-                          <span>{s.label}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Live ETA */}
-            {ambulances[assignedAmbulanceId]?.location && userLocation && (
-              <div style={{ padding: '15px', border: '1px solid rgba(0,255,136,0.3)', backgroundColor: 'rgba(0,255,136,0.06)', borderRadius: '8px', textAlign: 'center' }}>
-                <div style={{ fontSize: 11, color: '#00ff88', fontWeight: 'bold', letterSpacing: 1, marginBottom: 4 }}>
-                  {arrivalCountdown !== null ? '🚨 ARRIVING IN' : '⏱ ESTIMATED ARRIVAL'}
-                </div>
-                <div style={{ fontSize: 28, color: '#00ff88', fontWeight: 'bold', fontFamily: "'Share Tech Mono', monospace" }}>
-                  {arrivalCountdown !== null ? (
-                    `${arrivalCountdown}s`
-                  ) : (
-                    `${Math.max(1, Math.ceil(calcDist(userLocation, ambulances[assignedAmbulanceId].location) / 0.6))} min`
-                  )}
-                </div>
-                <div style={{ fontSize: 11, color: '#888' }}>{calcDist(userLocation, ambulances[assignedAmbulanceId].location).toFixed(2)} km away</div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Map View */}
-      <div style={{ flex: 1, position: 'relative' }}>
-        <MapContainer center={mapCenter} zoom={13} style={{ height: '100%', width: '100%' }}>
-          <TileLayer
-            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-            attribution='&copy; <a href="https://carto.com/">Carto</a>'
-          />
-          <MapCenterer center={userLocation} />
-
-          {/* User Marker */}
-          {userLocation && (
-            <Marker position={userLocation} icon={userIcon}>
-              <Popup>Your Location</Popup>
-            </Marker>
+           {requestStatus !== 'idle' && assignedAmbulanceId && (
+             <div style={{ marginTop: 20 }}>
+                <div style={{ fontSize: 10, color: '#00ff88', fontFamily: "'Orbitron'", marginBottom: 8, textAlign: 'center' }}>🚑 PARAMEDIC CONNECTION LIVE</div>
+                <VideoCall 
+                  socket={socket} 
+                  isInitiatorRole={false} 
+                  missionId={currentReqId} 
+                  targetSocketId={assignedAmbulanceId}
+                />
+             </div>
           )}
-
-          {/* Available Ambulance Markers - Only shown when idle */}
-          {requestStatus === 'idle' && topAmbs.map((amb) => {
-            if (!amb.location) return null;
-            return (
-              <Marker key={amb.id} position={amb.location} icon={ambulanceIcon}>
-                <Popup>
-                  <div style={{ color: '#333' }}>
-                    <strong>Ambulance Unit</strong><br />
-                    🟢 Available<br />
-                    <button 
-                      onClick={() => requestAmbulance(amb.id)}
-                      style={{ marginTop: '10px', width: '100%', padding: '5px', backgroundColor: '#ff6b35', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                    >
-                      Request Dispatch
-                    </button>
-                  </div>
-                </Popup>
-              </Marker>
-            );
-          })}
-
-          {/* Live Assigned Ambulance Marker */}
-          {assignedAmbulanceId && liveAmbulanceLoc && requestStatus !== 'idle' && (
-            <Marker position={liveAmbulanceLoc} icon={ambulanceIcon}>
-              <Popup>
-                <div style={{ color: '#333' }}>
-                  <strong>🚑 Your Ambulance</strong><br />
-                  {isAmbulanceArrived ? '🟢 Arrived' : '🔴 En Route'}<br />
-                  📍 {liveAmbulanceLoc.lat.toFixed(4)}°N, {liveAmbulanceLoc.lng.toFixed(4)}°E
-                </div>
-              </Popup>
-            </Marker>
+          {requestStatus === 'searching' && !assignedAmbulanceId && (
+            <div style={{ 
+              marginTop: 20, padding: 20, textAlign: 'center', background: 'rgba(255,184,0,0.05)', 
+              border: '1px solid rgba(255,184,0,0.2)', borderRadius: 8, animation: 'pulse 2s infinite' 
+            }}>
+              <div style={{ fontSize: 24, marginBottom: 10 }}>📡</div>
+              <div style={{ fontSize: 12, color: '#ffb800', fontFamily: "'Orbitron'" }}>SCANNING FOR UNITS...</div>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>Video link will activate once unit accepts.</div>
+            </div>
           )}
+        </div>
 
-          {locationHistory.length > 1 && (
-            <Polyline positions={locationHistory} color="#00c8ff" weight={3} opacity={0.5} />
-          )}
-
-          {/* Hospital Markers */}
-          {Object.entries(hospitals).map(([id, hosp]) => {
-            if (!hosp.location) return null;
-            if (isAmbulanceArrived && assignedHospitalId && assignedHospitalId !== id) return null;
+        {/* Map View */}
+        <div style={{ flex: 1, position: 'relative' }}>
+          <div style={{
+            position: 'absolute', top: 15, left: 15, right: 15, zIndex: 1000,
+            display: 'flex', gap: 8
+          }}>
+            <input 
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleManualSearch()}
+              placeholder="Search your city/area..."
+              style={{
+                flex: 1, padding: '10px 15px', background: 'rgba(5,15,40,0.9)', 
+                border: '1px solid rgba(0,255,136,0.4)', borderRadius: 8, 
+                color: '#fff', fontSize: 13, outline: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.4)'
+              }}
+            />
+            <button onClick={handleManualSearch} style={{
+              padding: '10px 15px', background: 'rgba(0,255,136,0.2)', 
+              border: '1px solid #00ff88', borderRadius: 8, color: '#00ff88',
+              cursor: 'pointer', fontSize: 14
+            }}>📍</button>
+          </div>
+          <div style={{
+            position: 'absolute', bottom: 10, left: 10, zIndex: 1000,
+            background: 'rgba(0,0,0,0.6)', padding: '2px 8px', borderRadius: 4,
+            fontSize: 10, color: 'rgba(0,255,136,0.8)', fontFamily: "'Share Tech Mono'"
+          }}>
+            LOCATION: {locationMethod}
+          </div>
+          <MapContainer
+            center={mapCenter || [12.9716, 77.5946]}
+            zoom={14}
+            style={{ height: '100%', width: '100%' }}
+          >
+            <TileLayer
+              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+              attribution='&copy; <a href="https://carto.com/">Carto</a>'
+            />
             
-            return (
-              <Marker key={id} position={hosp.location} icon={hospitalIcon}>
+            <SmartMapController 
+              userLoc={userLocation} 
+              ambulanceLoc={liveAmbulanceLoc} 
+              manualCenter={manualCenter} 
+            />
+
+            {/* Locate Me Button Overlay */}
+            <div style={{ position: 'absolute', top: 60, right: 10, zIndex: 1000 }}>
+              <button 
+                onClick={() => {
+                  navigator.geolocation.getCurrentPosition(pos => {
+                    const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                    setUserLocation(loc);
+                    setMapCenter([loc.lat, loc.lng]);
+                  });
+                }}
+                style={{
+                  background: 'rgba(0,200,255,0.2)', border: '1px solid #00c8ff',
+                  borderRadius: 4, padding: '5px 10px', color: '#00c8ff', cursor: 'pointer',
+                  fontFamily: "'Orbitron'", fontSize: 10
+                }}
+              >
+                🛰️ LOCATE ME
+              </button>
+            </div>
+            {/* User Location Marker */}
+            {userLocation && (
+              <Marker position={userLocation} icon={userIcon}>
                 <Popup>
                   <div style={{ color: '#333' }}>
-                    <strong>🏥 {hosp.name}</strong><br />
-                    {assignedHospitalId === id ? '🟢 Destination Hospital' : 'Available Hospital'}
+                    <strong>📍 Your Location</strong><br />
+                    Lat: {userLocation.lat.toFixed(4)}<br />
+                    Lng: {userLocation.lng.toFixed(4)}
                   </div>
                 </Popup>
               </Marker>
-            );
-          })}
+            )}
 
-          {routePath && (
-            <Polyline positions={routePath} color="#00ff88" weight={5} opacity={0.7} dashArray="10, 10" />
+            {/* FIX: map follows user GPS then ambulance movement in real-time */}
+            <MapCenterer center={liveAmbulanceLoc || userLocation} />
+
+            {/* All Registered & Live Hospitals */}
+            {Object.values(hospitals).map(h => {
+              const pos = h.pos || h.location || { lat: h.lat, lng: h.lng };
+              const isOnline = h.isOnline || !!h.socketId;
+              if (!pos.lat) return null;
+              
+              return (
+                <Marker key={h.id} position={[pos.lat, pos.lng]} icon={hospitalIcon}>
+                  <Popup>
+                    <div style={{ color: '#333', minWidth: 150 }}>
+                      <strong style={{ color: '#0052cc' }}>{h.name}</strong><br />
+                      <span style={{ 
+                        fontSize: 9, 
+                        color: isOnline ? '#008855' : '#888',
+                        fontWeight: 'bold'
+                      }}>
+                        {isOnline ? '● LIVE DASHBOARD ACTIVE' : '○ REGISTRY ENTRY (OFFLINE)'}
+                      </span><br />
+                      <div style={{ marginTop: 5, fontSize: 11, borderTop: '1px solid #eee', paddingTop: 5 }}>
+                        Distance: {calcDist(userLocation, pos).toFixed(1)} km<br />
+                        Contact: {h.contactInfo || 'Not Listed'}
+                      </div>
+                    </div>
+                  </Popup>
+                </Marker>
+              );
+            })}
+
+            {/* Available Ambulance Markers - Only shown when idle */}
+            {requestStatus === 'idle' && topAmbs.map((amb) => {
+              if (!amb.location) return null;
+              return (
+                <Marker key={amb.id} position={amb.location} icon={ambulanceIcon}>
+                  <Popup>
+                    <div style={{ color: '#333' }}>
+                      <strong>Ambulance Unit</strong><br />
+                      🟢 Available<br />
+                      <button 
+                        onClick={() => requestAmbulance(amb.id)}
+                        style={{ marginTop: '10px', width: '100%', padding: '5px', backgroundColor: '#ff6b35', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                      >
+                        Request Dispatch
+                      </button>
+                    </div>
+                  </Popup>
+                </Marker>
+              );
+            })}
+
+            {/* Live Assigned Ambulance Marker */}
+            {assignedAmbulanceId && liveAmbulanceLoc && requestStatus !== 'idle' && (
+              <Marker position={liveAmbulanceLoc} icon={ambulanceIcon}>
+                <Popup>
+                  <div style={{ color: '#333' }}>
+                    <strong>🚑 YOUR ASSIGNED UNIT</strong><br />
+                    {isAmbulanceArrived ? '🟢 Arrived' : '🔴 En Route'}<br />
+                    📍 {liveAmbulanceLoc.lat.toFixed(4)}°N, {liveAmbulanceLoc.lng.toFixed(4)}°E
+                  </div>
+                </Popup>
+              </Marker>
+            )}
+
+            {/* OTHER ACTIVE AMBULANCES (City Overview) */}
+            {Object.entries(ambulances).map(([id, amb]) => {
+              if (!amb.location || id === assignedAmbulanceId) return null;
+              return (
+                <Marker key={id} position={amb.location} icon={ambulanceIcon} opacity={0.4}>
+                  <Popup>
+                    <div style={{ color: '#333' }}>
+                      <strong>Ambulance {amb.name}</strong><br />
+                      {amb.available ? '🟢 Available' : '🔴 Busy'}
+                    </div>
+                  </Popup>
+                </Marker>
+              );
+            })}
+
+            {locationHistory.length > 1 && (
+              <Polyline positions={locationHistory} color="#00c8ff" weight={3} opacity={0.5} />
+            )}
+
+            {/* Hospital Markers */}
+            {Object.entries(hospitals).map(([id, hosp]) => {
+              if (!hosp.location) return null;
+              if (isAmbulanceArrived && assignedHospitalId && assignedHospitalId !== id) return null;
+              
+              return (
+                <Marker key={id} position={hosp.location} icon={hospitalIcon}>
+                  <Popup>
+                    <div style={{ color: '#333' }}>
+                      <strong>🏥 {hosp.name}</strong><br />
+                      {assignedHospitalId === id ? '🟢 Destination Hospital' : 'Available Hospital'}
+                    </div>
+                  </Popup>
+                </Marker>
+              );
+            })}
+
+            {routePath && (
+              <Polyline positions={routePath} color="#00ff88" weight={5} opacity={0.7} dashArray="10, 10" />
+            )}
+
+            {Object.values(trafficIncidents).map((incident) => (
+              <React.Fragment key={incident.id}>
+                <Circle
+                  center={[incident.lat, incident.lng]}
+                  radius={incident.radius || 300}
+                  pathOptions={{
+                    color: '#ff3333',
+                    fillColor: '#ff3333',
+                    fillOpacity: 0.15,
+                    dashArray: '5, 10',
+                    weight: 2
+                  }}
+                >
+                  <Popup>
+                    <div style={{ color: '#333', fontFamily: 'sans-serif' }}>
+                      <strong style={{ color: '#ff3333' }}>⚠️ Traffic Incident / Blockage</strong>
+                      <p style={{ margin: '5px 0 0 0', fontSize: '11px' }}>{incident.reason}</p>
+                      <span style={{ fontSize: '9px', color: '#666' }}>Radius: {incident.radius}m</span>
+                    </div>
+                  </Popup>
+                </Circle>
+                <Circle
+                  center={[incident.lat, incident.lng]}
+                  radius={20}
+                  pathOptions={{
+                    color: '#ff1111',
+                    fillColor: '#ff1111',
+                    fillOpacity: 0.8,
+                    weight: 1
+                  }}
+                />
+              </React.Fragment>
+            ))}
+          </MapContainer>
+
+          {/* 🔐 ABDM CONSENT GATEWAY (OTP MODAL) */}
+          {showOtpModal && (
+            <div style={{
+              position: 'fixed', inset: 0, background: 'rgba(0,10,30,0.95)', zIndex: 99999,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)'
+            }}>
+              <div style={{
+                background: 'linear-gradient(135deg, #0a1e3a 0%, #020814 100%)',
+                border: '1px solid #00c8ff', borderRadius: 20, width: 400, padding: 40,
+                textAlign: 'center', boxShadow: '0 0 50px rgba(0,200,255,0.2)'
+              }}>
+                <div style={{ fontSize: 48, marginBottom: 20 }}>🔐</div>
+                <h2 style={{ fontFamily: "'Orbitron'", color: '#00c8ff', marginBottom: 10, fontSize: 18 }}>ABDM CONSENT REQUIRED</h2>
+                <p style={{ fontSize: 13, color: 'rgba(160,200,255,0.7)', marginBottom: 30, lineHeight: 1.5 }}>
+                  A secure consent request has been sent to the mobile number registered with ID: <strong>{tempNationalId}</strong>.<br/><br/>
+                  Please enter the 6-digit verification code to release medical records.
+                </p>
+                
+                <input 
+                  type="text" 
+                  maxLength="6"
+                  placeholder="· · · · · ·"
+                  onKeyUp={(e) => {
+                    if (e.target.value.length === 6) verifyHieOtp(e.target.value);
+                  }}
+                  style={{
+                    width: '100%', background: 'rgba(0,0,0,0.3)', border: '2px solid rgba(0,200,255,0.3)',
+                    borderRadius: 12, padding: '15px', color: '#fff', fontSize: 24, textAlign: 'center',
+                    letterSpacing: 8, fontFamily: "'Orbitron'", outline: 'none', marginBottom: 20
+                  }}
+                />
+                
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button 
+                    onClick={() => setShowOtpModal(false)}
+                    style={{ flex: 1, padding: 12, background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.5)', borderRadius: 8, cursor: 'pointer' }}
+                  >
+                    CANCEL
+                  </button>
+                  <button 
+                    onClick={() => verifyHieOtp(document.querySelector('input[placeholder="· · · · · ·"]').value)}
+                    style={{ flex: 2, padding: 12, background: '#00c8ff', border: 'none', color: '#000', borderRadius: 8, fontWeight: 'bold', cursor: 'pointer', fontFamily: "'Orbitron'" }}
+                  >
+                    VERIFY & FETCH
+                  </button>
+                </div>
+                
+                <div style={{ marginTop: 25, fontSize: 10, color: 'rgba(160,200,255,0.3)', letterSpacing: 1 }}>
+                  OFFICIAL NATIONAL HEALTH AUTHORITY GATEWAY v2.1
+                </div>
+              </div>
+            </div>
           )}
-        </MapContainer>
-        
-        {/* Overlay target reticle logic */}
-        <div style={{ position: 'absolute', top: 20, right: 20, zIndex: 1000, pointerEvents: 'none' }}>
-           <div style={{ background: 'rgba(0,0,0,0.7)', padding: '10px 15px', borderRadius: '8px', border: '1px solid #00c8ff40' }}>
-             <span style={{ color: '#00ff88', fontWeight: 'bold' }}>LIVE</span> TRACKING
-           </div>
+
+          {requestStatus === 'searching' && (
+            <div style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,107,53,0.9)', color: '#fff', padding: '10px 20px', borderRadius: 4, zIndex: 1000, fontFamily: "'Orbitron'", fontSize: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 12, height: 12, border: '2px solid #fff', borderTop: '2px solid transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+              SEARCHING FOR NEAREST DISPATCH...
+            </div>
+          )}
+
+          {isAmbulanceArrived && (
+            <div style={{ position: 'absolute', bottom: 30, left: '50%', transform: 'translateX(-50%)', background: '#00ff88', color: '#000', padding: '15px 30px', borderRadius: 12, zIndex: 1000, fontFamily: "'Orbitron'", fontSize: 16, fontWeight: 'bold', boxShadow: '0 0 30px rgba(0,255,136,0.5)' }}>
+              🚑 AMBULANCE ARRIVED AT YOUR LOCATION
+            </div>
+          )}
         </div>
       </div>
+
+      {/* ─── ENTERPRISE FEATURE MODALS ─────────────────────────────────────── */}
+
+      {/* AI Emergency Copilot */}
+      {showAICopilot && (
+        <AIEmergencyCopilot
+          onClose={() => setShowAICopilot(false)}
+          onAnalysisComplete={(result, symptoms) => {
+            setAiAnalysisResult(result);
+            if (result.detectedCondition) {
+              setPatientData(prev => ({ ...prev, condition: result.detectedCondition }));
+            }
+            setShowAICopilot(false);
+          }}
+        />
+      )}
+
+      {/* CPR Guidance Mode */}
+      {showCPRGuide && (
+        <CPRGuidance
+          onClose={() => setShowCPRGuide(false)}
+          onSOS={() => { setShowCPRGuide(false); requestSOSDispatch(); }}
+        />
+      )}
+
+      {/* Blood Emergency Network */}
+      {showBloodNetwork && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,5,20,0.95)', backdropFilter: 'blur(10px)' }}>
+          <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(220,30,30,0.3)', display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowBloodNetwork(false)} style={{ background: 'rgba(255,68,68,0.1)', border: '1px solid rgba(255,68,68,0.3)', borderRadius: 8, padding: '6px 14px', color: '#ff4444', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 11 }}>✕ CLOSE</button>
+            </div>
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+              <BloodEmergencyNetwork socket={socket} userLocation={userLocation} patientDetails={patientData} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Ambulance Marketplace */}
+      {showMarketplace && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,5,20,0.95)', backdropFilter: 'blur(10px)' }}>
+          <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(0,200,255,0.2)', display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowMarketplace(false)} style={{ background: 'rgba(255,68,68,0.1)', border: '1px solid rgba(255,68,68,0.3)', borderRadius: 8, padding: '6px 14px', color: '#ff4444', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 11 }}>✕ CLOSE</button>
+            </div>
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+              <AmbulanceMarketplace socket={socket} userLocation={userLocation}
+                onBookAmbulance={(amb) => { setShowMarketplace(false); requestAmbulance(amb.id); }} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Family Tracking Link Modal */}
+      {showFamilyLinkModal && familyTrackingLink && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(0,5,20,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)' }}>
+          <div style={{ background: '#0a1526', border: '1px solid rgba(255,184,0,0.4)', borderRadius: 16, padding: 28, width: '90%', maxWidth: 460, boxShadow: '0 0 40px rgba(255,184,0,0.1)' }}>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#ffb800', marginBottom: 8, textAlign: 'center' }}>👨‍👩‍👧 FAMILY TRACKING LINK</div>
+            <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.6)', marginBottom: 16, textAlign: 'center', lineHeight: 1.6 }}>
+              Share this link with your family. They'll see your live location and mission status.
+            </div>
+            <div style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,184,0,0.3)', borderRadius: 8, padding: '12px', marginBottom: 16, fontFamily: "'Share Tech Mono'", fontSize: 11, color: '#ffb800', wordBreak: 'break-all' }}>
+              {familyTrackingLink}
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => { navigator.clipboard.writeText(familyTrackingLink); alert('Link copied!'); }} style={{
+                flex: 1, padding: '10px', background: 'rgba(255,184,0,0.15)', border: '1px solid rgba(255,184,0,0.4)',
+                borderRadius: 8, color: '#ffb800', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 700
+              }}>📋 COPY LINK</button>
+              <button onClick={() => {
+                if (navigator.share) navigator.share({ title: 'Track my ambulance', url: familyTrackingLink });
+                else alert('Share not supported in this browser');
+              }} style={{
+                flex: 1, padding: '10px', background: 'rgba(0,200,255,0.15)', border: '1px solid rgba(0,200,255,0.4)',
+                borderRadius: 8, color: '#00c8ff', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 700
+              }}>📤 SHARE</button>
+              <button onClick={() => setShowFamilyLinkModal(false)} style={{
+                padding: '10px 16px', background: 'transparent', border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: 8, color: 'rgba(160,200,255,0.5)', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 10
+              }}>✕</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Analysis Result Banner */}
+      {aiAnalysisResult && !showAICopilot && (
+        <div style={{ position: 'fixed', bottom: 80, right: 20, zIndex: 9998, maxWidth: 340, background: 'rgba(5,15,40,0.97)', border: `1px solid ${aiAnalysisResult.triageColor === 'RED' ? '#ff4444' : aiAnalysisResult.triageColor === 'YELLOW' ? '#ffb800' : '#00ff88'}`, borderRadius: 12, padding: '16px', boxShadow: '0 0 30px rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff' }}>🧠 AI ANALYSIS RESULT</div>
+            <button onClick={() => setAiAnalysisResult(null)} style={{ background: 'none', border: 'none', color: '#ff4444', cursor: 'pointer', fontSize: 16 }}>×</button>
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#e0eaff', marginBottom: 4 }}>{aiAnalysisResult.detectedCondition}</div>
+          <div style={{ fontSize: 11, color: aiAnalysisResult.triageColor === 'RED' ? '#ff4444' : aiAnalysisResult.triageColor === 'YELLOW' ? '#ffb800' : '#00ff88', fontFamily: "'Orbitron'" }}>
+            {aiAnalysisResult.severity} • {aiAnalysisResult.suggestedAmbulanceType}
+          </div>
+          <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', marginTop: 6, lineHeight: 1.4 }}>
+            Time critical: {aiAnalysisResult.estimatedTimeToDeterioration}
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .custom-div-icon { background: none; border: none; }
+      `}</style>
     </div>
   );
 }

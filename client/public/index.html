@@ -3,6 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#00c8ff" />
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
     <title>RescueLink – Emergency Care System</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -18,7 +20,19 @@
   </head>
   
   <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/service-worker.js').then(registration => {
+            console.log('[PWA] Service Worker registered with scope: ', registration.scope);
+          }).catch(err => {
+            console.log('[PWA] Service Worker registration failed: ', err);
+          });
+        });
+      }
+    </script>
   </body>
 </html>
 
