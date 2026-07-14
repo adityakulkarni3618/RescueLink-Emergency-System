@@ -36,7 +36,7 @@ To deploy the production-ready staging environment:
    ```bash
    chmod 600 .env
    ```
-3. Set your production connections, ensuring `DB_HOST` maps to a managed PostgreSQL cluster (verify automated backups are enabled in the database dashboard panel).
+3. Set your production connections, ensuring `DB_HOST` maps to a managed PostgreSQL cluster (verify automated backups are enabled in the database dashboard panel). Explicitly declare `PRODUCTION_URL` and `FRONTEND_URL` to define allowed origins for CORS. Server will refuse to boot in production if they are missing.
 
 ### Step 3: Run Database Migrations
 1. Before starting the web containers, spin up a transient container to run migrations and seed the database schema:

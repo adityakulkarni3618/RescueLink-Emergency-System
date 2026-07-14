@@ -280,6 +280,11 @@ app.set('trust proxy', 1);
 const path = require('path');
 
 // ─── SECURITY MIDDLEWARE ────────────────────────────────────────────────────
+if (process.env.NODE_ENV === 'production' && !process.env.FRONTEND_URL && !process.env.PRODUCTION_URL) {
+  console.error('[FATAL SECURITY ERROR] PRODUCTION_URL or FRONTEND_URL environment variable is missing in production. Socket and API CORS allowlists must be explicitly configured to prevent wildcard default fallbacks. Refusing to boot server.');
+  process.exit(1);
+}
+
 const ALLOWED_ORIGINS = [
   'http://localhost:3000',
   'http://localhost:3001',
