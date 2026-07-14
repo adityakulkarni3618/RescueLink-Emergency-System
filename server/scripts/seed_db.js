@@ -140,6 +140,24 @@ async function seed() {
         is_active: true
       },
       {
+        name: 'Dr. James Wilson',
+        email: 'doctor2@rescuelink.com',
+        password: passwordHash,
+        role: 'doctor',
+        mobile: '+91-9988776656',
+        hospital_id: hospitals[1].id,
+        is_active: true
+      },
+      {
+        name: 'Dr. Emily Chen',
+        email: 'doctor3@rescuelink.com',
+        password: passwordHash,
+        role: 'doctor',
+        mobile: '+91-9988776657',
+        hospital_id: hospitals[2].id,
+        is_active: true
+      },
+      {
         name: 'Paramedic John Doe',
         email: 'paramedic@rescuelink.com',
         password: passwordHash,
@@ -193,7 +211,7 @@ async function seed() {
         };
       });
 
-      seededPatients = await Patient.bulkCreate(patientsToCreate);
+      seededPatients = await Patient.bulkCreate(patientsToCreate, { individualHooks: true });
       console.log(`[SEED] Seeded ${seededPatients.length} patients from patients.json.`);
     } else {
       console.warn('[SEED WARNING] patients.json not found, skipping patient seeding.');
