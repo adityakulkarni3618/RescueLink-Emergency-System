@@ -1,0 +1,8 @@
+{
+    "rewrites": [
+        {
+            "source": "/api/:path*",
+            "destination": "https://rescuelink-emergency-system.onrender.com/api/:path*"
+        }
+    ]
+}
