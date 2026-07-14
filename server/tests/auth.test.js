@@ -134,6 +134,20 @@ describe('Auth Endpoints', () => {
       const res = await request(app).get('/api/auth/me');
       expect(res.status).toBe(401);
     });
+
+    it('should reject tokens requiring MFA completion with 403', async () => {
+      const mfaPendingToken = jwt.sign(
+        { id: 'user-uuid-12345', requiresMFA: true },
+        process.env.JWT_SECRET,
+        { expiresIn: '5m' }
+      );
+      const res = await request(app)
+        .get('/api/auth/me')
+        .set('Authorization', `Bearer ${mfaPendingToken}`);
+
+      expect(res.status).toBe(403);
+      expect(res.body.error).toContain('Complete Multi-factor authentication first');
+    });
   });
 
   describe('POST /api/auth/logout', () => {

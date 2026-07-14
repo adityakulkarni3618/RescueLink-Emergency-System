@@ -31,6 +31,12 @@ function verifyToken(requiredRoles = []) {
           return res.status(403).json({ error: 'Forbidden: Invalid or expired token' });
         }
 
+        // Verify MFA status on token structure
+        if (decoded.requiresMFA || decoded.requiresMfaSetup) {
+          console.log(`[AUTH] Access denied: MFA verification pending for ${req.method} ${req.originalUrl}`);
+          return res.status(403).json({ error: 'Forbidden: Complete Multi-factor authentication first' });
+        }
+
         // Check user roles if required
         if (requiredRoles.length > 0 && !requiredRoles.includes(decoded.role)) {
           console.log(`[AUTH] Access denied: Role '${decoded.role}' not authorized for ${req.method} ${req.originalUrl}`);

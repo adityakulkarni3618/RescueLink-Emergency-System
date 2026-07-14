@@ -43,6 +43,10 @@ router.get('/:id', verifyToken(), async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    if (['doctor', 'hospital_admin', 'paramedic'].includes(req.user.role) && user.hospital_id !== req.user.hospital_id) {
+      return res.status(403).json({ error: 'Access denied: User belongs to a different hospital' });
+    }
+
     return res.json(user);
   } catch (err) {
     console.error('[USERS API] Error fetching user:', err.message);

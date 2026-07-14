@@ -1,0 +1,321 @@
+{
+  "info": {
+    "_postman_id": "c13886ad-0e54-4fb9-ba54-5c911cf87474",
+    "name": "RescueLink Enterprise API Gateway",
+    "description": "Postman Collection for testing RescueLink emergency healthcare enterprise backend systems.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Password Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"doctor@rescuelink.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/auth/login",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify MFA / Backup Recovery Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mfaToken\": \"JWT_TRANSIENT_TOKEN_HERE\",\n  \"totpCode\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/auth/verify-mfa",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "auth",
+                "verify-mfa"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Two-Factor Authentication Setup",
+      "item": [
+        {
+          "name": "Init setup (Generate QR / Secret)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "url": {
+              "raw": "http://localhost:5000/api/mfa/setup",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "mfa",
+                "setup"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Confirm & Enable 2FA",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"123456\",\n  \"tempSecret\": \"ENCRYPTED_SECRET_FROM_SETUP\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/mfa/enable",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "mfa",
+                "enable"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Auditing and Compliance",
+      "item": [
+        {
+          "name": "Query Audit Logs",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost:5000/api/audit/logs?severity=CRITICAL&limit=25",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "audit",
+                "logs"
+              ],
+              "query": [
+                {
+                  "key": "severity",
+                  "value": "CRITICAL"
+                },
+                {
+                  "key": "limit",
+                  "value": "25"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Trigger Patient Identity Unmask Alarm",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"PATIENT_UUID_HERE\",\n  \"patientName\": \"Suresh Kumar\",\n  \"reason\": \"Emergency admission: clinical records access verification\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/audit/unmask-alarm",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "audit",
+                "unmask-alarm"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "DPDP Data Erasure",
+      "item": [
+        {
+          "name": "Request Patient Record Deletion",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"PATIENT_UUID_HERE\",\n  \"reason\": \"Right to be forgotten request received by patient\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/erasure/request",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "erasure",
+                "request"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Approve Data Erasure (Anonymization)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reviewNotes\": \"Approved. Record anonymized to ANONYMOUS PATIENT.\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/erasure/approve/ERASURE_REQUEST_UUID_HERE",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "erasure",
+                "approve",
+                "ERASURE_REQUEST_UUID_HERE"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
