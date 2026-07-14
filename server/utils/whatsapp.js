@@ -8,11 +8,32 @@ class WhatsAppService {
     this.accountSid = config.TWILIO_ACCOUNT_SID;
     this.authToken = config.TWILIO_AUTH_TOKEN;
     this.fromNumber = config.TWILIO_WHATSAPP_FROM;
+    this.smsFromNumber = config.TWILIO_PHONE_NUMBER;
     
     // We only initialize the client if we have real credentials (or if we want to mock it)
     this.isMock = this.accountSid === 'mock_account_sid' || !this.accountSid.startsWith('AC');
     if (!this.isMock) {
       this.client = twilio(this.accountSid, this.authToken);
+    }
+  }
+
+  async sendSMS(to, message) {
+    if (this.isMock) {
+      console.log(`[SMS MOCK] To: ${to} | Message: ${message}`);
+      return;
+    }
+
+    try {
+      const response = await this.client.messages.create({
+        body: message,
+        from: this.smsFromNumber,
+        to: to
+      });
+      console.log(`[SMS] Sent to ${to}: ${response.sid}`);
+      return response;
+    } catch (error) {
+      console.error(`[SMS ERROR] Failed to send to ${to}:`, error.message);
+      throw error;
     }
   }
 

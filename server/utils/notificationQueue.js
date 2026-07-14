@@ -53,8 +53,21 @@ class NotificationQueue {
         item.attempts++;
         console.log(`[NOTIFICATION QUEUE] Attempt ${item.attempts} for ${item.to}`);
         
-        await whatsappService.sendMessage(item.to, item.message);
-        console.log(`[NOTIFICATION QUEUE] Sent notification successfully to ${item.to}`);
+        if (item.type === 'whatsapp') {
+          try {
+            await whatsappService.sendMessage(item.to, item.message);
+            console.log(`[NOTIFICATION QUEUE] Sent notification successfully to ${item.to}`);
+          } catch (waErr) {
+            console.warn(`[NOTIFICATION QUEUE] WhatsApp failed for ${item.to}: ${waErr.message}. Retrying via SMS fallback.`);
+            // Strip WhatsApp bold markdown asterisks for plain SMS
+            const plainSmsMessage = item.message.replace(/\*/g, '');
+            await whatsappService.sendSMS(item.to, plainSmsMessage);
+            console.log(`[FALLBACK] WhatsApp failed, sent via SMS instead`);
+          }
+        } else {
+          await whatsappService.sendSMS(item.to, item.message);
+          console.log(`[NOTIFICATION QUEUE] Sent SMS successfully to ${item.to}`);
+        }
       } catch (err) {
         console.error(`[NOTIFICATION QUEUE] Attempt ${item.attempts} failed for ${item.to}: ${err.message}`);
         
