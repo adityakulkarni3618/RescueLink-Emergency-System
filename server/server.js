@@ -1240,6 +1240,14 @@ io.on('connection', (socket) => {
              vTachRisk: parseFloat(vTachRisk.toFixed(3)),
              news2Score
            });
+           io.emit('ai-telemetry-prediction', {
+             reqId,
+             shockIndex: parseFloat(shockIndex.toFixed(2)),
+             cardiacArrestRisk: parseFloat(cardiacArrestRisk.toFixed(3)),
+             shockRisk: parseFloat(shockRisk.toFixed(3)),
+             vTachRisk: parseFloat(vTachRisk.toFixed(3)),
+             news2Score
+           });
 
            if (cardiacArrestRisk > 0.82 || shockRisk > 0.82 || vTachRisk > 0.82) {
                let warnings = [];
@@ -1264,6 +1272,7 @@ io.on('connection', (socket) => {
 
     if (reqId) {
       io.to(`mission_${reqId}`).emit('vitals-update', update);
+      io.emit('vitals-update', update);
     }
   });
 
@@ -1275,6 +1284,8 @@ io.on('connection', (socket) => {
       if (reqId) {
         io.to(`mission_${reqId}`).emit('bulk-vitals-update', vitals);
         io.to(`mission_${reqId}`).emit('vitals-update', latest);
+        io.emit('bulk-vitals-update', vitals);
+        io.emit('vitals-update', latest);
       } else {
         io.emit('bulk-vitals-update', vitals);
         io.emit('vitals-update', latest);
@@ -1664,7 +1675,7 @@ io.on('connection', (socket) => {
         console.error('[DB ERROR] Failed to update mission status on cancel:', err);
       }
       io.to(`mission_${reqId}`).emit('mission-completed', { reqId, reason: 'cancelled_by_user' });
-      io.to('global_hospitals').emit('hospital-request-taken', { reqId, acceptedBy: 'CANCELLED' });
+      io.emit('hospital-request-taken', { reqId, acceptedBy: 'CANCELLED' });
       
       cleanupSimulation(reqId);
 
@@ -1880,7 +1891,7 @@ io.on('connection', (socket) => {
       req.unitId = ambulances[socket.id]?.unitId;
       req.userSocket = data.userSocket || req.userSocket;
 
-      io.to('global_hospitals').emit('incoming-hospital-request', {
+      io.emit('incoming-hospital-request', {
         id: req.id,
         status: 'advance_notice',
         ambulanceName: ambulances[socket.id]?.name || 'Unit',
@@ -1944,6 +1955,8 @@ io.on('connection', (socket) => {
       uniqueHospitalIds.forEach(hospId => {
         io.to(`hospital:${hospId}`).emit('incoming-hospital-request', { ...req, incidentLocation: req.incidentLocation });
       });
+      // Global broadcast for demo fallback
+      io.emit('incoming-hospital-request', { ...req, incidentLocation: req.incidentLocation });
       console.log(`[SMART DIVERT] Broadcasted to ${availableSockets.length} available hospitals, diverted from ${Object.keys(hospitals).length - availableSockets.length} full hospitals.`);
     } else if (data.hospitalSocketId) {
       const hospId = hospitals[data.hospitalSocketId]?.id;
@@ -1955,6 +1968,8 @@ io.on('connection', (socket) => {
         console.log(`[SOCKET_LOG] Emitting targeted request directly to socket '${data.hospitalSocketId}'`);
         io.to(data.hospitalSocketId).emit('incoming-hospital-request', { ...req, incidentLocation: req.incidentLocation });
       }
+      // Global broadcast for demo fallback
+      io.emit('incoming-hospital-request', { ...req, incidentLocation: req.incidentLocation });
     }
   });
 
@@ -2053,7 +2068,7 @@ io.on('connection', (socket) => {
 
     // If it was a broadcasted request, notify all other hospitals to "withdraw" the alert
     if (isAccepted) {
-      io.to('global_hospitals').emit('hospital-request-taken', { reqId: req.id, acceptedBy: socket.id });
+      io.emit('hospital-request-taken', { reqId: req.id, acceptedBy: socket.id });
     }
   });
 

@@ -37,7 +37,7 @@ module.exports = (sequelize) => {
       type: DataTypes.STRING
     },
     dob: {
-      type: DataTypes.DATEONLY
+      type: DataTypes.STRING
     },
     blood_group: {
       type: DataTypes.STRING

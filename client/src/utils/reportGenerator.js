@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 /**
  * Enterprise PDF Report Generator for RescueLink
@@ -58,7 +58,7 @@ export const generateMonthlyReport = (stats) => {
     ['Telemetry Packet Integrity (NEWS2)', '99.98% Compliant']
   ];
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: 45,
     head: [['Performance Index', 'Monthly Value']],
     body: kpiRows,
@@ -76,7 +76,7 @@ export const generateMonthlyReport = (stats) => {
     ['GREEN (Low Risk / Minor Cases)', stats.greenTriage || '32 Cases']
   ];
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: doc.lastAutoTable.finalY + 20,
     head: [['Triage Level', 'Count']],
     body: triageRows,
@@ -113,7 +113,7 @@ export const generateIncidentSummaryReport = (incident) => {
     ['Handoff Date/Time', new Date().toLocaleString()]
   ];
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: 50,
     body: metaData,
     theme: 'plain',
@@ -132,7 +132,7 @@ export const generateIncidentSummaryReport = (incident) => {
     `${v.temperature} C`
   ]);
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: doc.lastAutoTable.finalY + 20,
     head: [['Time', 'HR', 'SpO2', 'BP', 'Temp']],
     body: vitalsRows,
@@ -169,7 +169,7 @@ export const generateAuditComplianceReport = (logs) => {
     log.severity
   ]);
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: 48,
     head: [['#', 'Timestamp', 'Category', 'Action', 'User', 'IP Address', 'Severity']],
     body: rowData.length > 0 ? rowData : [['-', 'No logs found', '-', '-', '-', '-', '-']],

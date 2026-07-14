@@ -6,7 +6,7 @@ import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianG
 import VideoCall from './VideoCall';
 import { showAlert } from '../utils/alert';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import PhysiologicalWaveforms from './PhysiologicalWaveforms';
 let audioCtx = null;
 
@@ -1961,7 +1961,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
 
                 // Patient Details & Vitals Table
                 const vitals = lastFieldReportRef.current?.vitals || {};
-                doc.autoTable({
+                autoTable(doc, {
                   startY: 65,
                   head: [['Metric', 'Value']],
                   body: [

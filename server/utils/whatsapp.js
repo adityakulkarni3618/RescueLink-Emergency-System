@@ -4,9 +4,10 @@ require('dotenv').config();
 class WhatsAppService {
   constructor() {
     // These will be loaded from .env in production
-    this.accountSid = process.env.TWILIO_ACCOUNT_SID || 'mock_account_sid';
-    this.authToken = process.env.TWILIO_AUTH_TOKEN || 'mock_auth_token';
-    this.fromNumber = process.env.TWILIO_WHATSAPP_FROM || 'whatsapp:+14155238886'; // Twilio sandbox number
+    const config = require('./config');
+    this.accountSid = config.TWILIO_ACCOUNT_SID;
+    this.authToken = config.TWILIO_AUTH_TOKEN;
+    this.fromNumber = config.TWILIO_WHATSAPP_FROM;
     
     // We only initialize the client if we have real credentials (or if we want to mock it)
     this.isMock = this.accountSid === 'mock_account_sid' || !this.accountSid.startsWith('AC');
