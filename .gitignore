@@ -3,3 +3,7 @@ node_modules/
 .env
 build/
 scratch/
+*.sqlite
+*.sqlite3
+server/data/*.json
+server/data/*.txt
