@@ -121,6 +121,15 @@ export default function UserDashboard({ socket, connected }) {
   const [activeReqId, setActiveReqId] = useState(localStorage.getItem('user_activeReqId') || null);
   const [assignedAmbulanceId, setAssignedAmbulanceId] = useState(localStorage.getItem('user_assignedAmbulanceId') || null);
   const [userId] = useState(() => {
+    const sessionUserStr = sessionStorage.getItem('rescuelink_user');
+    if (sessionUserStr) {
+      try {
+        const u = JSON.parse(sessionUserStr);
+        if (u.id) return u.id;
+      } catch (e) {
+        console.error('Failed to parse rescuelink_user', e);
+      }
+    }
     let id = localStorage.getItem('user_persistent_id');
     if (!id) {
       id = 'USR-' + Math.random().toString(36).substr(2, 9).toUpperCase();
@@ -519,12 +528,30 @@ export default function UserDashboard({ socket, connected }) {
     }
     setRequestStatus('searching');
     if (isSOS) setSosMode(true);
+
+    let userPhone = '';
+    const sessionUserStr = sessionStorage.getItem('rescuelink_user');
+    if (sessionUserStr) {
+      try {
+        const u = JSON.parse(sessionUserStr);
+        userPhone = u.mobile || '';
+      } catch (e) {}
+    }
+
+    if (!userPhone) {
+      const enteredPhone = window.prompt("📱 Please enter your mobile number for dispatch updates (Optional):", "");
+      if (enteredPhone) {
+        userPhone = enteredPhone.trim();
+      }
+    }
+
     socket.emit('request-ambulance', {
       userId,
       userLocation,
       ambulanceId: ambId,
       patientDetails: isSOS ? { name: 'Unknown (SOS)', age: '', condition, bloodGroup: '' } : patientData,
-      isEmergency: true
+      isEmergency: true,
+      userPhone
     });
   };
 
