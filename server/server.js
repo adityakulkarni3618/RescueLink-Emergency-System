@@ -341,6 +341,23 @@ const apiRateLimiter = rateLimit({
 app.use('/api', apiRateLimiter);
 app.use('/api/auth', authRateLimiter, authRouter);
 app.use('/api/users', usersRouter);
+
+app.get('/api/test-sms', async (req, res) => {
+  if (req.query.key !== process.env.SEED_KEY) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  try {
+    const whatsappService = require('./utils/whatsapp');
+    const testNumber = req.query.to;
+    if (!testNumber) {
+      return res.status(400).json({ error: 'Add ?to=+91YOURNUMBER to the URL' });
+    }
+    await whatsappService.sendSMS(testNumber, 'RescueLink test message - Twilio SMS is working!');
+    return res.json({ message: 'SMS sent, check your phone' });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
 app.get('/api/one-time-seed', async (req, res) => {
   if (req.query.key !== process.env.SEED_KEY) {
     return res.status(403).json({ error: 'Forbidden' });
