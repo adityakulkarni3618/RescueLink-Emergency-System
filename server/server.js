@@ -1739,6 +1739,10 @@ io.on('connection', (socket) => {
 
     const { patientDetails, userLocation } = data;
 
+    console.log(`[DISPATCH DEBUG] New request-ambulance received:`);
+    console.log(`  - Caller coordinates: ${JSON.stringify(userLocation)}`);
+    console.log(`  - Caller S2 Cell Level 12: ${S2.latLngToKey(userLocation.lat, userLocation.lng, 12)}`);
+
     // 1. S2 Geometry Grid Mapping (Level 12 ~ 3.3km to 6km radius)
     const LEVEL = 12;
     const userCellId = S2.latLngToKey(userLocation.lat, userLocation.lng, LEVEL);
@@ -1818,6 +1822,23 @@ io.on('connection', (socket) => {
     scoredCandidates.sort((a, b) => b.score - a.score); // Highest score first
     console.log(`[Smart Routing] Ranked Candidates:`, scoredCandidates.map(c => `${c.id} (Score: ${c.score.toFixed(1)}, ETA: ${c.etaMin.toFixed(1)}m)`));
 
+    console.log(`[DISPATCH DEBUG] High Acuity Triage: ${highAcuity}`);
+    console.log(`[DISPATCH DEBUG] Registered Real (Non-simulated) Ambulances:`);
+    Object.keys(ambulances).forEach(sid => {
+      const amb = ambulances[sid];
+      const ambLocation = amb.location;
+      const cellKey = ambLocation ? S2.latLngToKey(ambLocation.lat, ambLocation.lng, 12) : "NO COORDINATES REPORTED";
+      const scoreObj = scoredCandidates.find(sc => sc.id === sid);
+      const scoreVal = scoreObj ? scoreObj.score.toFixed(1) : "N/A (Filtered Out)";
+      console.log(`  - Socket ID: ${sid}`);
+      console.log(`    - Name: ${amb.name}`);
+      console.log(`    - Type: ${amb.type || 'BLS'}`);
+      console.log(`    - Available: ${amb.available}`);
+      console.log(`    - Reported Coordinates: ${ambLocation ? JSON.stringify(ambLocation) : "NO COORDINATES REPORTED"}`);
+      console.log(`    - S2 Cell Key: ${cellKey}`);
+      console.log(`    - Calculated Score: ${scoreVal}`);
+    });
+
     // Determine the target candidate (priority to requested ID, then best candidate)
     let chosenCandidateId = null;
     if (data.ambulanceId && combinedAmbulances[data.ambulanceId] && combinedAmbulances[data.ambulanceId].available) {
@@ -1826,6 +1847,15 @@ io.on('connection', (socket) => {
       chosenCandidateId = data.ambulanceId;
     } else if (scoredCandidates.length > 0) {
       chosenCandidateId = scoredCandidates[0].id;
+    }
+
+    console.log(`[DISPATCH DEBUG] Final chosen candidate ID: ${chosenCandidateId}`);
+    if (chosenCandidateId) {
+      const isVirtual = chosenCandidateId.startsWith('VIRTUAL-AMB-') || (combinedAmbulances[chosenCandidateId] && combinedAmbulances[chosenCandidateId].isSimulated);
+      console.log(`  - Type: ${isVirtual ? 'Virtual/Simulated' : 'Real connected unit'}`);
+      console.log(`  - Reason for selection: Score rank or targeted dispatch request`);
+    } else {
+      console.log(`  - Reason for selection: No available candidate found matching cell/distance constraints.`);
     }
 
     if (chosenCandidateId && highAcuity) {
