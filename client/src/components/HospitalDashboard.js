@@ -13,6 +13,7 @@ import InsurancePanel from './InsurancePanel';
 import MassCasualtyPanel from './MassCasualtyPanel';
 import HeartbeatViz from './HeartbeatViz';
 import BloodEmergencyNetwork from './BloodEmergencyNetwork';
+import { MfaVerifyScreen } from './MfaVerifyScreen';
 
 function CustomAlert({ title, message, onClose }) {
   return (
@@ -1136,6 +1137,7 @@ export default function HospitalDashboard({ socket, connected }) {
   const [loginId, setLoginId] = useState('');
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [mfaToken, setMfaToken] = useState(null);
   // ANCHOR FIX: Hospital registers itself at its real GPS coordinates, not a hardcoded position.
   // This means a hospital in London will show on the London map, not in Pune.
   const [hospitalGps, setHospitalGps] = useState(null);
@@ -1282,6 +1284,12 @@ export default function HospitalDashboard({ socket, connected }) {
       });
       const data = await res.json();
 
+      if (data.requiresMFA) {
+        setMfaToken(data.mfaToken);
+        setLoginError('');
+        return;
+      }
+
       if (res.ok && data.token) {
         sessionStorage.setItem('rescueLinkHospitalJWT', data.token);
         
@@ -1353,6 +1361,73 @@ export default function HospitalDashboard({ socket, connected }) {
       console.error('[AUTH FAIL]', err);
       setLoginError('Authentication Server Offline');
     }
+  };
+
+  const handleMfaSuccess = async (viewRole, token) => {
+    const userStr = sessionStorage.getItem('rescuelink_user');
+    const user = userStr ? JSON.parse(userStr) : {};
+    
+    sessionStorage.setItem('rescueLinkHospitalJWT', token);
+    
+    const finalInputId = loginId || user.hospital_id || 'HOSP-GENERIC';
+    
+    const found = HOSPITAL_CREDENTIALS.find(c => c.hospitalId === finalInputId) || {
+      hospitalId: finalInputId,
+      name: user.role === 'doctor' ? 'Manipal Global Trauma Center' : 'Emergency Center',
+      adminName: user.name || 'Dr. Command',
+      internalId: finalInputId.toLowerCase(),
+      lat: user.lat || 18.5204,
+      lng: user.lng || 73.8567
+    };
+
+    setAuthHospital(found);
+    setIsAuthenticated(true);
+    setLoginError('');
+    if (found.internalId) setActiveHospitalId(found.internalId);
+    
+    let hospitalGps = null;
+    try {
+      const baseLoc = await fetchIpLocation();
+      const hash = finalInputId.split('').reduce((a,b)=>a+b.charCodeAt(0),0);
+      hospitalGps = { 
+        lat: baseLoc.lat + (hash % 10) * 0.005, 
+        lng: baseLoc.lng + (hash % 7) * 0.005 
+      };
+    } catch (e) {
+      hospitalGps = { lat: found.lat || user.lat, lng: found.lng || user.lng };
+    }
+
+    if (socket) socket.emit('register-hospital', { 
+      hospitalId: found.hospitalId, 
+      name: found.name, 
+      adminName: found.adminName, 
+      location: hospitalGps,
+      available: true,
+      token: token
+    });
+    
+    if (incomingRequest) {
+      console.log(`[AUTH] Authentication successful. Completing admission for ${incomingRequest?.id}...`);
+      if (incomingRequest.fieldReport) {
+        setLatestVitals(incomingRequest.fieldReport.vitals);
+        setPatient(incomingRequest.patientDetails || { name: incomingRequest.fieldReport.patientName || 'Emergency Patient' });
+      }
+      socket.emit('hospital-response', {
+        reqId: incomingRequest?.id,
+        hospitalId: finalInputId,
+        status: 'hospital_accepted',
+        readyServices
+      });
+      setIncomingRequest(null);
+      setRequestQueue(prev => prev.filter(r => r.id !== incomingRequest?.id));
+      setActiveMissionId(incomingRequest?.id);
+      setAmbulanceSocketId(incomingRequest.ambulanceSocket || incomingRequest.fromSocketId || incomingRequest.fromSocket);
+      setAdmissionStep(0);
+      setShowManualLogin(false);
+      setIsAuthInModal(false);
+    }
+    
+    setMfaToken(null);
   };
 
   const handleAcceptAdmission = () => {
@@ -1873,6 +1948,16 @@ export default function HospitalDashboard({ socket, connected }) {
     setResourceLocks(m.resourceLocks || { traumaBay: false, bloodUnits: false, ventilatorStandby: false });
     setChecklist(m.checklist || {});
   };
+
+  if (mfaToken) {
+    return (
+      <MfaVerifyScreen
+        mfaToken={mfaToken}
+        onLoginSuccess={handleMfaSuccess}
+        onCancel={() => setMfaToken(null)}
+      />
+    );
+  }
 
   return (
     <div style={{
