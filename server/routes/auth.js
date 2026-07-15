@@ -107,7 +107,8 @@ router.post('/login', validate(loginBody), async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        hospital_id: user.hospital_id
+        hospital_id: user.hospital_id,
+        mobile: user.mobile
       }
     });
   } catch (err) {
@@ -201,7 +202,8 @@ router.post('/verify-mfa', async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        hospital_id: user.hospital_id
+        hospital_id: user.hospital_id,
+        mobile: user.mobile
       }
     });
   } catch (err) {
