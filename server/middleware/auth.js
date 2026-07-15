@@ -32,9 +32,18 @@ function verifyToken(requiredRoles = []) {
         }
 
         // Verify MFA status on token structure
-        if (decoded.requiresMFA || decoded.requiresMfaSetup) {
+        if (decoded.requiresMFA) {
           console.log(`[AUTH] Access denied: MFA verification pending for ${req.method} ${req.originalUrl}`);
           return res.status(403).json({ error: 'Forbidden: Complete Multi-factor authentication first' });
+        }
+
+        if (decoded.requiresMfaSetup) {
+          const path = req.originalUrl.split('?')[0];
+          const isSetupRoute = path.endsWith('/api/mfa/setup') || path.endsWith('/api/mfa/enable');
+          if (!isSetupRoute) {
+            console.log(`[AUTH] Access denied: MFA Setup pending for ${req.method} ${req.originalUrl}`);
+            return res.status(403).json({ error: 'Forbidden: Complete Multi-factor authentication first' });
+          }
         }
 
         // Check user roles if required
