@@ -2238,9 +2238,15 @@ export default function AmbulanceStreamer({ socket, connected }) {
               <div style={{ fontSize: 13, color: 'rgba(160,200,255,0.2)', textAlign: 'center', maxWidth: 400 }}>
                 Ambulance unit is online and ready. Patient vitals and details will appear here once a dispatch request is accepted.
               </div>
-              <div style={{ padding: '8px 20px', border: '1px solid rgba(0,255,136,0.3)', borderRadius: 6, fontSize: 11, fontFamily: "'Share Tech Mono'", color: '#00ff88', background: 'rgba(0,255,136,0.05)' }}>
-                ● UNIT ONLINE — STANDING BY
-              </div>
+              {connected ? (
+                <div style={{ padding: '8px 20px', border: '1px solid rgba(0,255,136,0.3)', borderRadius: 6, fontSize: 11, fontFamily: "'Share Tech Mono'", color: '#00ff88', background: 'rgba(0,255,136,0.05)' }}>
+                  ● UNIT ONLINE — STANDING BY
+                </div>
+              ) : (
+                <div style={{ padding: '8px 20px', border: '1px solid rgba(255,68,68,0.3)', borderRadius: 6, fontSize: 11, fontFamily: "'Share Tech Mono'", color: '#ff4444', background: 'rgba(255,68,68,0.05)' }}>
+                  ● OFFLINE
+                </div>
+              )}
               <div style={{ marginTop: 30, padding: '20px', background: 'rgba(5,20,45,0.6)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, width: '100%', maxWidth: 320, textAlign: 'center' }}>
                 <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Orbitron'", marginBottom: 8, letterSpacing: '0.1em' }}>MANUAL MISSION RECOVERY</div>
                 <div style={{ display: 'flex', gap: 10 }}>
