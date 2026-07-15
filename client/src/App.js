@@ -10,6 +10,7 @@ import axios from 'axios';
 import { MfaVerifyScreen } from './components/MfaVerifyScreen';
 
 const SERVER_URL = process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin;
+const SOCKET_URL = process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com';
 
 // Global fetch request interceptor for JWT auth
 const originalFetch = window.fetch;
@@ -1258,7 +1259,7 @@ export default function App() {
   useEffect(() => {
     if (!role || !token) return;
 
-    const newSocket = io(SERVER_URL, {
+    const newSocket = io(SOCKET_URL, {
       auth: { token },
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,
