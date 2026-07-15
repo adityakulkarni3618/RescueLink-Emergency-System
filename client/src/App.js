@@ -415,66 +415,211 @@ function RoleSelector({ onSelect }) {
   );
 }
 
-/* ─── Login Screen Component ──────────────────────────────────────────────── */
-function LoginScreen({ onLoginSuccess }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+/* ─── MFA Setup Screen Component ────────────────────────────────────────── */
+function MfaSetupScreen({ setupToken, onComplete, onCancel }) {
+  const [qrCode, setQrCode] = useState('');
+  const [tempSecret, setTempSecret] = useState('');
+  const [code, setCode] = useState('');
+  const [backupCodes, setBackupCodes] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  // MFA states
-  const [showMfa, setShowMfa] = useState(false);
-  const [mfaToken, setMfaToken] = useState('');
-  const [totpCode, setTotpCode] = useState('');
+  useEffect(() => {
+    const initSetup = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const response = await fetch(`${SERVER_URL}/api/mfa/setup`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${setupToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to initialize MFA setup');
+        }
+        setQrCode(data.qrCode);
+        setTempSecret(data.tempSecret);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    initSetup();
+  }, [setupToken]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      const response = await fetch(`${SERVER_URL}/api/auth/login`, {
+      const response = await fetch(`${SERVER_URL}/api/mfa/enable`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        headers: {
+          'Authorization': `Bearer ${setupToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ code, tempSecret })
       });
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
+        throw new Error(data.error || 'Failed to enable MFA');
       }
-
-      if (data.requiresMFA) {
-        setMfaToken(data.mfaToken);
-        setShowMfa(true);
-        setLoading(false);
-        return;
-      }
-
-      sessionStorage.setItem('rescuelink_token', data.token);
-      sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
-      
-      // Map database role to frontend view role
-      let viewRole = 'user';
-      if (data.user.role === 'doctor' || data.user.role === 'hospital_admin') {
-        viewRole = 'hospital';
-      } else if (data.user.role === 'paramedic') {
-        viewRole = 'ambulance';
-      } else if (data.user.role === 'city_admin') {
-        viewRole = 'admin';
-      } else if (data.user.role === 'family') {
-        viewRole = 'family';
-      } else if (data.user.role === 'patient') {
-        viewRole = 'user';
-      }
-      
-      onLoginSuccess(viewRole, data.token);
+      setBackupCodes(data.backupCodes || []);
     } catch (err) {
-      setError(err.message || 'Invalid credentials');
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleMfaSubmit = async (e) => {
+  return (
+    <div style={{
+      minHeight: '100vh', display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      background: 'radial-gradient(ellipse at 50% 30%, #0a1e3a 0%, #050d1a 70%)',
+      fontFamily: "'Rajdhani', sans-serif", padding: '20px',
+      position: 'relative', overflow: 'hidden',
+    }}>
+      <style>{styles}</style>
+      <ParticleCanvas />
+      <div className="scanline" />
+      
+      <div style={{
+        position: 'absolute', inset: 0, opacity: 0.06,
+        backgroundImage: 'linear-gradient(rgba(0,200,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(0,200,255,0.5) 1px, transparent 1px)',
+        backgroundSize: '40px 40px',
+      }} />
+
+      <div style={{
+        width: '100%', maxWidth: 450, padding: '40px 32px',
+        background: 'rgba(10,22,48,0.85)',
+        border: '1px solid rgba(0,200,255,0.3)',
+        borderRadius: 12, backdropFilter: 'blur(10px)',
+        zIndex: 1, boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
+      }}>
+        <h2 style={{
+          fontFamily: "'Orbitron', sans-serif", fontSize: 24,
+          color: '#00c8ff', textAlign: 'center', marginBottom: 8,
+          textShadow: '0 0 10px rgba(0,200,255,0.4)', letterSpacing: '0.1em'
+        }}>RESCUELINK</h2>
+        <p style={{
+          textAlign: 'center', color: 'rgba(160,200,255,0.5)',
+          fontSize: 11, letterSpacing: '0.2em', marginBottom: 24,
+          fontFamily: "'Share Tech Mono'"
+        }}>MFA SETUP</p>
+
+        {error && (
+          <div style={{
+            padding: 12, background: 'rgba(255,50,50,0.1)',
+            border: '1px solid rgba(255,50,50,0.4)', borderRadius: 6,
+            color: '#ff8888', marginBottom: 20, fontSize: 13,
+            textAlign: 'center', fontFamily: "'Share Tech Mono'"
+          }}>{error}</div>
+        )}
+
+        {backupCodes.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div style={{ padding: 12, background: 'rgba(255,184,0,0.1)', border: '1px solid rgba(255,184,0,0.4)', borderRadius: 6, color: '#ffb800', fontSize: 13, textAlign: 'center' }}>
+              ⚠️ WARNING: Save these recovery codes somewhere safe! They won't be shown again.
+            </div>
+            
+            <div style={{
+              display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: 16,
+              background: '#050f28', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 6
+            }}>
+              {backupCodes.map((c, index) => (
+                <div key={index} style={{ fontFamily: "'Share Tech Mono'", fontSize: 14, color: '#fff', textAlign: 'center', padding: '6px', background: 'rgba(255,255,255,0.02)', borderRadius: 4 }}>
+                  {c}
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={onComplete}
+              style={{
+                width: '100%', padding: '14px', background: 'linear-gradient(135deg, #00c8ff22, #00c8ff44)',
+                border: '1px solid #00c8ff', borderRadius: 6,
+                color: '#00c8ff', fontFamily: "'Orbitron'", fontSize: 13,
+                fontWeight: 700, letterSpacing: '0.15em', cursor: 'pointer'
+              }}
+            >
+              CONTINUE TO LOGIN
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20, alignItems: 'center' }}>
+            <p style={{ color: 'rgba(160,200,255,0.8)', fontSize: 14, textAlign: 'center', lineHeight: 1.5 }}>
+              Scan this with Google Authenticator, Authy, or Microsoft Authenticator, then enter the 6-digit code below.
+            </p>
+
+            {qrCode ? (
+              <img src={`data:image/png;base64,${qrCode}`} alt="MFA QR Code" style={{ border: '4px solid #fff', borderRadius: 8, width: 180, height: 180 }} />
+            ) : (
+              <div style={{ width: 180, height: 180, background: '#050f28', border: '1px dashed #00c8ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00c8ff' }}>Loading QR Code...</div>
+            )}
+
+            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', letterSpacing: '0.1em', fontFamily: "'Share Tech Mono'" }}>6-DIGIT CODE</label>
+              <input
+                type="text"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="000000"
+                required
+                maxLength={6}
+                style={{
+                  padding: '12px', background: 'rgba(5,15,40,0.6)',
+                  border: '1px solid rgba(0,200,255,0.2)', borderRadius: 6,
+                  color: '#fff', fontSize: 16, fontFamily: 'inherit', outline: 'none',
+                  textAlign: 'center', letterSpacing: '4px'
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: 12, width: '100%' }}>
+              <button
+                type="submit"
+                disabled={loading || !qrCode}
+                style={{
+                  flex: 1, padding: '14px', background: 'linear-gradient(135deg, #00ff8822, #00ff8844)',
+                  border: '1px solid #00ff88', borderRadius: 6,
+                  color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 13,
+                  fontWeight: 700, letterSpacing: '0.15em', cursor: 'pointer'
+                }}
+              >
+                {loading ? 'ENABLING...' : 'ENABLE MFA'}
+              </button>
+              <button
+                type="button"
+                onClick={onCancel}
+                style={{
+                  flex: 1, padding: '14px', background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6,
+                  color: 'rgba(160,200,255,0.7)', fontFamily: "'Orbitron'", fontSize: 13,
+                  fontWeight: 700, letterSpacing: '0.15em', cursor: 'pointer'
+                }}
+              >
+                CANCEL
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── MFA Verify Screen Component ───────────────────────────────────────── */
+function MfaVerifyScreen({ mfaToken, onLoginSuccess, onCancel }) {
+  const [totpCode, setTotpCode] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
@@ -486,12 +631,12 @@ function LoginScreen({ onLoginSuccess }) {
       });
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || 'MFA Verification failed');
+        throw new Error(data.error || 'Verification failed');
       }
 
       sessionStorage.setItem('rescuelink_token', data.token);
       sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
-      
+
       let viewRole = 'user';
       if (data.user.role === 'doctor' || data.user.role === 'hospital_admin') {
         viewRole = 'hospital';
@@ -504,20 +649,13 @@ function LoginScreen({ onLoginSuccess }) {
       } else if (data.user.role === 'patient') {
         viewRole = 'user';
       }
-      
+
       onLoginSuccess(viewRole, data.token);
     } catch (err) {
       setError(err.message || 'Invalid verification code');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleBackToLogin = () => {
-    setShowMfa(false);
-    setMfaToken('');
-    setTotpCode('');
-    setError('');
   };
 
   return (
@@ -554,7 +692,7 @@ function LoginScreen({ onLoginSuccess }) {
           textAlign: 'center', color: 'rgba(160,200,255,0.5)',
           fontSize: 11, letterSpacing: '0.2em', marginBottom: 24,
           fontFamily: "'Share Tech Mono'"
-        }}>{showMfa ? 'TWO-FACTOR VERIFICATION' : 'SECURE MEDICAL GATEWAY'}</p>
+        }}>TWO-FACTOR VERIFICATION</p>
 
         {error && (
           <div style={{
@@ -565,132 +703,243 @@ function LoginScreen({ onLoginSuccess }) {
           }}>{error}</div>
         )}
 
-        {!showMfa ? (
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <label style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', letterSpacing: '0.1em', fontFamily: "'Share Tech Mono'" }}>EMAIL ADDRESS</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="e.g. doctor@rescuelink.com"
-                required
-                style={{
-                  padding: '12px', background: 'rgba(5,15,40,0.6)',
-                  border: '1px solid rgba(0,200,255,0.2)', borderRadius: 6,
-                  color: '#fff', fontSize: 14, fontFamily: 'inherit', outline: 'none'
-                }}
-              />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <label style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', letterSpacing: '0.1em', fontFamily: "'Share Tech Mono'" }}>PASSWORD</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-                style={{
-                  padding: '12px', background: 'rgba(5,15,40,0.6)',
-                  border: '1px solid rgba(0,200,255,0.2)', borderRadius: 6,
-                  color: '#fff', fontSize: 14, fontFamily: 'inherit', outline: 'none'
-                }}
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <label style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', letterSpacing: '0.1em', fontFamily: "'Share Tech Mono'" }}>ENTER 2FA OTP / RECOVERY CODE</label>
+            <input
+              type="text"
+              value={totpCode}
+              onChange={(e) => setTotpCode(e.target.value)}
+              placeholder="6-digit code or 8-char recovery code"
+              required
               style={{
-                padding: '14px', background: 'linear-gradient(135deg, #00c8ff22, #00c8ff44)',
-                border: '1px solid #00c8ff', borderRadius: 6,
-                color: '#00c8ff', fontFamily: "'Orbitron'", fontSize: 13,
-                fontWeight: 700, letterSpacing: '0.15em', cursor: 'pointer',
-                marginTop: 10
+                padding: '12px', background: 'rgba(5,15,40,0.6)',
+                border: '1px solid rgba(0,200,255,0.2)', borderRadius: 6,
+                color: '#fff', fontSize: 14, fontFamily: 'inherit', outline: 'none',
+                textAlign: 'center', letterSpacing: '2px'
               }}
-            >
-              {loading ? 'AUTHENTICATING...' : 'ACCESS SYSTEM →'}
-            </button>
-            <button
-              type="button"
-              disabled={loading}
-              onClick={async () => {
-                setEmail('patient@rescuelink.com');
-                setPassword('password123');
-                setError('');
-                setLoading(true);
-                try {
-                  const response = await fetch(`${SERVER_URL}/api/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: 'patient@rescuelink.com', password: 'password123' })
-                  });
-                  const data = await response.json();
-                  if (!response.ok) throw new Error(data.error || 'Login failed');
-                  sessionStorage.setItem('rescuelink_token', data.token);
-                  sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
-                  onLoginSuccess('user', data.token);
-                } catch (err) {
-                  setError(err.message || 'Invalid credentials');
-                } finally {
-                  setLoading(false);
-                }
-              }}
-              style={{
-                padding: '12px', background: 'linear-gradient(135deg, #00ff8811, #00ff8822)',
-                border: '1px solid #00ff88', borderRadius: 6,
-                color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 12,
-                fontWeight: 700, letterSpacing: '0.15em', cursor: 'pointer',
-                marginTop: 8
-              }}
-            >
-              EMERGENCY PATIENT ACCESS 🧍
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleMfaSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <label style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', letterSpacing: '0.1em', fontFamily: "'Share Tech Mono'" }}>ENTER 2FA OTP / RECOVERY CODE</label>
-              <input
-                type="text"
-                value={totpCode}
-                onChange={(e) => setTotpCode(e.target.value)}
-                placeholder="6-digit code or 8-char recovery code"
-                required
-                style={{
-                  padding: '12px', background: 'rgba(5,15,40,0.6)',
-                  border: '1px solid rgba(0,200,255,0.2)', borderRadius: 6,
-                  color: '#fff', fontSize: 14, fontFamily: 'inherit', outline: 'none',
-                  textAlign: 'center', letterSpacing: '2px'
-                }}
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                padding: '14px', background: 'linear-gradient(135deg, #00ff8822, #00ff8844)',
-                border: '1px solid #00ff88', borderRadius: 6,
-                color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 13,
-                fontWeight: 700, letterSpacing: '0.15em', cursor: 'pointer',
-                marginTop: 10
-              }}
-            >
-              {loading ? 'VERIFYING...' : 'VERIFY CODE →'}
-            </button>
-            <button
-              type="button"
-              onClick={handleBackToLogin}
-              style={{
-                padding: '10px', background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6,
-                color: 'rgba(160,200,255,0.7)', fontFamily: "'Orbitron'", fontSize: 11,
-                fontWeight: 700, letterSpacing: '0.1em', cursor: 'pointer'
-              }}
-            >
-              ← BACK TO PASSWORD LOGIN
-            </button>
-          </form>
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              padding: '14px', background: 'linear-gradient(135deg, #00ff8822, #00ff8844)',
+              border: '1px solid #00ff88', borderRadius: 6,
+              color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 13,
+              fontWeight: 700, letterSpacing: '0.15em', cursor: 'pointer',
+              marginTop: 10
+            }}
+          >
+            {loading ? 'VERIFYING...' : 'VERIFY CODE →'}
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            style={{
+              padding: '10px', background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6,
+              color: 'rgba(160,200,255,0.7)', fontFamily: "'Orbitron'", fontSize: 11,
+              fontWeight: 700, letterSpacing: '0.1em', cursor: 'pointer'
+            }}
+          >
+            ← BACK TO PASSWORD LOGIN
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Login Screen Component ──────────────────────────────────────────────── */
+function LoginScreen({ onLoginSuccess, onMfaSetup, onMfaVerify }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const response = await fetch(`${SERVER_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await response.json();
+
+      if (response.status === 403 && data.requiresMfaSetup) {
+        if (onMfaSetup) {
+          onMfaSetup(data.setupToken);
+        }
+        setLoading(false);
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Login failed');
+      }
+
+      if (data.requiresMFA) {
+        if (onMfaVerify) {
+          onMfaVerify(data.mfaToken);
+        }
+        setLoading(false);
+        return;
+      }
+
+      sessionStorage.setItem('rescuelink_token', data.token);
+      sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
+      
+      // Map database role to frontend view role
+      let viewRole = 'user';
+      if (data.user.role === 'doctor' || data.user.role === 'hospital_admin') {
+        viewRole = 'hospital';
+      } else if (data.user.role === 'paramedic') {
+        viewRole = 'ambulance';
+      } else if (data.user.role === 'city_admin') {
+        viewRole = 'admin';
+      } else if (data.user.role === 'family') {
+        viewRole = 'family';
+      } else if (data.user.role === 'patient') {
+        viewRole = 'user';
+      }
+      
+      onLoginSuccess(viewRole, data.token);
+    } catch (err) {
+      setError(err.message || 'Invalid credentials');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{
+      minHeight: '100vh', display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      background: 'radial-gradient(ellipse at 50% 30%, #0a1e3a 0%, #050d1a 70%)',
+      fontFamily: "'Rajdhani', sans-serif", padding: '20px',
+      position: 'relative', overflow: 'hidden',
+    }}>
+      <style>{styles}</style>
+      <ParticleCanvas />
+      <div className="scanline" />
+      
+      <div style={{
+        position: 'absolute', inset: 0, opacity: 0.06,
+        backgroundImage: 'linear-gradient(rgba(0,200,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(0,200,255,0.5) 1px, transparent 1px)',
+        backgroundSize: '40px 40px',
+      }} />
+
+      <div style={{
+        width: '100%', maxWidth: 400, padding: '40px 32px',
+        background: 'rgba(10,22,48,0.85)',
+        border: '1px solid rgba(0,200,255,0.3)',
+        borderRadius: 12, backdropFilter: 'blur(10px)',
+        zIndex: 1, boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
+      }}>
+        <h2 style={{
+          fontFamily: "'Orbitron', sans-serif", fontSize: 24,
+          color: '#00c8ff', textAlign: 'center', marginBottom: 8,
+          textShadow: '0 0 10px rgba(0,200,255,0.4)', letterSpacing: '0.1em'
+        }}>RESCUELINK</h2>
+        <p style={{
+          textAlign: 'center', color: 'rgba(160,200,255,0.5)',
+          fontSize: 11, letterSpacing: '0.2em', marginBottom: 24,
+          fontFamily: "'Share Tech Mono'"
+        }}>SECURE MEDICAL GATEWAY</p>
+
+        {error && (
+          <div style={{
+            padding: 12, background: 'rgba(255,50,50,0.1)',
+            border: '1px solid rgba(255,50,50,0.4)', borderRadius: 6,
+            color: '#ff8888', marginBottom: 20, fontSize: 13,
+            textAlign: 'center', fontFamily: "'Share Tech Mono'"
+          }}>{error}</div>
         )}
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <label style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', letterSpacing: '0.1em', fontFamily: "'Share Tech Mono'" }}>EMAIL ADDRESS</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="e.g. doctor@rescuelink.com"
+              required
+              style={{
+                padding: '12px', background: 'rgba(5,15,40,0.6)',
+                border: '1px solid rgba(0,200,255,0.2)', borderRadius: 6,
+                color: '#fff', fontSize: 14, fontFamily: 'inherit', outline: 'none'
+              }}
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <label style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', letterSpacing: '0.1em', fontFamily: "'Share Tech Mono'" }}>PASSWORD</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              style={{
+                padding: '12px', background: 'rgba(5,15,40,0.6)',
+                border: '1px solid rgba(0,200,255,0.2)', borderRadius: 6,
+                color: '#fff', fontSize: 14, fontFamily: 'inherit', outline: 'none'
+              }}
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              padding: '14px', background: 'linear-gradient(135deg, #00c8ff22, #00c8ff44)',
+              border: '1px solid #00c8ff', borderRadius: 6,
+              color: '#00c8ff', fontFamily: "'Orbitron'", fontSize: 13,
+              fontWeight: 700, letterSpacing: '0.15em', cursor: 'pointer',
+              marginTop: 10
+            }}
+          >
+            {loading ? 'AUTHENTICATING...' : 'ACCESS SYSTEM →'}
+          </button>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={async () => {
+              setEmail('patient@rescuelink.com');
+              setPassword('password123');
+              setError('');
+              setLoading(true);
+              try {
+                const response = await fetch(`${SERVER_URL}/api/auth/login`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ email: 'patient@rescuelink.com', password: 'password123' })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Login failed');
+                sessionStorage.setItem('rescuelink_token', data.token);
+                sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
+                onLoginSuccess('user', data.token);
+              } catch (err) {
+                setError(err.message || 'Invalid credentials');
+              } finally {
+                setLoading(false);
+              }
+            }}
+            style={{
+              padding: '12px', background: 'linear-gradient(135deg, #00ff8811, #00ff8822)',
+              border: '1px solid #00ff88', borderRadius: 6,
+              color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 12,
+              fontWeight: 700, letterSpacing: '0.15em', cursor: 'pointer',
+              marginTop: 8
+            }}
+          >
+            EMERGENCY PATIENT ACCESS 🧍
+          </button>
+        </form>
       </div>
     </div>
   );
@@ -1125,6 +1374,10 @@ export default function App() {
   const [globalAlertData, setGlobalAlertData] = useState(null);
   const [showSecurityModal, setShowSecurityModal] = useState(false);
 
+  // MFA Setup and Verification States
+  const [mfaSetupToken, setMfaSetupToken] = useState(null);
+  const [mfaVerifyToken, setMfaVerifyToken] = useState(null);
+
   useEffect(() => {
     const handleCustomAlert = (e) => {
       setGlobalAlertData(e.detail);
@@ -1157,6 +1410,7 @@ export default function App() {
     setToken(userToken);
     setRole(viewRole);
     sessionStorage.setItem('rescueLinkRole', viewRole);
+    setMfaVerifyToken(null);
   };
 
   const handleLogout = async () => {
@@ -1176,8 +1430,34 @@ export default function App() {
     setToken(null);
   };
 
+  if (mfaSetupToken) {
+    return (
+      <MfaSetupScreen
+        setupToken={mfaSetupToken}
+        onComplete={() => setMfaSetupToken(null)}
+        onCancel={() => setMfaSetupToken(null)}
+      />
+    );
+  }
+
+  if (mfaVerifyToken) {
+    return (
+      <MfaVerifyScreen
+        mfaToken={mfaVerifyToken}
+        onLoginSuccess={handleLoginSuccess}
+        onCancel={() => setMfaVerifyToken(null)}
+      />
+    );
+  }
+
   if (!token) {
-    return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
+    return (
+      <LoginScreen
+        onLoginSuccess={handleLoginSuccess}
+        onMfaSetup={(setupToken) => setMfaSetupToken(setupToken)}
+        onMfaVerify={(mfaToken) => setMfaVerifyToken(mfaToken)}
+      />
+    );
   }
 
   if (!role) {
