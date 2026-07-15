@@ -363,6 +363,17 @@ app.get('/api/one-time-seed', async (req, res) => {
     return res.status(403).json({ error: 'Forbidden' });
   }
   try {
+    console.log(`[SEED] /api/one-time-seed hit. Query parameters:`, req.query);
+    if (req.query.updatePatientMobile) {
+      const user = await User.findOne({ where: { email: 'patient@rescuelink.com' } });
+      if (user) {
+        user.mobile = req.query.updatePatientMobile;
+        await user.save();
+        return res.json({ message: 'Patient mobile updated successfully', email: user.email, mobile: user.mobile });
+      } else {
+        return res.status(404).json({ error: 'Patient user not found' });
+      }
+    }
     const existing = await User.findOne({ where: { email: 'doctor@rescuelink.com' } });
     if (existing) {
       return res.json({ message: 'Already seeded, no action taken' });
