@@ -557,7 +557,7 @@ function MfaSetupScreen({ setupToken, onComplete, onCancel }) {
             </p>
 
             {qrCode ? (
-              <img src={`data:image/png;base64,${qrCode}`} alt="MFA QR Code" style={{ border: '4px solid #fff', borderRadius: 8, width: 180, height: 180 }} />
+              <img src={qrCode} alt="MFA QR Code" style={{ border: '4px solid #fff', borderRadius: 8, width: 180, height: 180 }} />
             ) : (
               <div style={{ width: 180, height: 180, background: '#050f28', border: '1px dashed #00c8ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00c8ff' }}>Loading QR Code...</div>
             )}
