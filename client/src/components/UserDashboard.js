@@ -624,6 +624,20 @@ export default function UserDashboard({ socket, connected }) {
             display: none !important;
           }
         }
+        /* Custom scrollbar for sidebar */
+        .sidebar-container::-webkit-scrollbar {
+          width: 6px;
+        }
+        .sidebar-container::-webkit-scrollbar-track {
+          background: rgba(5, 10, 30, 0.3);
+        }
+        .sidebar-container::-webkit-scrollbar-thumb {
+          background: rgba(0, 200, 255, 0.3);
+          border-radius: 3px;
+        }
+        .sidebar-container::-webkit-scrollbar-thumb:hover {
+          background: rgba(0, 200, 255, 0.6);
+        }
       `}</style>
 
       {/* Header */}
