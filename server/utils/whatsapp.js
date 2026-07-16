@@ -10,6 +10,8 @@ class WhatsAppService {
     this.fromNumber = config.TWILIO_WHATSAPP_FROM;
     this.smsFromNumber = config.TWILIO_PHONE_NUMBER;
     
+    console.log(`[WHATSAPP CONFIG] Account SID: ${this.accountSid ? this.accountSid.substring(0, 10) + '...' : 'undefined'} | WhatsApp From: ${this.fromNumber}`);
+    
     // We only initialize the client if we have real credentials (or if we want to mock it)
     this.isMock = this.accountSid === 'mock_account_sid' || !this.accountSid.startsWith('AC');
     if (!this.isMock) {
@@ -34,7 +36,7 @@ class WhatsAppService {
       console.log(`[SMS] Sent to ${cleanTo} from ${this.smsFromNumber}: ${response.sid}`);
       return response;
     } catch (error) {
-      console.error(`[SMS ERROR] Failed to send to ${cleanTo} from ${this.smsFromNumber}:`, error.message);
+      console.error(`[SMS ERROR] Failed to send to ${cleanTo} from ${this.smsFromNumber} (Account SID: ${this.accountSid ? this.accountSid.substring(0, 10) + '...' : 'none'}):`, error.message);
       throw error;
     }
   }
@@ -64,7 +66,7 @@ class WhatsAppService {
       console.log(`[WHATSAPP] Sent to ${cleanTo} from ${fromParam}: ${response.sid}`);
       return response;
     } catch (error) {
-      console.error(`[WHATSAPP ERROR] Failed to send to ${cleanTo} from ${fromParam}:`, error.message);
+      console.error(`[WHATSAPP ERROR] Failed to send to ${cleanTo} from ${fromParam} (Account SID: ${this.accountSid ? this.accountSid.substring(0, 10) + '...' : 'none'}):`, error.message);
       throw error;
     }
   }
