@@ -519,7 +519,7 @@ export default function UserDashboard({ socket, connected }) {
     };
   }, [socket, connected, userId, userLocation, currentReqId, assignedAmbulanceId, ambulances]);
 
-  const requestAmbulance = (ambId, isSOS = false) => {
+  const requestAmbulance = (ambId, isSOS = false, userPhoneOverride = null) => {
     if (!socket || !userLocation) return;
     const condition = isSOS ? 'SOS EMERGENCY — IMMEDIATE DISPATCH REQUIRED' : patientData.condition.trim();
     if (!isSOS && !condition) {
@@ -529,13 +529,15 @@ export default function UserDashboard({ socket, connected }) {
     setRequestStatus('searching');
     if (isSOS) setSosMode(true);
 
-    let userPhone = '';
-    const sessionUserStr = sessionStorage.getItem('rescuelink_user');
-    if (sessionUserStr) {
-      try {
-        const u = JSON.parse(sessionUserStr);
-        userPhone = u.mobile || '';
-      } catch (e) {}
+    let userPhone = userPhoneOverride;
+    if (!userPhone) {
+      const sessionUserStr = sessionStorage.getItem('rescuelink_user');
+      if (sessionUserStr) {
+        try {
+          const u = JSON.parse(sessionUserStr);
+          userPhone = u.mobile || '';
+        } catch (e) {}
+      }
     }
 
     if (!userPhone) {
@@ -558,7 +560,19 @@ export default function UserDashboard({ socket, connected }) {
   const requestSOSDispatch = () => {
     if (!socket || !userLocation) { showAlert('Location not ready. Please wait a moment.'); return; }
     if (!window.confirm('🚨 CONFIRM SOS DISPATCH\n\nThis will immediately alert the nearest ambulance.\nOnly use in a genuine emergency.')) return;
-    requestAmbulance(null, true);
+    
+    // Always prompt for phone number during SOS dispatch
+    const enteredPhone = window.prompt("📱 Please enter your mobile number to receive emergency updates and WhatsApp notifications:", "");
+    if (enteredPhone === null) {
+      // User cancelled the prompt
+      return;
+    }
+    const trimmedPhone = enteredPhone.trim();
+    if (!trimmedPhone) {
+      showAlert("⚠️ A valid phone number is required to trigger SOS.");
+      return;
+    }
+    requestAmbulance(null, true, trimmedPhone);
   };
 
   const topAmbs = Object.entries(ambulances)

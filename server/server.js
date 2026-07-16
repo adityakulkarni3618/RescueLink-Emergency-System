@@ -1903,6 +1903,8 @@ io.on('connection', (socket) => {
         // WhatsApp Notify Ambulance Driver
         const driverMobile = combinedAmbulances[chosenCandidateId]?.contactInfo || '+1234567890';
         whatsappService.notifyAmbulanceAssigned(driverMobile, reqId, activeRequests[reqId].userLocation);
+        // WhatsApp Notify User
+        whatsappService.notifyUserDispatched(data.userPhone || '+1234567890', chosenCandidateId, 5);
       }
 
       // FCM Push Notification for user/patient
