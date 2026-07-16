@@ -5,10 +5,10 @@ class WhatsAppService {
   constructor() {
     // These will be loaded from .env in production
     const config = require('./config');
-    this.accountSid = config.TWILIO_ACCOUNT_SID;
-    this.authToken = config.TWILIO_AUTH_TOKEN;
-    this.fromNumber = config.TWILIO_WHATSAPP_FROM;
-    this.smsFromNumber = config.TWILIO_PHONE_NUMBER;
+    this.accountSid = config.TWILIO_ACCOUNT_SID ? config.TWILIO_ACCOUNT_SID.trim() : '';
+    this.authToken = config.TWILIO_AUTH_TOKEN ? config.TWILIO_AUTH_TOKEN.trim() : '';
+    this.fromNumber = config.TWILIO_WHATSAPP_FROM ? config.TWILIO_WHATSAPP_FROM.trim() : '';
+    this.smsFromNumber = config.TWILIO_PHONE_NUMBER ? config.TWILIO_PHONE_NUMBER.trim() : '';
     
     console.log(`[WHATSAPP CONFIG] Account SID: ${this.accountSid ? this.accountSid.substring(0, 10) + '...' : 'undefined'} | WhatsApp From: ${this.fromNumber}`);
     
