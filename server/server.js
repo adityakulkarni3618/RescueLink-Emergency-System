@@ -2464,17 +2464,7 @@ Respond with: {"detectedCondition": "string", "severity": "CRITICAL|HIGH|MEDIUM|
   };
 }
 
-app.post('/api/ai/copilot', async (req, res) => {
-  const { symptoms } = req.body;
-  if (!symptoms) return res.status(400).json({ error: 'Symptoms text required' });
-  try {
-    const analysis = await analyzeSymptoms(symptoms);
-    logAudit('AI_TRIAGE', `AI Copilot analyzed: ${symptoms.slice(0, 50)}`, {});
-    res.json(analysis);
-  } catch (err) {
-    res.status(500).json({ error: 'AI analysis failed', detail: err.message });
-  }
-});
+
 
 // ─── BLOOD EMERGENCY NETWORK ────────────────────────────────────────────────────────
 const activeBloodRequests = {};
