@@ -1351,7 +1351,7 @@ export default function App() {
       <div className="scanline" />
 
       {/* Global Actions Bar (Top Right) */}
-      <div className="global-buttons-container" style={{ position: 'fixed', top: 25, right: 25, zIndex: 11000, display: 'flex', gap: 12, alignItems: 'center' }}>
+      <div className="global-buttons-container" style={{ position: 'fixed', top: 14, right: 25, zIndex: 11000, display: 'flex', gap: 12, alignItems: 'center' }}>
         {/* Switch role settings button */}
         <button
           className="global-switch-btn"
