@@ -1616,7 +1616,7 @@ io.on('connection', (socket) => {
 
     const registryData = account ? {
       name: account.name || data.name,
-      contactInfo: account.contactInfo || data.contactInfo,
+      contactInfo: account.mobile || data.contactInfo,
       driverName: account.driverName || data.driverName,
       vehicleNo: account.vehicleNo || data.vehicleNo,
       type: account.unitType || data.type
@@ -1668,7 +1668,7 @@ io.on('connection', (socket) => {
       lat: data.lat || data.pos?.lat || account.lat,
       lng: data.lng || data.pos?.lng || account.lng,
       name: account.name,
-      contactInfo: account.contactInfo
+      contactInfo: account.contact_number
     } : {};
 
     hospitals[socket.id] = { ...data, ...registryData, pos: { lat: data.lat || data.pos?.lat || account?.lat, lng: data.lng || data.pos?.lng || account?.lng }, socketId: socket.id, isBusy: false };
