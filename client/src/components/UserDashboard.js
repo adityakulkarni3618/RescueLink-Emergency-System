@@ -600,10 +600,31 @@ export default function UserDashboard({ socket, connected }) {
           0%, 100% { box-shadow: 0 0 20px rgba(255,30,30,0.3), 0 0 40px rgba(255,30,30,0.1); }
           50% { box-shadow: 0 0 35px rgba(255,30,30,0.7), 0 0 60px rgba(255,30,30,0.3); }
         }
+        @media (max-width: 768px) {
+          .main-content-layout {
+            flex-direction: column !important;
+            overflow-y: auto !important;
+          }
+          .sidebar-container {
+            width: 100% !important;
+            height: auto !important;
+            max-height: 50vh !important;
+            border-right: none !important;
+            border-bottom: 1px solid rgba(0,200,255,0.1) !important;
+          }
+          .map-view-container {
+            flex: none !important;
+            height: 50vh !important;
+            width: 100% !important;
+          }
+          .header-container {
+            padding: 12px 16px !important;
+          }
+        }
       `}</style>
 
       {/* Header */}
-      <div style={{ background: 'rgba(5,15,40,0.95)', padding: '12px 450px 12px 24px', borderBottom: '1px solid rgba(0,200,255,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+      <div className="header-container" style={{ background: 'rgba(5,15,40,0.95)', padding: '12px 24px', borderBottom: '1px solid rgba(0,200,255,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ fontSize: 24 }}>🚑</div>
           <h1 style={{ margin: 0, fontSize: 20, fontFamily: "'Orbitron'", letterSpacing: 2, color: '#00c8ff' }}>RESCUELINK USER</h1>
@@ -684,9 +705,9 @@ export default function UserDashboard({ socket, connected }) {
         </div>
       </div>
 
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <div className="main-content-layout" style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {/* Sidebar */}
-        <div style={{ width: 350, background: 'rgba(3,10,28,0.95)', borderRight: '1px solid rgba(0,200,255,0.1)', display: 'flex', flexDirection: 'column', padding: 24, overflowY: 'auto' }}>
+        <div className="sidebar-container" style={{ width: 350, background: 'rgba(3,10,28,0.95)', borderRight: '1px solid rgba(0,200,255,0.1)', display: 'flex', flexDirection: 'column', padding: 24, overflowY: 'auto' }}>
           
           {/* === SOS PANIC BUTTON === */}
           {requestStatus === 'idle' && (
@@ -978,7 +999,7 @@ export default function UserDashboard({ socket, connected }) {
         </div>
 
         {/* Map View */}
-        <div style={{ flex: 1, position: 'relative' }}>
+        <div className="map-view-container" style={{ flex: 1, position: 'relative' }}>
           <div style={{
             position: 'absolute', top: 15, left: 15, right: 15, zIndex: 1000,
             display: 'flex', gap: 8
