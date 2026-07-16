@@ -23,16 +23,18 @@ class WhatsAppService {
       return;
     }
 
+    const cleanTo = to.replace(/[^\d+]/g, '');
+
     try {
       const response = await this.client.messages.create({
         body: message,
         from: this.smsFromNumber,
-        to: to
+        to: cleanTo
       });
-      console.log(`[SMS] Sent to ${to}: ${response.sid}`);
+      console.log(`[SMS] Sent to ${cleanTo}: ${response.sid}`);
       return response;
     } catch (error) {
-      console.error(`[SMS ERROR] Failed to send to ${to}:`, error.message);
+      console.error(`[SMS ERROR] Failed to send to ${cleanTo}:`, error.message);
       throw error;
     }
   }
@@ -43,16 +45,26 @@ class WhatsAppService {
       return;
     }
 
+    // Clean number: strip everything except '+' and digits
+    const cleanTo = to.replace(/[^\d+]/g, '');
+    const toParam = `whatsapp:${cleanTo}`;
+    
+    // Ensure the sender number is prefixed with 'whatsapp:'
+    let fromParam = this.fromNumber;
+    if (!fromParam.startsWith('whatsapp:')) {
+      fromParam = `whatsapp:${fromParam}`;
+    }
+
     try {
       const response = await this.client.messages.create({
         body: message,
-        from: this.fromNumber,
-        to: `whatsapp:${to}`
+        from: fromParam,
+        to: toParam
       });
-      console.log(`[WHATSAPP] Sent to ${to}: ${response.sid}`);
+      console.log(`[WHATSAPP] Sent to ${cleanTo}: ${response.sid}`);
       return response;
     } catch (error) {
-      console.error(`[WHATSAPP ERROR] Failed to send to ${to}:`, error.message);
+      console.error(`[WHATSAPP ERROR] Failed to send to ${cleanTo}:`, error.message);
       throw error;
     }
   }
@@ -81,7 +93,8 @@ class WhatsAppService {
 
 function formatE164(phone) {
   if (!phone) return '';
-  let cleaned = phone.trim();
+  // Strip all hyphens, spaces, parentheses, etc. keep only + and digits
+  let cleaned = phone.trim().replace(/[^\d+]/g, '');
   
   if (cleaned.startsWith('+')) {
     return cleaned;
