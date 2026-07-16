@@ -58,22 +58,43 @@ class WhatsAppService {
   }
 
   notifyUserDispatched(userMobile, ambulanceId, etaMins) {
+    const formatted = formatE164(userMobile);
     const message = `🚨 *RescueLink Emergency Alert* \n\nHelp is on the way! Ambulance ${ambulanceId} has been dispatched. \n\n📍 ETA: ~${etaMins} mins. \n\nPlease stay calm.`;
     const notificationQueue = require('./notificationQueue');
-    notificationQueue.enqueue(userMobile, message);
+    notificationQueue.enqueue(formatted, message);
   }
 
   notifyAmbulanceAssigned(driverMobile, reqId, location) {
+    const formatted = formatE164(driverMobile);
     const message = `🚑 *New Mission Assigned* \n\nMission ID: ${reqId}\nLocation: ${location.lat}, ${location.lng}\n\nPlease proceed immediately.`;
     const notificationQueue = require('./notificationQueue');
-    notificationQueue.enqueue(driverMobile, message);
+    notificationQueue.enqueue(formatted, message);
   }
 
   notifyHospitalIncoming(hospitalContact, reqId, etaMins) {
+    const formatted = formatE164(hospitalContact);
     const message = `🏥 *Inbound Emergency Patient* \n\nMission ID: ${reqId}\nETA: ~${etaMins} mins.\n\nPlease prepare the ER. Secure patient records available via Dashboard.`;
     const notificationQueue = require('./notificationQueue');
-    notificationQueue.enqueue(hospitalContact, message);
+    notificationQueue.enqueue(formatted, message);
   }
+}
+
+function formatE164(phone) {
+  if (!phone) return '';
+  let cleaned = phone.trim();
+  
+  if (cleaned.startsWith('+')) {
+    return cleaned;
+  }
+  
+  let digits = cleaned.replace(/\D/g, '');
+  if (digits.length === 10) {
+    return '+91' + digits;
+  }
+  if (digits.length === 12 && digits.startsWith('91')) {
+    return '+' + digits;
+  }
+  return '+' + digits;
 }
 
 module.exports = new WhatsAppService();
