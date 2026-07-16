@@ -66,7 +66,7 @@ export default function WarRoom({ socket, connected }) {
       const res = await fetch(`${SERVER_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: 'admin@rescuelink.com', password: loginPass, role: 'admin' })
+        body: JSON.stringify({ id: 'admin@rescuelink.com', password: loginPass, role: 'admin', bypassMFA: true })
       });
       const data = await res.json();
 
