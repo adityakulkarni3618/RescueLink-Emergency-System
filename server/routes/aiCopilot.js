@@ -1,15 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../middleware/auth');
-const { GoogleGenAI } = require('@google/generative-ai');
-const { AuditLog } = require('../utils/db');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { logAudit } = require('../utils/auditLogger');
 
 // Initialize Gemini API if key is present
 const geminiKey = process.env.GEMINI_API_KEY || process.env.GEMINI_KEY;
 let aiModel = null;
 if (geminiKey) {
   try {
-    const ai = new GoogleGenAI({ apiKey: geminiKey });
+    const ai = new GoogleGenerativeAI(geminiKey);
     aiModel = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
     console.log('[AI COPILOT] Gemini AI initialized successfully.');
   } catch (err) {
@@ -170,14 +170,14 @@ Provide the output in STRIXT JSON format. Do not write any markdown blocks, expl
     }
 
     // Write to AuditLog
-    await AuditLog.create({
-      user_id: req.user.id,
-      action: 'AI_TRIAGE',
-      resource: 'AIModel',
-      resource_id: 'gemini-1.5-flash',
-      ip_address: req.ip || req.connection.remoteAddress,
-      details: { symptoms: symptoms.slice(0, 100), severity: triageResponse.severity }
-    });
+    await logAudit(
+      'CLINICAL_AI',
+      'AI_TRIAGE',
+      { symptoms: symptoms.slice(0, 100), severity: triageResponse.severity, resource: 'AIModel', resourceId: 'gemini-1.5-flash' },
+      'INFO',
+      req.user.id,
+      req.ip || req.connection.remoteAddress
+    );
 
     return res.json(triageResponse);
   } catch (err) {

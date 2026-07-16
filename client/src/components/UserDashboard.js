@@ -1316,7 +1316,7 @@ export default function UserDashboard({ socket, connected }) {
       {showBloodNetwork && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,5,20,0.95)', backdropFilter: 'blur(10px)' }}>
           <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(220,30,30,0.3)', display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(220,30,30,0.3)', display: 'flex', justifyContent: 'flex-start' }}>
               <button onClick={() => setShowBloodNetwork(false)} style={{ background: 'rgba(255,68,68,0.1)', border: '1px solid rgba(255,68,68,0.3)', borderRadius: 8, padding: '6px 14px', color: '#ff4444', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 11 }}>✕ CLOSE</button>
             </div>
             <div style={{ flex: 1, overflow: 'hidden' }}>
@@ -1330,7 +1330,7 @@ export default function UserDashboard({ socket, connected }) {
       {showMarketplace && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,5,20,0.95)', backdropFilter: 'blur(10px)' }}>
           <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(0,200,255,0.2)', display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(0,200,255,0.2)', display: 'flex', justifyContent: 'flex-start' }}>
               <button onClick={() => setShowMarketplace(false)} style={{ background: 'rgba(255,68,68,0.1)', border: '1px solid rgba(255,68,68,0.3)', borderRadius: 8, padding: '6px 14px', color: '#ff4444', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 11 }}>✕ CLOSE</button>
             </div>
             <div style={{ flex: 1, overflow: 'hidden' }}>
