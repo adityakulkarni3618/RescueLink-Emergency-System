@@ -164,6 +164,17 @@ const styles = `
     opacity: 0.5;
     cursor: not-allowed !important;
   }
+  @media (max-width: 768px) {
+    .global-buttons-container {
+      top: 12px !important;
+      right: 12px !important;
+      gap: 6px !important;
+    }
+    .global-switch-btn, .global-security-btn, .global-logout-btn {
+      padding: 6px 10px !important;
+      font-size: 9px !important;
+    }
+  }
 `;
 
 // Three.js-style Particle Field using Canvas API
@@ -1339,50 +1350,53 @@ export default function App() {
       <style>{styles}</style>
       <div className="scanline" />
 
-      {/* Logout button (top right) */}
-      <button
-        onClick={handleLogout}
-        style={{
-          position: 'fixed', top: 25, right: 25, zIndex: 11000,
-          padding: '8px 16px', background: 'rgba(255,50,50,0.1)',
-          border: '1px solid #ff3333', borderRadius: 6,
-          color: '#ff8888', fontFamily: "'Orbitron'", fontSize: 11,
-          fontWeight: 700, letterSpacing: '0.1em', cursor: 'pointer'
-        }}
-      >
-        LOGOUT ⏻
-      </button>
+      {/* Global Actions Bar (Top Right) */}
+      <div className="global-buttons-container" style={{ position: 'fixed', top: 25, right: 25, zIndex: 11000, display: 'flex', gap: 12, alignItems: 'center' }}>
+        {/* Switch role settings button */}
+        <button
+          className="global-switch-btn"
+          onClick={() => {
+            sessionStorage.removeItem('rescueLinkRole');
+            setRole(null);
+          }}
+          style={{
+            padding: '8px 16px', background: 'rgba(0,255,136,0.1)',
+            border: '1px solid #00ff88', borderRadius: 6,
+            color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 11,
+            fontWeight: 700, letterSpacing: '0.1em', cursor: 'pointer'
+          }}
+        >
+          SWITCH ROLE 🔄
+        </button>
 
-      {/* Security settings button (top right, next to logout) */}
-      <button
-        onClick={() => setShowSecurityModal(true)}
-        style={{
-          position: 'fixed', top: 25, right: 155, zIndex: 11000,
-          padding: '8px 16px', background: 'rgba(0,200,255,0.1)',
-          border: '1px solid #00c8ff', borderRadius: 6,
-          color: '#00c8ff', fontFamily: "'Orbitron'", fontSize: 11,
-          fontWeight: 700, letterSpacing: '0.1em', cursor: 'pointer'
-        }}
-      >
-        SECURITY 🛡️
-      </button>
+        {/* Security settings button */}
+        <button
+          className="global-security-btn"
+          onClick={() => setShowSecurityModal(true)}
+          style={{
+            padding: '8px 16px', background: 'rgba(0,200,255,0.1)',
+            border: '1px solid #00c8ff', borderRadius: 6,
+            color: '#00c8ff', fontFamily: "'Orbitron'", fontSize: 11,
+            fontWeight: 700, letterSpacing: '0.1em', cursor: 'pointer'
+          }}
+        >
+          SECURITY 🛡️
+        </button>
 
-      {/* Switch role settings button (top right, next to security) */}
-      <button
-        onClick={() => {
-          sessionStorage.removeItem('rescueLinkRole');
-          setRole(null);
-        }}
-        style={{
-          position: 'fixed', top: 25, right: 285, zIndex: 11000,
-          padding: '8px 16px', background: 'rgba(0,255,136,0.1)',
-          border: '1px solid #00ff88', borderRadius: 6,
-          color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 11,
-          fontWeight: 700, letterSpacing: '0.1em', cursor: 'pointer'
-        }}
-      >
-        SWITCH ROLE 🔄
-      </button>
+        {/* Logout button */}
+        <button
+          className="global-logout-btn"
+          onClick={handleLogout}
+          style={{
+            padding: '8px 16px', background: 'rgba(255,50,50,0.1)',
+            border: '1px solid #ff3333', borderRadius: 6,
+            color: '#ff8888', fontFamily: "'Orbitron'", fontSize: 11,
+            fontWeight: 700, letterSpacing: '0.1em', cursor: 'pointer'
+          }}
+        >
+          LOGOUT ⏻
+        </button>
+      </div>
 
       {/* Premium Theme Switcher - Bottom Left */}
       <div

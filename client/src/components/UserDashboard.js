@@ -620,16 +620,20 @@ export default function UserDashboard({ socket, connected }) {
           .header-container {
             padding: 12px 16px !important;
           }
+          .desktop-header-spacer {
+            display: none !important;
+          }
         }
       `}</style>
 
       {/* Header */}
       <div className="header-container" style={{ background: 'rgba(5,15,40,0.95)', padding: '12px 24px', borderBottom: '1px solid rgba(0,200,255,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ fontSize: 24 }}>🚑</div>
-          <h1 style={{ margin: 0, fontSize: 20, fontFamily: "'Orbitron'", letterSpacing: 2, color: '#00c8ff' }}>RESCUELINK USER</h1>
-        </div>
-        <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ fontSize: 24 }}>🚑</div>
+            <h1 style={{ margin: 0, fontSize: 20, fontFamily: "'Orbitron'", letterSpacing: 2, color: '#00c8ff' }}>RESCUELINK USER</h1>
+          </div>
+
           {/* 📡 LIVE NETWORK PULSE */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 12px', background: 'rgba(0,255,136,0.05)', borderRadius: 20, border: '1px solid rgba(0,255,136,0.2)' }}>
             <div style={{ 
@@ -656,58 +660,43 @@ export default function UserDashboard({ socket, connected }) {
             )}
           </div>
 
-          {/* Mission Switcher */}
-        {Object.keys(missions).length > 1 && (
-          <div style={{ display: 'flex', gap: 10, padding: '10px 24px', background: 'rgba(0,200,255,0.05)', borderBottom: '1px solid rgba(0,200,255,0.1)' }}>
-            {Object.keys(missions).map(id => (
-              <button
-                key={id}
-                onClick={() => setCurrentReqId(id)}
-                style={{
-                  padding: '5px 12px',
-                  background: currentReqId === id ? '#00c8ff' : 'rgba(0,200,255,0.1)',
-                  border: `1px solid ${currentReqId === id ? '#00c8ff' : 'rgba(0,200,255,0.3)'}`,
-                  borderRadius: 4,
-                  color: currentReqId === id ? '#000' : '#00c8ff',
-                  fontSize: 11,
-                  fontFamily: "'Orbitron'",
-                  cursor: 'pointer',
-                  fontWeight: 'bold'
-                }}
-              >
-                {id}
-              </button>
-            ))}
+          <div style={{ padding: '4px 12px', background: 'rgba(0,255,136,0.1)', color: '#00ff88', borderRadius: 20, fontSize: 12, border: '1px solid rgba(0,255,136,0.3)', fontFamily: "'Orbitron'" }}>
+            STATUS: {requestStatus.toUpperCase()}
           </div>
-        )}
 
-        <div style={{ padding: '4px 12px', background: 'rgba(0,255,136,0.1)', color: '#00ff88', borderRadius: 20, fontSize: 12, border: '1px solid rgba(0,255,136,0.3)', fontFamily: "'Orbitron'" }}>
-          STATUS: {requestStatus.toUpperCase()}
+          {/* Mission Switcher */}
+          {Object.keys(missions).length > 1 && (
+            <div style={{ display: 'flex', gap: 10, padding: '4px 12px', background: 'rgba(0,200,255,0.05)', borderRadius: 20, border: '1px solid rgba(0,200,255,0.1)' }}>
+              {Object.keys(missions).map(id => (
+                <button
+                  key={id}
+                  onClick={() => setCurrentReqId(id)}
+                  style={{
+                    padding: '2px 8px',
+                    background: currentReqId === id ? '#00c8ff' : 'rgba(0,200,255,0.1)',
+                    border: `1px solid ${currentReqId === id ? '#00c8ff' : 'rgba(0,200,255,0.3)'}`,
+                    borderRadius: 4,
+                    color: currentReqId === id ? '#000' : '#00c8ff',
+                    fontSize: 9,
+                    fontFamily: "'Orbitron'",
+                    cursor: 'pointer',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  {id.substring(0, 8)}...
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-
-          <button
-            onClick={() => {
-              if (window.confirm("Switch user identity? All mission data will be cleared.")) {
-                localStorage.clear();
-                sessionStorage.clear();
-                window.location.reload();
-              }
-            }}
-            style={{
-              padding: '6px 12px', background: 'rgba(255,68,68,0.1)',
-              border: '1px solid rgba(255,68,68,0.3)', borderRadius: 4,
-              color: '#ff4444', fontFamily: "'Orbitron'", fontSize: 10, cursor: 'pointer',
-              fontWeight: 'bold'
-            }}
-          >
-            🚪 LOGOUT / SWITCH
-          </button>
-        </div>
+        
+        {/* Right side is intentionally left blank to reserve space for global fixed actions bar */}
+        <div style={{ width: 420 }} className="desktop-header-spacer" />
       </div>
 
       <div className="main-content-layout" style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {/* Sidebar */}
-        <div className="sidebar-container" style={{ width: 350, background: 'rgba(3,10,28,0.95)', borderRight: '1px solid rgba(0,200,255,0.1)', display: 'flex', flexDirection: 'column', padding: 24, overflowY: 'auto' }}>
+        <div className="sidebar-container" style={{ width: 350, background: 'rgba(3,10,28,0.95)', borderRight: '1px solid rgba(0,200,255,0.1)', display: 'flex', flexDirection: 'column', padding: '24px 24px 80px', overflowY: 'auto' }}>
           
           {/* === SOS PANIC BUTTON === */}
           {requestStatus === 'idle' && (
