@@ -31,10 +31,10 @@ class WhatsAppService {
         from: this.smsFromNumber,
         to: cleanTo
       });
-      console.log(`[SMS] Sent to ${cleanTo}: ${response.sid}`);
+      console.log(`[SMS] Sent to ${cleanTo} from ${this.smsFromNumber}: ${response.sid}`);
       return response;
     } catch (error) {
-      console.error(`[SMS ERROR] Failed to send to ${cleanTo}:`, error.message);
+      console.error(`[SMS ERROR] Failed to send to ${cleanTo} from ${this.smsFromNumber}:`, error.message);
       throw error;
     }
   }
@@ -61,10 +61,10 @@ class WhatsAppService {
         from: fromParam,
         to: toParam
       });
-      console.log(`[WHATSAPP] Sent to ${cleanTo}: ${response.sid}`);
+      console.log(`[WHATSAPP] Sent to ${cleanTo} from ${fromParam}: ${response.sid}`);
       return response;
     } catch (error) {
-      console.error(`[WHATSAPP ERROR] Failed to send to ${cleanTo}:`, error.message);
+      console.error(`[WHATSAPP ERROR] Failed to send to ${cleanTo} from ${fromParam}:`, error.message);
       throw error;
     }
   }
