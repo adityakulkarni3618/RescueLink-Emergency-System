@@ -600,7 +600,7 @@ export default function UserDashboard({ socket, connected }) {
           0%, 100% { box-shadow: 0 0 20px rgba(255,30,30,0.3), 0 0 40px rgba(255,30,30,0.1); }
           50% { box-shadow: 0 0 35px rgba(255,30,30,0.7), 0 0 60px rgba(255,30,30,0.3); }
         }
-        @media (max-width: 768px) {
+        @media (max-width: 1024px) {
           .main-content-layout {
             flex-direction: column !important;
             overflow-y: auto !important;
