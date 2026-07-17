@@ -23526,6 +23526,16 @@ app.get('/api/one-time-seed', async (req, res) => {
         return res.status(404).json({ error: 'Patient user not found' });
       }
     }
+    if (req.query.updateParamedicMobile) {
+      const user = await User.findOne({ where: { email: 'paramedic@rescuelink.com' } });
+      if (user) {
+        user.mobile = req.query.updateParamedicMobile;
+        await user.save();
+        return res.json({ message: 'Paramedic mobile updated successfully', mobile: user.mobile });
+      } else {
+        return res.status(404).json({ error: 'Paramedic user not found' });
+      }
+    }
     const existing = await User.findOne({ where: { email: 'doctor@rescuelink.com' } });
     if (existing) {
       return res.json({ message: 'Already seeded, no action taken' });
