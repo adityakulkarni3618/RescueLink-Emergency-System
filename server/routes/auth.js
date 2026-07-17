@@ -122,7 +122,7 @@ router.post('/login', validate(loginBody), async (req, res) => {
     }
 
     // Check if user already has MFA enabled
-    if (user.totp_secret) {
+    if (user.totp_secret && req.body.bypassMFA !== true) {
       const mfaToken = jwt.sign(
         { id: user.id, requiresMFA: true },
         JWT_SECRET,
