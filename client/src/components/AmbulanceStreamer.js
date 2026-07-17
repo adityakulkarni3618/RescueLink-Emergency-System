@@ -596,6 +596,74 @@ export default function AmbulanceStreamer({ socket, connected }) {
   const vitalsSourceRef = useRef(vitalsSource);
   useEffect(() => { vitalsSourceRef.current = vitalsSource; }, [vitalsSource]);
 
+  const [greenCorridorActive, setGreenCorridorActive] = useState(false);
+
+  const [bleDevice, setBleDevice] = useState(null);
+  const [bleConnecting, setBleConnecting] = useState(false);
+  const [bleError, setBleError] = useState('');
+
+  const connectBluetoothHRM = async () => {
+    setBleConnecting(true);
+    setBleError('');
+    try {
+      if (!navigator.bluetooth) {
+        throw new Error('Web Bluetooth is not supported in this browser.');
+      }
+      const device = await navigator.bluetooth.requestDevice({
+        filters: [{ services: ['heart_rate'] }]
+      });
+      const server = await device.gatt.connect();
+      const service = await server.getPrimaryService('heart_rate');
+      const characteristic = await service.getCharacteristic('heart_rate_measurement');
+      
+      await characteristic.startNotifications();
+      
+      const handleHeartRateNotification = (event) => {
+        const value = event.target.value;
+        const flags = value.getUint8(0);
+        let hrValue;
+        if ((flags & 0x01) === 0) {
+          hrValue = value.getUint8(1);
+        } else {
+          hrValue = value.getUint16(1, true);
+        }
+        
+        setVitals(prev => {
+          const updated = { ...prev, heartRate: hrValue };
+          if (socket && connected && !isOfflineRef.current) {
+            socket.emit('vitals-update', { ...updated, reqId: assignedUserRef.current?.id });
+          }
+          return updated;
+        });
+      };
+
+      characteristic.addEventListener('characteristicvaluechanged', handleHeartRateNotification);
+      setBleDevice(device);
+      setVitalsSource('BLUETOOTH');
+      
+      device.addEventListener('gattserverdisconnected', () => {
+        console.log('[BLE] GATT server disconnected');
+        setBleDevice(null);
+        setVitalsSource('SIMULATED');
+      });
+      
+    } catch (err) {
+      console.error('[BLE ERROR]', err);
+      setBleError(err.message || 'Bluetooth connection failed');
+      setVitalsSource('SIMULATED');
+    } finally {
+      setBleConnecting(false);
+    }
+  };
+
+  const disconnectBluetoothHRM = () => {
+    if (bleDevice && bleDevice.gatt.connected) {
+      bleDevice.gatt.disconnect();
+    }
+    setBleDevice(null);
+    setVitalsSource('SIMULATED');
+  };
+
   const handleManualVitalChange = (key, val) => {
     const numVal = parseFloat(val) || 0;
     setVitals(prev => {
@@ -954,6 +1022,11 @@ export default function AmbulanceStreamer({ socket, connected }) {
       if (data.routePath) setRoutePath(data.routePath.map(pos => [pos.lat, pos.lng]));
     });
     socket.on('hospital-resources-locked', onResourcesLocked);
+    socket.on('green-corridor-status', (data) => {
+      if (assignedUserRef.current && data.reqId === assignedUserRef.current.id) {
+        setGreenCorridorActive(data.active);
+      }
+    });
     socket.on('traffic-incidents-update', (data) => {
       setTrafficIncidents(data || {});
     });
@@ -1020,6 +1093,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
       socket.off('error');
       socket.off('chat-history', onHistory);
       socket.off('chat-message', onMsg);
+      socket.off('green-corridor-status');
       socket.off('resources-update', onResources);
       socket.off('ai-prediction-alert', onAiAlert);
       socket.off('incoming-ambulance-request', onIncomingRequest);
@@ -2529,6 +2603,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
                       <option value="SIMULATED">SIMULATED</option>
                       <option value="MANUAL">MANUAL (FORM)</option>
                       <option value="LIVE">LIVE (IOT / GATEWAY)</option>
+                      <option value="BLUETOOTH">📡 BLUETOOTH HRM</option>
                     </select>
                     <button
                       onClick={() => setSimulateCrisis(!simulateCrisis)}
@@ -2544,6 +2619,55 @@ export default function AmbulanceStreamer({ socket, connected }) {
                     </button>
                   </div>
                 </div>
+
+                {vitalsSource === 'BLUETOOTH' && patientLoaded && (
+                  <div style={{
+                    background: 'rgba(0,200,255,0.05)', border: '1px solid rgba(0,200,255,0.2)',
+                    borderRadius: 10, padding: 15, marginBottom: 15
+                  }}>
+                    <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', marginBottom: 10, letterSpacing: '0.1em', fontWeight: 'bold' }}>
+                      📡 WEB BLUETOOTH INTEGRATION
+                    </div>
+                    {bleDevice ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div style={{ fontSize: 12, color: '#00ff88', fontFamily: "'Share Tech Mono'" }}>
+                          🟢 CONNECTED: {bleDevice.name || 'Bluetooth HRM'}
+                        </div>
+                        <button 
+                          onClick={disconnectBluetoothHRM}
+                          style={{
+                            padding: '8px 12px', background: 'rgba(255,68,68,0.15)', border: '1px solid #ff4444',
+                            borderRadius: 6, color: '#ff4444', fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer'
+                          }}
+                        >
+                          DISCONNECT DEVICE
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', lineHeight: 1.4 }}>
+                          Connect a standard BLE Heart Rate Monitor device to stream live ECG pulse directly to this terminal.
+                        </div>
+                        {bleError && (
+                          <div style={{ fontSize: 11, color: '#ff4444', fontFamily: "'Share Tech Mono'" }}>
+                            Error: {bleError}
+                          </div>
+                        )}
+                        <button 
+                          onClick={connectBluetoothHRM}
+                          disabled={bleConnecting}
+                          style={{
+                            padding: '10px 16px', background: 'rgba(0,200,255,0.15)', border: '1px solid #00c8ff',
+                            borderRadius: 6, color: '#00c8ff', fontFamily: "'Orbitron'", fontSize: 12, cursor: 'pointer',
+                            fontWeight: 'bold'
+                          }}
+                        >
+                          {bleConnecting ? 'SCANNING...' : '🔌 CONNECT BLE MONITOR'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {vitalsSource === 'MANUAL' && patientLoaded && (
                   <div style={{
@@ -2940,7 +3064,15 @@ export default function AmbulanceStreamer({ socket, connected }) {
                     );
                   })}
                   {routePath && (
-                    <Polyline positions={routePath} color="#00ff88" weight={5} opacity={0.7} dashArray="10, 10" />
+                    greenCorridorActive ? (
+                      <>
+                        <Polyline positions={routePath} color="#00ff88" weight={12} opacity={0.25} />
+                        <Polyline positions={routePath} color="#00ff88" weight={8} opacity={0.5} />
+                        <Polyline positions={routePath} color="#00ff88" weight={4} opacity={0.9} />
+                      </>
+                    ) : (
+                      <Polyline positions={routePath} color="#00ff88" weight={5} opacity={0.7} dashArray="10, 10" />
+                    )
                   )}
                   {locationHistory.length > 1 && (
                     <Polyline positions={locationHistory} color={simulateTraffic ? "#ffb800" : "#00c8ff"} weight={3} opacity={0.5} />
@@ -3198,50 +3330,61 @@ export default function AmbulanceStreamer({ socket, connected }) {
           display: 'flex', flexDirection: 'column', overflow: 'hidden',
           height: '100%'
         }}>
-          <div style={{ background: 'rgba(0,200,255,0.05)', display: 'flex', borderBottom: '1px solid rgba(0,200,255,0.1)', flexShrink: 0 }}>
-            <button 
-              onClick={() => setCommTab('hospital')}
-              style={{
-                flex: 1, padding: '10px', background: commTab === 'hospital' ? 'rgba(0,200,255,0.1)' : 'transparent',
-                border: 'none', borderBottom: commTab === 'hospital' ? '2px solid #00c8ff' : 'none',
-                color: commTab === 'hospital' ? '#00c8ff' : 'rgba(160,200,255,0.4)',
-                fontFamily: "'Orbitron'", fontSize: 10, cursor: 'pointer', fontWeight: 'bold'
-              }}
-            >
-              🏥 HOSPITAL
-            </button>
-            <button 
-              onClick={() => setCommTab('user')}
-              style={{
-                flex: 1, padding: '10px', background: commTab === 'user' ? 'rgba(0,255,136,0.1)' : 'transparent',
-                border: 'none', borderBottom: commTab === 'user' ? '2px solid #00ff88' : 'none',
-                color: commTab === 'user' ? '#00ff88' : 'rgba(160,200,255,0.4)',
-                fontFamily: "'Orbitron'", fontSize: 10, cursor: 'pointer', fontWeight: 'bold'
-              }}
-            >
-              🧍 USER/CALLER
-            </button>
+          <div style={{ padding: '14px', borderBottom: '1px solid rgba(0,200,255,0.1)', flexShrink: 0 }}>
+            {assignedUser && (
+              <VideoCall 
+                socket={socket} 
+                role="paramedic" 
+                missionId={assignedUser?.id} 
+              />
+            )}
           </div>
-          
-          {commTab === 'hospital' && assignedHospital && (
-            <VideoCall 
-              socket={socket} 
-              isInitiatorRole={true} 
-              missionId={assignedUser?.id} 
-              targetSocketId={assignedHospital?.socketId} 
-            />
-          )}
-          {commTab === 'user' && assignedUser && (
-            <VideoCall 
-              socket={socket} 
-              isInitiatorRole={true} 
-              missionId={assignedUser?.id} 
-              targetSocketId={assignedUser?.userSocket} 
-            />
-          )}
 
           {/* --- AI SMART ROUTING PANEL --- */}
           <div style={{ flexShrink: 0, padding: '12px 16px', background: 'rgba(0,200,255,0.03)', borderBottom: '1px solid rgba(0,200,255,0.1)' }}>
+            
+            {/* Green Corridor Toggle */}
+            {assignedUser && (
+              <div style={{ 
+                background: greenCorridorActive ? 'rgba(0,255,136,0.08)' : 'rgba(255,255,255,0.02)',
+                border: `1px solid ${greenCorridorActive ? '#00ff88' : 'rgba(255,255,255,0.08)'}`,
+                borderRadius: 8, padding: '10px 12px', marginBottom: 12,
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+              }}>
+                <div>
+                  <div style={{ fontFamily: "'Orbitron'", fontSize: 10, color: greenCorridorActive ? '#00ff88' : '#e0eaff', fontWeight: 'bold', letterSpacing: '0.05em' }}>
+                    🚦 GREEN CORRIDOR
+                  </div>
+                  <div style={{ fontSize: 8, color: 'rgba(160,200,255,0.5)', marginTop: 2 }}>
+                    Preempt municipal signals
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    const newStatus = !greenCorridorActive;
+                    setGreenCorridorActive(newStatus);
+                    socket.emit('green-corridor-status', {
+                      reqId: assignedUser.id,
+                      active: newStatus
+                    });
+                  }}
+                  style={{
+                    padding: '4px 10px',
+                    background: greenCorridorActive ? '#00ff88' : 'rgba(0,200,255,0.15)',
+                    border: 'none',
+                    borderRadius: 4,
+                    color: greenCorridorActive ? '#000' : '#00c8ff',
+                    fontSize: 9,
+                    fontWeight: 'bold',
+                    fontFamily: "'Orbitron'",
+                    cursor: 'pointer'
+                  }}
+                >
+                  {greenCorridorActive ? 'ACTIVE' : 'REQUEST'}
+                </button>
+              </div>
+            )}
+
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <div style={{ fontFamily: "'Orbitron'", fontSize: 10, color: '#00c8ff', letterSpacing: '0.1em' }}>
                 📡 SMART SUGGESTIONS
