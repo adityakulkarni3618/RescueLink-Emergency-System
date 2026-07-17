@@ -1574,11 +1574,28 @@ io.on('connection', (socket) => {
 
   socket.on('webrtc-offer', (data) => routeToMission(socket, 'webrtc-offer', data));
   socket.on('webrtc-answer', (data) => routeToMission(socket, 'webrtc-answer', data));
+  socket.on('get-mission-peers', (data) => {
+    const { reqId } = data;
+    const req = activeRequests[reqId];
+    if (!req) return socket.emit('mission-peers', { error: 'Mission not found' });
+    
+    // Get all admin sockets in the warroom
+    const adminRoom = io.sockets.adapter.rooms.get('admin_warroom');
+    const adminSockets = adminRoom ? Array.from(adminRoom) : [];
+
+    socket.emit('mission-peers', {
+      userSocket: req.userSocket || null,
+      ambulanceSocket: req.ambulanceSocket || null,
+      hospitalSocket: req.hospitalSocket || null,
+      adminSockets: adminSockets
+    });
+  });
   socket.on('webrtc-ice-candidate', (data) => routeToMission(socket, 'webrtc-ice-candidate', data));
   socket.on('webrtc-hangup', (data) => routeToMission(socket, 'webrtc-hangup', data));
   socket.on('webrtc-end', (data) => routeToMission(socket, 'webrtc-hangup', data));
   socket.on('webrtc-telestration', (data) => routeToMission(socket, 'webrtc-telestration', data));
   socket.on('webrtc-telestration-clear', (data) => routeToMission(socket, 'webrtc-telestration-clear', data));
+  socket.on('green-corridor-status', (data) => routeToMission(socket, 'green-corridor-status', data));
   socket.on('hospital-lock-resources', async (data) => {
     const { reqId, locks } = data;
     const req = activeRequests[reqId];
