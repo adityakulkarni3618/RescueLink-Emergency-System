@@ -985,9 +985,8 @@ export default function UserDashboard({ socket, connected }) {
                 <div style={{ fontSize: 10, color: '#00ff88', fontFamily: "'Orbitron'", marginBottom: 8, textAlign: 'center' }}>🚑 PARAMEDIC CONNECTION LIVE</div>
                 <VideoCall 
                   socket={socket} 
-                  isInitiatorRole={false} 
+                  role="user" 
                   missionId={currentReqId} 
-                  targetSocketId={assignedAmbulanceId}
                 />
              </div>
           )}

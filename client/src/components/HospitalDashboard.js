@@ -3181,9 +3181,8 @@ export default function HospitalDashboard({ socket, connected }) {
 
                 <VideoCall
                   socket={socket}
-                  isInitiatorRole={false}
+                  role="hospital"
                   missionId={activeMissionId}
-                  targetSocketId={ambulanceSocketId}
                 />
 
                 {/* Quick directives */}

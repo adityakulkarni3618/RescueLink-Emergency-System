@@ -3066,6 +3066,74 @@ export default function AmbulanceStreamer({ socket, connected }) {
   const vitalsSourceRef = useRef(vitalsSource);
   useEffect(() => { vitalsSourceRef.current = vitalsSource; }, [vitalsSource]);
 
+  const [greenCorridorActive, setGreenCorridorActive] = useState(false);
+
+  const [bleDevice, setBleDevice] = useState(null);
+  const [bleConnecting, setBleConnecting] = useState(false);
+  const [bleError, setBleError] = useState('');
+
+  const connectBluetoothHRM = async () => {
+    setBleConnecting(true);
+    setBleError('');
+    try {
+      if (!navigator.bluetooth) {
+        throw new Error('Web Bluetooth is not supported in this browser.');
+      }
+      const device = await navigator.bluetooth.requestDevice({
+        filters: [{ services: ['heart_rate'] }]
+      });
+      const server = await device.gatt.connect();
+      const service = await server.getPrimaryService('heart_rate');
+      const characteristic = await service.getCharacteristic('heart_rate_measurement');
+      
+      await characteristic.startNotifications();
+      
+      const handleHeartRateNotification = (event) => {
+        const value = event.target.value;
+        const flags = value.getUint8(0);
+        let hrValue;
+        if ((flags & 0x01) === 0) {
+          hrValue = value.getUint8(1);
+        } else {
+          hrValue = value.getUint16(1, true);
+        }
+        
+        setVitals(prev => {
+          const updated = { ...prev, heartRate: hrValue };
+          if (socket && connected && !isOfflineRef.current) {
+            socket.emit('vitals-update', { ...updated, reqId: assignedUserRef.current?.id });
+          }
+          return updated;
+        });
+      };
+
+      characteristic.addEventListener('characteristicvaluechanged', handleHeartRateNotification);
+      setBleDevice(device);
+      setVitalsSource('BLUETOOTH');
+      
+      device.addEventListener('gattserverdisconnected', () => {
+        console.log('[BLE] GATT server disconnected');
+        setBleDevice(null);
+        setVitalsSource('SIMULATED');
+      });
+      
+    } catch (err) {
+      console.error('[BLE ERROR]', err);
+      setBleError(err.message || 'Bluetooth connection failed');
+      setVitalsSource('SIMULATED');
+    } finally {
+      setBleConnecting(false);
+    }
+  };
+
+  const disconnectBluetoothHRM = () => {
+    if (bleDevice && bleDevice.gatt.connected) {
+      bleDevice.gatt.disconnect();
+    }
+    setBleDevice(null);
+    setVitalsSource('SIMULATED');
+  };
+
   const handleManualVitalChange = (key, val) => {
     const numVal = parseFloat(val) || 0;
     setVitals(prev => {
@@ -3424,6 +3492,11 @@ export default function AmbulanceStreamer({ socket, connected }) {
       if (data.routePath) setRoutePath(data.routePath.map(pos => [pos.lat, pos.lng]));
     });
     socket.on('hospital-resources-locked', onResourcesLocked);
+    socket.on('green-corridor-status', (data) => {
+      if (assignedUserRef.current && data.reqId === assignedUserRef.current.id) {
+        setGreenCorridorActive(data.active);
+      }
+    });
     socket.on('traffic-incidents-update', (data) => {
       setTrafficIncidents(data || {});
     });
@@ -3490,6 +3563,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
       socket.off('error');
       socket.off('chat-history', onHistory);
       socket.off('chat-message', onMsg);
+      socket.off('green-corridor-status');
       socket.off('resources-update', onResources);
       socket.off('ai-prediction-alert', onAiAlert);
       socket.off('incoming-ambulance-request', onIncomingRequest);
@@ -4999,6 +5073,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
                       <option value="SIMULATED">SIMULATED</option>
                       <option value="MANUAL">MANUAL (FORM)</option>
                       <option value="LIVE">LIVE (IOT / GATEWAY)</option>
+                      <option value="BLUETOOTH">📡 BLUETOOTH HRM</option>
                     </select>
                     <button
                       onClick={() => setSimulateCrisis(!simulateCrisis)}
@@ -5014,6 +5089,55 @@ export default function AmbulanceStreamer({ socket, connected }) {
                     </button>
                   </div>
                 </div>
+
+                {vitalsSource === 'BLUETOOTH' && patientLoaded && (
+                  <div style={{
+                    background: 'rgba(0,200,255,0.05)', border: '1px solid rgba(0,200,255,0.2)',
+                    borderRadius: 10, padding: 15, marginBottom: 15
+                  }}>
+                    <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', marginBottom: 10, letterSpacing: '0.1em', fontWeight: 'bold' }}>
+                      📡 WEB BLUETOOTH INTEGRATION
+                    </div>
+                    {bleDevice ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div style={{ fontSize: 12, color: '#00ff88', fontFamily: "'Share Tech Mono'" }}>
+                          🟢 CONNECTED: {bleDevice.name || 'Bluetooth HRM'}
+                        </div>
+                        <button 
+                          onClick={disconnectBluetoothHRM}
+                          style={{
+                            padding: '8px 12px', background: 'rgba(255,68,68,0.15)', border: '1px solid #ff4444',
+                            borderRadius: 6, color: '#ff4444', fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer'
+                          }}
+                        >
+                          DISCONNECT DEVICE
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', lineHeight: 1.4 }}>
+                          Connect a standard BLE Heart Rate Monitor device to stream live ECG pulse directly to this terminal.
+                        </div>
+                        {bleError && (
+                          <div style={{ fontSize: 11, color: '#ff4444', fontFamily: "'Share Tech Mono'" }}>
+                            Error: {bleError}
+                          </div>
+                        )}
+                        <button 
+                          onClick={connectBluetoothHRM}
+                          disabled={bleConnecting}
+                          style={{
+                            padding: '10px 16px', background: 'rgba(0,200,255,0.15)', border: '1px solid #00c8ff',
+                            borderRadius: 6, color: '#00c8ff', fontFamily: "'Orbitron'", fontSize: 12, cursor: 'pointer',
+                            fontWeight: 'bold'
+                          }}
+                        >
+                          {bleConnecting ? 'SCANNING...' : '🔌 CONNECT BLE MONITOR'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {vitalsSource === 'MANUAL' && patientLoaded && (
                   <div style={{
@@ -5410,7 +5534,15 @@ export default function AmbulanceStreamer({ socket, connected }) {
                     );
                   })}
                   {routePath && (
-                    <Polyline positions={routePath} color="#00ff88" weight={5} opacity={0.7} dashArray="10, 10" />
+                    greenCorridorActive ? (
+                      <>
+                        <Polyline positions={routePath} color="#00ff88" weight={12} opacity={0.25} />
+                        <Polyline positions={routePath} color="#00ff88" weight={8} opacity={0.5} />
+                        <Polyline positions={routePath} color="#00ff88" weight={4} opacity={0.9} />
+                      </>
+                    ) : (
+                      <Polyline positions={routePath} color="#00ff88" weight={5} opacity={0.7} dashArray="10, 10" />
+                    )
                   )}
                   {locationHistory.length > 1 && (
                     <Polyline positions={locationHistory} color={simulateTraffic ? "#ffb800" : "#00c8ff"} weight={3} opacity={0.5} />
@@ -5668,50 +5800,61 @@ export default function AmbulanceStreamer({ socket, connected }) {
           display: 'flex', flexDirection: 'column', overflow: 'hidden',
           height: '100%'
         }}>
-          <div style={{ background: 'rgba(0,200,255,0.05)', display: 'flex', borderBottom: '1px solid rgba(0,200,255,0.1)', flexShrink: 0 }}>
-            <button 
-              onClick={() => setCommTab('hospital')}
-              style={{
-                flex: 1, padding: '10px', background: commTab === 'hospital' ? 'rgba(0,200,255,0.1)' : 'transparent',
-                border: 'none', borderBottom: commTab === 'hospital' ? '2px solid #00c8ff' : 'none',
-                color: commTab === 'hospital' ? '#00c8ff' : 'rgba(160,200,255,0.4)',
-                fontFamily: "'Orbitron'", fontSize: 10, cursor: 'pointer', fontWeight: 'bold'
-              }}
-            >
-              🏥 HOSPITAL
-            </button>
-            <button 
-              onClick={() => setCommTab('user')}
-              style={{
-                flex: 1, padding: '10px', background: commTab === 'user' ? 'rgba(0,255,136,0.1)' : 'transparent',
-                border: 'none', borderBottom: commTab === 'user' ? '2px solid #00ff88' : 'none',
-                color: commTab === 'user' ? '#00ff88' : 'rgba(160,200,255,0.4)',
-                fontFamily: "'Orbitron'", fontSize: 10, cursor: 'pointer', fontWeight: 'bold'
-              }}
-            >
-              🧍 USER/CALLER
-            </button>
+          <div style={{ padding: '14px', borderBottom: '1px solid rgba(0,200,255,0.1)', flexShrink: 0 }}>
+            {assignedUser && (
+              <VideoCall 
+                socket={socket} 
+                role="paramedic" 
+                missionId={assignedUser?.id} 
+              />
+            )}
           </div>
-          
-          {commTab === 'hospital' && assignedHospital && (
-            <VideoCall 
-              socket={socket} 
-              isInitiatorRole={true} 
-              missionId={assignedUser?.id} 
-              targetSocketId={assignedHospital?.socketId} 
-            />
-          )}
-          {commTab === 'user' && assignedUser && (
-            <VideoCall 
-              socket={socket} 
-              isInitiatorRole={true} 
-              missionId={assignedUser?.id} 
-              targetSocketId={assignedUser?.userSocket} 
-            />
-          )}
 
           {/* --- AI SMART ROUTING PANEL --- */}
           <div style={{ flexShrink: 0, padding: '12px 16px', background: 'rgba(0,200,255,0.03)', borderBottom: '1px solid rgba(0,200,255,0.1)' }}>
+            
+            {/* Green Corridor Toggle */}
+            {assignedUser && (
+              <div style={{ 
+                background: greenCorridorActive ? 'rgba(0,255,136,0.08)' : 'rgba(255,255,255,0.02)',
+                border: `1px solid ${greenCorridorActive ? '#00ff88' : 'rgba(255,255,255,0.08)'}`,
+                borderRadius: 8, padding: '10px 12px', marginBottom: 12,
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+              }}>
+                <div>
+                  <div style={{ fontFamily: "'Orbitron'", fontSize: 10, color: greenCorridorActive ? '#00ff88' : '#e0eaff', fontWeight: 'bold', letterSpacing: '0.05em' }}>
+                    🚦 GREEN CORRIDOR
+                  </div>
+                  <div style={{ fontSize: 8, color: 'rgba(160,200,255,0.5)', marginTop: 2 }}>
+                    Preempt municipal signals
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    const newStatus = !greenCorridorActive;
+                    setGreenCorridorActive(newStatus);
+                    socket.emit('green-corridor-status', {
+                      reqId: assignedUser.id,
+                      active: newStatus
+                    });
+                  }}
+                  style={{
+                    padding: '4px 10px',
+                    background: greenCorridorActive ? '#00ff88' : 'rgba(0,200,255,0.15)',
+                    border: 'none',
+                    borderRadius: 4,
+                    color: greenCorridorActive ? '#000' : '#00c8ff',
+                    fontSize: 9,
+                    fontWeight: 'bold',
+                    fontFamily: "'Orbitron'",
+                    cursor: 'pointer'
+                  }}
+                >
+                  {greenCorridorActive ? 'ACTIVE' : 'REQUEST'}
+                </button>
+              </div>
+            )}
+
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <div style={{ fontFamily: "'Orbitron'", fontSize: 10, color: '#00c8ff', letterSpacing: '0.1em' }}>
                 📡 SMART SUGGESTIONS
@@ -6415,9 +6558,60 @@ export default function CPRGuidance({ onSOS, onClose }) {
   const timerRef = useRef(null);
   const compressInCycleRef = useRef(0);
 
+  const [interactiveMode, setInteractiveMode] = useState(false);
+  const [lastTapTime, setLastTapTime] = useState(0);
+  const [measuredBpm, setMeasuredBpm] = useState(0);
+  const [feedbackText, setFeedbackText] = useState('TAP THE HEART OR SPACEBAR');
+
+  const handleInteractiveCompress = () => {
+    if (phase !== 'compress') return;
+    playBeep(880, 0.08, 0.4);
+    setCompressionCount(c => c + 1);
+    compressInCycleRef.current++;
+
+    const now = Date.now();
+    if (lastTapTime > 0) {
+      const diffMs = now - lastTapTime;
+      const calculatedBpm = Math.round(60000 / diffMs);
+      setMeasuredBpm(calculatedBpm);
+      if (calculatedBpm < 95) {
+        setFeedbackText('⚠️ PUSH FASTER!');
+      } else if (calculatedBpm > 125) {
+        setFeedbackText('⚠️ TOO FAST! SLOW DOWN');
+      } else {
+        setFeedbackText('⚡ PERFECT RHYTHM! (100-120)');
+      }
+    } else {
+      setFeedbackText('KEEP GOING...');
+    }
+    setLastTapTime(now);
+    
+    setIsCompressing(true);
+    setTimeout(() => setIsCompressing(false), 120);
+
+    if (compressInCycleRef.current >= 30) {
+      compressInCycleRef.current = 0;
+      setPhase('breath');
+      setLastTapTime(0);
+      playBeep(440, 0.2, 0.3);
+    }
+  };
+
+  useEffect(() => {
+    if (!isRunning || !interactiveMode || phase !== 'compress') return;
+    const handleKeyDown = (e) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        handleInteractiveCompress();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isRunning, interactiveMode, phase, lastTapTime]);
+
   // Metronome engine
   useEffect(() => {
-    if (!isRunning || phase !== 'compress') { clearInterval(metronomeRef.current); return; }
+    if (!isRunning || phase !== 'compress' || interactiveMode) { clearInterval(metronomeRef.current); return; }
     const interval = (60 / bpm) * 1000;
     metronomeRef.current = setInterval(() => {
       setIsCompressing(prev => {
@@ -6649,7 +6843,54 @@ export default function CPRGuidance({ onSOS, onClose }) {
                   </div>
                 </div>
 
-                <HeartCompressionVisual isCompressing={isCompressing} compressionCount={compressionCount} bpm={bpm} />
+                <div style={{ margin: '20px 0' }}>
+                  {/* Mode selector */}
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginBottom: 20 }}>
+                    <button 
+                      onClick={() => setInteractiveMode(false)}
+                      style={{
+                        padding: '6px 12px', background: !interactiveMode ? 'rgba(255,255,255,0.1)' : 'transparent',
+                        border: `1px solid ${!interactiveMode ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)'}`,
+                        borderRadius: 4, color: !interactiveMode ? '#fff' : '#888',
+                        fontSize: 10, fontFamily: "'Orbitron'", cursor: 'pointer'
+                      }}
+                    >
+                      🔊 METRONOME
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setInteractiveMode(true);
+                        setLastTapTime(0);
+                      }}
+                      style={{
+                        padding: '6px 12px', background: interactiveMode ? 'rgba(0,255,136,0.1)' : 'transparent',
+                        border: `1px solid ${interactiveMode ? '#00ff88' : 'rgba(255,255,255,0.1)'}`,
+                        borderRadius: 4, color: interactiveMode ? '#00ff88' : '#888',
+                        fontSize: 10, fontFamily: "'Orbitron'", cursor: 'pointer'
+                      }}
+                    >
+                      🎮 INTERACTIVE TAP
+                    </button>
+                  </div>
+
+                  {interactiveMode ? (
+                    <div style={{ marginBottom: 15 }}>
+                      <div style={{
+                        padding: '8px 16px', background: 'rgba(0,200,255,0.06)', border: '1px solid rgba(0,200,255,0.2)',
+                        borderRadius: 6, fontSize: 11, color: '#00c8ff', fontFamily: "'Orbitron'", display: 'inline-block'
+                      }}>
+                        {feedbackText} {measuredBpm > 0 && `(${measuredBpm} BPM)`}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div 
+                    onClick={interactiveMode ? handleInteractiveCompress : undefined}
+                    style={{ cursor: interactiveMode ? 'pointer' : 'default' }}
+                  >
+                    <HeartCompressionVisual isCompressing={isCompressing} compressionCount={compressionCount} bpm={bpm} />
+                  </div>
+                </div>
 
                 <div style={{ marginTop: 40, marginBottom: 24 }}>
                   <div style={{ fontFamily: "'Share Tech Mono'", fontSize: 48, color: '#ff4444', fontWeight: 900, lineHeight: 1 }}>
@@ -10416,9 +10657,8 @@ export default function HospitalDashboard({ socket, connected }) {
 
                 <VideoCall
                   socket={socket}
-                  isInitiatorRole={false}
+                  role="hospital"
                   missionId={activeMissionId}
-                  targetSocketId={ambulanceSocketId}
                 />
 
                 {/* Quick directives */}
@@ -12774,9 +13014,8 @@ export default function UserDashboard({ socket, connected }) {
                 <div style={{ fontSize: 10, color: '#00ff88', fontFamily: "'Orbitron'", marginBottom: 8, textAlign: 'center' }}>🚑 PARAMEDIC CONNECTION LIVE</div>
                 <VideoCall 
                   socket={socket} 
-                  isInitiatorRole={false} 
+                  role="user" 
                   missionId={currentReqId} 
-                  targetSocketId={assignedAmbulanceId}
                 />
              </div>
           )}
@@ -13199,20 +13438,51 @@ import axios from 'axios';
 
 /**
  * Premium WebRTC Telemedicine Component utilizing Daily.co SDK.
+ * Supports User, Paramedic, Hospital, and Admin roles.
  */
-const VideoCall = ({ socket, isInitiatorRole, missionId: reqId, targetSocketId }) => {
+const VideoCall = ({ socket, role, missionId: reqId }) => {
   const [inCall, setInCall] = useState(false);
   const [calling, setCalling] = useState(false);
   const [incomingUrl, setIncomingUrl] = useState(null);
+  const [callerRole, setCallerRole] = useState('');
   
+  // Peer state
+  const [peers, setPeers] = useState({
+    userSocket: null,
+    ambulanceSocket: null,
+    hospitalSocket: null,
+    adminSockets: []
+  });
+
   const containerRef = useRef(null);
   const callFrameRef = useRef(null);
-  const targetSocketIdRef = useRef(targetSocketId);
+  const targetSocketIdRef = useRef(null);
 
+  // Poll for peer socket updates
   useEffect(() => {
-    targetSocketIdRef.current = targetSocketId;
-  }, [targetSocketId]);
+    if (!socket || !reqId) return;
 
+    const requestPeers = () => {
+      socket.emit('get-mission-peers', { reqId });
+    };
+
+    requestPeers();
+    const interval = setInterval(requestPeers, 4000);
+
+    const handlePeersUpdate = (data) => {
+      if (data.error) return;
+      setPeers(data);
+    };
+
+    socket.on('mission-peers', handlePeersUpdate);
+
+    return () => {
+      clearInterval(interval);
+      socket.off('mission-peers', handlePeersUpdate);
+    };
+  }, [socket, reqId]);
+
+  // WebRTC socket signaling listners
   useEffect(() => {
     if (!socket || !reqId) return;
 
@@ -13221,10 +13491,9 @@ const VideoCall = ({ socket, isInitiatorRole, missionId: reqId, targetSocketId }
       if (data.offer && data.offer.roomUrl) {
         console.log('[DAILY.CO] Incoming call offer with room URL:', data.offer.roomUrl);
         setIncomingUrl(data.offer.roomUrl);
+        setCallerRole(data.fromRole || 'Emergency Peer');
         setCalling(true);
-        if (!targetSocketIdRef.current) {
-          targetSocketIdRef.current = data.fromSocketId;
-        }
+        targetSocketIdRef.current = data.fromSocketId;
       }
     };
 
@@ -13247,10 +13516,13 @@ const VideoCall = ({ socket, isInitiatorRole, missionId: reqId, targetSocketId }
     };
   }, [socket, reqId]);
 
-  const startCall = async () => {
+  const startCall = async (targetSocketId, label) => {
+    if (!targetSocketId) return;
+    targetSocketIdRef.current = targetSocketId;
     setCalling(true);
+
     try {
-      const token = sessionStorage.getItem('rescueLinkEnterpriseJWT') || '';
+      const token = sessionStorage.getItem('rescueLinkEnterpriseJWT') || sessionStorage.getItem('rescuelink_token') || '';
       const SERVER_URL = process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin;
       const res = await axios.post(`${SERVER_URL}/api/video/create-room`, { reqId }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -13263,11 +13535,16 @@ const VideoCall = ({ socket, isInitiatorRole, missionId: reqId, targetSocketId }
       joinDailyRoom(url);
 
       // Notify remote peer using backward-compatible signaling payload
-      socket.emit('webrtc-offer', { reqId, offer: { roomUrl: url }, targetSocketId: targetSocketIdRef.current });
+      socket.emit('webrtc-offer', { 
+        reqId, 
+        offer: { roomUrl: url }, 
+        targetSocketId: targetSocketId,
+        fromRole: role.toUpperCase()
+      });
     } catch (err) {
       console.error('[DAILY.CO] Start call failed:', err.message);
       setCalling(false);
-      alert('Failed to start call: Both parties must be active in the same mission to connect.');
+      alert('Failed to start call: Please ensure the recipient is currently online.');
     }
   };
 
@@ -13324,87 +13601,186 @@ const VideoCall = ({ socket, isInitiatorRole, missionId: reqId, targetSocketId }
     leaveCall();
   };
 
+  // Render caller profile / buttons based on role
+  const renderCallButtons = () => {
+    if (inCall || calling || incomingUrl) return null;
+
+    const buttonStyle = (active) => ({
+      padding: '8px 12px',
+      background: active ? 'rgba(0,255,136,0.1)' : 'rgba(255,255,255,0.03)',
+      border: `1px solid ${active ? '#00ff88' : 'rgba(255,255,255,0.1)'}`,
+      borderRadius: 6,
+      color: active ? '#00ff88' : 'rgba(255,255,255,0.3)',
+      fontWeight: 'bold',
+      fontSize: 10,
+      cursor: active ? 'pointer' : 'not-allowed',
+      fontFamily: "'Orbitron'",
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      flex: 1
+    });
+
+    if (role === 'user') {
+      return (
+        <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+          <button 
+            disabled={!peers.ambulanceSocket}
+            onClick={() => startCall(peers.ambulanceSocket, 'PARAMEDIC')}
+            style={buttonStyle(!!peers.ambulanceSocket)}
+          >
+            📞 CALL PARAMEDIC
+          </button>
+          <button 
+            disabled={!peers.hospitalSocket}
+            onClick={() => startCall(peers.hospitalSocket, 'DOCTOR')}
+            style={buttonStyle(!!peers.hospitalSocket)}
+          >
+            📞 CALL DOCTOR
+          </button>
+        </div>
+      );
+    }
+
+    if (role === 'paramedic') {
+      return (
+        <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+          <button 
+            disabled={!peers.userSocket}
+            onClick={() => startCall(peers.userSocket, 'PATIENT')}
+            style={buttonStyle(!!peers.userSocket)}
+          >
+            📞 CALL PATIENT
+          </button>
+          <button 
+            disabled={!peers.hospitalSocket}
+            onClick={() => startCall(peers.hospitalSocket, 'DOCTOR')}
+            style={buttonStyle(!!peers.hospitalSocket)}
+          >
+            📞 CALL DOCTOR
+          </button>
+        </div>
+      );
+    }
+
+    if (role === 'hospital') {
+      const hasAdmins = peers.adminSockets.length > 0;
+      return (
+        <div style={{ display: 'flex', gap: 8, width: '100%', flexWrap: 'wrap' }}>
+          <button 
+            disabled={!peers.userSocket}
+            onClick={() => startCall(peers.userSocket, 'PATIENT')}
+            style={buttonStyle(!!peers.userSocket)}
+          >
+            📞 CALL PATIENT
+          </button>
+          <button 
+            disabled={!peers.ambulanceSocket}
+            onClick={() => startCall(peers.ambulanceSocket, 'PARAMEDIC')}
+            style={buttonStyle(!!peers.ambulanceSocket)}
+          >
+            📞 CALL PARAMEDIC
+          </button>
+          <button 
+            disabled={!hasAdmins}
+            onClick={() => startCall(peers.adminSockets[0], 'WAR ROOM')}
+            style={buttonStyle(hasAdmins)}
+          >
+            📞 CALL WAR ROOM
+          </button>
+        </div>
+      );
+    }
+
+    if (role === 'admin') {
+      return (
+        <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+          <button 
+            disabled={!peers.hospitalSocket}
+            onClick={() => startCall(peers.hospitalSocket, 'DOCTOR')}
+            style={buttonStyle(!!peers.hospitalSocket)}
+          >
+            📞 CALL DOCTOR
+          </button>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <div style={{ 
-      background: '#050a1e', padding: '12px', borderRadius: 8, 
-      border: '1px solid rgba(0,200,255,0.2)', marginBottom: 12,
+      background: 'rgba(5,10,30,0.85)', padding: '14px', borderRadius: 10, 
+      border: '1px solid rgba(0,200,255,0.18)', marginBottom: 12,
       display: 'flex', flexDirection: 'column', gap: 10,
       width: '100%', boxSizing: 'border-box', overflow: 'hidden'
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', fontWeight: 'bold' }}>
-            {isInitiatorRole ? '🚑 PARAMEDIC TELEMEDICINE' : '🏥 RECEIVING PHYSICIAN PORTAL'}
+          <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', fontWeight: 700, letterSpacing: '0.05em' }}>
+            🛰️ CLINICAL TELEMEDICINE
           </div>
           <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'", display: 'flex', alignItems: 'center', gap: 6 }}>
-            Daily.co WebRTC Stream
-            {inCall && <span style={{ color: '#00ff88' }}>● CONNECTED</span>}
+            WebRTC Secure Room
+            {inCall && <span style={{ color: '#00ff88', fontWeight: 'bold' }}>● ACTIVE CONNECTION</span>}
           </div>
         </div>
+        
+        {/* Connection Control Action Buttons */}
         <div style={{ display: 'flex', gap: 6 }}>
           {incomingUrl && !inCall && (
             <button 
               onClick={acceptCall}
               style={{
-                padding: '0 12px', height: '32px', background: '#00ff88',
-                border: 'none', borderRadius: 4, color: '#000', fontWeight: 'bold',
-                fontSize: 11, cursor: 'pointer', fontFamily: "'Orbitron'",
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', whiteSpace: 'nowrap'
+                padding: '6px 12px', background: '#00ff88', border: 'none', borderRadius: 4,
+                color: '#000', fontWeight: 'bold', fontSize: 10, cursor: 'pointer', fontFamily: "'Orbitron'"
               }}
             >
-              ACCEPT CALL
+              ACCEPT
             </button>
           )}
           {(inCall || calling || incomingUrl) && (
             <button 
               onClick={endCall}
               style={{
-                padding: '0 12px', height: '32px', background: 'rgba(255,60,60,0.15)',
-                border: '1px solid rgba(255,60,60,0.3)', borderRadius: 4, color: '#ff4444', 
-                fontWeight: 'bold', fontSize: 11, cursor: 'pointer', fontFamily: "'Orbitron'",
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', whiteSpace: 'nowrap'
+                padding: '6px 12px', background: 'rgba(255,60,60,0.15)', border: '1px solid rgba(255,60,60,0.3)',
+                borderRadius: 4, color: '#ff4444', fontWeight: 'bold', fontSize: 10, cursor: 'pointer', fontFamily: "'Orbitron'"
               }}
             >
-              {incomingUrl && !inCall ? 'DECLINE' : 'END CALL'}
-            </button>
-          )}
-          {!inCall && !calling && !incomingUrl && (
-            <button 
-              onClick={startCall}
-              style={{
-                padding: '0 12px', height: '32px', background: '#00ff88',
-                border: 'none', borderRadius: 4, color: '#000', fontWeight: 'bold',
-                fontSize: 11, cursor: 'pointer', fontFamily: "'Orbitron'",
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', whiteSpace: 'nowrap'
-              }}
-            >
-              📞 CALL {isInitiatorRole ? 'DOCTOR' : 'AMBULANCE'}
+              {incomingUrl && !inCall ? 'DECLINE' : 'DISCONNECT'}
             </button>
           )}
         </div>
       </div>
 
+      {/* Selector/Call Buttons */}
+      {renderCallButtons()}
+
+      {/* Daily Video Container */}
       <div 
         ref={containerRef}
         style={{ 
           position: 'relative', 
           width: '100%', 
           aspectRatio: '16/9', 
-          background: '#000', 
-          borderRadius: 6, 
+          background: '#010512', 
+          borderRadius: 8, 
           overflow: 'hidden', 
-          border: '1px solid rgba(255,255,255,0.05)',
+          border: '1px solid rgba(0,200,255,0.1)',
           display: (inCall || calling) ? 'block' : 'none'
         }}
       >
         {calling && !inCall && (
           <div style={{ 
-            position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', 
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#00c8ff', fontFamily: "'Share Tech Mono'", fontSize: 12,
+            position: 'absolute', inset: 0, background: 'rgba(2,6,18,0.85)', 
+            display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center', justifyContent: 'center',
+            color: '#00c8ff', fontFamily: "'Orbitron'", fontSize: 10,
             backdropFilter: 'blur(4px)', zIndex: 5
           }}>
-            ESTABLISHING CONNECTION...
+            <div style={{ fontSize: 24, animation: 'pulse 1s infinite' }}>🔔</div>
+            {incomingUrl ? `INCOMING CALL FROM ${callerRole}...` : 'RINGING REMOTE PEER...'}
           </div>
         )}
       </div>
@@ -13425,6 +13801,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import MassCasualtyPanel from './MassCasualtyPanel';
 import BloodEmergencyNetwork from './BloodEmergencyNetwork';
+import VideoCall from './VideoCall';
 import { generateMonthlyReport } from '../utils/reportGenerator';
 import { exportMetricsToExcel } from '../utils/excelExporter';
 
@@ -13479,6 +13856,13 @@ export default function WarRoom({ socket, connected }) {
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
   const [activeTab, setActiveTab] = useState('map'); // map, mass_casualty, blood_bank
+  const [selectedIncidentId, setSelectedIncidentId] = useState(null);
+
+  useEffect(() => {
+    if (liveIncidents.length > 0 && !selectedIncidentId) {
+      setSelectedIncidentId(liveIncidents[0].id);
+    }
+  }, [liveIncidents, selectedIncidentId]);
 
   const handleLogin = async () => {
     try {
@@ -13779,8 +14163,18 @@ export default function WarRoom({ socket, connected }) {
                     <tr><td colSpan={6} style={{ textAlign: 'center', color: 'rgba(160,200,255,0.3)', padding: 20, fontStyle: 'italic' }}>No missions recorded yet. Start a dispatch to see data here.</td></tr>
                   )}
                   {liveIncidents.map((inc, i) => (
-                    <tr key={i} style={{ borderBottom: '1px solid rgba(0,200,255,0.04)' }}>
-                      <td style={{ padding: '7px', color: '#00c8ff', fontFamily: "'Share Tech Mono'", fontSize: 9 }}>{String(inc.id).slice(-12)}</td>
+                    <tr 
+                      key={i} 
+                      onClick={() => setSelectedIncidentId(inc.id)}
+                      style={{ 
+                        borderBottom: '1px solid rgba(0,200,255,0.04)',
+                        cursor: 'pointer',
+                        background: selectedIncidentId === inc.id ? 'rgba(0,200,255,0.08)' : 'transparent'
+                      }}
+                    >
+                      <td style={{ padding: '7px', color: '#00c8ff', fontFamily: "'Share Tech Mono'", fontSize: 9 }}>
+                        {selectedIncidentId === inc.id ? '▶ ' : ''}{String(inc.id).slice(-12)}
+                      </td>
                       <td style={{ padding: '7px', color: '#e0eaff', maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inc.type}</td>
                       <td style={{ padding: '7px', color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>{inc.time}</td>
                       <td style={{ padding: '7px', color: '#ffb800', fontFamily: "'Share Tech Mono'" }}>{inc.response}</td>
@@ -13820,11 +14214,14 @@ export default function WarRoom({ socket, connected }) {
                 This portal monitors active clinical consult requests routed to senior specialists across the city hospital network.
               </div>
               <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: 8, padding: 14 }}>
-                <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', marginBottom: 10 }}>⚡ ACTIVE CONSULTATIONS QUEUE</div>
-                {/* List of active consultations */}
-                <div style={{ color: 'rgba(160,200,255,0.4)', fontStyle: 'italic', fontSize: 12, textAlign: 'center', padding: '12px 0' }}>
-                  No pending consultation requests active. City network is stable.
-                </div>
+                <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', marginBottom: 10 }}>⚡ ACTIVE TELEMEDICINE COMMAND LINK</div>
+                {selectedIncidentId ? (
+                  <VideoCall socket={socket} role="admin" missionId={selectedIncidentId} />
+                ) : (
+                  <div style={{ color: 'rgba(160,200,255,0.4)', fontStyle: 'italic', fontSize: 12, textAlign: 'center', padding: '12px 0' }}>
+                    Select an active mission from the ledger to establish a command link.
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -24728,11 +25125,28 @@ io.on('connection', (socket) => {
 
   socket.on('webrtc-offer', (data) => routeToMission(socket, 'webrtc-offer', data));
   socket.on('webrtc-answer', (data) => routeToMission(socket, 'webrtc-answer', data));
+  socket.on('get-mission-peers', (data) => {
+    const { reqId } = data;
+    const req = activeRequests[reqId];
+    if (!req) return socket.emit('mission-peers', { error: 'Mission not found' });
+    
+    // Get all admin sockets in the warroom
+    const adminRoom = io.sockets.adapter.rooms.get('admin_warroom');
+    const adminSockets = adminRoom ? Array.from(adminRoom) : [];
+
+    socket.emit('mission-peers', {
+      userSocket: req.userSocket || null,
+      ambulanceSocket: req.ambulanceSocket || null,
+      hospitalSocket: req.hospitalSocket || null,
+      adminSockets: adminSockets
+    });
+  });
   socket.on('webrtc-ice-candidate', (data) => routeToMission(socket, 'webrtc-ice-candidate', data));
   socket.on('webrtc-hangup', (data) => routeToMission(socket, 'webrtc-hangup', data));
   socket.on('webrtc-end', (data) => routeToMission(socket, 'webrtc-hangup', data));
   socket.on('webrtc-telestration', (data) => routeToMission(socket, 'webrtc-telestration', data));
   socket.on('webrtc-telestration-clear', (data) => routeToMission(socket, 'webrtc-telestration-clear', data));
+  socket.on('green-corridor-status', (data) => routeToMission(socket, 'green-corridor-status', data));
   socket.on('hospital-lock-resources', async (data) => {
     const { reqId, locks } = data;
     const req = activeRequests[reqId];

@@ -5,6 +5,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import MassCasualtyPanel from './MassCasualtyPanel';
 import BloodEmergencyNetwork from './BloodEmergencyNetwork';
+import VideoCall from './VideoCall';
 import { generateMonthlyReport } from '../utils/reportGenerator';
 import { exportMetricsToExcel } from '../utils/excelExporter';
 
@@ -59,6 +60,13 @@ export default function WarRoom({ socket, connected }) {
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
   const [activeTab, setActiveTab] = useState('map'); // map, mass_casualty, blood_bank
+  const [selectedIncidentId, setSelectedIncidentId] = useState(null);
+
+  useEffect(() => {
+    if (liveIncidents.length > 0 && !selectedIncidentId) {
+      setSelectedIncidentId(liveIncidents[0].id);
+    }
+  }, [liveIncidents, selectedIncidentId]);
 
   const handleLogin = async () => {
     try {
@@ -359,8 +367,18 @@ export default function WarRoom({ socket, connected }) {
                     <tr><td colSpan={6} style={{ textAlign: 'center', color: 'rgba(160,200,255,0.3)', padding: 20, fontStyle: 'italic' }}>No missions recorded yet. Start a dispatch to see data here.</td></tr>
                   )}
                   {liveIncidents.map((inc, i) => (
-                    <tr key={i} style={{ borderBottom: '1px solid rgba(0,200,255,0.04)' }}>
-                      <td style={{ padding: '7px', color: '#00c8ff', fontFamily: "'Share Tech Mono'", fontSize: 9 }}>{String(inc.id).slice(-12)}</td>
+                    <tr 
+                      key={i} 
+                      onClick={() => setSelectedIncidentId(inc.id)}
+                      style={{ 
+                        borderBottom: '1px solid rgba(0,200,255,0.04)',
+                        cursor: 'pointer',
+                        background: selectedIncidentId === inc.id ? 'rgba(0,200,255,0.08)' : 'transparent'
+                      }}
+                    >
+                      <td style={{ padding: '7px', color: '#00c8ff', fontFamily: "'Share Tech Mono'", fontSize: 9 }}>
+                        {selectedIncidentId === inc.id ? '▶ ' : ''}{String(inc.id).slice(-12)}
+                      </td>
                       <td style={{ padding: '7px', color: '#e0eaff', maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inc.type}</td>
                       <td style={{ padding: '7px', color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>{inc.time}</td>
                       <td style={{ padding: '7px', color: '#ffb800', fontFamily: "'Share Tech Mono'" }}>{inc.response}</td>
@@ -400,11 +418,14 @@ export default function WarRoom({ socket, connected }) {
                 This portal monitors active clinical consult requests routed to senior specialists across the city hospital network.
               </div>
               <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: 8, padding: 14 }}>
-                <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', marginBottom: 10 }}>⚡ ACTIVE CONSULTATIONS QUEUE</div>
-                {/* List of active consultations */}
-                <div style={{ color: 'rgba(160,200,255,0.4)', fontStyle: 'italic', fontSize: 12, textAlign: 'center', padding: '12px 0' }}>
-                  No pending consultation requests active. City network is stable.
-                </div>
+                <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', marginBottom: 10 }}>⚡ ACTIVE TELEMEDICINE COMMAND LINK</div>
+                {selectedIncidentId ? (
+                  <VideoCall socket={socket} role="admin" missionId={selectedIncidentId} />
+                ) : (
+                  <div style={{ color: 'rgba(160,200,255,0.4)', fontStyle: 'italic', fontSize: 12, textAlign: 'center', padding: '12px 0' }}>
+                    Select an active mission from the ledger to establish a command link.
+                  </div>
+                )}
               </div>
             </div>
           )}
