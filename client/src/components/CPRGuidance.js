@@ -94,9 +94,60 @@ export default function CPRGuidance({ onSOS, onClose }) {
   const timerRef = useRef(null);
   const compressInCycleRef = useRef(0);
 
+  const [interactiveMode, setInteractiveMode] = useState(false);
+  const [lastTapTime, setLastTapTime] = useState(0);
+  const [measuredBpm, setMeasuredBpm] = useState(0);
+  const [feedbackText, setFeedbackText] = useState('TAP THE HEART OR SPACEBAR');
+
+  const handleInteractiveCompress = () => {
+    if (phase !== 'compress') return;
+    playBeep(880, 0.08, 0.4);
+    setCompressionCount(c => c + 1);
+    compressInCycleRef.current++;
+
+    const now = Date.now();
+    if (lastTapTime > 0) {
+      const diffMs = now - lastTapTime;
+      const calculatedBpm = Math.round(60000 / diffMs);
+      setMeasuredBpm(calculatedBpm);
+      if (calculatedBpm < 95) {
+        setFeedbackText('⚠️ PUSH FASTER!');
+      } else if (calculatedBpm > 125) {
+        setFeedbackText('⚠️ TOO FAST! SLOW DOWN');
+      } else {
+        setFeedbackText('⚡ PERFECT RHYTHM! (100-120)');
+      }
+    } else {
+      setFeedbackText('KEEP GOING...');
+    }
+    setLastTapTime(now);
+    
+    setIsCompressing(true);
+    setTimeout(() => setIsCompressing(false), 120);
+
+    if (compressInCycleRef.current >= 30) {
+      compressInCycleRef.current = 0;
+      setPhase('breath');
+      setLastTapTime(0);
+      playBeep(440, 0.2, 0.3);
+    }
+  };
+
+  useEffect(() => {
+    if (!isRunning || !interactiveMode || phase !== 'compress') return;
+    const handleKeyDown = (e) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        handleInteractiveCompress();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isRunning, interactiveMode, phase, lastTapTime]);
+
   // Metronome engine
   useEffect(() => {
-    if (!isRunning || phase !== 'compress') { clearInterval(metronomeRef.current); return; }
+    if (!isRunning || phase !== 'compress' || interactiveMode) { clearInterval(metronomeRef.current); return; }
     const interval = (60 / bpm) * 1000;
     metronomeRef.current = setInterval(() => {
       setIsCompressing(prev => {
@@ -328,7 +379,54 @@ export default function CPRGuidance({ onSOS, onClose }) {
                   </div>
                 </div>
 
-                <HeartCompressionVisual isCompressing={isCompressing} compressionCount={compressionCount} bpm={bpm} />
+                <div style={{ margin: '20px 0' }}>
+                  {/* Mode selector */}
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginBottom: 20 }}>
+                    <button 
+                      onClick={() => setInteractiveMode(false)}
+                      style={{
+                        padding: '6px 12px', background: !interactiveMode ? 'rgba(255,255,255,0.1)' : 'transparent',
+                        border: `1px solid ${!interactiveMode ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)'}`,
+                        borderRadius: 4, color: !interactiveMode ? '#fff' : '#888',
+                        fontSize: 10, fontFamily: "'Orbitron'", cursor: 'pointer'
+                      }}
+                    >
+                      🔊 METRONOME
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setInteractiveMode(true);
+                        setLastTapTime(0);
+                      }}
+                      style={{
+                        padding: '6px 12px', background: interactiveMode ? 'rgba(0,255,136,0.1)' : 'transparent',
+                        border: `1px solid ${interactiveMode ? '#00ff88' : 'rgba(255,255,255,0.1)'}`,
+                        borderRadius: 4, color: interactiveMode ? '#00ff88' : '#888',
+                        fontSize: 10, fontFamily: "'Orbitron'", cursor: 'pointer'
+                      }}
+                    >
+                      🎮 INTERACTIVE TAP
+                    </button>
+                  </div>
+
+                  {interactiveMode ? (
+                    <div style={{ marginBottom: 15 }}>
+                      <div style={{
+                        padding: '8px 16px', background: 'rgba(0,200,255,0.06)', border: '1px solid rgba(0,200,255,0.2)',
+                        borderRadius: 6, fontSize: 11, color: '#00c8ff', fontFamily: "'Orbitron'", display: 'inline-block'
+                      }}>
+                        {feedbackText} {measuredBpm > 0 && `(${measuredBpm} BPM)`}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div 
+                    onClick={interactiveMode ? handleInteractiveCompress : undefined}
+                    style={{ cursor: interactiveMode ? 'pointer' : 'default' }}
+                  >
+                    <HeartCompressionVisual isCompressing={isCompressing} compressionCount={compressionCount} bpm={bpm} />
+                  </div>
+                </div>
 
                 <div style={{ marginTop: 40, marginBottom: 24 }}>
                   <div style={{ fontFamily: "'Share Tech Mono'", fontSize: 48, color: '#ff4444', fontWeight: 900, lineHeight: 1 }}>

@@ -823,7 +823,9 @@ export default function UserDashboard({ socket, connected }) {
                 </div>
               )}
               <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Orbitron'", marginBottom: 4, textAlign: 'center' }}>ACTIVE MISSION ID</div>
-              <div style={{ fontSize: 14, color: '#00c8ff', fontWeight: 'bold', fontFamily: "'Orbitron'", letterSpacing: 1, textAlign: 'center', marginBottom: 12 }}>{currentReqId}</div>
+              <div style={{ fontSize: 14, color: '#00c8ff', fontWeight: 'bold', fontFamily: "'Orbitron'", letterSpacing: 1, textAlign: 'center', marginBottom: 12 }}>
+                {currentReqId && currentReqId.length > 15 ? 'REQ-...' + currentReqId.slice(-12) : currentReqId}
+              </div>
 
               {/* ETA Countdown */}
               {etaSeconds !== null && !isAmbulanceArrived && liveAmbulanceLoc && (
@@ -983,9 +985,8 @@ export default function UserDashboard({ socket, connected }) {
                 <div style={{ fontSize: 10, color: '#00ff88', fontFamily: "'Orbitron'", marginBottom: 8, textAlign: 'center' }}>🚑 PARAMEDIC CONNECTION LIVE</div>
                 <VideoCall 
                   socket={socket} 
-                  isInitiatorRole={false} 
+                  role="user" 
                   missionId={currentReqId} 
-                  targetSocketId={assignedAmbulanceId}
                 />
              </div>
           )}
