@@ -1887,7 +1887,7 @@ io.on('connection', (socket) => {
       }
     }
 
-    const reqId = `REQ-${Date.now()}`;
+    const reqId = require('crypto').randomUUID();
     activeRequests[reqId] = {
       id: reqId,
       userSocket: socket.id,
@@ -2331,7 +2331,7 @@ io.on('connection', (socket) => {
     const mci = activeMciEvents[mciId];
     if (mci) {
       const req = {
-        id: 'REQ-' + Date.now(),
+        id: require('crypto').randomUUID(),
         resourceType,
         quantity: parseInt(quantity, 10) || 1,
         sector: sector || 'Alpha',
