@@ -2467,7 +2467,6 @@ export default function AmbulanceMarketplace({ socket, userLocation, onBookAmbul
 
 ================================================
 FILE: client/src/components/AmbulanceStreamer.js
-================================================
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, Circle } from 'react-leaflet';
 import L from 'leaflet';
@@ -4442,7 +4441,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
                 background: 'rgba(0,200,255,0.1)', border: '1px solid #00c8ff', 
                 padding: '4px 12px', borderRadius: 4, fontSize: 11, fontFamily: "'Orbitron'" 
               }}>
-                <span style={{ opacity: 0.5 }}>REQ ID:</span> {assignedUser.id}
+                <span style={{ opacity: 0.5 }}>REQ ID:</span> {assignedUser.id && assignedUser.id.length > 15 ? assignedUser.id.slice(0, 8) + '...' + assignedUser.id.slice(-4) : assignedUser.id}
               </div>
             )}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, position: 'relative' }}>
@@ -6984,7 +6983,6 @@ export default function CustomAlert({ title, message, onClose }) {
 
 ================================================
 FILE: client/src/components/FamilyDashboard.js
-================================================
 import React, { useState, useEffect } from 'react';
 
 // Family Dashboard — Read-only real-time tracking view for patient's family members
@@ -7105,7 +7103,7 @@ export default function FamilyDashboard({ socket, connected, reqId: propReqId })
           <div style={{ fontSize: 48, marginBottom: 16 }}>👨‍👩‍👧</div>
           <div style={{ fontFamily: "'Orbitron'", fontSize: 18, color: '#00c8ff', marginBottom: 12, letterSpacing: '0.1em' }}>FAMILY TRACKING PORTAL</div>
           <div style={{ fontSize: 13, color: 'rgba(160,200,255,0.6)', lineHeight: 1.6, marginBottom: 24 }}>
-            Enter the Mission ID (e.g. REQ-12345) shared by the patient or hospital to begin live tracking.
+            Enter the Mission ID (e.g. a3f9b2c1-...UUID) shared by the patient or hospital to begin live tracking.
           </div>
           <input 
             type="text" 
@@ -12026,7 +12024,6 @@ export default PhysiologicalWaveforms;
 
 ================================================
 FILE: client/src/components/UserDashboard.js
-================================================
 import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline, Circle } from 'react-leaflet';
 import L from 'leaflet';
@@ -12853,7 +12850,7 @@ export default function UserDashboard({ socket, connected }) {
               )}
               <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Orbitron'", marginBottom: 4, textAlign: 'center' }}>ACTIVE MISSION ID</div>
               <div style={{ fontSize: 14, color: '#00c8ff', fontWeight: 'bold', fontFamily: "'Orbitron'", letterSpacing: 1, textAlign: 'center', marginBottom: 12 }}>
-                {currentReqId && currentReqId.length > 15 ? 'REQ-...' + currentReqId.slice(-12) : currentReqId}
+                {currentReqId && currentReqId.length > 15 ? currentReqId.slice(0, 8) + '...' + currentReqId.slice(-4) : currentReqId}
               </div>
 
               {/* ETA Countdown */}
@@ -23606,7 +23603,6 @@ runVerification();
 
 ================================================
 FILE: server/server.js
-================================================
 require('dotenv').config();
 const express = require('express'); // trigger-reload
 const http = require('http');
@@ -23707,6 +23703,9 @@ initPredictiveAI();
 // FIX C1: Debounced DB write — prevents SQLite I/O death spiral under high load.
 // Instead of writing on every vitals tick, we batch writes every 15 seconds per mission.
 const dbWriteTimers = {};
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const isUUID = (val) => typeof val === 'string' && UUID_REGEX.test(val);
+
 function syncMissionToDB(reqId) {
   if (dbWriteTimers[reqId]) return; // Already scheduled — skip
   dbWriteTimers[reqId] = setTimeout(async () => {
@@ -23715,7 +23714,12 @@ function syncMissionToDB(reqId) {
       const req = activeRequests[reqId];
       if (!req) return;
 
-      const patientId = req.patientDetails?.id || req.fieldReport?.patientId || null;
+      let patientId = req.patientDetails?.id || req.fieldReport?.patientId || null;
+      if (!isUUID(patientId)) patientId = null;
+
+      let paramedicId = req.paramedicId || null;
+      if (!isUUID(paramedicId)) paramedicId = null;
+
       const status = req.status || 'requested';
       const pickup_lat = req.userLocation?.lat || req.incidentLocation?.lat || null;
       const pickup_lng = req.userLocation?.lng || req.incidentLocation?.lng || null;
@@ -23729,7 +23733,7 @@ function syncMissionToDB(reqId) {
         id: req.id || reqId,
         patient_id: patientId,
         ambulance_id: req.unitId || req.ambulanceSocket || null,
-        paramedic_id: req.paramedicId || null,
+        paramedic_id: paramedicId,
         hospital_id: req.hospitalId || null,
         status: status,
         pickup_lat: pickup_lat,
@@ -23950,71 +23954,6 @@ const apiRateLimiter = rateLimit({
 app.use('/api', apiRateLimiter);
 app.use('/api/auth', authRateLimiter, authRouter);
 app.use('/api/users', usersRouter);
-
-app.get('/api/test-sms', async (req, res) => {
-  if (req.query.key !== process.env.SEED_KEY) {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
-  try {
-    const whatsappService = require('./utils/whatsapp');
-    const testNumber = req.query.to;
-    if (!testNumber) {
-      return res.status(400).json({ error: 'Add ?to=+91YOURNUMBER to the URL' });
-    }
-    await whatsappService.sendSMS(testNumber, 'RescueLink test message - Twilio SMS is working!');
-    return res.json({ message: 'SMS sent, check your phone' });
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
-  }
-});
-app.get('/api/one-time-seed', async (req, res) => {
-  if (req.query.key !== process.env.SEED_KEY) {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
-  try {
-    console.log(`[SEED] /api/one-time-seed hit. Query parameters:`, req.query);
-    if (req.query.updatePatientMobile) {
-      const user = await User.findOne({ where: { email: 'patient@rescuelink.com' } });
-      if (user) {
-        user.mobile = req.query.updatePatientMobile;
-        await user.save();
-        return res.json({ message: 'Patient mobile updated successfully', email: user.email, mobile: user.mobile });
-      } else {
-        return res.status(404).json({ error: 'Patient user not found' });
-      }
-    }
-    if (req.query.updateParamedicMobile) {
-      const user = await User.findOne({ where: { email: 'paramedic@rescuelink.com' } });
-      if (user) {
-        user.mobile = req.query.updateParamedicMobile;
-        await user.save();
-        return res.json({ message: 'Paramedic mobile updated successfully', mobile: user.mobile });
-      } else {
-        return res.status(404).json({ error: 'Paramedic user not found' });
-      }
-    }
-    const existing = await User.findOne({ where: { email: 'doctor@rescuelink.com' } });
-    if (existing) {
-      return res.json({ message: 'Already seeded, no action taken' });
-    }
-    const hospital = await Hospital.create({
-      name: 'Demo Hospital', city: 'Bengaluru', state: 'Karnataka',
-      lat: 12.9716, lng: 77.5946, contact_number: '+91-80-0000-0000',
-      total_beds: 100, icu_beds: 10, ventilators: 5, is_active: true
-    });
-    const passwordHash = bcrypt.hashSync('password123', 10);
-    await User.bulkCreate([
-      { name: 'Dr. Sarah Smith', email: 'doctor@rescuelink.com', password: passwordHash, role: 'doctor', mobile: '+91-9988776655', hospital_id: hospital.id, is_active: true },
-      { name: 'Paramedic John Doe', email: 'paramedic@rescuelink.com', password: passwordHash, role: 'paramedic', mobile: '+91-8877665544', is_active: true },
-      { name: 'Government Admin', email: 'admin@rescuelink.com', password: passwordHash, role: 'city_admin', mobile: '+91-7766554433', is_active: true },
-      { name: 'Emergency Patient', email: 'patient@rescuelink.com', password: passwordHash, role: 'patient', mobile: '+91-9900887766', is_active: true }
-    ]);
-    return res.json({ message: 'Seeded successfully' });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: err.message });
-  }
-});
 
 const abdmRouter = require('./routes/abdm');
 const insuranceRouter = require('./routes/insurance');
@@ -25361,7 +25300,7 @@ io.on('connection', (socket) => {
           clearTimeout(dbWriteTimers[reqId]);
           delete dbWriteTimers[reqId];
         }
-        await Mission.updateOne({ reqId }, { $set: { status: 'cancelled' } });
+        await Incident.update({ status: 'cancelled' }, { where: { id: reqId } });
       } catch (err) {
         console.error('[DB ERROR] Failed to update mission status on cancel:', err);
       }
@@ -25583,10 +25522,7 @@ io.on('connection', (socket) => {
       io.to(`mission_${reqId}`).emit('patient-data', data);
 
       // Also update database if persistent
-      Mission.updateOne(
-        { reqId },
-        { $set: { patientDetailsEncrypted: req.patientDetails } }
-      ).catch(e => console.warn('[DB] Failed to update patient data', e.message));
+      syncMissionToDB(reqId);
     }
   });
 
@@ -25841,7 +25777,37 @@ io.on('connection', (socket) => {
           clearTimeout(dbWriteTimers[reqId]);
           delete dbWriteTimers[reqId];
         }
-        await Mission.updateOne({ reqId }, { $set: { status: 'completed' } });
+        let patientId = req.patientDetails?.id || req.fieldReport?.patientId || null;
+        if (!isUUID(patientId)) patientId = null;
+
+        let paramedicId = req.paramedicId || null;
+        if (!isUUID(paramedicId)) paramedicId = null;
+
+        const pickup_lat = req.userLocation?.lat || req.incidentLocation?.lat || null;
+        const pickup_lng = req.userLocation?.lng || req.incidentLocation?.lng || null;
+        const pickup_address = req.patientDetails?.address || req.pickup_address || '';
+        const news2_score = req.news2Score || 0;
+        const vitals_log = req.vitalsHistory || [];
+        const gps_log = req.gps_log || req.gpsHistory || [];
+        const notes = req.fieldNotes || req.notes || '';
+
+        await Incident.upsert({
+          id: req.id || reqId,
+          patient_id: patientId,
+          ambulance_id: req.unitId || req.ambulanceSocket || null,
+          paramedic_id: paramedicId,
+          hospital_id: req.hospitalId || null,
+          status: 'completed',
+          pickup_lat: pickup_lat,
+          pickup_lng: pickup_lng,
+          pickup_address: pickup_address,
+          news2_score: news2_score,
+          vitals_log: vitals_log,
+          gps_log: gps_log,
+          notes: notes,
+          payment_status: req.payment_status || 'pending',
+          razorpay_order_id: req.razorpay_order_id || null
+        });
       } catch (err) {
         console.error('[DB ERROR] Failed to update mission status on complete:', err);
       }
@@ -25879,7 +25845,7 @@ io.on('connection', (socket) => {
           clearTimeout(dbWriteTimers[reqId]);
           delete dbWriteTimers[reqId];
         }
-        await Mission.updateOne({ reqId }, { $set: { status: 'cancelled' } });
+        await Incident.update({ status: 'cancelled' }, { where: { id: reqId } });
       } catch (err) {
         console.error('[DB ERROR] Failed to update mission status on reject-resume:', err);
       }
@@ -26190,13 +26156,12 @@ app.get('/api/marketplace/ambulances', (req, res) => {
 // ─── PREDICTIVE EMERGENCY HOTSPOT ANALYTICS ──────────────────────────────────
 app.get('/api/analytics/hotspots', authenticateToken, async (req, res) => {
   try {
-    const missions = await Mission.find().limit(100);
+    const missions = await Incident.findAll({ limit: 100 });
     const hotspots = [];
     const types = ['Cardiac Emergency', 'Trauma/Accident', 'Stroke', 'Respiratory Distress', 'Diabetic Crisis'];
     missions.forEach(m => {
-      const details = m.patientDetailsEncrypted || {};
-      if (details.userLocation) {
-        hotspots.push({ lat: details.userLocation.lat, lng: details.userLocation.lng, type: details.condition || types[Math.floor(Math.random() * types.length)], count: 1 });
+      if (m.pickup_lat && m.pickup_lng) {
+        hotspots.push({ lat: m.pickup_lat, lng: m.pickup_lng, type: m.notes || types[Math.floor(Math.random() * types.length)], count: 1 });
       }
     });
     // Generate simulated hotspot data around known incident zones
@@ -26205,6 +26170,7 @@ app.get('/api/analytics/hotspots', authenticateToken, async (req, res) => {
     });
     res.json({ hotspots, totalIncidents: missions.length });
   } catch (err) {
+    console.error('[HOTSPOTS ERROR]', err);
     res.status(500).json({ error: 'Hotspot analytics failed' });
   }
 });
