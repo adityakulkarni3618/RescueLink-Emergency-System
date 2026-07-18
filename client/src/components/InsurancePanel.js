@@ -18,7 +18,7 @@ export default function InsurancePanel({ hospitalId }) {
     setLoading(true);
     setError(null);
     try {
-      const token = sessionStorage.getItem('rescueLinkEnterpriseJWT') || localStorage.getItem('token');
+      const token = sessionStorage.getItem('rescuelink_token') || localStorage.getItem('token');
       const res = await fetch(`${SERVER_URL}/api/insurance/pre-approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token && { 'Authorization': `Bearer ${token}` }) },

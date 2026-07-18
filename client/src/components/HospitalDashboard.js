@@ -363,7 +363,7 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
     </div>
   );
 
-  const token = sessionStorage.getItem('rescueLinkEnterpriseJWT') || '';
+  const token = sessionStorage.getItem('rescuelink_token') || '';
 
   const handleHisAdmit = async () => {
     try {

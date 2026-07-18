@@ -88,7 +88,7 @@ const VideoCall = ({ socket, role, missionId: reqId }) => {
     setCalling(true);
 
     try {
-      const token = sessionStorage.getItem('rescueLinkEnterpriseJWT') || sessionStorage.getItem('rescuelink_token') || '';
+      const token = sessionStorage.getItem('rescuelink_token') || sessionStorage.getItem('rescuelink_token') || '';
       const SERVER_URL = process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin;
       const res = await axios.post(`${SERVER_URL}/api/video/create-room`, { reqId }, {
         headers: { Authorization: `Bearer ${token}` }
