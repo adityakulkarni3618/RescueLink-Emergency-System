@@ -79,7 +79,7 @@ export default function WarRoom({ socket, connected }) {
       const data = await res.json();
 
       if (res.ok && data.token) {
-        sessionStorage.setItem('rescueLinkEnterpriseJWT', data.token);
+        sessionStorage.setItem('rescuelink_token', data.token);
         setIsAuthenticated(true);
         sessionStorage.setItem('warroom_auth', '1');
         setLoginError('');
@@ -162,7 +162,7 @@ export default function WarRoom({ socket, connected }) {
     socket.on('ambulances-update', (data) => setAmbulances(data));
     socket.on('roles-update', (data) => setConnectedRoles(data));
 
-    const token = sessionStorage.getItem('rescueLinkEnterpriseJWT');
+    const token = sessionStorage.getItem('rescuelink_token');
     socket.emit('register-admin', { id: 'ADMIN', token });
 
     const poll = async () => {
