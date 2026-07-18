@@ -98,6 +98,9 @@ initPredictiveAI();
 // FIX C1: Debounced DB write — prevents SQLite I/O death spiral under high load.
 // Instead of writing on every vitals tick, we batch writes every 15 seconds per mission.
 const dbWriteTimers = {};
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const isUUID = (val) => typeof val === 'string' && UUID_REGEX.test(val);
+
 function syncMissionToDB(reqId) {
   if (dbWriteTimers[reqId]) return; // Already scheduled — skip
   dbWriteTimers[reqId] = setTimeout(async () => {
@@ -106,7 +109,12 @@ function syncMissionToDB(reqId) {
       const req = activeRequests[reqId];
       if (!req) return;
 
-      const patientId = req.patientDetails?.id || req.fieldReport?.patientId || null;
+      let patientId = req.patientDetails?.id || req.fieldReport?.patientId || null;
+      if (!isUUID(patientId)) patientId = null;
+
+      let paramedicId = req.paramedicId || null;
+      if (!isUUID(paramedicId)) paramedicId = null;
+
       const status = req.status || 'requested';
       const pickup_lat = req.userLocation?.lat || req.incidentLocation?.lat || null;
       const pickup_lng = req.userLocation?.lng || req.incidentLocation?.lng || null;
@@ -120,7 +128,7 @@ function syncMissionToDB(reqId) {
         id: req.id || reqId,
         patient_id: patientId,
         ambulance_id: req.unitId || req.ambulanceSocket || null,
-        paramedic_id: req.paramedicId || null,
+        paramedic_id: paramedicId,
         hospital_id: req.hospitalId || null,
         status: status,
         pickup_lat: pickup_lat,
@@ -1752,7 +1760,7 @@ io.on('connection', (socket) => {
           clearTimeout(dbWriteTimers[reqId]);
           delete dbWriteTimers[reqId];
         }
-        await Mission.updateOne({ reqId }, { $set: { status: 'cancelled' } });
+        await Incident.update({ status: 'cancelled' }, { where: { id: reqId } });
       } catch (err) {
         console.error('[DB ERROR] Failed to update mission status on cancel:', err);
       }
@@ -1974,10 +1982,7 @@ io.on('connection', (socket) => {
       io.to(`mission_${reqId}`).emit('patient-data', data);
 
       // Also update database if persistent
-      Mission.updateOne(
-        { reqId },
-        { $set: { patientDetailsEncrypted: req.patientDetails } }
-      ).catch(e => console.warn('[DB] Failed to update patient data', e.message));
+      syncMissionToDB(reqId);
     }
   });
 
@@ -2232,7 +2237,37 @@ io.on('connection', (socket) => {
           clearTimeout(dbWriteTimers[reqId]);
           delete dbWriteTimers[reqId];
         }
-        await Mission.updateOne({ reqId }, { $set: { status: 'completed' } });
+        let patientId = req.patientDetails?.id || req.fieldReport?.patientId || null;
+        if (!isUUID(patientId)) patientId = null;
+
+        let paramedicId = req.paramedicId || null;
+        if (!isUUID(paramedicId)) paramedicId = null;
+
+        const pickup_lat = req.userLocation?.lat || req.incidentLocation?.lat || null;
+        const pickup_lng = req.userLocation?.lng || req.incidentLocation?.lng || null;
+        const pickup_address = req.patientDetails?.address || req.pickup_address || '';
+        const news2_score = req.news2Score || 0;
+        const vitals_log = req.vitalsHistory || [];
+        const gps_log = req.gps_log || req.gpsHistory || [];
+        const notes = req.fieldNotes || req.notes || '';
+
+        await Incident.upsert({
+          id: req.id || reqId,
+          patient_id: patientId,
+          ambulance_id: req.unitId || req.ambulanceSocket || null,
+          paramedic_id: paramedicId,
+          hospital_id: req.hospitalId || null,
+          status: 'completed',
+          pickup_lat: pickup_lat,
+          pickup_lng: pickup_lng,
+          pickup_address: pickup_address,
+          news2_score: news2_score,
+          vitals_log: vitals_log,
+          gps_log: gps_log,
+          notes: notes,
+          payment_status: req.payment_status || 'pending',
+          razorpay_order_id: req.razorpay_order_id || null
+        });
       } catch (err) {
         console.error('[DB ERROR] Failed to update mission status on complete:', err);
       }
@@ -2270,7 +2305,7 @@ io.on('connection', (socket) => {
           clearTimeout(dbWriteTimers[reqId]);
           delete dbWriteTimers[reqId];
         }
-        await Mission.updateOne({ reqId }, { $set: { status: 'cancelled' } });
+        await Incident.update({ status: 'cancelled' }, { where: { id: reqId } });
       } catch (err) {
         console.error('[DB ERROR] Failed to update mission status on reject-resume:', err);
       }
@@ -2581,13 +2616,12 @@ app.get('/api/marketplace/ambulances', (req, res) => {
 // ─── PREDICTIVE EMERGENCY HOTSPOT ANALYTICS ──────────────────────────────────
 app.get('/api/analytics/hotspots', authenticateToken, async (req, res) => {
   try {
-    const missions = await Mission.find().limit(100);
+    const missions = await Incident.findAll({ limit: 100 });
     const hotspots = [];
     const types = ['Cardiac Emergency', 'Trauma/Accident', 'Stroke', 'Respiratory Distress', 'Diabetic Crisis'];
     missions.forEach(m => {
-      const details = m.patientDetailsEncrypted || {};
-      if (details.userLocation) {
-        hotspots.push({ lat: details.userLocation.lat, lng: details.userLocation.lng, type: details.condition || types[Math.floor(Math.random() * types.length)], count: 1 });
+      if (m.pickup_lat && m.pickup_lng) {
+        hotspots.push({ lat: m.pickup_lat, lng: m.pickup_lng, type: m.notes || types[Math.floor(Math.random() * types.length)], count: 1 });
       }
     });
     // Generate simulated hotspot data around known incident zones
@@ -2596,6 +2630,7 @@ app.get('/api/analytics/hotspots', authenticateToken, async (req, res) => {
     });
     res.json({ hotspots, totalIncidents: missions.length });
   } catch (err) {
+    console.error('[HOTSPOTS ERROR]', err);
     res.status(500).json({ error: 'Hotspot analytics failed' });
   }
 });
