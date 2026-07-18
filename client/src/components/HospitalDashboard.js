@@ -2240,8 +2240,8 @@ export default function HospitalDashboard({ socket, connected }) {
                 {isAuthInModal ? (
                   <div style={{ animation: 'slideDown 0.3s ease', padding: 20, background: 'rgba(0,0,0,0.2)', borderRadius: 10 }}>
                     <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', marginBottom: 15, textAlign: 'center' }}>🔒 SECURE AUTHENTICATION REQUIRED</div>
-                    <input value={loginId} onChange={e => setLoginId(e.target.value)} placeholder="HOSPITAL ID" style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', marginBottom: 12, outline: 'none' }} />
-                    <input type="password" value={loginPass} onChange={e => setLoginPass(e.target.value)} placeholder="ACCESS KEY" style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', marginBottom: 12, outline: 'none' }} />
+                    <input value={loginId} onChange={e => setLoginId(e.target.value)} placeholder="EMAIL" style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', marginBottom: 12, outline: 'none' }} />
+                    <input type="password" value={loginPass} onChange={e => setLoginPass(e.target.value)} placeholder="PASSWORD" style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', marginBottom: 12, outline: 'none' }} />
                     {loginError && <div style={{ color: '#ff4444', fontSize: 11, marginBottom: 12 }}>{loginError}</div>}
                     <div style={{ display: 'flex', gap: 10 }}>
                       <button onClick={() => setIsAuthInModal(false)} style={{ flex: 1, padding: 12, background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 8, color: '#aaa', cursor: 'pointer' }}>CANCEL</button>
@@ -2282,8 +2282,8 @@ export default function HospitalDashboard({ socket, connected }) {
               <div style={{ borderTop: '1px solid rgba(0,200,255,0.1)', paddingTop: 20 }}>
                 {showManualLogin ? (
                   <div style={{ animation: 'slideDown 0.3s ease' }}>
-                    <input value={loginId} onChange={e => setLoginId(e.target.value)} placeholder="HOSPITAL ID" style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', marginBottom: 12, outline: 'none' }} />
-                    <input type="password" value={loginPass} onChange={e => setLoginPass(e.target.value)} placeholder="ACCESS KEY" style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', marginBottom: 12, outline: 'none' }} />
+                    <input value={loginId} onChange={e => setLoginId(e.target.value)} placeholder="EMAIL" style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', marginBottom: 12, outline: 'none' }} />
+                    <input type="password" value={loginPass} onChange={e => setLoginPass(e.target.value)} placeholder="PASSWORD" style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', marginBottom: 12, outline: 'none' }} />
                     {loginError && <div style={{ color: '#ff4444', fontSize: 11, marginBottom: 12 }}>{loginError}</div>}
                     <div style={{ display: 'flex', gap: 10 }}>
                       <button onClick={() => setShowManualLogin(false)} style={{ flex: 1, padding: 12, background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 8, color: '#aaa', cursor: 'pointer' }}>CANCEL</button>
@@ -2324,6 +2324,12 @@ export default function HospitalDashboard({ socket, connected }) {
                 </div>
                 <style>{`
             @keyframes progress { 0% { width: 0%; } 50% { width: 70%; } 100% { width: 100%; } }
+            @media (max-width: 768px) {
+              .hospital-triage-grid {
+                grid-template-columns: 1fr !important;
+                overflow-y: auto !important;
+              }
+            }
           `}</style>
               </div>
             )}
@@ -2685,7 +2691,7 @@ export default function HospitalDashboard({ socket, connected }) {
             {/* Main Content Area Based on Active Tab */}
             <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
               {activeTab === 'triage' && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 320px', flex: 1, overflow: 'hidden', width: '100%' }}>
+                <div className="hospital-triage-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 320px', flex: 1, overflow: 'hidden', width: '100%' }}>
 
               {/* LEFT: Charts + Map */}
               <div style={{ padding: 20, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>

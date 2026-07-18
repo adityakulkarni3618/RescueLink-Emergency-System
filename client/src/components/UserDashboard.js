@@ -139,7 +139,7 @@ export default function UserDashboard({ socket, connected }) {
   });
   const [liveAmbulanceLoc, setLiveAmbulanceLoc] = useState(null);
   const [isAmbulanceArrived, setIsAmbulanceArrived] = useState(false);
-  const [patientData, setPatientData] = useState({ name: '', age: '', condition: '', bloodGroup: '' });
+  const [patientData, setPatientData] = useState({ name: '', age: '', condition: '', bloodGroup: '', mobile: '' });
   const [locationHistory, setLocationHistory] = useState([]);
   const [routePath, setRoutePath] = useState(null);
   const [assignedHospitalId, setAssignedHospitalId] = useState(null);
@@ -529,7 +529,7 @@ export default function UserDashboard({ socket, connected }) {
     setRequestStatus('searching');
     if (isSOS) setSosMode(true);
 
-    let userPhone = userPhoneOverride;
+    let userPhone = userPhoneOverride || patientData.mobile || '';
     if (!userPhone) {
       const sessionUserStr = sessionStorage.getItem('rescuelink_user');
       if (sessionUserStr) {
@@ -541,10 +541,10 @@ export default function UserDashboard({ socket, connected }) {
     }
 
     if (!userPhone) {
-      const enteredPhone = window.prompt("📱 Please enter your mobile number for dispatch updates (Optional):", "");
-      if (enteredPhone) {
-        userPhone = enteredPhone.trim();
-      }
+      showAlert("⚠️ A valid phone number is required in the Patient Information form to request dispatch.");
+      setRequestStatus('idle');
+      if (isSOS) setSosMode(false);
+      return;
     }
 
     socket.emit('request-ambulance', {
@@ -559,20 +559,25 @@ export default function UserDashboard({ socket, connected }) {
 
   const requestSOSDispatch = () => {
     if (!socket || !userLocation) { showAlert('Location not ready. Please wait a moment.'); return; }
-    if (!window.confirm('🚨 CONFIRM SOS DISPATCH\n\nThis will immediately alert the nearest ambulance.\nOnly use in a genuine emergency.')) return;
     
-    // Always prompt for phone number during SOS dispatch
-    const enteredPhone = window.prompt("📱 Please enter your mobile number to receive emergency updates and WhatsApp notifications:", "");
-    if (enteredPhone === null) {
-      // User cancelled the prompt
+    let userPhone = patientData.mobile || '';
+    if (!userPhone) {
+      const sessionUserStr = sessionStorage.getItem('rescuelink_user');
+      if (sessionUserStr) {
+        try {
+          const u = JSON.parse(sessionUserStr);
+          userPhone = u.mobile || '';
+        } catch (e) {}
+      }
+    }
+
+    if (!userPhone) {
+      showAlert("⚠️ A valid phone number is required in the Patient Information form to trigger SOS.");
       return;
     }
-    const trimmedPhone = enteredPhone.trim();
-    if (!trimmedPhone) {
-      showAlert("⚠️ A valid phone number is required to trigger SOS.");
-      return;
-    }
-    requestAmbulance(null, true, trimmedPhone);
+
+    if (!window.confirm('🚨 CONFIRM SOS DISPATCH\n\nThis will immediately alert the nearest ambulance.\nOnly use in a genuine emergency.')) return;
+    requestAmbulance(null, true, userPhone);
   };
 
   const topAmbs = Object.entries(ambulances)
@@ -937,6 +942,16 @@ export default function UserDashboard({ socket, connected }) {
                     style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, padding: 8, color: '#fff', fontSize: 14 }}
                   />
                 </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', marginBottom: 4 }}>PHONE NUMBER (For dispatch updates & WhatsApp notifications)</div>
+                <input 
+                  type="tel" 
+                  value={patientData.mobile} 
+                  onChange={e => setPatientData({...patientData, mobile: e.target.value})}
+                  placeholder="+91 or E.164 phone number"
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, padding: 8, color: '#fff', fontSize: 14 }}
+                />
               </div>
               <div>
                 <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', marginBottom: 4 }}>CRITICAL CONDITION (e.g. Heart Attack)</div>
