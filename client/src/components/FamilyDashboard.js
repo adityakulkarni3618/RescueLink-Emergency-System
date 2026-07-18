@@ -118,7 +118,7 @@ export default function FamilyDashboard({ socket, connected, reqId: propReqId })
           <div style={{ fontSize: 48, marginBottom: 16 }}>👨‍👩‍👧</div>
           <div style={{ fontFamily: "'Orbitron'", fontSize: 18, color: '#00c8ff', marginBottom: 12, letterSpacing: '0.1em' }}>FAMILY TRACKING PORTAL</div>
           <div style={{ fontSize: 13, color: 'rgba(160,200,255,0.6)', lineHeight: 1.6, marginBottom: 24 }}>
-            Enter the Mission ID (e.g. REQ-12345) shared by the patient or hospital to begin live tracking.
+            Enter the Mission ID (e.g. a3f9b2c1-...UUID) shared by the patient or hospital to begin live tracking.
           </div>
           <input 
             type="text" 
