@@ -115,6 +115,9 @@ function syncMissionToDB(reqId) {
       let paramedicId = req.paramedicId || null;
       if (!isUUID(paramedicId)) paramedicId = null;
 
+      let hospitalId = req.hospitalId || null;
+      if (!isUUID(hospitalId)) hospitalId = null;
+
       const status = req.status || 'requested';
       const pickup_lat = req.userLocation?.lat || req.incidentLocation?.lat || null;
       const pickup_lng = req.userLocation?.lng || req.incidentLocation?.lng || null;
@@ -129,7 +132,7 @@ function syncMissionToDB(reqId) {
         patient_id: patientId,
         ambulance_id: req.unitId || req.ambulanceSocket || null,
         paramedic_id: paramedicId,
-        hospital_id: req.hospitalId || null,
+        hospital_id: hospitalId,
         status: status,
         pickup_lat: pickup_lat,
         pickup_lng: pickup_lng,
@@ -2178,6 +2181,9 @@ io.on('connection', (socket) => {
         let paramedicId = req.paramedicId || null;
         if (!isUUID(paramedicId)) paramedicId = null;
 
+        let hospitalId = req.hospitalId || null;
+        if (!isUUID(hospitalId)) hospitalId = null;
+
         const pickup_lat = req.userLocation?.lat || req.incidentLocation?.lat || null;
         const pickup_lng = req.userLocation?.lng || req.incidentLocation?.lng || null;
         const pickup_address = req.patientDetails?.address || req.pickup_address || '';
@@ -2191,7 +2197,7 @@ io.on('connection', (socket) => {
           patient_id: patientId,
           ambulance_id: req.unitId || req.ambulanceSocket || null,
           paramedic_id: paramedicId,
-          hospital_id: req.hospitalId || null,
+          hospital_id: hospitalId,
           status: 'completed',
           pickup_lat: pickup_lat,
           pickup_lng: pickup_lng,
