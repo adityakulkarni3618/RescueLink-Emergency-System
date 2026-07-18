@@ -4340,6 +4340,12 @@ export default function AmbulanceStreamer({ socket, connected }) {
           visibility: visible;
           opacity: 1;
         }
+        @media (max-width: 768px) {
+          .ambulance-stream-grid {
+            grid-template-columns: 1fr !important;
+            overflow-y: auto !important;
+          }
+        }
       `}</style>
 
       {/* Header */}
@@ -4769,7 +4775,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 0, flex: 1, overflow: 'hidden' }}>
+      <div className="ambulance-stream-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 0, flex: 1, overflow: 'hidden' }}>
         {/* Main Panel */}
         <div style={{ padding: 24, overflowY: 'auto', background: 'rgba(0,0,0,0.2)', position: 'relative' }}>
 
@@ -7471,7 +7477,6 @@ export default function HeartbeatViz({ bpm = 80, isCritical = false, width = 120
 
 ================================================
 FILE: client/src/components/HospitalDashboard.js
-================================================
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -9714,8 +9719,8 @@ export default function HospitalDashboard({ socket, connected }) {
                 {isAuthInModal ? (
                   <div style={{ animation: 'slideDown 0.3s ease', padding: 20, background: 'rgba(0,0,0,0.2)', borderRadius: 10 }}>
                     <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', marginBottom: 15, textAlign: 'center' }}>🔒 SECURE AUTHENTICATION REQUIRED</div>
-                    <input value={loginId} onChange={e => setLoginId(e.target.value)} placeholder="HOSPITAL ID" style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', marginBottom: 12, outline: 'none' }} />
-                    <input type="password" value={loginPass} onChange={e => setLoginPass(e.target.value)} placeholder="ACCESS KEY" style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', marginBottom: 12, outline: 'none' }} />
+                    <input value={loginId} onChange={e => setLoginId(e.target.value)} placeholder="EMAIL" style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', marginBottom: 12, outline: 'none' }} />
+                    <input type="password" value={loginPass} onChange={e => setLoginPass(e.target.value)} placeholder="PASSWORD" style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', marginBottom: 12, outline: 'none' }} />
                     {loginError && <div style={{ color: '#ff4444', fontSize: 11, marginBottom: 12 }}>{loginError}</div>}
                     <div style={{ display: 'flex', gap: 10 }}>
                       <button onClick={() => setIsAuthInModal(false)} style={{ flex: 1, padding: 12, background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 8, color: '#aaa', cursor: 'pointer' }}>CANCEL</button>
@@ -9756,8 +9761,8 @@ export default function HospitalDashboard({ socket, connected }) {
               <div style={{ borderTop: '1px solid rgba(0,200,255,0.1)', paddingTop: 20 }}>
                 {showManualLogin ? (
                   <div style={{ animation: 'slideDown 0.3s ease' }}>
-                    <input value={loginId} onChange={e => setLoginId(e.target.value)} placeholder="HOSPITAL ID" style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', marginBottom: 12, outline: 'none' }} />
-                    <input type="password" value={loginPass} onChange={e => setLoginPass(e.target.value)} placeholder="ACCESS KEY" style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', marginBottom: 12, outline: 'none' }} />
+                    <input value={loginId} onChange={e => setLoginId(e.target.value)} placeholder="EMAIL" style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', marginBottom: 12, outline: 'none' }} />
+                    <input type="password" value={loginPass} onChange={e => setLoginPass(e.target.value)} placeholder="PASSWORD" style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', marginBottom: 12, outline: 'none' }} />
                     {loginError && <div style={{ color: '#ff4444', fontSize: 11, marginBottom: 12 }}>{loginError}</div>}
                     <div style={{ display: 'flex', gap: 10 }}>
                       <button onClick={() => setShowManualLogin(false)} style={{ flex: 1, padding: 12, background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 8, color: '#aaa', cursor: 'pointer' }}>CANCEL</button>
@@ -9798,6 +9803,12 @@ export default function HospitalDashboard({ socket, connected }) {
                 </div>
                 <style>{`
             @keyframes progress { 0% { width: 0%; } 50% { width: 70%; } 100% { width: 100%; } }
+            @media (max-width: 768px) {
+              .hospital-triage-grid {
+                grid-template-columns: 1fr !important;
+                overflow-y: auto !important;
+              }
+            }
           `}</style>
               </div>
             )}
@@ -10159,7 +10170,7 @@ export default function HospitalDashboard({ socket, connected }) {
             {/* Main Content Area Based on Active Tab */}
             <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
               {activeTab === 'triage' && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 320px', flex: 1, overflow: 'hidden', width: '100%' }}>
+                <div className="hospital-triage-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 320px', flex: 1, overflow: 'hidden', width: '100%' }}>
 
               {/* LEFT: Charts + Map */}
               <div style={{ padding: 20, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -12165,7 +12176,7 @@ export default function UserDashboard({ socket, connected }) {
   });
   const [liveAmbulanceLoc, setLiveAmbulanceLoc] = useState(null);
   const [isAmbulanceArrived, setIsAmbulanceArrived] = useState(false);
-  const [patientData, setPatientData] = useState({ name: '', age: '', condition: '', bloodGroup: '' });
+  const [patientData, setPatientData] = useState({ name: '', age: '', condition: '', bloodGroup: '', mobile: '' });
   const [locationHistory, setLocationHistory] = useState([]);
   const [routePath, setRoutePath] = useState(null);
   const [assignedHospitalId, setAssignedHospitalId] = useState(null);
@@ -12555,7 +12566,7 @@ export default function UserDashboard({ socket, connected }) {
     setRequestStatus('searching');
     if (isSOS) setSosMode(true);
 
-    let userPhone = userPhoneOverride;
+    let userPhone = userPhoneOverride || patientData.mobile || '';
     if (!userPhone) {
       const sessionUserStr = sessionStorage.getItem('rescuelink_user');
       if (sessionUserStr) {
@@ -12567,10 +12578,10 @@ export default function UserDashboard({ socket, connected }) {
     }
 
     if (!userPhone) {
-      const enteredPhone = window.prompt("📱 Please enter your mobile number for dispatch updates (Optional):", "");
-      if (enteredPhone) {
-        userPhone = enteredPhone.trim();
-      }
+      showAlert("⚠️ A valid phone number is required in the Patient Information form to request dispatch.");
+      setRequestStatus('idle');
+      if (isSOS) setSosMode(false);
+      return;
     }
 
     socket.emit('request-ambulance', {
@@ -12585,20 +12596,25 @@ export default function UserDashboard({ socket, connected }) {
 
   const requestSOSDispatch = () => {
     if (!socket || !userLocation) { showAlert('Location not ready. Please wait a moment.'); return; }
-    if (!window.confirm('🚨 CONFIRM SOS DISPATCH\n\nThis will immediately alert the nearest ambulance.\nOnly use in a genuine emergency.')) return;
     
-    // Always prompt for phone number during SOS dispatch
-    const enteredPhone = window.prompt("📱 Please enter your mobile number to receive emergency updates and WhatsApp notifications:", "");
-    if (enteredPhone === null) {
-      // User cancelled the prompt
+    let userPhone = patientData.mobile || '';
+    if (!userPhone) {
+      const sessionUserStr = sessionStorage.getItem('rescuelink_user');
+      if (sessionUserStr) {
+        try {
+          const u = JSON.parse(sessionUserStr);
+          userPhone = u.mobile || '';
+        } catch (e) {}
+      }
+    }
+
+    if (!userPhone) {
+      showAlert("⚠️ A valid phone number is required in the Patient Information form to trigger SOS.");
       return;
     }
-    const trimmedPhone = enteredPhone.trim();
-    if (!trimmedPhone) {
-      showAlert("⚠️ A valid phone number is required to trigger SOS.");
-      return;
-    }
-    requestAmbulance(null, true, trimmedPhone);
+
+    if (!window.confirm('🚨 CONFIRM SOS DISPATCH\n\nThis will immediately alert the nearest ambulance.\nOnly use in a genuine emergency.')) return;
+    requestAmbulance(null, true, userPhone);
   };
 
   const topAmbs = Object.entries(ambulances)
@@ -12963,6 +12979,16 @@ export default function UserDashboard({ socket, connected }) {
                     style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, padding: 8, color: '#fff', fontSize: 14 }}
                   />
                 </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', marginBottom: 4 }}>PHONE NUMBER (For dispatch updates & WhatsApp notifications)</div>
+                <input 
+                  type="tel" 
+                  value={patientData.mobile} 
+                  onChange={e => setPatientData({...patientData, mobile: e.target.value})}
+                  placeholder="+91 or E.164 phone number"
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, padding: 8, color: '#fff', fontSize: 14 }}
+                />
               </div>
               <div>
                 <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', marginBottom: 4 }}>CRITICAL CONDITION (e.g. Heart Attack)</div>
@@ -13790,7 +13816,6 @@ export default VideoCall;
 
 ================================================
 FILE: client/src/components/WarRoom.js
-================================================
 import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
@@ -14026,6 +14051,14 @@ export default function WarRoom({ socket, connected }) {
   /* ── Main dashboard ─────────────────────────────────────────────── */
   return (
     <div style={{ height: '100vh', background: '#020611', fontFamily: "'Rajdhani', sans-serif", color: '#e0eaff', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <style>{`
+        @media (max-width: 768px) {
+          .warroom-grid {
+            grid-template-columns: 1fr !important;
+            overflow-y: auto !important;
+          }
+        }
+      `}</style>
 
       {/* ── Header ── */}
       <div style={{ background: 'rgba(5,20,10,0.98)', borderBottom: '1px solid rgba(0,255,136,0.2)', padding: '10px 450px 10px 24px', display: 'flex', alignItems: 'center', gap: 16, minHeight: 62, height: 'auto', flexWrap: 'wrap', flexShrink: 0 }}>
@@ -14059,7 +14092,7 @@ export default function WarRoom({ socket, connected }) {
       </div>
 
       {/* ── Main Grid ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14, padding: 14, flex: 1, overflow: 'hidden', minHeight: 0 }}>
+      <div className="warroom-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14, padding: 14, flex: 1, overflow: 'hidden', minHeight: 0 }}>
 
         {/* Left column: Tabs + Content */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minHeight: 0 }}>
@@ -23720,6 +23753,9 @@ function syncMissionToDB(reqId) {
       let paramedicId = req.paramedicId || null;
       if (!isUUID(paramedicId)) paramedicId = null;
 
+      let hospitalId = req.hospitalId || null;
+      if (!isUUID(hospitalId)) hospitalId = null;
+
       const status = req.status || 'requested';
       const pickup_lat = req.userLocation?.lat || req.incidentLocation?.lat || null;
       const pickup_lng = req.userLocation?.lng || req.incidentLocation?.lng || null;
@@ -23734,7 +23770,7 @@ function syncMissionToDB(reqId) {
         patient_id: patientId,
         ambulance_id: req.unitId || req.ambulanceSocket || null,
         paramedic_id: paramedicId,
-        hospital_id: req.hospitalId || null,
+        hospital_id: hospitalId,
         status: status,
         pickup_lat: pickup_lat,
         pickup_lng: pickup_lng,
@@ -25783,6 +25819,9 @@ io.on('connection', (socket) => {
         let paramedicId = req.paramedicId || null;
         if (!isUUID(paramedicId)) paramedicId = null;
 
+        let hospitalId = req.hospitalId || null;
+        if (!isUUID(hospitalId)) hospitalId = null;
+
         const pickup_lat = req.userLocation?.lat || req.incidentLocation?.lat || null;
         const pickup_lng = req.userLocation?.lng || req.incidentLocation?.lng || null;
         const pickup_address = req.patientDetails?.address || req.pickup_address || '';
@@ -25796,7 +25835,7 @@ io.on('connection', (socket) => {
           patient_id: patientId,
           ambulance_id: req.unitId || req.ambulanceSocket || null,
           paramedic_id: paramedicId,
-          hospital_id: req.hospitalId || null,
+          hospital_id: hospitalId,
           status: 'completed',
           pickup_lat: pickup_lat,
           pickup_lng: pickup_lng,
