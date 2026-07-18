@@ -1871,6 +1871,12 @@ export default function AmbulanceStreamer({ socket, connected }) {
           visibility: visible;
           opacity: 1;
         }
+        @media (max-width: 768px) {
+          .ambulance-stream-grid {
+            grid-template-columns: 1fr !important;
+            overflow-y: auto !important;
+          }
+        }
       `}</style>
 
       {/* Header */}
@@ -2300,7 +2306,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 0, flex: 1, overflow: 'hidden' }}>
+      <div className="ambulance-stream-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 0, flex: 1, overflow: 'hidden' }}>
         {/* Main Panel */}
         <div style={{ padding: 24, overflowY: 'auto', background: 'rgba(0,0,0,0.2)', position: 'relative' }}>
 

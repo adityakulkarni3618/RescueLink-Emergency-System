@@ -233,6 +233,14 @@ export default function WarRoom({ socket, connected }) {
   /* ── Main dashboard ─────────────────────────────────────────────── */
   return (
     <div style={{ height: '100vh', background: '#020611', fontFamily: "'Rajdhani', sans-serif", color: '#e0eaff', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <style>{`
+        @media (max-width: 768px) {
+          .warroom-grid {
+            grid-template-columns: 1fr !important;
+            overflow-y: auto !important;
+          }
+        }
+      `}</style>
 
       {/* ── Header ── */}
       <div style={{ background: 'rgba(5,20,10,0.98)', borderBottom: '1px solid rgba(0,255,136,0.2)', padding: '10px 450px 10px 24px', display: 'flex', alignItems: 'center', gap: 16, minHeight: 62, height: 'auto', flexWrap: 'wrap', flexShrink: 0 }}>
@@ -266,7 +274,7 @@ export default function WarRoom({ socket, connected }) {
       </div>
 
       {/* ── Main Grid ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14, padding: 14, flex: 1, overflow: 'hidden', minHeight: 0 }}>
+      <div className="warroom-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14, padding: 14, flex: 1, overflow: 'hidden', minHeight: 0 }}>
 
         {/* Left column: Tabs + Content */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minHeight: 0 }}>
