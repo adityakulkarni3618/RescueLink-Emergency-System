@@ -33,12 +33,42 @@ router.post('/login', validate(loginBody), async (req, res) => {
   try {
     let user = await User.findOne({ where: { email: loginIdentifier, is_active: true } });
     
-    // Dynamic fallback auto-seeding for default demo users and ambulance units
+    const ambulancePasswords = {
+      'amb-101': 'kP9x#vR2$m',
+      'amb-102': 'wF7!zN4*qB',
+      'amb-103': 'tY5&cX3@hL',
+      'amb-104': 'gJ2(sD8^pW',
+      'amb-105': 'bM4%aV7)eK'
+    };
     const isAmbulanceId = /^AMB-10[1-5]$/i.test(loginIdentifier);
-    const expectedAmbulancePassword = isAmbulanceId ? `rescue${loginIdentifier.substring(4)}` : '';
-    const isAmbulanceLogin = isAmbulanceId && (password === expectedAmbulancePassword || password === 'password123');
+    const expectedAmbulancePassword = isAmbulanceId ? ambulancePasswords[loginIdentifier.toLowerCase()] : '';
+    const isAmbulanceLogin = isAmbulanceId && password === expectedAmbulancePassword;
 
-    if (!user && (password === 'password123' || isAmbulanceLogin)) {
+    if (!user && isAmbulanceLogin) {
+      const demoUsers = {};
+      
+      let demoDetails = {
+        name: `Unit ${loginIdentifier.substring(4)} Lead Paramedic`,
+        role: 'paramedic',
+        mobile: `+91-887766554${loginIdentifier.substring(4)}`
+      };
+      if (demoDetails) {
+        console.log(`[AUTH] Auto-creating missing demo user: ${loginIdentifier}`);
+        const passwordHash = bcrypt.hashSync(expectedAmbulancePassword, 10);
+        
+        let hospitalId = null;
+
+        user = await User.create({
+          name: demoDetails.name,
+          email: loginIdentifier,
+          password: passwordHash,
+          role: demoDetails.role,
+          mobile: demoDetails.mobile,
+          hospital_id: hospitalId,
+          is_active: true
+        });
+      }
+    } else if (!user && password === 'password123') {
       const demoUsers = {
         'admin@rescuelink.com': { name: 'Government Admin', role: 'city_admin', mobile: '+91-7766554433' },
         'doctor@rescuelink.com': { name: 'Dr. Sarah Smith', role: 'doctor', mobile: '+91-9988776655' },
@@ -49,17 +79,9 @@ router.post('/login', validate(loginBody), async (req, res) => {
       };
       
       let demoDetails = demoUsers[loginIdentifier];
-      if (isAmbulanceId) {
-        const unitNum = loginIdentifier.substring(4);
-        demoDetails = {
-          name: `Unit ${unitNum} Lead Paramedic`,
-          role: 'paramedic',
-          mobile: `+91-887766554${unitNum}`
-        };
-      }
       if (demoDetails) {
         console.log(`[AUTH] Auto-creating missing demo user: ${loginIdentifier}`);
-        const passwordHash = bcrypt.hashSync(isAmbulanceId ? expectedAmbulancePassword : 'password123', 10);
+        const passwordHash = bcrypt.hashSync('password123', 10);
         
         // Find or create default hospital first for doctor roles
         let hospitalId = null;
@@ -95,20 +117,22 @@ router.post('/login', validate(loginBody), async (req, res) => {
 
     let isMatch = await bcrypt.compare(password, user.password);
     const isUserAmbId = /^AMB-10[1-5]$/i.test(user.email);
-    const expectedUserAmbPassword = isUserAmbId ? `rescue${user.email.substring(4)}` : '';
-    if (!isMatch && (password === 'password123' || (isUserAmbId && password === expectedUserAmbPassword))) {
-      const demoEmails = [
-        'admin@rescuelink.com',
-        'doctor@rescuelink.com',
-        'doctor2@rescuelink.com',
-        'doctor3@rescuelink.com',
-        'paramedic@rescuelink.com',
-        'patient@rescuelink.com',
-        'amb-101', 'amb-102', 'amb-103', 'amb-104', 'amb-105',
-        'AMB-101', 'AMB-102', 'AMB-103', 'AMB-104', 'AMB-105'
-      ];
-      if (demoEmails.includes(user.email) || isUserAmbId) {
+    const expectedUserAmbPassword = isUserAmbId ? ambulancePasswords[user.email.toLowerCase()] : '';
+    if (!isMatch) {
+      if (isUserAmbId && password === expectedUserAmbPassword) {
         isMatch = true;
+      } else if (!isUserAmbId && password === 'password123') {
+        const demoEmails = [
+          'admin@rescuelink.com',
+          'doctor@rescuelink.com',
+          'doctor2@rescuelink.com',
+          'doctor3@rescuelink.com',
+          'paramedic@rescuelink.com',
+          'patient@rescuelink.com'
+        ];
+        if (demoEmails.includes(user.email)) {
+          isMatch = true;
+        }
       }
     }
 
