@@ -3337,7 +3337,7 @@ export default function AmbulanceMarketplace({ socket, userLocation, onBookAmbul
   }, [userLocation, mapCenter]);
 
   const filtered = Array.isArray(ambulances) ? ambulances
-    .filter(a => selectedType === 'all' || a.type.toLowerCase().includes(selectedType.toLowerCase()))
+    .filter(a => selectedType === 'all' || (a.type && a.type.toLowerCase().includes(selectedType.toLowerCase())))
     .sort((a, b) => {
       if (sortBy === 'response') return a.responseTime - b.responseTime;
       if (sortBy === 'price') return a.basePrice - b.basePrice;
@@ -3547,7 +3547,7 @@ export default function AmbulanceMarketplace({ socket, userLocation, onBookAmbul
                   </div>
 
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-                    {amb.features.map((f, fi) => (
+                    {Array.isArray(amb.features) && amb.features.map((f, fi) => (
                       <span key={fi} style={{
                         padding: '2px 8px', background: 'rgba(0,200,255,0.06)',
                         border: '1px solid rgba(0,200,255,0.15)', borderRadius: 12,
