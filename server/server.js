@@ -1583,7 +1583,10 @@ io.on('connection', (socket) => {
     role = 'ambulance';
 
     // FETCH PERSISTENT REGISTRY DATA
-    const account = await User.findOne({ where: { id: unitId } });
+    let account = await User.findOne({ where: { id: unitId } });
+    if (!account) {
+      account = await User.findOne({ where: { email: unitId } });
+    }
     const lat = data.location?.lat || (account && account.lat) || 18.5204;
     const lng = data.location?.lng || (account && account.lng) || 73.8567;
 
@@ -1866,18 +1869,19 @@ io.on('connection', (socket) => {
 
     if (chosenCandidateId) {
       const isVirtual = chosenCandidateId.startsWith('VIRTUAL-AMB-') || combinedAmbulances[chosenCandidateId].isSimulated;
+      const userPhone = data.userPhone || patientDetails?.mobile || (patientDetails?.emergencyContact && patientDetails.emergencyContact.includes('–') ? patientDetails.emergencyContact.split('–')[1].trim() : '') || '+1234567890';
       if (isVirtual) {
         console.log(`[Sim Dispatch] Auto-routing request ${reqId} to virtual unit ${chosenCandidateId}`);
         startVirtualAmbulanceSimulation(reqId, chosenCandidateId);
         // WhatsApp Notify User (Simulated)
-        whatsappService.notifyUserDispatched(data.userPhone || '+1234567890', chosenCandidateId, 5);
+        whatsappService.notifyUserDispatched(userPhone, chosenCandidateId, 5);
       } else {
         io.to(chosenCandidateId).emit('incoming-ambulance-request', activeRequests[reqId]);
         // WhatsApp Notify Ambulance Driver
         const driverMobile = combinedAmbulances[chosenCandidateId]?.contactInfo || '+1234567890';
         whatsappService.notifyAmbulanceAssigned(driverMobile, reqId, activeRequests[reqId].userLocation);
         // WhatsApp Notify User
-        whatsappService.notifyUserDispatched(data.userPhone || '+1234567890', chosenCandidateId, 5);
+        whatsappService.notifyUserDispatched(userPhone, chosenCandidateId, 5);
       }
 
       // FCM Push Notification for user/patient

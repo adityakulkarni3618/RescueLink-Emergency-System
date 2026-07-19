@@ -564,12 +564,14 @@ export default function AmbulanceStreamer({ socket, connected }) {
     const userStr = sessionStorage.getItem('rescuelink_user');
     if (userStr) {
       const user = JSON.parse(userStr);
-      return {
+      const emailUpper = (user.email || '').toUpperCase();
+      const found = AMBULANCE_CREDENTIALS.find(c => c.unitId === emailUpper) || {
         unitId: user.id,
         driverName: user.name,
         vehicleNo: 'EMG-RL-0101',
         type: 'ALS'
       };
+      return found;
     }
     return null;
   });
@@ -577,12 +579,14 @@ export default function AmbulanceStreamer({ socket, connected }) {
     const userStr = sessionStorage.getItem('rescuelink_user');
     if (userStr) {
       const user = JSON.parse(userStr);
-      setAuthUnit({
+      const emailUpper = (user.email || '').toUpperCase();
+      const found = AMBULANCE_CREDENTIALS.find(c => c.unitId === emailUpper) || {
         unitId: user.id,
         driverName: user.name,
         vehicleNo: 'EMG-RL-0101',
         type: 'ALS'
-      });
+      };
+      setAuthUnit(found);
       setIsAuthenticated(true);
     }
   }, []);
@@ -1452,7 +1456,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
     try {
       // 1. Send the scanned ID to the secure backend to query the National Database
       const SERVER_URL = process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin;
-      const token = sessionStorage.getItem('rescueLinkEnterpriseJWT') || '';
+      const token = sessionStorage.getItem('rescuelink_token') || '';
       const res = await fetch(`${SERVER_URL}/api/patient/lookup/${nationalId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
