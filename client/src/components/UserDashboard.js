@@ -186,6 +186,7 @@ export default function UserDashboard({ socket, connected }) {
   const [voiceSosActive, setVoiceSosActive] = useState(false);
   const [wearableConnected, setWearableConnected] = useState(false);
   const [wearableVitals, setWearableVitals] = useState({ heartRate: 75, spo2: 98, systolic: 120, diastolic: 80, temperature: 36.6 });
+  const [isRealBluetooth, setIsRealBluetooth] = useState(false);
   const SERVER_URL_CONST = process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin;
 
   // ETA live countdown
@@ -350,6 +351,7 @@ export default function UserDashboard({ socket, connected }) {
   // --- Wearable Vitals Sync Simulator ---
   useEffect(() => {
     if (!wearableConnected) return;
+    if (isRealBluetooth) return;
     const timer = setInterval(() => {
       setWearableVitals(prev => {
         // Add random biological variance
@@ -374,7 +376,7 @@ export default function UserDashboard({ socket, connected }) {
     }, 1500);
 
     return () => clearInterval(timer);
-  }, [wearableConnected, currentReqId, socket, connected]);
+  }, [wearableConnected, isRealBluetooth, currentReqId, socket, connected]);
 
   // --- Offline Mode Listeners ---
   useEffect(() => {
@@ -633,16 +635,52 @@ export default function UserDashboard({ socket, connected }) {
       }
       showAlert('🔌 Pairing Wearable watch via Bluetooth... Select your device.');
       const device = await navigator.bluetooth.requestDevice({
-        acceptAllDevices: true,
-        optionalServices: ['heart_rate']
+        filters: [{ services: ['heart_rate'] }]
       });
-      showAlert(`⌚ Connected to: ${device.name || 'Smartwatch'}`);
+      showAlert(`⌚ Connecting GATT Server...`);
+      const server = await device.gatt.connect();
+      showAlert(`⌚ Discovering Heart Rate Service...`);
+      const service = await server.getPrimaryService('heart_rate');
+      const characteristic = await service.getCharacteristic('heart_rate_measurement');
+      
+      await characteristic.startNotifications();
+      showAlert(`⌚ Connected to: ${device.name || 'Smartwatch'}. Reading real-time Heart Rate.`);
       setWearableConnected(true);
+      setIsRealBluetooth(true);
+
+      characteristic.addEventListener('characteristicvaluechanged', (event) => {
+        const value = event.target.value;
+        const hr = value.getUint8(1);
+        setWearableVitals(prev => {
+          const next = {
+            ...prev,
+            heartRate: hr,
+            source: 'LIVE_BLE'
+          };
+          if (currentReqId && socket && connected) {
+            socket.emit('vitals-update', { ...next, reqId: currentReqId });
+          }
+          return next;
+        });
+      });
+
+      device.addEventListener('gattserverdisconnected', () => {
+        setWearableConnected(false);
+        setIsRealBluetooth(false);
+        showAlert('❌ Wearable watch disconnected.');
+      });
+
     } catch (e) {
       console.warn(e);
-      // Fallback to mock pairing if user cancels bluetooth selection or doesn't support it
-      setWearableConnected(true);
-      showAlert('⌚ Wearable watch connected (Simulated/Fallback). Fall detection active.');
+      if (window.confirm('Web Bluetooth pairing failed or was cancelled. Would you like to simulate a connected smartwatch instead?')) {
+        setWearableConnected(true);
+        setIsRealBluetooth(false);
+        showAlert('⌚ Wearable watch connected (Simulated). Fall detection active.');
+      } else {
+        setWearableConnected(false);
+        setIsRealBluetooth(false);
+        showAlert('❌ Wearable watch pairing failed.');
+      }
     }
   };
 
