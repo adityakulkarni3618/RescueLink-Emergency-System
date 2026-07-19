@@ -581,10 +581,6 @@ app.get('/api/status', (req, res) => {
 
 
 
-// Fallback to React index.html for unknown routes (React Router support)
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../client/build/index.html'));
-});
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -2596,6 +2592,11 @@ app.post('/api/resources/share', authenticateToken, async (req, res) => {
 app.get('/api/resources/shares', (req, res) => {
   const active = Object.values(activeResourceShares).filter(r => r.status === 'available');
   res.json(active);
+});
+
+// Fallback to React index.html for unknown routes (React Router support)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/build/index.html'));
 });
 
 // ─── NEW ENTERPRISE SOCKET HANDLERS ───────────────────────────────────────────────
