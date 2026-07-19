@@ -796,18 +796,6 @@ export default function UserDashboard({ socket, connected }) {
               { icon: '🩸', label: 'BLOOD NET', sublabel: 'Find blood banks', color: '#ff4444', action: () => setShowBloodNetwork(true) },
               { icon: '🚑', label: 'MARKETPLACE', sublabel: 'Book ambulance', color: '#ffb800', action: () => setShowMarketplace(true) },
               { icon: '🎙️', label: 'VOICE SOS', sublabel: voiceSosActive ? 'Listening...' : 'Say "Help"', color: voiceSosActive ? '#00ff88' : '#8888ff', action: () => setVoiceSosActive(!voiceSosActive) },
-              { icon: '⌚', label: 'WEARABLE', sublabel: wearableConnected ? 'Connected' : 'Pair Watch', color: wearableConnected ? '#00ff88' : '#aaaaaa', action: () => {
-                if (wearableConnected) {
-                  if (window.confirm('Simulate Fall Detection?')) {
-                    playAlertBeep();
-                    showAlert('⚠️ FALL DETECTED BY WEARABLE. Auto-Dispatching SOS...');
-                    requestAmbulance(null, true);
-                  }
-                } else {
-                  setWearableConnected(true);
-                  showAlert('⌚ Smartwatch Paired. Fall detection active.');
-                }
-              } },
             ].map((btn, i) => (
               <button key={i} onClick={btn.action} style={{
                 padding: '10px 4px', background: `${btn.color}15`,
