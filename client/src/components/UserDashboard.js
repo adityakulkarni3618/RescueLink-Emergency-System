@@ -139,7 +139,19 @@ export default function UserDashboard({ socket, connected }) {
   });
   const [liveAmbulanceLoc, setLiveAmbulanceLoc] = useState(null);
   const [isAmbulanceArrived, setIsAmbulanceArrived] = useState(false);
-  const [patientData, setPatientData] = useState({ name: '', age: '', condition: '', bloodGroup: '', mobile: '' });
+  const [patientData, setPatientData] = useState(() => {
+    const sessionUserStr = sessionStorage.getItem('rescuelink_user');
+    let name = '';
+    let mobile = '';
+    if (sessionUserStr) {
+      try {
+        const u = JSON.parse(sessionUserStr);
+        name = u.name || '';
+        mobile = u.mobile || '';
+      } catch (e) {}
+    }
+    return { name, age: '', condition: '', bloodGroup: '', mobile };
+  });
   const [locationHistory, setLocationHistory] = useState([]);
   const [routePath, setRoutePath] = useState(null);
   const [assignedHospitalId, setAssignedHospitalId] = useState(null);
@@ -173,6 +185,7 @@ export default function UserDashboard({ socket, connected }) {
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [voiceSosActive, setVoiceSosActive] = useState(false);
   const [wearableConnected, setWearableConnected] = useState(false);
+  const [wearableVitals, setWearableVitals] = useState({ heartRate: 75, spo2: 98, systolic: 120, diastolic: 80, temperature: 36.6 });
   const SERVER_URL_CONST = process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin;
 
   // ETA live countdown
@@ -301,7 +314,16 @@ export default function UserDashboard({ socket, connected }) {
 
       // Add a verified flag since it came from the secure gateway
       setPatientData(prev => {
-        const verifiedData = { ...data, isVerified: true, name: data.name || prev.name };
+        let extractedMobile = '';
+        if (data.emergencyContact && data.emergencyContact.includes('–')) {
+          extractedMobile = data.emergencyContact.split('–')[1].trim();
+        }
+        const verifiedData = { 
+          ...data, 
+          isVerified: true, 
+          name: data.name || prev.name,
+          mobile: extractedMobile || prev.mobile || ''
+        };
         if (currentReqId && socket) {
           socket.emit('patient-data', { reqId: currentReqId, ...verifiedData });
         }
@@ -322,9 +344,37 @@ export default function UserDashboard({ socket, connected }) {
       if (m.ambulanceSocket) setAssignedAmbulanceId(m.ambulanceSocket);
       if (m.routePath && !routePath) setRoutePath(m.routePath.map(pos => [pos.lat, pos.lng]));
       if (m.status) setRequestStatus(m.status);
-      if (m.arrived) setIsAmbulanceArrived(true);
     }
   }, [currentReqId, missions]);
+
+  // --- Wearable Vitals Sync Simulator ---
+  useEffect(() => {
+    if (!wearableConnected) return;
+    const timer = setInterval(() => {
+      setWearableVitals(prev => {
+        // Add random biological variance
+        const hrDiff = Math.floor(Math.random() * 5) - 2; // -2 to +2
+        const spo2Diff = Math.random() > 0.85 ? (Math.random() > 0.5 ? 1 : -1) : 0;
+        
+        const next = {
+          heartRate: Math.max(60, Math.min(120, prev.heartRate + hrDiff)),
+          spo2: Math.max(92, Math.min(100, prev.spo2 + spo2Diff)),
+          systolic: Math.max(100, Math.min(140, prev.systolic + (Math.random() > 0.8 ? (Math.random() > 0.5 ? 1 : -1) : 0))),
+          diastolic: Math.max(60, Math.min(90, prev.diastolic + (Math.random() > 0.8 ? (Math.random() > 0.5 ? 1 : -1) : 0))),
+          temperature: Math.max(36.1, Math.min(37.5, parseFloat((prev.temperature + (Math.random() * 0.2 - 0.1)).toFixed(1)))),
+          source: 'LIVE'
+        };
+
+        // If there's an active emergency mission, stream live smartwatch vitals to the paramedic & hospital
+        if (currentReqId && socket && connected) {
+          socket.emit('vitals-update', { ...next, reqId: currentReqId });
+        }
+        return next;
+      });
+    }, 1500);
+
+    return () => clearInterval(timer);
+  }, [wearableConnected, currentReqId, socket, connected]);
 
   // --- Offline Mode Listeners ---
   useEffect(() => {
@@ -343,7 +393,7 @@ export default function UserDashboard({ socket, connected }) {
     if (!voiceSosActive) return;
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      showAlert("Voice SOS not supported in this browser.");
+      showAlert("⚠️ Voice SOS requires Chrome or Edge browser to function correctly.");
       setVoiceSosActive(false);
       return;
     }
@@ -751,7 +801,7 @@ export default function UserDashboard({ socket, connected }) {
                   if (window.confirm('Simulate Fall Detection?')) {
                     playAlertBeep();
                     showAlert('⚠️ FALL DETECTED BY WEARABLE. Auto-Dispatching SOS...');
-                    requestAmbulance();
+                    requestAmbulance(null, true);
                   }
                 } else {
                   setWearableConnected(true);
@@ -845,6 +895,34 @@ export default function UserDashboard({ socket, connected }) {
               {isAmbulanceArrived && (
                 <div style={{ background: 'rgba(0,255,136,0.1)', border: '1px solid #00ff88', borderRadius: 8, padding: '10px', marginBottom: 12, textAlign: 'center', fontFamily: "'Orbitron'", fontSize: 12, color: '#00ff88' }}>
                   ✅ AMBULANCE ARRIVED
+                </div>
+              )}
+
+              {/* Wearable Live Stream Stats */}
+              {wearableConnected && (
+                <div style={{ background: 'rgba(0,255,136,0.06)', border: '1px solid rgba(0,255,136,0.3)', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <span style={{ fontSize: 10, color: '#00ff88', fontFamily: "'Orbitron'", fontWeight: 'bold', letterSpacing: '0.05em' }}>⌚ WEARABLE LIVE VITALS</span>
+                    <span style={{ fontSize: 8, color: '#00ff88', fontFamily: "'Share Tech Mono'", animation: 'pulse-opacity 1s infinite' }}>● STREAMING</span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: 8, borderRadius: 6, textAlign: 'center' }}>
+                      <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)' }}>HEART RATE</div>
+                      <div style={{ fontSize: 16, fontWeight: 900, fontFamily: "'Orbitron'", color: '#ff4444' }}>{wearableVitals.heartRate} <span style={{ fontSize: 8 }}>BPM</span></div>
+                    </div>
+                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: 8, borderRadius: 6, textAlign: 'center' }}>
+                      <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)' }}>SPO2</div>
+                      <div style={{ fontSize: 16, fontWeight: 900, fontFamily: "'Orbitron'", color: '#00c8ff' }}>{wearableVitals.spo2}%</div>
+                    </div>
+                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: 8, borderRadius: 6, textAlign: 'center' }}>
+                      <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)' }}>BLOOD PRESSURE</div>
+                      <div style={{ fontSize: 13, fontWeight: 900, fontFamily: "'Orbitron'", color: '#ffb800', marginTop: 2 }}>{wearableVitals.systolic}/{wearableVitals.diastolic}</div>
+                    </div>
+                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: 8, borderRadius: 6, textAlign: 'center' }}>
+                      <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)' }}>TEMP</div>
+                      <div style={{ fontSize: 16, fontWeight: 900, fontFamily: "'Orbitron'", color: '#00ff88' }}>{wearableVitals.temperature}°C</div>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -1312,9 +1390,14 @@ export default function UserDashboard({ socket, connected }) {
           onClose={() => setShowAICopilot(false)}
           onAnalysisComplete={(result, symptoms) => {
             setAiAnalysisResult(result);
-            if (result.detectedCondition) {
-              setPatientData(prev => ({ ...prev, condition: result.detectedCondition }));
-            }
+            const condition = result.detectedCondition || symptoms || '';
+            setPatientData(prev => {
+              const next = { ...prev, condition };
+              setTimeout(() => {
+                requestAmbulance(null, false);
+              }, 100);
+              return next;
+            });
             setShowAICopilot(false);
           }}
         />

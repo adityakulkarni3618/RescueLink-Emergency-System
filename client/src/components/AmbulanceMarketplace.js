@@ -67,7 +67,7 @@ export default function AmbulanceMarketplace({ socket, userLocation, onBookAmbul
   const initiatePayment = async () => {
     if (!selected) return;
     try {
-      const token = sessionStorage.getItem('rescueLinkEnterpriseJWT') || localStorage.getItem('token');
+      const token = sessionStorage.getItem('rescuelink_token') || localStorage.getItem('token');
       
       // 1. Create order on backend
       const orderRes = await fetch(`${SERVER_URL}/api/payments/create-order`, {
