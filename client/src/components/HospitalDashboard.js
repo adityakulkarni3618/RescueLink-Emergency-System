@@ -367,7 +367,7 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
 
   const handleHisAdmit = async () => {
     try {
-      const res = await fetch(`${SERVER_URL}/api/his/admit`, {
+      const res = await fetch('/api/his/admit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ incidentId: activeMissionId })
@@ -388,7 +388,7 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
     const drugName = window.prompt("Enter medication name (e.g. Aspirin 75mg, Epinephrine 1mg):");
     if (!drugName) return;
     try {
-      const res = await fetch(`${SERVER_URL}/api/his/order/drug`, {
+      const res = await fetch('/api/his/order/drug', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ patientId: patient.id, drugName })
@@ -407,7 +407,7 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
   const handleFetchHisEhr = async () => {
     try {
       const abha = patient.abha_number || '91-1234-5678-9012';
-      const res = await fetch(`${SERVER_URL}/api/his/patient/${abha}`, {
+      const res = await fetch(`/api/his/patient/${abha}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
@@ -422,7 +422,7 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
     const summary = window.prompt("Enter Discharge Summary:");
     if (!summary) return;
     try {
-      const res = await fetch(`${SERVER_URL}/api/his/discharge/${activeMissionId}`, {
+      const res = await fetch(`/api/his/discharge/${activeMissionId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ summary })
@@ -442,7 +442,7 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
     setShowSpecialistModal(false);
     setConsultStatus(`Requesting ${spec} Consult...`);
     try {
-      const res = await fetch(`${SERVER_URL}/api/tele/request-consult`, {
+      const res = await fetch('/api/tele/request-consult', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ incidentId: activeMissionId, speciality: spec })
@@ -1276,8 +1276,7 @@ export default function HospitalDashboard({ socket, connected }) {
     const inputPass = loginPass.trim();
 
     try {
-      const SERVER_URL = process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin;
-      const res = await fetch(`${SERVER_URL}/api/auth/login`, {
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: inputId, password: inputPass, role: 'hospital' })
@@ -1291,7 +1290,7 @@ export default function HospitalDashboard({ socket, connected }) {
       }
 
       if (res.ok && data.token) {
-        sessionStorage.setItem('rescueLinkHospitalJWT', data.token);
+        sessionStorage.setItem('rescuelink_token', data.token);
         
         // Find in local registry for UI metadata or fallback to response
         const found = HOSPITAL_CREDENTIALS.find(c => c.hospitalId === inputId) || {
@@ -1367,7 +1366,7 @@ export default function HospitalDashboard({ socket, connected }) {
     const userStr = sessionStorage.getItem('rescuelink_user');
     const user = userStr ? JSON.parse(userStr) : {};
     
-    sessionStorage.setItem('rescueLinkHospitalJWT', token);
+    sessionStorage.setItem('rescuelink_token', token);
     
     const finalInputId = loginId || user.hospital_id || 'HOSP-GENERIC';
     
@@ -1864,7 +1863,7 @@ export default function HospitalDashboard({ socket, connected }) {
   useEffect(() => {
     if (socket && connected && isAuthenticated) {
       console.log('[GPS_SYNC] Registering hospital at device coordinates:', hospitalGps || 'PENDING');
-      const token = sessionStorage.getItem('rescueLinkHospitalJWT');
+      const token = sessionStorage.getItem('rescuelink_token');
       socket.emit('register-hospital', {
         location: hospitalGps, // CRITICAL: Sends null if GPS pending, but server handles it
         available: true,
@@ -1888,8 +1887,8 @@ export default function HospitalDashboard({ socket, connected }) {
     if (!targetId) return showAlert("No active mission to export.");
     try {
       const SERVER_URL = process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin;
-      const token = sessionStorage.getItem('rescueLinkHospitalJWT') || '';
-      const response = await fetch(`${SERVER_URL}/api/fhir/${targetId}`, {
+      const token = sessionStorage.getItem('rescuelink_token') || '';
+      const response = await fetch(`/api/fhir/${targetId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!response.ok) throw new Error("Mission not found on server");

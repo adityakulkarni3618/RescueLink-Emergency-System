@@ -63,8 +63,8 @@ export default function BloodEmergencyNetwork({ socket, userLocation, patientDet
     try {
       const loc = userLocation || mapCenter;
       const [banksRes, reqRes] = await Promise.all([
-        fetch(`${SERVER_URL}/api/blood/banks?lat=${loc.lat}&lng=${loc.lng}`),
-        fetch(`${SERVER_URL}/api/blood/requests`)
+        fetch(`/api/blood/banks?lat=${loc.lat}&lng=${loc.lng}`),
+        fetch('/api/blood/requests')
       ]);
       setBloodBanks(await banksRes.json());
       setActiveRequests(await reqRes.json());
@@ -84,7 +84,7 @@ export default function BloodEmergencyNetwork({ socket, userLocation, patientDet
     if (!patientName || !selectedBloodType) return;
     setRequesting(true);
     try {
-      const res = await fetch(`${SERVER_URL}/api/blood/request`, {
+      const res = await fetch('/api/blood/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bloodType: selectedBloodType, location: userLocation, patientName, urgency })

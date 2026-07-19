@@ -29,7 +29,7 @@ export default function AmbulanceMarketplace({ socket, userLocation, onBookAmbul
 
   useEffect(() => {
     const loc = userLocation || mapCenter;
-    fetch(`${SERVER_URL}/api/marketplace/ambulances?lat=${loc.lat}&lng=${loc.lng}`)
+    fetch(`/api/marketplace/ambulances?lat=${loc.lat}&lng=${loc.lng}`)
       .then(r => r.json())
       .then(data => { setAmbulances(data); setLoading(false); })
       .catch(() => setLoading(false));
@@ -70,7 +70,7 @@ export default function AmbulanceMarketplace({ socket, userLocation, onBookAmbul
       const token = sessionStorage.getItem('rescuelink_token') || localStorage.getItem('token');
       
       // 1. Create order on backend
-      const orderRes = await fetch(`${SERVER_URL}/api/payments/create-order`, {
+      const orderRes = await fetch('/api/payments/create-order', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -98,7 +98,7 @@ export default function AmbulanceMarketplace({ socket, userLocation, onBookAmbul
         handler: async function (response) {
           // 3. Verify Payment
           try {
-            const verifyRes = await fetch(`${SERVER_URL}/api/payments/verify`, {
+            const verifyRes = await fetch('/api/payments/verify', {
               method: 'POST',
               headers: { 
                 'Content-Type': 'application/json',

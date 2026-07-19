@@ -71,7 +71,7 @@ export default function WarRoom({ socket, connected }) {
   const handleLogin = async () => {
     try {
       const SERVER_URL = process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin;
-      const res = await fetch(`${SERVER_URL}/api/auth/login`, {
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: 'admin@rescuelink.com', password: loginPass, role: 'admin', bypassMFA: true })
@@ -170,8 +170,8 @@ export default function WarRoom({ socket, connected }) {
         const SERVER_URL = process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin;
         const headers = { 'Authorization': `Bearer ${token || ''}` };
         const [statusRes, analyticsRes] = await Promise.all([
-          fetch(`${SERVER_URL}/api/status`, { headers }),
-          fetch(`${SERVER_URL}/api/analytics`, { headers }),
+          fetch('/api/status', { headers }),
+          fetch('/api/analytics', { headers }),
         ]);
         const statusData = await statusRes.json();
         const analytics = await analyticsRes.json();
