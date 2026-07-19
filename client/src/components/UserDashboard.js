@@ -411,7 +411,7 @@ export default function UserDashboard({ socket, connected }) {
         showAlert("🎙️ Voice SOS Detected! Triggering Emergency Sequence...");
         setVoiceSosActive(false); // Stop listening
         recognition.stop();
-        requestAmbulance(); // Fire request
+        requestAmbulance(null, true); // Fire request
       }
     };
     
@@ -571,11 +571,7 @@ export default function UserDashboard({ socket, connected }) {
 
   const requestAmbulance = (ambId, isSOS = false, userPhoneOverride = null) => {
     if (!socket || !userLocation) return;
-    const condition = isSOS ? 'SOS EMERGENCY — IMMEDIATE DISPATCH REQUIRED' : patientData.condition.trim();
-    if (!isSOS && !condition) {
-      showAlert("⚠️ Please describe the emergency condition before requesting dispatch.");
-      return;
-    }
+    const condition = isSOS ? 'SOS EMERGENCY — IMMEDIATE DISPATCH REQUIRED' : (patientData.condition.trim() || 'Marketplace Requested Ambulance Dispatch');
     setRequestStatus('searching');
     if (isSOS) setSosMode(true);
 
@@ -628,6 +624,26 @@ export default function UserDashboard({ socket, connected }) {
 
     if (!window.confirm('🚨 CONFIRM SOS DISPATCH\n\nThis will immediately alert the nearest ambulance.\nOnly use in a genuine emergency.')) return;
     requestAmbulance(null, true, userPhone);
+  };
+
+  const connectBluetoothWatch = async () => {
+    try {
+      if (!navigator.bluetooth) {
+        throw new Error('Web Bluetooth is not supported in this browser. Please use Chrome/Edge or simulate connection.');
+      }
+      showAlert('🔌 Pairing Wearable watch via Bluetooth... Select your device.');
+      const device = await navigator.bluetooth.requestDevice({
+        acceptAllDevices: true,
+        optionalServices: ['heart_rate']
+      });
+      showAlert(`⌚ Connected to: ${device.name || 'Smartwatch'}`);
+      setWearableConnected(true);
+    } catch (e) {
+      console.warn(e);
+      // Fallback to mock pairing if user cancels bluetooth selection or doesn't support it
+      setWearableConnected(true);
+      showAlert('⌚ Wearable watch connected (Simulated/Fallback). Fall detection active.');
+    }
   };
 
   const topAmbs = Object.entries(ambulances)
@@ -796,6 +812,17 @@ export default function UserDashboard({ socket, connected }) {
               { icon: '🩸', label: 'BLOOD NET', sublabel: 'Find blood banks', color: '#ff4444', action: () => setShowBloodNetwork(true) },
               { icon: '🚑', label: 'MARKETPLACE', sublabel: 'Book ambulance', color: '#ffb800', action: () => setShowMarketplace(true) },
               { icon: '🎙️', label: 'VOICE SOS', sublabel: voiceSosActive ? 'Listening...' : 'Say "Help"', color: voiceSosActive ? '#00ff88' : '#8888ff', action: () => setVoiceSosActive(!voiceSosActive) },
+              { icon: '⌚', label: 'WEARABLE', sublabel: wearableConnected ? 'Connected' : 'Pair Watch', color: wearableConnected ? '#00ff88' : '#aaaaaa', action: () => {
+                if (wearableConnected) {
+                  if (window.confirm('Simulate Fall Detection?')) {
+                    playAlertBeep();
+                    showAlert('⚠️ FALL DETECTED BY WEARABLE. Auto-Dispatching SOS...');
+                    requestAmbulance(null, true);
+                  }
+                } else {
+                  connectBluetoothWatch();
+                }
+              } },
             ].map((btn, i) => (
               <button key={i} onClick={btn.action} style={{
                 padding: '10px 4px', background: `${btn.color}15`,
