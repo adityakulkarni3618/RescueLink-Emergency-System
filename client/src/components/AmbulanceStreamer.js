@@ -96,11 +96,11 @@ const userIcon = L.divIcon({
 
 // GLOBAL: Ambulance credentials use neutral IDs. In production these come from the backend DB.
 const AMBULANCE_CREDENTIALS = [
-  { unitId: 'AMB-101', password: 'rescue101', driverName: 'Unit 101 Lead Paramedic', vehicleNo: 'EMG-RL-0101', type: 'ALS' },
-  { unitId: 'AMB-102', password: 'rescue102', driverName: 'Unit 102 Lead Paramedic', vehicleNo: 'EMG-RL-0102', type: 'BLS' },
-  { unitId: 'AMB-103', password: 'rescue103', driverName: 'Unit 103 Lead Paramedic', vehicleNo: 'EMG-RL-0103', type: 'ALS' },
-  { unitId: 'AMB-104', password: 'rescue104', driverName: 'Unit 104 Lead Paramedic', vehicleNo: 'EMG-RL-0104', type: 'BLS' },
-  { unitId: 'AMB-105', password: 'rescue105', driverName: 'Unit 105 Lead Paramedic', vehicleNo: 'EMG-RL-0105', type: 'ALS' },
+  { unitId: 'AMB-101', password: 'kP9x#vR2$m', driverName: 'Unit 101 Lead Paramedic', vehicleNo: 'EMG-RL-0101', type: 'ALS' },
+  { unitId: 'AMB-102', password: 'wF7!zN4*qB', driverName: 'Unit 102 Lead Paramedic', vehicleNo: 'EMG-RL-0102', type: 'BLS' },
+  { unitId: 'AMB-103', password: 'tY5&cX3@hL', driverName: 'Unit 103 Lead Paramedic', vehicleNo: 'EMG-RL-0103', type: 'ALS' },
+  { unitId: 'AMB-104', password: 'gJ2(sD8^pW', driverName: 'Unit 104 Lead Paramedic', vehicleNo: 'EMG-RL-0104', type: 'BLS' },
+  { unitId: 'AMB-105', password: 'bM4%aV7)eK', driverName: 'Unit 105 Lead Paramedic', vehicleNo: 'EMG-RL-0105', type: 'ALS' },
 ];
 
 // GLOBAL GEOSPATIAL GENERATOR: 
