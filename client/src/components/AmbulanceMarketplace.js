@@ -186,12 +186,14 @@ export default function AmbulanceMarketplace({ socket, userLocation, onBookAmbul
         {/* Map */}
         <div style={{ height: 220, borderBottom: '1px solid rgba(0,200,255,0.15)' }}>
           {(() => {
-            const safeLat = userLocation?.lat || mapCenter?.lat || 12.9716;
-            const safeLng = userLocation?.lng || mapCenter?.lng || 77.5946;
+            const rawLat = userLocation?.lat || mapCenter?.lat || 12.9716;
+            const rawLng = userLocation?.lng || mapCenter?.lng || 77.5946;
+            const safeLat = isNaN(parseFloat(rawLat)) ? 12.9716 : parseFloat(rawLat);
+            const safeLng = isNaN(parseFloat(rawLng)) ? 77.5946 : parseFloat(rawLng);
             return (
               <MapContainer center={[safeLat, safeLng]} zoom={13} style={{ width: '100%', height: '100%' }}>
                 <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
-                {filtered.filter(a => a.available && a.lat && a.lng).map(amb => (
+                {filtered.filter(a => a.available && a.lat && a.lng && !isNaN(parseFloat(a.lat)) && !isNaN(parseFloat(a.lng))).map(amb => (
                   <Marker key={amb.id} position={[parseFloat(amb.lat), parseFloat(amb.lng)]} icon={ambulanceIcon}>
                 <Popup>
                   <div style={{ background: '#050f28', padding: 10, color: '#e0eaff', fontFamily: "'Rajdhani'", minWidth: 160 }}>
