@@ -12,10 +12,10 @@ const DAILY_API_KEY = process.env.DAILY_API_KEY || 'mock_daily_api_key';
 router.post('/create-room', verifyToken(), async (req, res) => {
   const { reqId } = req.body;
   
-  if (DAILY_API_KEY === 'mock_daily_api_key') {
-    const mockRoomUrl = `https://mock-domain.daily.co/mock-${reqId || Date.now()}`;
-    console.log(`[DAILY.CO MOCK] Generated mock room URL: ${mockRoomUrl}`);
-    return res.json({ url: mockRoomUrl, name: `mock-${reqId || Date.now()}` });
+  if (DAILY_API_KEY === 'mock_daily_api_key' || DAILY_API_KEY.startsWith('your_')) {
+    const jitsiRoomUrl = `https://meet.jit.si/RescueLink-${reqId || Date.now()}`;
+    console.log(`[JITSI FALLBACK] Generated Jitsi Meet URL: ${jitsiRoomUrl}`);
+    return res.json({ url: jitsiRoomUrl, name: `jitsi-${reqId || Date.now()}` });
   }
   
   try {

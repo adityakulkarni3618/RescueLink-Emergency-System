@@ -564,12 +564,14 @@ export default function AmbulanceStreamer({ socket, connected }) {
     const userStr = sessionStorage.getItem('rescuelink_user');
     if (userStr) {
       const user = JSON.parse(userStr);
-      return {
+      const emailUpper = (user.email || '').toUpperCase();
+      const found = AMBULANCE_CREDENTIALS.find(c => c.unitId === emailUpper) || {
         unitId: user.id,
         driverName: user.name,
         vehicleNo: 'EMG-RL-0101',
         type: 'ALS'
       };
+      return found;
     }
     return null;
   });
@@ -577,12 +579,14 @@ export default function AmbulanceStreamer({ socket, connected }) {
     const userStr = sessionStorage.getItem('rescuelink_user');
     if (userStr) {
       const user = JSON.parse(userStr);
-      setAuthUnit({
+      const emailUpper = (user.email || '').toUpperCase();
+      const found = AMBULANCE_CREDENTIALS.find(c => c.unitId === emailUpper) || {
         unitId: user.id,
         driverName: user.name,
         vehicleNo: 'EMG-RL-0101',
         type: 'ALS'
-      });
+      };
+      setAuthUnit(found);
       setIsAuthenticated(true);
     }
   }, []);
