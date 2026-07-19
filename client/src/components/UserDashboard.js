@@ -957,6 +957,27 @@ export default function UserDashboard({ socket, connected }) {
           <div style={{ background: 'rgba(255,107,53,0.1)', padding: '16px', borderRadius: 8, border: '1px solid rgba(255,107,53,0.3)', marginBottom: 10 }}>
             <h3 style={{ color: '#ff6b35', fontSize: 13, marginTop: 0, fontFamily: "'Orbitron'" }}>PATIENT INFORMATION</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {aiAnalysisResult && (
+                <div style={{ background: 'rgba(0,200,255,0.15)', border: '1px solid #00c8ff', borderRadius: 8, padding: 12, marginBottom: 4 }}>
+                  <div style={{ fontFamily: "'Orbitron'", fontSize: 10, color: '#00c8ff', marginBottom: 6, fontWeight: 'bold', letterSpacing: '0.05em' }}>🧠 CO-PILOT ANALYSIS RESULT</div>
+                  <div style={{ fontSize: 12, fontWeight: 'bold' }}>Condition: {aiAnalysisResult.detectedCondition || 'Unknown'}</div>
+                  <div style={{ fontSize: 10, color: 'rgba(220,230,255,0.7)', marginTop: 4 }}>Triage Level: {aiAnalysisResult.triageLevel || 'Non-Urgent'}</div>
+                  {requestStatus === 'idle' && (
+                    <button
+                      onClick={() => requestAmbulance(null, false)}
+                      style={{
+                        width: '100%', marginTop: 10, padding: '8px',
+                        background: 'linear-gradient(135deg, #00c8ff, #0077ff)',
+                        border: 'none', borderRadius: 6, color: '#fff',
+                        fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 700,
+                        cursor: 'pointer', letterSpacing: '0.05em'
+                      }}
+                    >
+                      🚑 REQUEST AMBULANCE NOW
+                    </button>
+                  )}
+                </div>
+              )}
               <button 
                 onClick={simulateIdScan}
                 disabled={isScanning}
@@ -1387,13 +1408,7 @@ export default function UserDashboard({ socket, connected }) {
           onAnalysisComplete={(result, symptoms) => {
             setAiAnalysisResult(result);
             const condition = result.detectedCondition || symptoms || '';
-            setPatientData(prev => {
-              const next = { ...prev, condition };
-              setTimeout(() => {
-                requestAmbulance(null, false);
-              }, 100);
-              return next;
-            });
+            setPatientData(prev => ({ ...prev, condition }));
             setShowAICopilot(false);
           }}
         />
