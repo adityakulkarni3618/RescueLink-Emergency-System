@@ -11,6 +11,7 @@ const VideoCall = ({ socket, role, missionId: reqId }) => {
   const [calling, setCalling] = useState(false);
   const [incomingUrl, setIncomingUrl] = useState(null);
   const [callerRole, setCallerRole] = useState('');
+  const [jitsiUrl, setJitsiUrl] = useState(null);
   
   // Peer state
   const [peers, setPeers] = useState({
@@ -120,6 +121,13 @@ const VideoCall = ({ socket, role, missionId: reqId }) => {
   };
 
   const joinDailyRoom = (url) => {
+    if (url.includes('jit.si') || url.includes('meet.jit.si')) {
+      setJitsiUrl(url);
+      setInCall(true);
+      setCalling(false);
+      return;
+    }
+    setJitsiUrl(null);
     if (callFrameRef.current) {
       callFrameRef.current.destroy();
     }
@@ -157,6 +165,7 @@ const VideoCall = ({ socket, role, missionId: reqId }) => {
       callFrameRef.current.destroy();
       callFrameRef.current = null;
     }
+    setJitsiUrl(null);
     setInCall(false);
     setCalling(false);
     setIncomingUrl(null);
@@ -348,6 +357,13 @@ const VideoCall = ({ socket, role, missionId: reqId }) => {
             <div style={{ fontSize: 24, animation: 'pulse 1s infinite' }}>🔔</div>
             {incomingUrl ? `INCOMING CALL FROM ${callerRole}...` : 'RINGING REMOTE PEER...'}
           </div>
+        )}
+        {jitsiUrl && (inCall || calling) && (
+          <iframe 
+            src={jitsiUrl}
+            allow="camera; microphone; fullscreen; display-capture; autoplay"
+            style={{ width: '100%', height: '100%', border: 'none', position: 'absolute', inset: 0, zIndex: 4 }}
+          />
         )}
       </div>
     </div>

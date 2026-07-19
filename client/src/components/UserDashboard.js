@@ -139,7 +139,19 @@ export default function UserDashboard({ socket, connected }) {
   });
   const [liveAmbulanceLoc, setLiveAmbulanceLoc] = useState(null);
   const [isAmbulanceArrived, setIsAmbulanceArrived] = useState(false);
-  const [patientData, setPatientData] = useState({ name: '', age: '', condition: '', bloodGroup: '', mobile: '' });
+  const [patientData, setPatientData] = useState(() => {
+    const sessionUserStr = sessionStorage.getItem('rescuelink_user');
+    let name = '';
+    let mobile = '';
+    if (sessionUserStr) {
+      try {
+        const u = JSON.parse(sessionUserStr);
+        name = u.name || '';
+        mobile = u.mobile || '';
+      } catch (e) {}
+    }
+    return { name, age: '', condition: '', bloodGroup: '', mobile };
+  });
   const [locationHistory, setLocationHistory] = useState([]);
   const [routePath, setRoutePath] = useState(null);
   const [assignedHospitalId, setAssignedHospitalId] = useState(null);
@@ -302,7 +314,16 @@ export default function UserDashboard({ socket, connected }) {
 
       // Add a verified flag since it came from the secure gateway
       setPatientData(prev => {
-        const verifiedData = { ...data, isVerified: true, name: data.name || prev.name };
+        let extractedMobile = '';
+        if (data.emergencyContact && data.emergencyContact.includes('–')) {
+          extractedMobile = data.emergencyContact.split('–')[1].trim();
+        }
+        const verifiedData = { 
+          ...data, 
+          isVerified: true, 
+          name: data.name || prev.name,
+          mobile: extractedMobile || prev.mobile || ''
+        };
         if (currentReqId && socket) {
           socket.emit('patient-data', { reqId: currentReqId, ...verifiedData });
         }
@@ -1369,9 +1390,14 @@ export default function UserDashboard({ socket, connected }) {
           onClose={() => setShowAICopilot(false)}
           onAnalysisComplete={(result, symptoms) => {
             setAiAnalysisResult(result);
-            if (result.detectedCondition) {
-              setPatientData(prev => ({ ...prev, condition: result.detectedCondition }));
-            }
+            const condition = result.detectedCondition || symptoms || '';
+            setPatientData(prev => {
+              const next = { ...prev, condition };
+              setTimeout(() => {
+                requestAmbulance(null, false);
+              }, 100);
+              return next;
+            });
             setShowAICopilot(false);
           }}
         />
