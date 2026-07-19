@@ -80,6 +80,12 @@ export default function AmbulanceMarketplace({ socket, userLocation, onBookAmbul
       });
       const orderData = await orderRes.json();
       if (orderData.error) throw new Error(orderData.error);
+      // 2. Open Razorpay Modal (Or auto-confirm in mock mode)
+      if (orderData.id.startsWith('order_mock_') || !orderData.key || orderData.key.startsWith('your_') || orderData.key === 'mock') {
+        console.log('[PAYMENTS] Mock mode detected. Auto-confirming booking...');
+        confirmBooking();
+        return;
+      }
 
       // 2. Open Razorpay Modal
       const options = {
