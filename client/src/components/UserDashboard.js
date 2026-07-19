@@ -280,7 +280,7 @@ export default function UserDashboard({ socket, connected }) {
     
     try {
       const SERVER_URL = process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin;
-      const res = await fetch(`${SERVER_URL}/api/hie/initiate`, {
+      const res = await fetch('/api/hie/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nationalId })
@@ -303,7 +303,7 @@ export default function UserDashboard({ socket, connected }) {
   const verifyHieOtp = async (otp) => {
     try {
       const SERVER_URL = process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin;
-      const res = await fetch(`${SERVER_URL}/api/hie/verify`, {
+      const res = await fetch('/api/hie/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ transactionId: otpTransactionId, otp, nationalId: tempNationalId })

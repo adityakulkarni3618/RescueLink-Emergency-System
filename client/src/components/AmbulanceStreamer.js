@@ -847,7 +847,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
       
       if (res.ok && data.token) {
         // Securely store JWT for future API calls
-        sessionStorage.setItem('rescueLinkParamedicJWT', data.token);
+        sessionStorage.setItem('rescuelink_token', data.token);
         console.log('[ENTERPRISE SEC] JWT Successfully obtained and stored in session.');
         
         // Hydrate frontend profile (Fallback to mock details if purely DB-driven)
@@ -874,7 +874,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
     if (!socket || !connected) return;
 
     // Register Ambulance immediately with stable unitId for session recovery
-    const token = sessionStorage.getItem('rescueLinkParamedicJWT') || sessionStorage.getItem('rescuelink_token');
+    const token = sessionStorage.getItem('rescuelink_token');
     socket.emit('register-ambulance', { 
       location, 
       available: true, 
