@@ -402,16 +402,17 @@ export default function UserDashboard({ socket, connected }) {
     recognition.interimResults = true;
     
     recognition.onresult = (event) => {
-      const transcript = Array.from(event.results)
-        .map(result => result[0].transcript)
-        .join('').toLowerCase();
-      
-      if (transcript.includes("help") || transcript.includes("emergency") || transcript.includes("accident")) {
-        playAlertBeep();
-        showAlert("🎙️ Voice SOS Detected! Triggering Emergency Sequence...");
-        setVoiceSosActive(false); // Stop listening
-        recognition.stop();
-        requestAmbulance(null, true); // Fire request
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript.toLowerCase();
+        console.log("[SPEECH RAW INDEX]", i, transcript);
+        if (transcript.includes("help") || transcript.includes("emergency") || transcript.includes("accident") || transcript.includes("sos") || transcript.includes("save")) {
+          playAlertBeep();
+          showAlert("🎙️ Voice SOS Detected! Triggering Emergency Sequence...");
+          setVoiceSosActive(false); // Stop listening
+          recognition.stop();
+          requestAmbulance(null, true); // Fire request
+          break;
+        }
       }
     };
     
