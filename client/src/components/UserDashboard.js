@@ -619,8 +619,15 @@ export default function UserDashboard({ socket, connected }) {
     }
 
     if (!userPhone) {
-      showAlert("⚠️ A valid phone number is required in the Patient Information form to trigger SOS.");
-      return;
+      const promptedPhone = window.prompt(
+        "🚨 EMERGENCY SOS DISPATCH\n\nA phone number is required to coordinate with the ambulance driver.\nPlease enter your phone number:"
+      );
+      if (!promptedPhone || !promptedPhone.trim()) {
+        showAlert("⚠️ A valid phone number is required to trigger SOS.");
+        return;
+      }
+      userPhone = promptedPhone.trim();
+      setPatientData(prev => ({ ...prev, mobile: userPhone }));
     }
 
     if (!window.confirm('🚨 CONFIRM SOS DISPATCH\n\nThis will immediately alert the nearest ambulance.\nOnly use in a genuine emergency.')) return;
