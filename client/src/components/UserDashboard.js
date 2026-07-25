@@ -600,7 +600,7 @@ export default function UserDashboard({ socket, connected }) {
       userId,
       userLocation,
       ambulanceId: ambId,
-      patientDetails: isSOS ? { name: 'Unknown (SOS)', age: '', condition, bloodGroup: '' } : patientData,
+      patientDetails: isSOS ? { name: 'Unknown (SOS)', age: '', condition, bloodGroup: '', mobile: userPhone } : patientData,
       isEmergency: true,
       userPhone
     });
