@@ -609,28 +609,34 @@ export default function UserDashboard({ socket, connected }) {
   const requestSOSDispatch = () => {
     if (!socket || !userLocation) { showAlert('Location not ready. Please wait a moment.'); return; }
     
-    let userPhone = patientData.mobile || '';
-    if (!userPhone) {
+    let defaultPhone = patientData.mobile || '';
+    if (!defaultPhone) {
       const sessionUserStr = sessionStorage.getItem('rescuelink_user');
       if (sessionUserStr) {
         try {
           const u = JSON.parse(sessionUserStr);
-          userPhone = u.mobile || '';
+          defaultPhone = u.mobile || '';
         } catch (e) {}
       }
     }
 
-    if (!userPhone) {
-      const promptedPhone = window.prompt(
-        "🚨 EMERGENCY SOS DISPATCH\n\nA phone number is required to coordinate with the ambulance driver.\nPlease enter your phone number:"
-      );
-      if (!promptedPhone || !promptedPhone.trim()) {
-        showAlert("⚠️ A valid phone number is required to trigger SOS.");
-        return;
-      }
-      userPhone = promptedPhone.trim();
-      setPatientData(prev => ({ ...prev, mobile: userPhone }));
+    const promptedPhone = window.prompt(
+      "🚨 EMERGENCY SOS DISPATCH\n\nA phone number is required to coordinate with the ambulance driver.\nPlease enter or confirm your phone number:",
+      defaultPhone
+    );
+    
+    if (promptedPhone === null) {
+      // User clicked Cancel on the prompt
+      return;
     }
+
+    if (!promptedPhone.trim()) {
+      showAlert("⚠️ A valid phone number is required to trigger SOS.");
+      return;
+    }
+
+    const userPhone = promptedPhone.trim();
+    setPatientData(prev => ({ ...prev, mobile: userPhone }));
 
     if (!window.confirm('🚨 CONFIRM SOS DISPATCH\n\nThis will immediately alert the nearest ambulance.\nOnly use in a genuine emergency.')) return;
     requestAmbulance(null, true, userPhone);
