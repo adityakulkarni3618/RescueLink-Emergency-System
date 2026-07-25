@@ -185,6 +185,8 @@ export default function UserDashboard({ socket, connected }) {
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [voiceSosActive, setVoiceSosActive] = useState(false);
   const [wearableConnected, setWearableConnected] = useState(false);
+  const [pairedDevice, setPairedDevice] = useState(null);
+  const [showWearablePairing, setShowWearablePairing] = useState(false);
   const [wearableVitals, setWearableVitals] = useState({ heartRate: 75, spo2: 98, systolic: 120, diastolic: 80, temperature: 36.6 });
   const SERVER_URL_CONST = process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin;
 
@@ -800,18 +802,7 @@ export default function UserDashboard({ socket, connected }) {
               { icon: '🩸', label: 'BLOOD NET', sublabel: 'Find blood banks', color: '#ff4444', action: () => setShowBloodNetwork(true) },
               { icon: '🚑', label: 'MARKETPLACE', sublabel: 'Book ambulance', color: '#ffb800', action: () => setShowMarketplace(true) },
               { icon: '🎙️', label: 'VOICE SOS', sublabel: voiceSosActive ? 'Listening...' : 'Say "Help"', color: voiceSosActive ? '#00ff88' : '#8888ff', action: () => setVoiceSosActive(!voiceSosActive) },
-              { icon: '⌚', label: 'WEARABLE', sublabel: wearableConnected ? 'Connected' : 'Pair Watch', color: wearableConnected ? '#00ff88' : '#aaaaaa', action: () => {
-                if (wearableConnected) {
-                  if (window.confirm('Simulate Fall Detection?')) {
-                    playAlertBeep();
-                    showAlert('⚠️ FALL DETECTED BY WEARABLE. Auto-Dispatching SOS...');
-                    requestAmbulance(null, true);
-                  }
-                } else {
-                  setWearableConnected(true);
-                  showAlert('⌚ Smartwatch Paired. Fall detection active.');
-                }
-              } },
+              { icon: '⌚', label: 'WEARABLE', sublabel: wearableConnected ? (pairedDevice ? pairedDevice.name : 'Connected') : 'Pair Watch', color: wearableConnected ? '#00ff88' : '#aaaaaa', action: () => setShowWearablePairing(true) },
             ].map((btn, i) => (
               <button key={i} onClick={btn.action} style={{
                 padding: '10px 4px', background: `${btn.color}15`,
@@ -1487,6 +1478,110 @@ export default function UserDashboard({ socket, connected }) {
                 borderRadius: 8, color: 'rgba(160,200,255,0.5)', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 10
               }}>✕</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Wearable Pairing Modal */}
+      {showWearablePairing && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(0,5,20,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)' }}>
+          <div style={{ background: '#0a1526', border: '1px solid rgba(0,200,255,0.4)', borderRadius: 16, padding: 28, width: '90%', maxWidth: 460, boxShadow: '0 0 40px rgba(0,200,255,0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ fontFamily: "'Orbitron'", fontSize: 16, color: '#00c8ff', fontWeight: 900, letterSpacing: '0.05em' }}>⌚ WEARABLE PAIRING GATEWAY</div>
+              <button onClick={() => setShowWearablePairing(false)} style={{ background: 'none', border: 'none', color: '#ff4444', cursor: 'pointer', fontSize: 20 }}>✕</button>
+            </div>
+
+            {wearableConnected ? (
+              <div style={{ textAlign: 'center', padding: '10px 0' }}>
+                <div style={{ 
+                  width: 60, height: 60, borderRadius: '50%', background: 'rgba(0,255,136,0.1)', 
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px',
+                  border: '2px solid #00ff88', boxShadow: '0 0 20px rgba(0,255,136,0.2)' 
+                }}>
+                  <span style={{ fontSize: 32 }}>⌚</span>
+                </div>
+                <div style={{ fontFamily: "'Orbitron'", fontSize: 13, color: '#00ff88', fontWeight: 'bold', marginBottom: 4 }}>
+                  STATUS: CONNECTED
+                </div>
+                <div style={{ fontSize: 14, color: '#e0eaff', marginBottom: 20 }}>
+                  Active Device: <strong>{pairedDevice ? pairedDevice.name : 'RescueLink Watch'}</strong>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <button
+                    onClick={() => {
+                      playAlertBeep();
+                      showAlert('⚠️ FALL DETECTED BY WEARABLE. Auto-Dispatching SOS...');
+                      requestAmbulance(null, true);
+                      setShowWearablePairing(false);
+                    }}
+                    style={{
+                      padding: '12px', background: 'rgba(255,68,68,0.15)', border: '1px solid #ff4444',
+                      borderRadius: 8, color: '#ff4444', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700
+                    }}
+                  >
+                    💥 SIMULATE FALL DETECTION
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setWearableConnected(false);
+                      setPairedDevice(null);
+                      showAlert('⌚ Device unpaired successfully.');
+                    }}
+                    style={{
+                      padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.2)',
+                      borderRadius: 8, color: '#aaaaaa', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700
+                    }}
+                  >
+                    🔌 DISCONNECT DEVICE
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'rgba(0,200,255,0.05)', borderRadius: 8, border: '1px solid rgba(0,200,255,0.15)', marginBottom: 20 }}>
+                  <div style={{ 
+                    width: 10, height: 10, borderRadius: '50%', background: '#00c8ff', 
+                    boxShadow: '0 0 8px #00c8ff', animation: 'pulse-opacity 1s ease-in-out infinite' 
+                  }} />
+                  <span style={{ fontSize: 11, color: '#00c8ff', fontFamily: "'Orbitron'" }}>SCANNING FOR BLUETOOTH DEVICES...</span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 220, overflowY: 'auto', marginBottom: 20 }}>
+                  {[
+                    { name: 'Apple Watch Ultra 2', id: 'AW-890A' },
+                    { name: 'Galaxy Watch 6 Classic', id: 'GW-412F' },
+                    { name: 'Garmin Fenix 7 Pro', id: 'GF-909D' },
+                    { name: 'Fitbit Sense 2', id: 'FS-332X' }
+                  ].map(device => (
+                    <div key={device.id} style={{ 
+                      background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: 10, padding: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                    }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 'bold', color: '#e0eaff' }}>{device.name}</div>
+                        <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'" }}>ID: {device.id}</div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setPairedDevice(device);
+                          setWearableConnected(true);
+                          setShowWearablePairing(false);
+                          showAlert(`⌚ Successfully paired with ${device.name}. Fall detection active.`);
+                        }}
+                        style={{
+                          background: '#00c8ff', color: '#000', border: 'none', borderRadius: 6,
+                          padding: '6px 12px', fontSize: 10, fontWeight: 'bold', cursor: 'pointer', fontFamily: "'Orbitron'"
+                        }}
+                      >
+                        PAIR
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
