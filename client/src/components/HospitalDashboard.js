@@ -1886,7 +1886,7 @@ export default function HospitalDashboard({ socket, connected }) {
     const targetId = incomingRequest?.id || activeMissionId;
     if (!targetId) return showAlert("No active mission to export.");
     try {
-      const SERVER_URL = process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin;
+      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
       const token = sessionStorage.getItem('rescuelink_token') || '';
       const response = await fetch(`/api/fhir/${targetId}`, {
         headers: { 'Authorization': `Bearer ${token}` }

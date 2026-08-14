@@ -188,7 +188,7 @@ export default function UserDashboard({ socket, connected }) {
   const [pairedDevice, setPairedDevice] = useState(null);
   const [showWearablePairing, setShowWearablePairing] = useState(false);
   const [wearableVitals, setWearableVitals] = useState({ heartRate: 75, spo2: 98, systolic: 120, diastolic: 80, temperature: 36.6 });
-  const SERVER_URL_CONST = process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin;
+  const SERVER_URL_CONST = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
 
   // ETA live countdown
   useEffect(() => {
@@ -281,7 +281,7 @@ export default function UserDashboard({ socket, connected }) {
     setTempNationalId(nationalId);
     
     try {
-      const SERVER_URL = process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin;
+      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
       const res = await fetch('/api/hie/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -304,7 +304,7 @@ export default function UserDashboard({ socket, connected }) {
 
   const verifyHieOtp = async (otp) => {
     try {
-      const SERVER_URL = process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin;
+      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
       const res = await fetch('/api/hie/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

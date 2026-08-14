@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-const SERVER_URL = process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin;
+const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
 
 const SEVERITY_COLORS = {
   CRITICAL: { bg: 'rgba(255,30,30,0.15)', border: '#ff3333', text: '#ff5555', badge: '#ff2222' },
