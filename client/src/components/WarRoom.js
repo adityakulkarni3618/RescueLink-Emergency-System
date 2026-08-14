@@ -70,7 +70,7 @@ export default function WarRoom({ socket, connected }) {
 
   const handleLogin = async () => {
     try {
-      const SERVER_URL = process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin;
+      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -167,7 +167,7 @@ export default function WarRoom({ socket, connected }) {
 
     const poll = async () => {
       try {
-        const SERVER_URL = process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin;
+        const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
         const headers = { 'Authorization': `Bearer ${token || ''}` };
         const [statusRes, analyticsRes] = await Promise.all([
           fetch('/api/status', { headers }),
