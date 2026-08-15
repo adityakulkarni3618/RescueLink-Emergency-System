@@ -41,11 +41,11 @@ module.exports = (sequelize) => {
       defaultValue: 0
     },
     vitals_log: {
-      type: DataTypes.JSONB,
+      type: DataTypes.JSON,
       defaultValue: []
     },
     gps_log: {
-      type: DataTypes.JSONB,
+      type: DataTypes.JSON,
       defaultValue: []
     },
     notes: {

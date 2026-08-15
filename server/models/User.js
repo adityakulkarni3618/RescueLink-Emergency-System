@@ -51,7 +51,7 @@ module.exports = (sequelize) => {
       allowNull: true
     },
     backup_codes: {
-      type: DataTypes.JSONB,
+      type: DataTypes.JSON,
       allowNull: true,
       defaultValue: []
     },
