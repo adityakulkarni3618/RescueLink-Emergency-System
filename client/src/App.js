@@ -670,7 +670,7 @@ function MfaSetupScreen({ setupToken, onComplete, onCancel }) {
       <style>{styles}</style>
       <ParticleCanvas />
       <div className="scanline" />
-      
+
       <div style={{
         position: 'absolute', inset: 0, opacity: 0.06,
         backgroundImage: 'linear-gradient(rgba(0,200,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(0,200,255,0.5) 1px, transparent 1px)',
@@ -709,7 +709,7 @@ function MfaSetupScreen({ setupToken, onComplete, onCancel }) {
             <div style={{ padding: 12, background: 'rgba(255,184,0,0.1)', border: '1px solid rgba(255,184,0,0.4)', borderRadius: 6, color: '#ffb800', fontSize: 13, textAlign: 'center' }}>
               ⚠️ WARNING: Save these recovery codes somewhere safe! They won't be shown again.
             </div>
-            
+
             <div style={{
               display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: 16,
               background: '#050f28', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 6
@@ -839,7 +839,7 @@ function LoginScreen({ onLoginSuccess, onMfaSetup, onMfaVerify }) {
 
       sessionStorage.setItem('rescuelink_token', data.token);
       sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
-      
+
       // Map database role to frontend view role
       let viewRole = 'user';
       if (data.user.role === 'doctor' || data.user.role === 'hospital_admin') {
@@ -853,7 +853,7 @@ function LoginScreen({ onLoginSuccess, onMfaSetup, onMfaVerify }) {
       } else if (data.user.role === 'patient') {
         viewRole = 'user';
       }
-      
+
       onLoginSuccess(viewRole, data.token);
     } catch (err) {
       setError(err.message || 'Invalid credentials');
@@ -873,7 +873,7 @@ function LoginScreen({ onLoginSuccess, onMfaSetup, onMfaVerify }) {
       <style>{styles}</style>
       <ParticleCanvas />
       <div className="scanline" />
-      
+
       <div style={{
         position: 'absolute', inset: 0, opacity: 0.06,
         backgroundImage: 'linear-gradient(rgba(0,200,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(0,200,255,0.5) 1px, transparent 1px)',
@@ -980,7 +980,7 @@ function SecurityModal({ isOpen, onClose, token }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  
+
   // Setup flow
   const [setupMode, setSetupMode] = useState(false);
   const [qrCode, setQrCode] = useState('');
@@ -1007,7 +1007,7 @@ function SecurityModal({ isOpen, onClose, token }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch user data');
-      
+
       const isMfa = !!data.totp_secret;
       setMfaActive(isMfa);
       if (isMfa) {
@@ -1031,7 +1031,7 @@ function SecurityModal({ isOpen, onClose, token }) {
     try {
       const res = await fetch(`${SERVER_URL}/api/mfa/setup`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         }
@@ -1055,7 +1055,7 @@ function SecurityModal({ isOpen, onClose, token }) {
     try {
       const res = await fetch(`${SERVER_URL}/api/mfa/enable`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
@@ -1063,7 +1063,7 @@ function SecurityModal({ isOpen, onClose, token }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Activation failed');
-      
+
       setNewBackupCodes(data.backupCodes || []);
       setMfaActive(true);
       setSetupMode(false);
@@ -1082,7 +1082,7 @@ function SecurityModal({ isOpen, onClose, token }) {
     try {
       const res = await fetch(`${SERVER_URL}/api/mfa/disable`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
@@ -1090,7 +1090,7 @@ function SecurityModal({ isOpen, onClose, token }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Deactivation failed');
-      
+
       setMfaActive(false);
       setDisableMode(false);
       setPassword('');
@@ -1183,7 +1183,7 @@ function SecurityModal({ isOpen, onClose, token }) {
             ) : (
               <div style={{ width: 180, height: 180, background: '#050f28', border: '1px dashed #00c8ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00c8ff' }}>Loading...</div>
             )}
-            
+
             <div style={{ width: '100%' }}>
               <label style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>VERIFICATION CODE</label>
               <input
@@ -1232,7 +1232,7 @@ function SecurityModal({ isOpen, onClose, token }) {
             <p style={{ color: 'rgba(160,200,255,0.8)', fontSize: 13 }}>
               Enter your password and current verification code to disable Two-Factor Authentication:
             </p>
-            
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <label style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>PASSWORD</label>
               <input
@@ -1297,7 +1297,7 @@ function SecurityModal({ isOpen, onClose, token }) {
             <div style={{ padding: 12, background: 'rgba(255,184,0,0.1)', border: '1px solid rgba(255,184,0,0.4)', borderRadius: 6, color: '#ffb800', fontSize: 12 }}>
               ⚠️ WARNING: Save these recovery codes now! You can use these codes to log in if you lose access to your authenticator app. They will not be shown again.
             </div>
-            
+
             <div style={{
               display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: 16,
               background: '#050f28', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 6
@@ -1335,8 +1335,8 @@ function SecurityModal({ isOpen, onClose, token }) {
                   {mfaActive ? 'TWO-FACTOR ACTIVE' : 'TWO-FACTOR DISABLED'}
                 </div>
                 <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.6)' }}>
-                  {mfaActive 
-                    ? `Protected by Authenticator. Remaining backup codes: ${backupCodesCount}` 
+                  {mfaActive
+                    ? `Protected by Authenticator. Remaining backup codes: ${backupCodesCount}`
                     : 'Access is vulnerable. Enable authenticator app security.'}
                 </div>
               </div>
@@ -1520,6 +1520,46 @@ export default function App() {
     <div className="app-root">
       <style>{styles}</style>
       <div className="scanline" />
+
+      {/* Official MSME Header Banner (Visible in Light Theme for presenting to Ministry) */}
+      {theme === 'light' && (
+        <div style={{
+          background: '#ffffff',
+          padding: '15px 30px',
+          display: 'flex',
+          alignItems: 'center',
+          borderBottom: '1px solid #cbd5e0',
+          fontFamily: "'Inter', sans-serif",
+          zIndex: 10500,
+          position: 'relative'
+        }}>
+          {/* National Emblem of India */}
+          <img 
+            src="https://upload.wikimedia.org/wikipedia/commons/5/55/Emblem_of_India.svg" 
+            alt="Emblem of India" 
+            style={{ height: 60, marginRight: 20 }}
+          />
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: '#1b4f72', letterSpacing: '0.02em', lineHeight: 1.2 }}>
+              सूक्ष्म, लघु और मध्यम उद्यम मंत्रालय
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#5d6d7e', letterSpacing: '0.05em', marginTop: 2 }}>
+              MINISTRY OF
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#1b4f72', letterSpacing: '0.03em', marginTop: 1 }}>
+              MICRO, SMALL & MEDIUM ENTERPRISES
+            </div>
+          </div>
+          <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: '#154360', letterSpacing: '0.05em', fontFamily: "'Orbitron'" }}>
+              MSME IDEA HACKATHON 6.0
+            </div>
+            <div style={{ fontSize: 10, color: '#5d6d7e', fontFamily: "'Share Tech Mono'", marginTop: 4 }}>
+              PROPOSAL ID: 26INC06MH038769
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Global Actions Bar (Top Right) */}
       <div className="global-buttons-container" style={{ position: 'fixed', top: 14, right: 25, zIndex: 11000, display: 'flex', gap: 12, alignItems: 'center' }}>
