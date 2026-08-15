@@ -383,103 +383,6 @@ function ParamedicToolkit({ patientDetails, socket, reqId, checklist = {}, setCh
           </div>
         )}
 
-        {selectedDrug && checkAllergy(selectedDrug) && (
-          <div style={{ padding: 10, background: 'rgba(255,68,68,0.15)', border: '1px solid #ff4444', borderRadius: 6, animation: 'blink 1s infinite' }}>
-            <div style={{ fontSize: 14 }}>⚠️ WARNING</div>
-            <div style={{ fontSize: 10, color: '#ff4444', marginTop: 4 }}>Patient has active {allergies[0]} allergy. DO NOT ADMINISTER.</div>
-          </div>
-        )}
-        {/* Ambulance Settings Modal */}
-        {showSettingsModal && (
-          <div style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: 20
-          }}>
-            <div style={{
-              width: '100%', maxWidth: 450, background: '#051226', border: '1px solid #00ff88',
-              borderRadius: 12, padding: 24, boxShadow: '0 0 50px rgba(0,255,136,0.15)'
-            }}>
-              <div style={{ fontFamily: "'Orbitron'", color: '#00ff88', fontSize: 16, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span>⚙️</span> AMBULANCE SETTINGS & CAPABILITY
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: 10, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.6)', marginBottom: 6 }}>DRIVER/PARAMEDIC NAME</label>
-                  <input 
-                    value={authUnit?.driverName || ''} 
-                    onChange={(e) => setAuthUnit({ ...authUnit, driverName: e.target.value })}
-                    style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }} 
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: 10, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.6)', marginBottom: 6 }}>CONTACT INFO</label>
-                  <input 
-                    value={authUnit?.contactInfo || ''} 
-                    onChange={(e) => setAuthUnit({ ...authUnit, contactInfo: e.target.value })}
-                    style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }} 
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: 10, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.6)', marginBottom: 6 }}>UNIT CAPABILITY TYPE</label>
-                  <select 
-                    value={authUnit?.type || 'BLS'} 
-                    onChange={(e) => setAuthUnit({ ...authUnit, type: e.target.value })}
-                    style={{ width: '100%', background: '#051226', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }}
-                  >
-                    <option value="BLS">Basic Life Support (BLS)</option>
-                    <option value="ALS">Advanced Life Support (ALS)</option>
-                  </select>
-                </div>
-                <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
-                  <button onClick={() => setShowSettingsModal(false)} style={{
-                    flex: 1, padding: 12, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.2)',
-                    color: '#fff', borderRadius: 6, cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 12
-                  }}>CANCEL</button>
-                  <button 
-                    onClick={async () => {
-                      try {
-                        const res = await fetch(`${SERVER_URL}/api/ambulances/${authUnit.id || authUnit.unitId}/settings`, {
-                          method: 'PUT',
-                          headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${sessionStorage.getItem('rescuelink_token')}`
-                          },
-                          body: JSON.stringify({
-                            driverName: authUnit.driverName,
-                            contactInfo: authUnit.contactInfo,
-                            type: authUnit.type
-                          })
-                        });
-                        if (res.ok) {
-                          window.alert('🚑 Settings updated and broadcasted!');
-                          if (socket) {
-                            socket.emit('register-ambulance', { 
-                              location: location || null, 
-                              available: true, 
-                              unitId: authUnit.unitId || authUnit.id, 
-                              driverName: authUnit.driverName, 
-                              vehicleNo: authUnit.vehicleNo || authUnit.unitId, 
-                              type: authUnit.type,
-                              token: sessionStorage.getItem('rescuelink_token')
-                            });
-                          }
-                          setShowSettingsModal(false);
-                        } else {
-                          window.alert('⚠️ Settings update failed.');
-                        }
-                      } catch (err) {
-                        window.alert('⚠️ Error connecting to server.');
-                      }
-                    }}
-                    style={{
-                      flex: 1, padding: 12, background: 'rgba(0,255,136,0.15)', border: '1px solid #00ff88',
-                      color: '#00ff88', borderRadius: 6, cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 12, fontWeight: 'bold'
-                    }}
-                  >SAVE CHANGES</button>
-                </div>
-              </div>
-            </div>
-          </div>
         )}
       </div>
     </div>
@@ -3725,9 +3628,100 @@ export default function AmbulanceStreamer({ socket, connected }) {
               </div>
             </div>
           )}
+          {/* Ambulance Settings Modal */}
+          {showSettingsModal && (
+            <div style={{
+              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: 20
+            }}>
+              <div style={{
+                width: '100%', maxWidth: 450, background: '#051226', border: '1px solid #00ff88',
+                borderRadius: 12, padding: 24, boxShadow: '0 0 50px rgba(0,255,136,0.15)'
+              }}>
+                <div style={{ fontFamily: "'Orbitron'", color: '#00ff88', fontSize: 16, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span>⚙️</span> AMBULANCE SETTINGS & CAPABILITY
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 10, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.6)', marginBottom: 6 }}>DRIVER/PARAMEDIC NAME</label>
+                    <input 
+                      value={authUnit?.driverName || ''} 
+                      onChange={(e) => setAuthUnit({ ...authUnit, driverName: e.target.value })}
+                      style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }} 
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 10, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.6)', marginBottom: 6 }}>CONTACT INFO</label>
+                    <input 
+                      value={authUnit?.contactInfo || ''} 
+                      onChange={(e) => setAuthUnit({ ...authUnit, contactInfo: e.target.value })}
+                      style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }} 
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 10, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.6)', marginBottom: 6 }}>UNIT CAPABILITY TYPE</label>
+                    <select 
+                      value={authUnit?.type || 'BLS'} 
+                      onChange={(e) => setAuthUnit({ ...authUnit, type: e.target.value })}
+                      style={{ width: '100%', background: '#051226', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }}
+                    >
+                      <option value="BLS">Basic Life Support (BLS)</option>
+                      <option value="ALS">Advanced Life Support (ALS)</option>
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
+                    <button onClick={() => setShowSettingsModal(false)} style={{
+                      flex: 1, padding: 12, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.2)',
+                      color: '#fff', borderRadius: 6, cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 12
+                    }}>CANCEL</button>
+                    <button 
+                      onClick={async () => {
+                        try {
+                          const res = await fetch(`/api/ambulances/${authUnit.id || authUnit.unitId}/settings`, {
+                            method: 'PUT',
+                            headers: {
+                              'Content-Type': 'application/json',
+                              'Authorization': `Bearer ${sessionStorage.getItem('rescuelink_token')}`
+                            },
+                            body: JSON.stringify({
+                              driverName: authUnit.driverName,
+                              contactInfo: authUnit.contactInfo,
+                              type: authUnit.type
+                            })
+                          });
+                          if (res.ok) {
+                            window.alert('🚑 Settings updated and broadcasted!');
+                            if (socket) {
+                              socket.emit('register-ambulance', { 
+                                location: location || null, 
+                                available: true, 
+                                unitId: authUnit.unitId || authUnit.id, 
+                                driverName: authUnit.driverName, 
+                                vehicleNo: authUnit.vehicleNo || authUnit.unitId, 
+                                type: authUnit.type,
+                                token: sessionStorage.getItem('rescuelink_token')
+                              });
+                            }
+                            setShowSettingsModal(false);
+                          } else {
+                            window.alert('⚠️ Settings update failed.');
+                          }
+                        } catch (err) {
+                          window.alert('⚠️ Error connecting to server.');
+                        }
+                      }}
+                      style={{
+                        flex: 1, padding: 12, background: 'rgba(0,255,136,0.15)', border: '1px solid #00ff88',
+                        color: '#00ff88', borderRadius: 6, cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 12, fontWeight: 'bold'
+                      }}
+                    >SAVE CHANGES</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
-
   );
 }
