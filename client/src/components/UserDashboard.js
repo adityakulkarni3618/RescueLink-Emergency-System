@@ -840,7 +840,30 @@ export default function UserDashboard({ socket, connected }) {
               { icon: '🩸', label: 'BLOOD NET', sublabel: 'Find blood banks', color: '#ff4444', action: () => setShowBloodNetwork(true) },
               { icon: '🚑', label: 'MARKETPLACE', sublabel: 'Book ambulance', color: '#ffb800', action: () => setShowMarketplace(true) },
               { icon: '🎙️', label: 'VOICE SOS', sublabel: voiceSosActive ? 'Listening...' : 'Say "Help"', color: voiceSosActive ? '#00ff88' : '#8888ff', action: () => setVoiceSosActive(!voiceSosActive) },
-              { icon: '⌚', label: 'WEARABLE', sublabel: wearableConnected ? (pairedDevice ? pairedDevice.name : 'Connected') : 'Pair Watch', color: wearableConnected ? '#00ff88' : '#aaaaaa', action: () => setShowWearablePairing(true) },
+              { 
+                icon: '⌚', 
+                label: 'WEARABLE', 
+                sublabel: wearableConnected ? (pairedDevice ? pairedDevice.name : 'Connected') : 'Pair Watch', 
+                color: wearableConnected ? '#00ff88' : '#aaaaaa', 
+                action: async () => {
+                  try {
+                    if (!navigator.bluetooth) {
+                      throw new Error('Web Bluetooth requires HTTPS or is not supported in this browser.');
+                    }
+                    const device = await navigator.bluetooth.requestDevice({
+                      acceptAllDevices: true,
+                      optionalServices: ['heart_rate']
+                    });
+                    setPairedDevice(device);
+                    setWearableConnected(true);
+                    showAlert(`⌚ Successfully paired with ${device.name || 'Bluetooth Device'}.`);
+                  } catch (err) {
+                    console.warn('Native BLE Scan Cancelled/Blocked:', err);
+                    // Fall back to showing mock modal if native scan is cancelled or unsupported
+                    setShowWearablePairing(true);
+                  }
+                } 
+              },
             ].map((btn, i) => (
               <button key={i} onClick={btn.action} style={{
                 padding: '10px 4px', background: `${btn.color}15`,
