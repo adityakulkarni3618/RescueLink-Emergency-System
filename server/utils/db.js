@@ -138,6 +138,8 @@ async function closeDatabase() {
   }
 }
 
+let isSeeding = false;
+
 /**
  * Synchronizes the database, running ALTER migrations rather than dropping tables.
  */
@@ -159,15 +161,18 @@ async function syncDatabase() {
     console.log('[DB] Database synchronized.');
 
     // If using SQLite and no users exist, auto-seed the database
-    if (useSqlite) {
+    if (useSqlite && !isSeeding) {
       try {
         const userCount = await User.count();
         if (userCount === 0) {
           console.log('[DB] SQLite database is empty. Auto-seeding default credentials...');
+          isSeeding = true;
           const seed = require('../scripts/seed_db');
           await seed();
+          isSeeding = false;
         }
       } catch (seedErr) {
+        isSeeding = false;
         console.error('[DB WARNING] Auto-seeding failed:', seedErr.message);
       }
     }
