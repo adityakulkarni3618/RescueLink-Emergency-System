@@ -175,6 +175,67 @@ const styles = `
       font-size: 9px !important;
     }
   }
+
+  /* Premium Design System Components */
+  .rl-card {
+    background: rgba(10, 22, 48, 0.7) !important;
+    border: 1px solid rgba(0, 200, 255, 0.15) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+    backdrop-filter: blur(12px) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
+  .rl-card:hover {
+    border-color: rgba(0, 200, 255, 0.5) !important;
+    box-shadow: 0 15px 40px rgba(0, 200, 255, 0.15) !important;
+    transform: translateY(-4px) !important;
+  }
+  .rl-btn-primary {
+    background: linear-gradient(135deg, #00c8ff 0%, #0072ff 100%) !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-family: 'Orbitron', sans-serif !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.05em !important;
+    padding: 12px 24px !important;
+    cursor: pointer !important;
+    box-shadow: 0 4px 15px rgba(0, 200, 255, 0.2) !important;
+  }
+  .rl-btn-primary:hover {
+    box-shadow: 0 6px 20px rgba(0, 200, 255, 0.4) !important;
+    transform: translateY(-2px) !important;
+  }
+  .rl-btn-secondary {
+    background: rgba(0, 200, 255, 0.05) !important;
+    color: #00c8ff !important;
+    border: 1px solid rgba(0, 200, 255, 0.3) !important;
+    border-radius: 8px !important;
+    font-family: 'Orbitron', sans-serif !important;
+    font-weight: 600 !important;
+    padding: 12px 24px !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+  }
+  .rl-btn-secondary:hover {
+    background: rgba(0, 200, 255, 0.15) !important;
+    border-color: #00c8ff !important;
+  }
+  .rl-input {
+    background: rgba(0, 0, 0, 0.4) !important;
+    border: 1px solid rgba(0, 200, 255, 0.2) !important;
+    border-radius: 8px !important;
+    color: #ffffff !important;
+    padding: 12px 16px !important;
+    font-size: 14px !important;
+    outline: none !important;
+    transition: all 0.2s ease !important;
+  }
+  .rl-input:focus {
+    border-color: #00c8ff !important;
+    box-shadow: 0 0 12px rgba(0, 200, 255, 0.25) !important;
+    background: rgba(0, 0, 0, 0.5) !important;
+  }
 `;
 
 // Three.js-style Particle Field using Canvas API
@@ -1267,6 +1328,24 @@ export default function App() {
     document.body.setAttribute('data-theme', theme);
   }, [theme]);
 
+  // Dynamic bookmarkable URL Hash Routing
+  useEffect(() => {
+    const handleHash = () => {
+      const hash = window.location.hash.replace('#', '');
+      const parsedRole = hash.split('/')[0];
+      if (['user', 'ambulance', 'hospital', 'admin', 'family'].includes(parsedRole)) {
+        setRole(parsedRole);
+        sessionStorage.setItem('rescueLinkRole', parsedRole);
+      } else if (!hash) {
+        setRole(null);
+        sessionStorage.removeItem('rescueLinkRole');
+      }
+    };
+    window.addEventListener('hashchange', handleHash);
+    handleHash();
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
+
   useEffect(() => {
     if (!role || !token) return;
 
@@ -1288,6 +1367,7 @@ export default function App() {
     setRole(viewRole);
     sessionStorage.setItem('rescueLinkRole', viewRole);
     setMfaVerifyToken(null);
+    window.location.hash = viewRole;
   };
 
   const handleLogout = async () => {
@@ -1342,6 +1422,7 @@ export default function App() {
     return <RoleSelector onSelect={(selRole) => {
       sessionStorage.setItem('rescueLinkRole', selRole);
       setRole(selRole);
+      window.location.hash = selRole;
     }} />;
   }
 
@@ -1358,6 +1439,7 @@ export default function App() {
           onClick={() => {
             sessionStorage.removeItem('rescueLinkRole');
             setRole(null);
+            window.location.hash = '';
           }}
           style={{
             padding: '8px 16px', background: 'rgba(0,255,136,0.1)',

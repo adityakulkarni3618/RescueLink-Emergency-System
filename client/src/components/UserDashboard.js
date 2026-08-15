@@ -193,6 +193,23 @@ export default function UserDashboard({ socket, connected }) {
   const SERVER_URL_CONST = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
 
   useEffect(() => {
+    const syncUserHash = () => {
+      const parts = window.location.hash.split('/');
+      if (parts[0] === '#user') {
+        setShowCPRGuide(parts[1] === 'cpr');
+        setShowMarketplace(parts[1] === 'marketplace');
+        setShowAICopilot(parts[1] === 'ai-copilot');
+        setShowBloodNetwork(parts[1] === 'blood-network');
+      }
+    };
+    window.addEventListener('hashchange', syncUserHash);
+    syncUserHash();
+    return () => window.removeEventListener('hashchange', syncUserHash);
+  }, []);
+
+  const routeTo = (subPath) => {
+    window.location.hash = subPath ? `user/${subPath}` : 'user';
+  };
     if (showWearablePairing && !wearableConnected) {
       const scanLiveDevices = async () => {
         try {
@@ -848,10 +865,10 @@ export default function UserDashboard({ socket, connected }) {
           {/* === ENTERPRISE FEATURE QUICK ACCESS === */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
             {[
-              { icon: '🧠', label: 'AI COPILOT', sublabel: 'Analyze symptoms', color: '#00c8ff', action: () => setShowAICopilot(true) },
-              { icon: '❤️', label: 'CPR GUIDE', sublabel: 'Life-saving mode', color: '#ff4444', action: () => setShowCPRGuide(true) },
-              { icon: '🩸', label: 'BLOOD NET', sublabel: 'Find blood banks', color: '#ff4444', action: () => setShowBloodNetwork(true) },
-              { icon: '🚑', label: 'MARKETPLACE', sublabel: 'Book ambulance', color: '#ffb800', action: () => setShowMarketplace(true) },
+              { icon: '🧠', label: 'AI COPILOT', sublabel: 'Analyze symptoms', color: '#00c8ff', action: () => routeTo('ai-copilot') },
+              { icon: '❤️', label: 'CPR GUIDE', sublabel: 'Life-saving mode', color: '#ff4444', action: () => routeTo('cpr') },
+              { icon: '🩸', label: 'BLOOD NET', sublabel: 'Find blood banks', color: '#ff4444', action: () => routeTo('blood-network') },
+              { icon: '🚑', label: 'MARKETPLACE', sublabel: 'Book ambulance', color: '#ffb800', action: () => routeTo('marketplace') },
               { icon: '🎙️', label: 'VOICE SOS', sublabel: voiceSosActive ? 'Listening...' : 'Say "Help"', color: voiceSosActive ? '#00ff88' : '#8888ff', action: () => setVoiceSosActive(!voiceSosActive) },
               { 
                 icon: '⌚', 
@@ -1490,8 +1507,8 @@ export default function UserDashboard({ socket, connected }) {
       {/* CPR Guidance Mode */}
       {showCPRGuide && (
         <CPRGuidance
-          onClose={() => setShowCPRGuide(false)}
-          onSOS={() => { setShowCPRGuide(false); requestSOSDispatch(); }}
+          onClose={() => routeTo('')}
+          onSOS={() => { routeTo(''); requestSOSDispatch(); }}
         />
       )}
 
@@ -1514,7 +1531,7 @@ export default function UserDashboard({ socket, connected }) {
         <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,5,20,0.95)', backdropFilter: 'blur(10px)' }}>
           <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(0,200,255,0.2)', display: 'flex', justifyContent: 'flex-start' }}>
-              <button onClick={() => setShowMarketplace(false)} style={{ background: 'rgba(255,68,68,0.1)', border: '1px solid rgba(255,68,68,0.3)', borderRadius: 8, padding: '6px 14px', color: '#ff4444', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 11 }}>✕ CLOSE</button>
+              <button onClick={() => routeTo('')} style={{ background: 'rgba(255,68,68,0.1)', border: '1px solid rgba(255,68,68,0.3)', borderRadius: 8, padding: '6px 14px', color: '#ff4444', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 11 }}>✕ CLOSE</button>
             </div>
             <div style={{ flex: 1, overflow: 'hidden' }}>
               <AmbulanceMarketplace socket={socket} userLocation={userLocation}

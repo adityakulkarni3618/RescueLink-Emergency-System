@@ -1155,6 +1155,7 @@ export default function HospitalDashboard({ socket, connected }) {
       return null;
     };
 
+  useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => setHospitalGps({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
@@ -1168,6 +1169,24 @@ export default function HospitalDashboard({ socket, connected }) {
       fetchIpLocation().then(loc => setHospitalGps(loc));
     }
   }, []);
+
+  // Sync tab state with URL hash (e.g. #hospital/settings, #hospital/triage)
+  useEffect(() => {
+    const syncHash = () => {
+      const parts = window.location.hash.split('/');
+      if (parts[0] === '#hospital' && parts[1]) {
+        setActiveTab(parts[1]);
+      }
+    };
+    window.addEventListener('hashchange', syncHash);
+    syncHash();
+    return () => window.removeEventListener('hashchange', syncHash);
+  }, []);
+
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    window.location.hash = `hospital/${tabId}`;
+  };
 
   const [checklist, setChecklist] = useState({});
   const [trafficIncidents, setTrafficIncidents] = useState({});
@@ -2674,7 +2693,7 @@ export default function HospitalDashboard({ socket, connected }) {
               ].map(tab => (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => handleTabChange(tab.id)}
                   style={{
                     padding: '8px 16px', background: activeTab === tab.id ? 'rgba(0,200,255,0.15)' : 'transparent',
                     border: `1px solid ${activeTab === tab.id ? '#00c8ff' : 'rgba(255,255,255,0.1)'}`,
