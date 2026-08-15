@@ -1824,12 +1824,24 @@ io.on('connection', (socket) => {
 
     // Determine the target candidate (priority to requested ID, then best candidate)
     let chosenCandidateId = null;
-    if (data.ambulanceId && combinedAmbulances[data.ambulanceId] && combinedAmbulances[data.ambulanceId].available) {
-      chosenCandidateId = data.ambulanceId;
-    } else if (data.ambulanceId && candidateAmbulances.includes(data.ambulanceId)) {
-      chosenCandidateId = data.ambulanceId;
-    } else if (scoredCandidates.length > 0) {
-      chosenCandidateId = scoredCandidates[0].id;
+    if (data.ambulanceId) {
+      if (combinedAmbulances[data.ambulanceId] && combinedAmbulances[data.ambulanceId].available) {
+        chosenCandidateId = data.ambulanceId;
+      } else {
+        // Resolve stable unitId to active socket key
+        const found = Object.entries(combinedAmbulances).find(([key, val]) => val.unitId === data.ambulanceId && val.available);
+        if (found) {
+          chosenCandidateId = found[0];
+        }
+      }
+    }
+
+    if (!chosenCandidateId) {
+      if (data.ambulanceId && candidateAmbulances.includes(data.ambulanceId)) {
+        chosenCandidateId = data.ambulanceId;
+      } else if (scoredCandidates.length > 0) {
+        chosenCandidateId = scoredCandidates[0].id;
+      }
     }
 
     console.log(`[DISPATCH DEBUG] Final chosen candidate ID: ${chosenCandidateId}`);
@@ -2156,10 +2168,30 @@ io.on('connection', (socket) => {
       console.log(`[REROUTE] Cleared running simulation interval for mission ${reqId}`);
     }
 
+    // Find the new hospital socket by database ID
+    const newHospSocketId = Object.keys(hospitals).find(sid => hospitals[sid].id === newHospitalId);
+
     // Reset hospital fields in request to wait for new acceptance or auto-assign
     req.hospitalId = newHospitalId;
-    req.hospitalSocket = null;
-    req.status = 'pending_hospital';
+    req.hospitalSocket = newHospSocketId || null;
+    req.status = 'admission_request';
+
+    if (newHospSocketId) {
+      const newHospSocket = io.sockets.sockets.get(newHospSocketId);
+      if (newHospSocket) {
+        newHospSocket.join(`mission_${reqId}`);
+      }
+      hospitals[newHospSocketId].isBusy = true;
+
+      // Broadcast incoming request to new hospital
+      const incomingPayload = { ...req, status: 'admission_request' };
+      io.to(`hospital:${newHospitalId}`).emit('incoming-hospital-request', incomingPayload);
+      io.to(newHospSocketId).emit('incoming-hospital-request', incomingPayload);
+
+      // Trigger the reroute redirection alert banner on the new hospital
+      io.to(`hospital:${newHospitalId}`).emit('reroute-hospital', data);
+      io.to(newHospSocketId).emit('reroute-hospital', data);
+    }
 
     io.emit('hospitals-update', hospitals);
     routeToMission(socket, 'reroute-hospital', data);
