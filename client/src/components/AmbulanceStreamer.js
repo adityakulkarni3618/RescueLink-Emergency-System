@@ -2019,11 +2019,11 @@ export default function AmbulanceStreamer({ socket, connected }) {
                   socket.emit('location-update', { ...location, trafficDelay: newState });
                 }
               }}
+              className={simulateTraffic ? "rl-btn-primary" : "rl-btn-secondary"}
               style={{
-                padding: '6px 12px', background: simulateTraffic ? 'rgba(255,184,0,0.2)' : 'rgba(0,200,255,0.05)',
-                border: `1px solid ${simulateTraffic ? 'rgba(255,184,0,0.5)' : 'rgba(0,200,255,0.3)'}`,
-                borderRadius: 4, color: '#ffb800', fontFamily: "'Orbitron'", fontSize: 9, cursor: 'pointer',
-                fontWeight: 'bold', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 4
+                padding: '6px 12px',
+                fontSize: 9,
+                display: 'flex', alignItems: 'center', gap: 4
               }}
             >
               <span>🚦</span> {simulateTraffic ? 'JAM' : 'TRAFFIC'}
@@ -2079,11 +2079,11 @@ export default function AmbulanceStreamer({ socket, connected }) {
                 // Auto-trigger download
                 doc.save(`MISSION_REPORT_${assignedUser?.id || 'FIELD_MISSION'}.pdf`);
               }}
+              className="rl-btn-secondary"
               style={{
-                padding: '6px 12px', background: 'rgba(0,200,255,0.1)',
-                border: '1px solid rgba(0,200,255,0.4)', borderRadius: 4,
-                color: '#00c8ff', fontFamily: "'Orbitron'", fontSize: 9, cursor: 'pointer',
-                fontWeight: 'bold', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 4
+                padding: '6px 12px',
+                fontSize: 9,
+                display: 'flex', alignItems: 'center', gap: 4
               }}
             >
               <span>📥</span> REPORT
@@ -2121,11 +2121,13 @@ export default function AmbulanceStreamer({ socket, connected }) {
                   localStorage.removeItem('amb_incomingRequest');
                 }
               }}
-              className="rl-btn-secondary"
+              className="rl-btn-primary"
               style={{
                 padding: '6px 12px',
-                fontSize: 9, cursor: 'pointer',
-                fontWeight: 'bold', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 4
+                fontSize: 9,
+                background: 'linear-gradient(135deg, #ff4444 0%, #cc0000 100%)',
+                boxShadow: 'none',
+                display: 'flex', alignItems: 'center', gap: 4
               }}
             >
               <span>🛑</span> CLEAR
