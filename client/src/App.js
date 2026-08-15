@@ -771,12 +771,9 @@ function LoginScreen({ onLoginSuccess, onMfaSetup, onMfaVerify }) {
         backgroundSize: '40px 40px',
       }} />
 
-      <div style={{
+      <div className="rl-card" style={{
         width: '100%', maxWidth: 400, padding: '40px 32px',
-        background: 'rgba(10,22,48,0.85)',
-        border: '1px solid rgba(0,200,255,0.3)',
-        borderRadius: 12, backdropFilter: 'blur(10px)',
-        zIndex: 1, boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
+        zIndex: 1
       }}>
         <h2 style={{
           fontFamily: "'Orbitron', sans-serif", fontSize: 24,
@@ -807,11 +804,8 @@ function LoginScreen({ onLoginSuccess, onMfaSetup, onMfaVerify }) {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="e.g. doctor@rescuelink.com"
               required
-              style={{
-                padding: '12px', background: 'rgba(5,15,40,0.6)',
-                border: '1px solid rgba(0,200,255,0.2)', borderRadius: 6,
-                color: '#fff', fontSize: 14, fontFamily: 'inherit', outline: 'none'
-              }}
+              className="rl-input"
+              style={{ width: '100%', boxSizing: 'border-box' }}
             />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -822,23 +816,15 @@ function LoginScreen({ onLoginSuccess, onMfaSetup, onMfaVerify }) {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               required
-              style={{
-                padding: '12px', background: 'rgba(5,15,40,0.6)',
-                border: '1px solid rgba(0,200,255,0.2)', borderRadius: 6,
-                color: '#fff', fontSize: 14, fontFamily: 'inherit', outline: 'none'
-              }}
+              className="rl-input"
+              style={{ width: '100%', boxSizing: 'border-box' }}
             />
           </div>
           <button
             type="submit"
             disabled={loading}
-            style={{
-              padding: '14px', background: 'linear-gradient(135deg, #00c8ff22, #00c8ff44)',
-              border: '1px solid #00c8ff', borderRadius: 6,
-              color: '#00c8ff', fontFamily: "'Orbitron'", fontSize: 13,
-              fontWeight: 700, letterSpacing: '0.15em', cursor: 'pointer',
-              marginTop: 10
-            }}
+            className="rl-btn-primary"
+            style={{ width: '100%', marginTop: 10 }}
           >
             {loading ? 'AUTHENTICATING...' : 'ACCESS SYSTEM →'}
           </button>
@@ -867,13 +853,8 @@ function LoginScreen({ onLoginSuccess, onMfaSetup, onMfaVerify }) {
                 setLoading(false);
               }
             }}
-            style={{
-              padding: '12px', background: 'linear-gradient(135deg, #00ff8811, #00ff8822)',
-              border: '1px solid #00ff88', borderRadius: 6,
-              color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 12,
-              fontWeight: 700, letterSpacing: '0.15em', cursor: 'pointer',
-              marginTop: 8
-            }}
+            className="rl-btn-secondary"
+            style={{ width: '100%', marginTop: 8 }}
           >
             EMERGENCY PATIENT ACCESS 🧍
           </button>
