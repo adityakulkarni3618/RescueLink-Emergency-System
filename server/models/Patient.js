@@ -47,11 +47,11 @@ module.exports = (sequelize) => {
       allowNull: true
     },
     allergies: {
-      type: DataTypes.JSONB,
+      type: DataTypes.JSON,
       defaultValue: []
     },
     conditions: {
-      type: DataTypes.JSONB,
+      type: DataTypes.JSON,
       defaultValue: []
     },
     emergency_contact_name: {
