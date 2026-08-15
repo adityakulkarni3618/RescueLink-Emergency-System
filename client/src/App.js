@@ -102,51 +102,62 @@ const styles = `
   }
 
   /* Light Theme Overrides - Deep Coverage */
-  [data-theme='light'] body { background: #f0f2f5 !important; color: #2d3748 !important; }
-  [data-theme='light'] .scanline { background: linear-gradient(90deg, transparent, rgba(0,100,255,0.05), transparent); }
-  
-  [data-theme='light'] .app-root { transition: background-color 0.5s ease, color 0.5s ease; }
+  [data-theme='light'] body { background: #f4f6f9 !important; color: #1a202c !important; }
+  [data-theme='light'] .scanline { background: linear-gradient(90deg, transparent, rgba(0,100,255,0.02), transparent); }
+  [data-theme='light'] .app-root { background: #f4f6f9 !important; }
 
-  /* Target all Dashboard containers and Panels */
-  [data-theme='light'] div[style*="background"], 
-  [data-theme='light'] div[style*="background-color"] { 
-    background-color: #ffffff !important; 
-    border-color: #e2e8f0 !important;
+  /* Structured Light Theme Classes */
+  [data-theme='light'] .rl-card {
+    background: #ffffff !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06) !important;
+    color: #1a202c !important;
+  }
+  [data-theme='light'] .rl-input {
+    background: #ffffff !important;
+    border: 1px solid rgba(0, 0, 0, 0.15) !important;
+    color: #1a202c !important;
+  }
+  [data-theme='light'] .rl-btn-primary {
+    background: linear-gradient(135deg, #0072ff 0%, #0052cc 100%) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 15px rgba(0, 114, 255, 0.2) !important;
+  }
+  [data-theme='light'] .rl-btn-secondary {
+    background: #ffffff !important;
+    color: #0072ff !important;
+    border: 1px solid rgba(0, 114, 255, 0.4) !important;
+  }
+  [data-theme='light'] .rl-btn-secondary:hover {
+    background: rgba(0, 114, 255, 0.05) !important;
+  }
+
+  /* Universal Text Color Overrides for Light Mode */
+  [data-theme='light'] h1, [data-theme='light'] h2, [data-theme='light'] h3, [data-theme='light'] h4, [data-theme='light'] h5, [data-theme='light'] h6 {
+    color: #0b2545 !important;
+  }
+  [data-theme='light'] label {
+    color: #4a5568 !important;
+  }
+  [data-theme='light'] div, [data-theme='light'] span, [data-theme='light'] p {
+    /* Auto-correct low contrast custom brand texts */
+    color: inherit;
+  }
+  [data-theme='light'] [style*="Orbitron"] {
+    color: #0b2545 !important;
+  }
+  [data-theme='light'] [style*="rgba(160,200,255"] {
+    color: #4a5568 !important;
+  }
+  [data-theme='light'] [style*="color: rgb(160, 200, 255"] {
+    color: #4a5568 !important;
+  }
+  [data-theme='light'] [style*="color: #fff"], [data-theme='light'] [style*="color: rgb(255, 255, 255)"] {
+    color: #1a202c !important;
+  }
+  [data-theme='light'] [style*="color: #e0eaff"] {
     color: #2d3748 !important;
-    transition: all 0.5s ease;
   }
-
-  /* Specific Override for semi-transparent Dark Blue panels */
-  [data-theme='light'] div[style*="rgba(5, 20, 45"],
-  [data-theme='light'] div[style*="rgba(10, 22, 48"],
-  [data-theme='light'] div[style*="rgba(5, 15, 40"] { 
-    background: #ffffff !important; 
-    border-color: #cbd5e0 !important; 
-    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-  }
-
-  /* Text & Typography Polish */
-  [data-theme='light'] h1, [data-theme='light'] h2, [data-theme='light'] h3, 
-  [data-theme='light'] div[style*="color: #e0eaff"],
-  [data-theme='light'] div[style*="color: #fff"] { color: #1a202c !important; }
-
-  [data-theme='light'] div[style*="color: rgba(160,200,255,0.4)"],
-  [data-theme='light'] span[style*="color: rgba(160,200,255,0.4)"] { color: #718096 !important; }
-
-  /* Buttons and Inputs */
-  [data-theme='light'] input, [data-theme='light'] textarea { 
-    background: #f7fafc !important; 
-    color: #1a202c !important; 
-    border: 1px solid #cbd5e0 !important; 
-  }
-  
-  [data-theme='light'] button[style*="background: rgba(255,255,255,0.05)"] { 
-    background: #edf2f7 !important; 
-    color: #2d3748 !important; 
-  }
-
-  /* Keep brand accents (Green/Blue/Orange) but adjust for readability */
-  [data-theme='light'] .theme-toggle:hover { transform: scale(1.1); }
 
   /* Global Premium Button Aesthetics */
   button {
@@ -175,6 +186,7 @@ const styles = `
       font-size: 9px !important;
     }
   }
+
 
   /* Premium Design System Components */
   .rl-card {
