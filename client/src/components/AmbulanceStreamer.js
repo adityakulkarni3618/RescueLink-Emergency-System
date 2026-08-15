@@ -2121,10 +2121,10 @@ export default function AmbulanceStreamer({ socket, connected }) {
                   localStorage.removeItem('amb_incomingRequest');
                 }
               }}
+              className="rl-btn-secondary"
               style={{
-                padding: '6px 12px', background: 'rgba(255,40,40,0.1)',
-                border: '1px solid rgba(255,80,80,0.4)', borderRadius: 4,
-                color: '#ff6b6b', fontFamily: "'Orbitron'", fontSize: 9, cursor: 'pointer',
+                padding: '6px 12px',
+                fontSize: 9, cursor: 'pointer',
                 fontWeight: 'bold', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 4
               }}
             >
@@ -2149,10 +2149,10 @@ export default function AmbulanceStreamer({ socket, connected }) {
                   window.location.reload();
                 }
               }}
+              className="rl-btn-secondary"
               style={{
-                padding: '6px 12px', background: 'rgba(255,68,68,0.1)',
-                border: '1px solid rgba(255,68,68,0.3)', borderRadius: 4,
-                color: '#ff4444', fontFamily: "'Orbitron'", fontSize: 9, cursor: 'pointer',
+                padding: '6px 12px',
+                fontSize: 9, cursor: 'pointer',
                 fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4
               }}
             >
@@ -2161,10 +2161,10 @@ export default function AmbulanceStreamer({ socket, connected }) {
 
             <button
               onClick={() => setShowSettingsModal(true)}
+              className="rl-btn-primary"
               style={{
-                padding: '6px 12px', background: 'rgba(0,255,136,0.1)',
-                border: '1px solid rgba(0,255,136,0.3)', borderRadius: 4,
-                color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 9, cursor: 'pointer',
+                padding: '6px 12px',
+                fontSize: 9, cursor: 'pointer',
                 fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4
               }}
             >
@@ -2173,11 +2173,10 @@ export default function AmbulanceStreamer({ socket, connected }) {
 
             <button
               onClick={toggleOffline}
+              className="rl-btn-secondary"
               style={{
                 padding: '6px 12px',
-                background: isOffline ? 'rgba(255,150,0,0.2)' : 'rgba(0,200,255,0.05)',
-                border: `1px solid ${isOffline ? 'rgba(255,180,0,0.5)' : 'rgba(0,200,255,0.3)'}`,
-                borderRadius: 4, color: '#ffb800', fontFamily: "'Orbitron'", fontSize: 9, cursor: 'pointer',
+                fontSize: 9, cursor: 'pointer',
                 fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4
               }}
             >
@@ -2344,7 +2343,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
                   ● OFFLINE
                 </div>
               )}
-              <div style={{ marginTop: 30, padding: '20px', background: 'rgba(5,20,45,0.6)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, width: '100%', maxWidth: 320, textAlign: 'center' }}>
+              <div className="rl-card" style={{ marginTop: 30, padding: '20px', width: '100%', maxWidth: 320, textAlign: 'center' }}>
                 <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Orbitron'", marginBottom: 8, letterSpacing: '0.1em' }}>MANUAL MISSION RECOVERY</div>
                 <div style={{ display: 'flex', gap: 10 }}>
                   <input 
@@ -2352,9 +2351,10 @@ export default function AmbulanceStreamer({ socket, connected }) {
                     onChange={e => setManualRecoveryId(e.target.value)}
                     onKeyDown={handleManualRecoveryKeyDown}
                     placeholder="REQ ID" 
-                    style={{ flex: 1, background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 4, padding: '8px 12px', color: '#fff', fontSize: 12, outline: 'none', fontFamily: "'Share Tech Mono'" }} 
+                    className="rl-input"
+                    style={{ flex: 1, fontSize: 12, outline: 'none', fontFamily: "'Share Tech Mono'", boxSizing: 'border-box', height: '36px' }} 
                   />
-                  <button onClick={handleManualRecover} style={{ background: 'rgba(0,200,255,0.15)', border: '1px solid #00c8ff', color: '#00c8ff', borderRadius: 4, padding: '0 15px', cursor: 'pointer', fontSize: 10, fontFamily: "'Orbitron'", fontWeight: 'bold' }}>GO</button>
+                  <button onClick={handleManualRecover} className="rl-btn-primary" style={{ height: '36px', padding: '0 15px', fontSize: 10, fontWeight: 'bold' }}>GO</button>
                 </div>
               </div>
             </div>
