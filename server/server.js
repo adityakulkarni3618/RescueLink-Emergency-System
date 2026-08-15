@@ -358,6 +358,7 @@ const insuranceRouter = require('./routes/insurance');
 const bloodRouter = require('./routes/blood');
 const paymentsRouter = require('./routes/payments');
 const hospitalsRouter = require('./routes/hospitals');
+const ambulancesRouter = require('./routes/ambulances');
 const analyticsRouter = require('./routes/analytics');
 const aiCopilotRouter = require('./routes/aiCopilot');
 
@@ -366,6 +367,7 @@ app.use('/api/insurance', insuranceRouter);
 app.use('/api/blood', bloodRouter);
 app.use('/api/payments', paymentsRouter);
 app.use('/api/hospitals', hospitalsRouter);
+app.use('/api/ambulances', ambulancesRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/ai', aiCopilotRouter);
 

@@ -187,4 +187,37 @@ router.delete('/:id', verifyToken(['city_admin']), async (req, res) => {
   }
 });
 
+/**
+ * @route POST /api/hospitals/register
+ * @desc Public/Manual registration portal for hospitals
+ */
+router.post('/register', async (req, res) => {
+  const { name, city, state, lat, lng, contact_number, total_beds, icu_beds, ventilators } = req.body;
+  if (!name) {
+    return res.status(400).json({ error: 'Hospital name is required' });
+  }
+
+  try {
+    const hospital = await Hospital.create({
+      name,
+      city,
+      state,
+      lat: lat || 12.9716,
+      lng: lng || 77.5946,
+      contact_number,
+      total_beds: total_beds || 50,
+      icu_beds: icu_beds || 10,
+      ventilators: ventilators || 5,
+      is_active: true
+    });
+
+    await cache.del(ALL_HOSPITALS_CACHE_KEY);
+    console.log(`[REGISTRY] New hospital registered manually: ${hospital.name} (${hospital.id})`);
+    return res.status(201).json(hospital);
+  } catch (err) {
+    console.error('[HOSPITALS API] Registration failed:', err.message);
+    return res.status(500).json({ error: 'Hospital registration failed' });
+  }
+});
+
 module.exports = router;
