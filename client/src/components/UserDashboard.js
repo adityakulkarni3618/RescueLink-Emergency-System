@@ -187,8 +187,27 @@ export default function UserDashboard({ socket, connected }) {
   const [wearableConnected, setWearableConnected] = useState(false);
   const [pairedDevice, setPairedDevice] = useState(null);
   const [showWearablePairing, setShowWearablePairing] = useState(false);
+  const [isBleScanning, setIsBleScanning] = useState(false);
+  const [bleScanProgress, setBleScanProgress] = useState(0);
   const [wearableVitals, setWearableVitals] = useState({ heartRate: 75, spo2: 98, systolic: 120, diastolic: 80, temperature: 36.6 });
   const SERVER_URL_CONST = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
+
+  useEffect(() => {
+    if (showWearablePairing && !wearableConnected) {
+      setIsBleScanning(true);
+      setBleScanProgress(0);
+      let progress = 0;
+      const interval = setInterval(() => {
+        progress += 10;
+        setBleScanProgress(progress);
+        if (progress >= 100) {
+          clearInterval(interval);
+          setIsBleScanning(false);
+        }
+      }, 200);
+      return () => clearInterval(interval);
+    }
+  }, [showWearablePairing, wearableConnected]);
 
   // ETA live countdown
   useEffect(() => {
@@ -1546,46 +1565,109 @@ export default function UserDashboard({ socket, connected }) {
               </div>
             ) : (
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'rgba(0,200,255,0.05)', borderRadius: 8, border: '1px solid rgba(0,200,255,0.15)', marginBottom: 20 }}>
-                  <div style={{ 
-                    width: 10, height: 10, borderRadius: '50%', background: '#00c8ff', 
-                    boxShadow: '0 0 8px #00c8ff', animation: 'pulse-opacity 1s ease-in-out infinite' 
-                  }} />
-                  <span style={{ fontSize: 11, color: '#00c8ff', fontFamily: "'Orbitron'" }}>SCANNING FOR BLUETOOTH DEVICES...</span>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 220, overflowY: 'auto', marginBottom: 20 }}>
-                  {[
-                    { name: 'Apple Watch Ultra 2', id: 'AW-890A' },
-                    { name: 'Galaxy Watch 6 Classic', id: 'GW-412F' },
-                    { name: 'Garmin Fenix 7 Pro', id: 'GF-909D' },
-                    { name: 'Fitbit Sense 2', id: 'FS-332X' }
-                  ].map(device => (
-                    <div key={device.id} style={{ 
-                      background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)',
-                      borderRadius: 10, padding: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-                    }}>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 'bold', color: '#e0eaff' }}>{device.name}</div>
-                        <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'" }}>ID: {device.id}</div>
-                      </div>
-                      <button
-                        onClick={() => {
-                          setPairedDevice(device);
-                          setWearableConnected(true);
-                          setShowWearablePairing(false);
-                          showAlert(`⌚ Successfully paired with ${device.name}. Fall detection active.`);
+                {isBleScanning ? (
+                  <div style={{ padding: '30px 0', textAlign: 'center' }}>
+                    <div style={{ 
+                      width: 50, height: 50, border: '3px solid rgba(0,200,255,0.1)', borderTop: '3px solid #00c8ff', 
+                      borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' 
+                    }} />
+                    <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', fontWeight: 'bold', marginBottom: 6 }}>
+                      SEARCHING FOR BLUETOOTH WEARABLES...
+                    </div>
+                    <div style={{ background: 'rgba(0,0,0,0.3)', height: 6, borderRadius: 3, width: '80%', margin: '0 auto', overflow: 'hidden', border: '1px solid rgba(0,200,255,0.1)' }}>
+                      <div style={{ background: '#00c8ff', height: '100%', width: `${bleScanProgress}%`, transition: 'width 0.2s ease-out' }} />
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+                      <button 
+                        onClick={async () => {
+                          try {
+                            if (!navigator.bluetooth) {
+                              throw new Error('Web Bluetooth requires HTTPS or is not supported in this browser.');
+                            }
+                            const device = await navigator.bluetooth.requestDevice({
+                              filters: [{ services: ['heart_rate'] }]
+                            });
+                            setPairedDevice(device);
+                            setWearableConnected(true);
+                            setShowWearablePairing(false);
+                            showAlert(`⌚ Successfully paired with ${device.name}. Fall detection active.`);
+                          } catch (err) {
+                            console.warn(err);
+                            showAlert(err.message || 'Bluetooth scan cancelled.');
+                          }
                         }}
                         style={{
-                          background: '#00c8ff', color: '#000', border: 'none', borderRadius: 6,
-                          padding: '6px 12px', fontSize: 10, fontWeight: 'bold', cursor: 'pointer', fontFamily: "'Orbitron'"
+                          flex: 1, padding: '10px', background: 'rgba(0,200,255,0.1)', border: '1px solid #00c8ff',
+                          borderRadius: 8, color: '#00c8ff', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 'bold', cursor: 'pointer'
                         }}
                       >
-                        PAIR
+                        🔌 SCAN REAL BLE
+                      </button>
+                      <button 
+                        onClick={() => {
+                          setIsBleScanning(true);
+                          setBleScanProgress(0);
+                          let prog = 0;
+                          const timer = setInterval(() => {
+                            prog += 20;
+                            setBleScanProgress(prog);
+                            if (prog >= 100) {
+                              clearInterval(timer);
+                              setIsBleScanning(false);
+                            }
+                          }, 150);
+                        }}
+                        style={{
+                          flex: 1, padding: '10px', background: 'rgba(0,255,136,0.05)', border: '1px solid #00ff88',
+                          borderRadius: 8, color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 'bold', cursor: 'pointer'
+                        }}
+                      >
+                        🔄 RE-SCAN MOCK
                       </button>
                     </div>
-                  ))}
-                </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'rgba(0,255,136,0.05)', borderRadius: 8, border: '1px solid rgba(0,255,136,0.15)', marginBottom: 15 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#00ff88', boxShadow: '0 0 6px #00ff88' }} />
+                      <span style={{ fontSize: 10, color: '#00ff88', fontFamily: "'Orbitron'", fontWeight: 'bold' }}>DISCOVERED DEVICES (4)</span>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 220, overflowY: 'auto', marginBottom: 20 }}>
+                      {[
+                        { name: 'Apple Watch Ultra 2', id: 'AW-890A' },
+                        { name: 'Galaxy Watch 6 Classic', id: 'GW-412F' },
+                        { name: 'Garmin Fenix 7 Pro', id: 'GF-909D' },
+                        { name: 'Fitbit Sense 2', id: 'FS-332X' }
+                      ].map(device => (
+                        <div key={device.id} style={{ 
+                          background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)',
+                          borderRadius: 10, padding: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                        }}>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 'bold', color: '#e0eaff' }}>{device.name}</div>
+                            <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'" }}>ID: {device.id}</div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setPairedDevice(device);
+                              setWearableConnected(true);
+                              setShowWearablePairing(false);
+                              showAlert(`⌚ Successfully paired with ${device.name}. Fall detection active.`);
+                            }}
+                            style={{
+                              background: '#00c8ff', color: '#000', border: 'none', borderRadius: 6,
+                              padding: '6px 12px', fontSize: 10, fontWeight: 'bold', cursor: 'pointer', fontFamily: "'Orbitron'"
+                            }}
+                          >
+                            PAIR
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
