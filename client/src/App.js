@@ -120,42 +120,43 @@ const styles = `
   }
 
   /* Target all radial-gradient layouts and outer container backgrounds to clear them in light mode */
-  [data-theme='light'] div[style*="radial-gradient"] {
+  [data-theme='light'] div[style*="radial-gradient" i] {
     background: #eef2f6 !important;
   }
-  [data-theme='light'] div[style*="height: '100vh'"],
-  [data-theme='light'] div[style*="minHeight: '100vh'"],
-  [data-theme='light'] div[style*="min-height: 100vh"] {
+  [data-theme='light'] div[style*="height: 100vh" i],
+  [data-theme='light'] div[style*="height: '100vh'" i],
+  [data-theme='light'] div[style*="min-height: 100vh" i] {
     background: #eef2f6 !important;
   }
 
   /* Clean MSME Header Bar styling in Light Mode */
-  [data-theme='light'] div[style*="minHeight: 70"], 
-  [data-theme='light'] div[style*="minHeight: 60"],
-  [data-theme='light'] div[style*="min-height: 70"],
-  [data-theme='light'] div[style*="min-height: 60"] {
+  [data-theme='light'] div[style*="min-height: 70" i], 
+  [data-theme='light'] div[style*="min-height: 60" i],
+  [data-theme='light'] div[style*="min-height: 64" i],
+  [data-theme='light'] div[style*="rgba(5, 20, 10" i] {
     background: #1b4f72 !important; /* MSME Top Bar color */
     border-bottom: 2px solid #154360 !important;
     color: #ffffff !important;
   }
-  [data-theme='light'] div[style*="minHeight: 70"] *,
-  [data-theme='light'] div[style*="minHeight: 60"] * {
+  [data-theme='light'] div[style*="min-height: 70" i] *, 
+  [data-theme='light'] div[style*="min-height: 60" i] *,
+  [data-theme='light'] div[style*="rgba(5, 20, 10" i] * {
     color: #ffffff !important;
   }
 
   /* Pattern match and convert ALL inline dark containers/cards to clean MSME White Cards */
-  [data-theme='light'] div[style*="rgba(5, 15, 40"],
-  [data-theme='light'] div[style*="rgba(5, 20, 45"],
-  [data-theme='light'] div[style*="rgba(10, 22, 48"],
-  [data-theme='light'] div[style*="rgba(5, 20, 10"],
-  [data-theme='light'] div[style*="rgba(3, 10, 28"],
-  [data-theme='light'] div[style*="rgba(3, 8, 22"],
-  [data-theme='light'] div[style*="rgba(0, 0, 0, 0."],
-  [data-theme='light'] div[style*="background: 'rgba(5,20,45,0.6)'"],
-  [data-theme='light'] div[style*="rgba(255, 255, 255, 0.03)"],
-  [data-theme='light'] div[style*="rgba(255,255,255,0.03)"],
-  [data-theme='light'] div[style*="rgba(255, 255, 255, 0.05)"],
-  [data-theme='light'] div[style*="rgba(255,255,255,0.05)"] {
+  [data-theme='light'] div[style*="rgba(5, 15, 40" i],
+  [data-theme='light'] div[style*="rgba(5, 20, 45" i],
+  [data-theme='light'] div[style*="rgba(10, 22, 48" i],
+  [data-theme='light'] div[style*="rgba(5, 20, 10" i],
+  [data-theme='light'] div[style*="rgba(3, 10, 28" i],
+  [data-theme='light'] div[style*="rgba(3, 8, 22" i],
+  [data-theme='light'] div[style*="rgba(0, 0, 0, 0." i],
+  [data-theme='light'] div[style*="background: 'rgba(5,20,45,0.6)'" i],
+  [data-theme='light'] div[style*="rgba(255, 255, 255, 0.03)" i],
+  [data-theme='light'] div[style*="rgba(255,255,255,0.03)" i],
+  [data-theme='light'] div[style*="rgba(255, 255, 255, 0.05)" i],
+  [data-theme='light'] div[style*="rgba(255,255,255,0.05)" i] {
     background: #ffffff !important;
     border: 1px solid #cbd5e0 !important;
     color: #212529 !important;
@@ -201,11 +202,13 @@ const styles = `
   }
 
   /* Auto-convert inline styled action buttons in Light Mode */
-  [data-theme='light'] button[style*="background: 'rgba(0,200,255"],
-  [data-theme='light'] button[style*="background: 'rgba(0,255,136"],
-  [data-theme='light'] button[style*="background: 'rgba(255,255,255"],
-  [data-theme='light'] button[style*="border: '1px solid #00c8ff'"],
-  [data-theme='light'] button[style*="border: '1px solid rgba(0,200,255"] {
+  [data-theme='light'] button[style*="background: 'rgba(0,200,255" i],
+  [data-theme='light'] button[style*="background: 'rgba(0,255,136" i],
+  [data-theme='light'] button[style*="background: 'rgba(255,255,255" i],
+  [data-theme='light'] button[style*="border: '1px solid #00c8ff'" i],
+  [data-theme='light'] button[style*="border: '1px solid rgba(0,200,255" i],
+  [data-theme='light'] button[style*="rgba(0, 200, 255" i],
+  [data-theme='light'] button[style*="rgba(0, 255, 136" i] {
     background: linear-gradient(135deg, #1b4f72 0%, #154360 100%) !important;
     color: #ffffff !important;
     border: none !important;
@@ -221,33 +224,33 @@ const styles = `
   [data-theme='light'] div, [data-theme='light'] span, [data-theme='light'] p {
     color: inherit;
   }
-  [data-theme='light'] [style*="Orbitron"] {
+  [data-theme='light'] [style*="orbitron" i] {
     color: #1b4f72 !important;
   }
-  [data-theme='light'] [style*="rgba(160,200,255"] {
+  [data-theme='light'] [style*="rgba(160,200,255" i] {
     color: #5d6d7e !important;
   }
-  [data-theme='light'] [style*="color: rgb(160, 200, 255"] {
+  [data-theme='light'] [style*="color: rgb(160, 200, 255" i] {
     color: #5d6d7e !important;
   }
-  [data-theme='light'] [style*="color: #fff"], [data-theme='light'] [style*="color: rgb(255, 255, 255)"] {
+  [data-theme='light'] [style*="color: #fff" i], [data-theme='light'] [style*="color: rgb(255, 255, 255)" i] {
     color: #212529 !important;
   }
-  [data-theme='light'] [style*="color: #e0eaff"] {
+  [data-theme='light'] [style*="color: #e0eaff" i] {
     color: #2c3e50 !important;
   }
-  [data-theme='light'] [style*="background: rgba(0,0,0,0.3)"] {
+  [data-theme='light'] [style*="background: rgba(0,0,0,0.3)" i] {
     background: #f2f4f4 !important;
     border: 1px solid #cbd5e0 !important;
   }
 
   /* Pattern match and standardize ALL dark containers in Dark Mode */
-  [data-theme='dark'] div[style*="rgba(5, 15, 40"],
-  [data-theme='dark'] div[style*="rgba(5, 20, 45"],
-  [data-theme='dark'] div[style*="rgba(10, 22, 48"],
-  [data-theme='dark'] div[style*="rgba(5, 20, 10"],
-  [data-theme='dark'] div[style*="rgba(3, 10, 28"],
-  [data-theme='dark'] div[style*="rgba(3, 8, 22"] {
+  [data-theme='dark'] div[style*="rgba(5, 15, 40" i],
+  [data-theme='dark'] div[style*="rgba(5, 20, 45" i],
+  [data-theme='dark'] div[style*="rgba(10, 22, 48" i],
+  [data-theme='dark'] div[style*="rgba(5, 20, 10" i],
+  [data-theme='dark'] div[style*="rgba(3, 10, 28" i],
+  [data-theme='dark'] div[style*="rgba(3, 8, 22" i] {
     background: rgba(4, 12, 28, 0.85) !important;
     border: 1px solid rgba(0, 200, 255, 0.25) !important;
     color: #e0eaff !important;
