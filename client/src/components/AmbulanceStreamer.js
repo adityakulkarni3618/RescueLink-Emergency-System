@@ -605,6 +605,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
   const [bleDevice, setBleDevice] = useState(null);
   const [bleConnecting, setBleConnecting] = useState(false);
   const [bleError, setBleError] = useState('');
+  const bleIntervalRef = useRef(null);
 
   const connectBluetoothHRM = async () => {
     setBleConnecting(true);
@@ -661,8 +662,12 @@ export default function AmbulanceStreamer({ socket, connected }) {
   };
 
   const disconnectBluetoothHRM = () => {
-    if (bleDevice && bleDevice.gatt.connected) {
+    if (bleDevice && bleDevice.gatt && bleDevice.gatt.connected) {
       bleDevice.gatt.disconnect();
+    }
+    if (bleIntervalRef.current) {
+      clearInterval(bleIntervalRef.current);
+      bleIntervalRef.current = null;
     }
     setBleDevice(null);
     setVitalsSource('SIMULATED');
@@ -2630,7 +2635,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
                   </div>
                 </div>
 
-                {vitalsSource === 'BLUETOOTH' && patientLoaded && (
+                {vitalsSource === 'BLUETOOTH' && (
                   <div style={{
                     background: 'rgba(0,200,255,0.05)', border: '1px solid rgba(0,200,255,0.2)',
                     borderRadius: 10, padding: 15, marginBottom: 15
@@ -2660,20 +2665,49 @@ export default function AmbulanceStreamer({ socket, connected }) {
                         </div>
                         {bleError && (
                           <div style={{ fontSize: 11, color: '#ff4444', fontFamily: "'Share Tech Mono'" }}>
-                            Error: {bleError}
+                            Status: {bleError}
                           </div>
                         )}
-                        <button 
-                          onClick={connectBluetoothHRM}
-                          disabled={bleConnecting}
-                          style={{
-                            padding: '10px 16px', background: 'rgba(0,200,255,0.15)', border: '1px solid #00c8ff',
-                            borderRadius: 6, color: '#00c8ff', fontFamily: "'Orbitron'", fontSize: 12, cursor: 'pointer',
-                            fontWeight: 'bold'
-                          }}
-                        >
-                          {bleConnecting ? 'SCANNING...' : '🔌 CONNECT BLE MONITOR'}
-                        </button>
+                        <div style={{ display: 'flex', gap: 10 }}>
+                          <button 
+                            onClick={connectBluetoothHRM}
+                            disabled={bleConnecting}
+                            style={{
+                              flex: 1, padding: '10px 16px', background: 'rgba(0,200,255,0.15)', border: '1px solid #00c8ff',
+                              borderRadius: 6, color: '#00c8ff', fontFamily: "'Orbitron'", fontSize: 12, cursor: 'pointer',
+                              fontWeight: 'bold'
+                            }}
+                          >
+                            {bleConnecting ? 'SCANNING...' : '🔌 CONNECT REAL BLE'}
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setBleDevice({ name: 'Simulated HRM Watch' });
+                              setVitalsSource('BLUETOOTH');
+                              // Start mock vitals streaming for Bluetooth mode
+                              const interval = setInterval(() => {
+                                setVitals(prev => {
+                                  const updated = {
+                                    ...prev,
+                                    heartRate: Math.round(70 + Math.random() * 15)
+                                  };
+                                  if (socket && connected && assignedUserRef.current) {
+                                    socket.emit('vitals-update', { ...updated, reqId: assignedUserRef.current.id });
+                                  }
+                                  return updated;
+                                });
+                              }, 1000);
+                              bleIntervalRef.current = interval;
+                            }}
+                            style={{
+                              flex: 1, padding: '10px 16px', background: 'rgba(0,255,136,0.1)', border: '1px solid #00ff88',
+                              borderRadius: 6, color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 12, cursor: 'pointer',
+                              fontWeight: 'bold'
+                            }}
+                          >
+                            ⚙️ MOCK BLE DEVICE
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
