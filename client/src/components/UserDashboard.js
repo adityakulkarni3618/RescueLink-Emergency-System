@@ -194,18 +194,31 @@ export default function UserDashboard({ socket, connected }) {
 
   useEffect(() => {
     if (showWearablePairing && !wearableConnected) {
-      setIsBleScanning(true);
-      setBleScanProgress(0);
-      let progress = 0;
-      const interval = setInterval(() => {
-        progress += 10;
-        setBleScanProgress(progress);
-        if (progress >= 100) {
-          clearInterval(interval);
+      const scanLiveDevices = async () => {
+        try {
+          if (!navigator.bluetooth) {
+            throw new Error('Web Bluetooth requires HTTPS (Chrome/Edge/Opera).');
+          }
+          setIsBleScanning(true);
+          const device = await navigator.bluetooth.requestDevice({
+            acceptAllDevices: true,
+            optionalServices: ['heart_rate'] // Keep standard heart rate optional service
+          });
           setIsBleScanning(false);
+          setPairedDevice(device);
+          setWearableConnected(true);
+          setShowWearablePairing(false);
+          showAlert(`⌚ Successfully paired with ${device.name || 'Bluetooth Device'}. Fall detection active.`);
+        } catch (err) {
+          setIsBleScanning(false);
+          console.warn('BLE Scan Error:', err);
+          showAlert(`Bluetooth scan: ${err.message || 'Cancelled by user.'}`);
         }
-      }, 200);
-      return () => clearInterval(interval);
+      };
+      
+      // Delay slightly so the modal renders before the browser popup freezes UI interaction
+      const timer = setTimeout(scanLiveDevices, 500);
+      return () => clearTimeout(timer);
     }
   }, [showWearablePairing, wearableConnected]);
 
