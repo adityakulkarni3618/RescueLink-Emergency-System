@@ -157,6 +157,20 @@ async function syncDatabase() {
     // Secondary sync to align any Sequelize hooks or updates
     await sequelize.sync();
     console.log('[DB] Database synchronized.');
+
+    // If using SQLite and no users exist, auto-seed the database
+    if (useSqlite) {
+      try {
+        const userCount = await User.count();
+        if (userCount === 0) {
+          console.log('[DB] SQLite database is empty. Auto-seeding default credentials...');
+          const seed = require('../scripts/seed_db');
+          await seed();
+        }
+      } catch (seedErr) {
+        console.error('[DB WARNING] Auto-seeding failed:', seedErr.message);
+      }
+    }
   } catch (err) {
     const { triggerCriticalAlert } = require('./alerting');
     await triggerCriticalAlert('DATABASE_CONNECT_FAIL', {
