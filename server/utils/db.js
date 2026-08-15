@@ -1,19 +1,22 @@
 const { Sequelize } = require('sequelize');
 const { execSync } = require('child_process');
 
-let useSqlite = false;
+let useSqlite = process.env.FORCE_SQLITE === 'true';
 const dbHost = process.env.DB_HOST || 'localhost';
 const dbPort = process.env.DB_PORT || 5432;
 
-if (dbHost === 'localhost' || dbHost === '127.0.0.1') {
+if (!useSqlite) {
   try {
-    if (process.platform === 'win32') {
-      execSync(`netstat -ano | findstr ":${dbPort}\\>"` , { stdio: 'ignore' });
-    } else {
-      execSync(`nc -z -w 1 ${dbHost} ${dbPort}`, { stdio: 'ignore' });
-    }
+    // Run a quick synchronous TCP socket check to verify database connectivity
+    const checkCmd = `node -e "
+      const net = require('net');
+      const socket = net.connect(${dbPort}, '${dbHost}', () => process.exit(0));
+      socket.on('error', () => process.exit(1));
+      socket.setTimeout(2000, () => { socket.destroy(); process.exit(1); });
+    "`;
+    execSync(checkCmd, { stdio: 'ignore' });
   } catch (e) {
-    console.log(`[DB] PostgreSQL not detected on ${dbHost}:${dbPort}. Falling back to SQLite database.`);
+    console.log(`[DB] PostgreSQL not detected or unreachable on ${dbHost}:${dbPort}. Falling back to SQLite database.`);
     useSqlite = true;
   }
 }
