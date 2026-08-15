@@ -3,7 +3,7 @@ FROM node:18-alpine AS builder
 
 WORKDIR /usr/src/app
 
-COPY server/package*.json ./
+COPY backend/package*.json ./
 RUN npm ci --only=production
 
 FROM node:18-alpine
@@ -11,7 +11,7 @@ FROM node:18-alpine
 WORKDIR /usr/src/app
 
 COPY --from=builder /usr/src/app/node_modules ./node_modules
-COPY server/ .
+COPY backend/ .
 
 ENV NODE_ENV=production
 ENV PORT=5000

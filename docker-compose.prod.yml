@@ -26,7 +26,7 @@ services:
     security_opt:
       - no-new-privileges:true
 
-  server:
+  backend:
     build:
       context: .
       dockerfile: Dockerfile
@@ -61,10 +61,10 @@ services:
     security_opt:
       - no-new-privileges:true
 
-  client:
+  frontend:
     build:
       context: .
-      dockerfile: Dockerfile.client
+      dockerfile: Dockerfile.frontend
     container_name: rescuelink-client-prod
     restart: unless-stopped
     environment:
@@ -75,7 +75,7 @@ services:
     volumes:
       - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
-      - server
+      - backend
     security_opt:
       - no-new-privileges:true
 

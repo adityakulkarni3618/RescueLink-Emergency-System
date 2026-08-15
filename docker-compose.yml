@@ -23,7 +23,7 @@ services:
     volumes:
       - redis_data:/data
 
-  server:
+  backend:
     build:
       context: .
       dockerfile: Dockerfile
@@ -56,16 +56,16 @@ services:
       - postgres
       - redis
 
-  client:
+  frontend:
     build:
       context: .
-      dockerfile: Dockerfile.client
+      dockerfile: Dockerfile.frontend
     container_name: rescuelink-client
     restart: always
     ports:
       - "3000:80"
     depends_on:
-      - server
+      - backend
 
 volumes:
   postgres_data:
