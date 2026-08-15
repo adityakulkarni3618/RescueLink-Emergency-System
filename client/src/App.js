@@ -101,62 +101,94 @@ const styles = `
     animation: blink 1s step-end infinite;
   }
 
-  /* Light Theme Overrides - Deep Coverage */
-  [data-theme='light'] body { background: #f4f6f9 !important; color: #1a202c !important; }
-  [data-theme='light'] .scanline { background: linear-gradient(90deg, transparent, rgba(0,100,255,0.02), transparent); }
-  [data-theme='light'] .app-root { background: #f4f6f9 !important; }
+  /* Premium Dark Theme (Default) */
+  body {
+    background: radial-gradient(ellipse at 50% 30%, #020813 0%, #000205 100%) !important;
+    color: #e0eaff !important;
+  }
 
-  /* Structured Light Theme Classes */
+  /* Light Theme Overrides - MSME Blue & White Official Portal Style */
+  [data-theme='light'] body { 
+    background: #eef2f6 !important; 
+    color: #212529 !important; 
+  }
+  [data-theme='light'] .scanline { 
+    background: linear-gradient(90deg, transparent, rgba(15, 76, 129, 0.02), transparent); 
+  }
+  [data-theme='light'] .app-root { 
+    background: #eef2f6 !important; 
+  }
+
+  /* Official MSME Dark Blue Header Bar Overrides */
+  [data-theme='light'] div[style*="minHeight: 70"], 
+  [data-theme='light'] div[style*="minHeight: 60"],
+  [data-theme='light'] div[style*="min-height: 70"],
+  [data-theme='light'] div[style*="min-height: 60"] {
+    background: #1b4f72 !important; /* MSME Top Bar color */
+    border-bottom: 2px solid #154360 !important;
+    color: #ffffff !important;
+  }
+  [data-theme='light'] div[style*="minHeight: 70"] *,
+  [data-theme='light'] div[style*="minHeight: 60"] * {
+    color: #ffffff !important;
+  }
+
+  /* Structured Light Theme Classes (MSME White Card Style) */
   [data-theme='light'] .rl-card {
     background: #ffffff !important;
-    border: 1px solid rgba(0, 0, 0, 0.08) !important;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06) !important;
-    color: #1a202c !important;
+    border: 1px solid #cbd5e0 !important;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05) !important;
+    color: #212529 !important;
+    border-radius: 8px !important;
   }
   [data-theme='light'] .rl-input {
     background: #ffffff !important;
-    border: 1px solid rgba(0, 0, 0, 0.15) !important;
-    color: #1a202c !important;
+    border: 1px solid #a0aec0 !important;
+    color: #212529 !important;
   }
   [data-theme='light'] .rl-btn-primary {
-    background: linear-gradient(135deg, #0072ff 0%, #0052cc 100%) !important;
+    background: linear-gradient(135deg, #1b4f72 0%, #154360 100%) !important;
     color: #ffffff !important;
-    box-shadow: 0 4px 15px rgba(0, 114, 255, 0.2) !important;
+    box-shadow: 0 4px 12px rgba(27, 79, 114, 0.2) !important;
+    border: none !important;
   }
   [data-theme='light'] .rl-btn-secondary {
     background: #ffffff !important;
-    color: #0072ff !important;
-    border: 1px solid rgba(0, 114, 255, 0.4) !important;
+    color: #1b4f72 !important;
+    border: 1px solid rgba(27, 79, 114, 0.5) !important;
   }
   [data-theme='light'] .rl-btn-secondary:hover {
-    background: rgba(0, 114, 255, 0.05) !important;
+    background: rgba(27, 79, 114, 0.08) !important;
   }
 
-  /* Universal Text Color Overrides for Light Mode */
+  /* Universal Text Color Overrides for MSME Light Mode */
   [data-theme='light'] h1, [data-theme='light'] h2, [data-theme='light'] h3, [data-theme='light'] h4, [data-theme='light'] h5, [data-theme='light'] h6 {
-    color: #0b2545 !important;
+    color: #1b4f72 !important;
   }
   [data-theme='light'] label {
-    color: #4a5568 !important;
+    color: #2c3e50 !important;
   }
   [data-theme='light'] div, [data-theme='light'] span, [data-theme='light'] p {
-    /* Auto-correct low contrast custom brand texts */
     color: inherit;
   }
   [data-theme='light'] [style*="Orbitron"] {
-    color: #0b2545 !important;
+    color: #1b4f72 !important;
   }
   [data-theme='light'] [style*="rgba(160,200,255"] {
-    color: #4a5568 !important;
+    color: #5d6d7e !important;
   }
   [data-theme='light'] [style*="color: rgb(160, 200, 255"] {
-    color: #4a5568 !important;
+    color: #5d6d7e !important;
   }
   [data-theme='light'] [style*="color: #fff"], [data-theme='light'] [style*="color: rgb(255, 255, 255)"] {
-    color: #1a202c !important;
+    color: #212529 !important;
   }
   [data-theme='light'] [style*="color: #e0eaff"] {
-    color: #2d3748 !important;
+    color: #2c3e50 !important;
+  }
+  [data-theme='light'] [style*="background: rgba(0,0,0,0.3)"] {
+    background: #f2f4f4 !important;
+    border: 1px solid #cbd5e0 !important;
   }
 
   /* Global Premium Button Aesthetics */
@@ -187,13 +219,12 @@ const styles = `
     }
   }
 
-
   /* Premium Design System Components */
   .rl-card {
-    background: rgba(10, 22, 48, 0.7) !important;
-    border: 1px solid rgba(0, 200, 255, 0.15) !important;
+    background: rgba(4, 12, 28, 0.85) !important;
+    border: 1px solid rgba(0, 200, 255, 0.2) !important;
     border-radius: 14px !important;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6) !important;
     backdrop-filter: blur(12px) !important;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   }
