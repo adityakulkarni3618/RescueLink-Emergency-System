@@ -1416,17 +1416,15 @@ export default function App() {
       <div className="global-buttons-container" style={{ position: 'fixed', top: 14, right: 25, zIndex: 11000, display: 'flex', gap: 12, alignItems: 'center' }}>
         {/* Switch role settings button */}
         <button
-          className="global-switch-btn"
+          className="rl-btn-secondary"
           onClick={() => {
             sessionStorage.removeItem('rescueLinkRole');
             setRole(null);
             window.location.hash = '';
           }}
           style={{
-            padding: '8px 16px', background: 'rgba(0,255,136,0.1)',
-            border: '1px solid #00ff88', borderRadius: 6,
-            color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 11,
-            fontWeight: 700, letterSpacing: '0.1em', cursor: 'pointer'
+            padding: '8px 16px',
+            fontSize: 11
           }}
         >
           SWITCH ROLE 🔄
@@ -1434,13 +1432,11 @@ export default function App() {
 
         {/* Security settings button */}
         <button
-          className="global-security-btn"
+          className="rl-btn-secondary"
           onClick={() => setShowSecurityModal(true)}
           style={{
-            padding: '8px 16px', background: 'rgba(0,200,255,0.1)',
-            border: '1px solid #00c8ff', borderRadius: 6,
-            color: '#00c8ff', fontFamily: "'Orbitron'", fontSize: 11,
-            fontWeight: 700, letterSpacing: '0.1em', cursor: 'pointer'
+            padding: '8px 16px',
+            fontSize: 11
           }}
         >
           SECURITY 🛡️
@@ -1448,13 +1444,13 @@ export default function App() {
 
         {/* Logout button */}
         <button
-          className="global-logout-btn"
+          className="rl-btn-primary"
           onClick={handleLogout}
           style={{
-            padding: '8px 16px', background: 'rgba(255,50,50,0.1)',
-            border: '1px solid #ff3333', borderRadius: 6,
-            color: '#ff8888', fontFamily: "'Orbitron'", fontSize: 11,
-            fontWeight: 700, letterSpacing: '0.1em', cursor: 'pointer'
+            padding: '8px 16px',
+            fontSize: 11,
+            background: 'linear-gradient(135deg, #ff4444 0%, #cc0000 100%)',
+            boxShadow: '0 4px 15px rgba(255, 68, 68, 0.2)'
           }}
         >
           LOGOUT ⏻
