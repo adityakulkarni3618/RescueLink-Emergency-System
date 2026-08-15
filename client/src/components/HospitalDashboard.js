@@ -2670,6 +2670,7 @@ export default function HospitalDashboard({ socket, connected }) {
                 { id: 'blood_bank', label: '🩸 BLOOD BANK' },
                 { id: 'insurance', label: '🛡️ INSURANCE AUTO-PAY' },
                 { id: 'mass_casualty', label: '⚠️ MASS CASUALTY' },
+                { id: 'settings', label: '⚙️ SETTINGS' },
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -3248,6 +3249,114 @@ export default function HospitalDashboard({ socket, connected }) {
                 <div style={{ flex: 1, padding: 24, overflowY: 'auto', display: 'flex', justifyContent: 'center' }}>
                   <div style={{ width: '100%', maxWidth: 800 }}>
                     <MassCasualtyPanel socket={socket} />
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'settings' && (
+                <div style={{ padding: 24, overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <h2 style={{ fontFamily: "'Orbitron'", color: '#00c8ff', margin: '0 0 10px' }}>🏥 SYSTEM SETTINGS & INVENTORY</h2>
+                  <div style={{ background: 'rgba(5, 15, 40, 0.8)', border: '1px solid rgba(0, 200, 255, 0.2)', borderRadius: 10, padding: 24, maxWidth: 600 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 11, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.6)', marginBottom: 6 }}>HOSPITAL NAME</label>
+                        <input 
+                          value={authHospital?.name || ''} 
+                          onChange={(e) => setAuthHospital({ ...authHospital, name: e.target.value })}
+                          style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }} 
+                        />
+                      </div>
+                      <div style={{ display: 'flex', gap: 16 }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ display: 'block', fontSize: 11, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.6)', marginBottom: 6 }}>LATITUDE</label>
+                          <input 
+                            type="number" step="0.0001"
+                            value={hospitalGps?.lat || authHospital?.lat || ''} 
+                            onChange={(e) => {
+                              const lat = parseFloat(e.target.value);
+                              setHospitalGps({ ...hospitalGps, lat });
+                              setAuthHospital({ ...authHospital, lat });
+                            }}
+                            style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }} 
+                          />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ display: 'block', fontSize: 11, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.6)', marginBottom: 6 }}>LONGITUDE</label>
+                          <input 
+                            type="number" step="0.0001"
+                            value={hospitalGps?.lng || authHospital?.lng || ''} 
+                            onChange={(e) => {
+                              const lng = parseFloat(e.target.value);
+                              setHospitalGps({ ...hospitalGps, lng });
+                              setAuthHospital({ ...authHospital, lng });
+                            }}
+                            style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }} 
+                          />
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 16 }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ display: 'block', fontSize: 11, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.6)', marginBottom: 6 }}>TOTAL ICU BEDS</label>
+                          <input 
+                            type="number"
+                            value={icuBeds} 
+                            onChange={(e) => setIcuBeds(parseInt(e.target.value) || 0)}
+                            style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }} 
+                          />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ display: 'block', fontSize: 11, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.6)', marginBottom: 6 }}>VENTILATORS AVAILABLE</label>
+                          <input 
+                            type="number"
+                            value={authHospital?.ventilators || 5} 
+                            onChange={(e) => setAuthHospital({ ...authHospital, ventilators: parseInt(e.target.value) || 0 })}
+                            style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }} 
+                          />
+                        </div>
+                      </div>
+                      <button 
+                        onClick={async () => {
+                          try {
+                            const res = await fetch(`/api/hospitals/${authHospital.hospitalId}`, {
+                              method: 'PUT',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionStorage.getItem('rescuelink_token')}`
+                              },
+                              body: JSON.stringify({
+                                name: authHospital.name,
+                                lat: hospitalGps?.lat || authHospital.lat,
+                                lng: hospitalGps?.lng || authHospital.lng,
+                                icu_beds: icuBeds,
+                                ventilators: authHospital.ventilators || 5
+                              })
+                            });
+                            if (res.ok) {
+                              window.alert('🏥 Hospital settings updated successfully and sync broadcasted!');
+                              if (socket) {
+                                socket.emit('register-hospital', { 
+                                  hospitalId: authHospital.hospitalId, 
+                                  name: authHospital.name, 
+                                  adminName: authHospital.adminName, 
+                                  id: authHospital.hospitalId, 
+                                  lat: hospitalGps?.lat || authHospital.lat,
+                                  lng: hospitalGps?.lng || authHospital.lng,
+                                  token: sessionStorage.getItem('rescuelink_token')
+                                });
+                              }
+                            } else {
+                              const errData = await res.json();
+                              window.alert('⚠️ Update failed: ' + (errData.error || 'Unknown error'));
+                            }
+                          } catch (err) {
+                            window.alert('⚠️ Connection error occurred.');
+                          }
+                        }}
+                        style={{ padding: 12, background: 'rgba(0,200,255,0.15)', border: '1px solid #00c8ff', borderRadius: 8, color: '#00c8ff', fontFamily: "'Orbitron'", fontWeight: 'bold', cursor: 'pointer', marginTop: 10 }}
+                      >
+                        SAVE SETTINGS & BROADCAST
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
