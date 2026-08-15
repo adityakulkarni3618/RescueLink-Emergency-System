@@ -210,6 +210,8 @@ export default function UserDashboard({ socket, connected }) {
   const routeTo = (subPath) => {
     window.location.hash = subPath ? `user/${subPath}` : 'user';
   };
+
+  useEffect(() => {
     if (showWearablePairing && !wearableConnected) {
       const scanLiveDevices = async () => {
         try {

@@ -1155,7 +1155,6 @@ export default function HospitalDashboard({ socket, connected }) {
       return null;
     };
 
-  useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => setHospitalGps({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
