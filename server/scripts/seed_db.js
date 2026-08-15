@@ -298,10 +298,16 @@ async function seed() {
     console.log('[SEED] Seeded synthetic blood requests.');
 
     console.log('[SEED] Database seeding completed successfully.');
-    process.exit(0);
+    if (require.main === module) {
+      process.exit(0);
+    }
   } catch (err) {
     console.error('[SEED ERROR] Seeding failed:', err);
-    process.exit(1);
+    if (require.main === module) {
+      process.exit(1);
+    } else {
+      throw err;
+    }
   }
 }
 
