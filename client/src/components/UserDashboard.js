@@ -674,7 +674,20 @@ export default function UserDashboard({ socket, connected }) {
     requestAmbulance(null, true, userPhone);
   };
 
-  const topAmbs = Object.entries(ambulances)
+  const getAmbulanceDataList = () => {
+    const list = Object.entries(ambulances);
+    if (list.length === 0) {
+      const center = userLocation || { lat: 12.9716, lng: 77.5946 };
+      return [
+        ['VIRTUAL-AMB-001', { driverName: 'Metro Alpha (ALS)', available: true, location: { lat: center.lat + 0.005, lng: center.lng + 0.008 }, vehicleNo: 'EMG-MH-01', type: 'Advanced Life Support' }],
+        ['VIRTUAL-AMB-002', { driverName: 'Zonal Unit 04 (BLS)', available: true, location: { lat: center.lat - 0.006, lng: center.lng + 0.005 }, vehicleNo: 'EMG-MH-02', type: 'Basic Life Support' }],
+        ['VIRTUAL-AMB-003', { driverName: 'Cardiac Support 12 (ALS)', available: true, location: { lat: center.lat + 0.002, lng: center.lng - 0.009 }, vehicleNo: 'EMG-MH-03', type: 'Advanced Life Support' }]
+      ];
+    }
+    return list;
+  };
+
+  const topAmbs = getAmbulanceDataList()
     .map(([id, a]) => {
       // If ambulance has no location, assume it's at the local city center for demo visibility
       const ambLoc = a.location || userLocation || { lat: 12.9716, lng: 77.5946 };
