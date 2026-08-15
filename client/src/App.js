@@ -119,7 +119,17 @@ const styles = `
     background: #eef2f6 !important; 
   }
 
-  /* Official MSME Dark Blue Header Bar Overrides */
+  /* Target all radial-gradient layouts and outer container backgrounds to clear them in light mode */
+  [data-theme='light'] div[style*="radial-gradient"] {
+    background: #eef2f6 !important;
+  }
+  [data-theme='light'] div[style*="height: '100vh'"],
+  [data-theme='light'] div[style*="minHeight: '100vh'"],
+  [data-theme='light'] div[style*="min-height: 100vh"] {
+    background: #eef2f6 !important;
+  }
+
+  /* Clean MSME Header Bar styling in Light Mode */
   [data-theme='light'] div[style*="minHeight: 70"], 
   [data-theme='light'] div[style*="minHeight: 60"],
   [data-theme='light'] div[style*="min-height: 70"],
@@ -131,6 +141,26 @@ const styles = `
   [data-theme='light'] div[style*="minHeight: 70"] *,
   [data-theme='light'] div[style*="minHeight: 60"] * {
     color: #ffffff !important;
+  }
+
+  /* Pattern match and convert ALL inline dark containers/cards to clean MSME White Cards */
+  [data-theme='light'] div[style*="rgba(5, 15, 40"],
+  [data-theme='light'] div[style*="rgba(5, 20, 45"],
+  [data-theme='light'] div[style*="rgba(10, 22, 48"],
+  [data-theme='light'] div[style*="rgba(5, 20, 10"],
+  [data-theme='light'] div[style*="rgba(3, 10, 28"],
+  [data-theme='light'] div[style*="rgba(3, 8, 22"],
+  [data-theme='light'] div[style*="rgba(0, 0, 0, 0."],
+  [data-theme='light'] div[style*="background: 'rgba(5,20,45,0.6)'"],
+  [data-theme='light'] div[style*="rgba(255, 255, 255, 0.03)"],
+  [data-theme='light'] div[style*="rgba(255,255,255,0.03)"],
+  [data-theme='light'] div[style*="rgba(255, 255, 255, 0.05)"],
+  [data-theme='light'] div[style*="rgba(255,255,255,0.05)"] {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e0 !important;
+    color: #212529 !important;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.04) !important;
+    border-radius: 8px !important;
   }
 
   /* Structured Light Theme Classes (MSME White Card Style) */
@@ -161,6 +191,26 @@ const styles = `
     background: rgba(27, 79, 114, 0.08) !important;
   }
 
+  /* Auto-convert generic inputs, textareas, and select menus in Light Mode */
+  [data-theme='light'] input,
+  [data-theme='light'] textarea,
+  [data-theme='light'] select {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e0 !important;
+    color: #212529 !important;
+  }
+
+  /* Auto-convert inline styled action buttons in Light Mode */
+  [data-theme='light'] button[style*="background: 'rgba(0,200,255"],
+  [data-theme='light'] button[style*="background: 'rgba(0,255,136"],
+  [data-theme='light'] button[style*="background: 'rgba(255,255,255"],
+  [data-theme='light'] button[style*="border: '1px solid #00c8ff'"],
+  [data-theme='light'] button[style*="border: '1px solid rgba(0,200,255"] {
+    background: linear-gradient(135deg, #1b4f72 0%, #154360 100%) !important;
+    color: #ffffff !important;
+    border: none !important;
+  }
+
   /* Universal Text Color Overrides for MSME Light Mode */
   [data-theme='light'] h1, [data-theme='light'] h2, [data-theme='light'] h3, [data-theme='light'] h4, [data-theme='light'] h5, [data-theme='light'] h6 {
     color: #1b4f72 !important;
@@ -189,6 +239,19 @@ const styles = `
   [data-theme='light'] [style*="background: rgba(0,0,0,0.3)"] {
     background: #f2f4f4 !important;
     border: 1px solid #cbd5e0 !important;
+  }
+
+  /* Pattern match and standardize ALL dark containers in Dark Mode */
+  [data-theme='dark'] div[style*="rgba(5, 15, 40"],
+  [data-theme='dark'] div[style*="rgba(5, 20, 45"],
+  [data-theme='dark'] div[style*="rgba(10, 22, 48"],
+  [data-theme='dark'] div[style*="rgba(5, 20, 10"],
+  [data-theme='dark'] div[style*="rgba(3, 10, 28"],
+  [data-theme='dark'] div[style*="rgba(3, 8, 22"] {
+    background: rgba(4, 12, 28, 0.85) !important;
+    border: 1px solid rgba(0, 200, 255, 0.25) !important;
+    color: #e0eaff !important;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5) !important;
   }
 
   /* Global Premium Button Aesthetics */
