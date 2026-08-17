@@ -30,6 +30,7 @@ import PatientHomeScreen from '../screens/patient/SOSScreen';
 import TrackingScreen from '../screens/patient/TrackingScreen';
 import PatientProfileScreen from '../screens/patient/ProfileScreen';
 import CPRGuideScreen from '../screens/patient/CPRGuideScreen';
+import ChronicLogScreen from '../screens/patient/ChronicLogScreen';
 
 // Stack and Tab Creators
 const Stack = createStackNavigator();
@@ -92,6 +93,7 @@ function PatientTabNavigator() {
     <Tab.Navigator screenOptions={{ headerStyle: { backgroundColor: '#07162c' }, headerTintColor: '#00c8ff' }}>
       <Tab.Screen name="PatientHome" component={PatientHomeScreen} options={{ title: '🆘 SOS Alert' }} />
       <Tab.Screen name="Profile" component={PatientProfileScreen} options={{ title: '🏥 Health Records' }} />
+      <Tab.Screen name="Chronic" component={ChronicLogScreen} options={{ title: '📈 Chronic Care' }} />
       <Tab.Screen name="CPR" component={CPRGuideScreen} options={{ title: '🫀 CPR Guide' }} />
     </Tab.Navigator>
   );
