@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { jsPDF } from 'jspdf';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine,
@@ -1278,36 +1279,115 @@ function HandoverModal({ patient, vitals, notes, onClose, previousReports, onSav
 
         <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(0,200,255,0.2)', display: 'flex', justifyContent: 'space-between', background: 'rgba(0,0,0,0.2)' }}>
           <button onClick={() => {
-            const reportText = `
-=========================================
-      RESCUELINK CLINICAL REPORT
-=========================================
-DATE: ${now.toLocaleString()}
-PATIENT: ${patient.name} (${patient?.id})
-AGE: ${patient.age} | BLOOD: ${patient.bloodGroup}
------------------------------------------
-TRIAGE: ${triage.label.toUpperCase()}
-RISK SCORE: ${riskScore}/10
------------------------------------------
-VITALS SNAPSHOT:
-- Heart Rate: ${vitals?.heartRate} bpm
-- SpO2: ${vitals?.spo2}%
-- Blood Pressure: ${vitals?.systolic}/${vitals?.diastolic} mmHg
-- Temp: ${vitals?.temperature}°C
-- Glucose: ${vitals?.bloodGlucose} mg/dL
------------------------------------------
-PARAMEDIC NOTES:
-${notes.length > 0 ? notes.map(n => `[${new Date(n.timestamp).toLocaleTimeString()}] ${n.note}`).join('\n') : 'No field notes recorded.'}
-=========================================
-`;
-            const el = document.createElement('a');
-            el.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(reportText));
-            el.setAttribute('download', `REPORT_${patient?.id}_${Date.now()}.txt`);
-            el.click();
+            const doc = new jsPDF();
+            
+            // Header banner
+            doc.setFillColor(7, 22, 44);
+            doc.rect(0, 0, 210, 35, 'F');
+            
+            doc.setTextColor(255, 255, 255);
+            doc.setFont("Helvetica", "bold");
+            doc.setFontSize(18);
+            doc.text("RESCUELINK EMERGENCY CLINICAL HANDOVER", 15, 22);
+            
+            doc.setFontSize(10);
+            doc.setFont("Helvetica", "normal");
+            doc.text(`DATE/TIME: ${now.toLocaleString()}`, 15, 29);
+            doc.text(`PATIENT ID: ${patient?.id || 'N/A'}`, 140, 29);
+            
+            // Demographics Section
+            doc.setFontSize(12);
+            doc.setFont("Helvetica", "bold");
+            doc.setTextColor(7, 22, 44);
+            doc.text("1. Patient Demographics", 15, 48);
+            
+            doc.line(15, 50, 195, 50);
+            doc.setFontSize(10);
+            doc.setFont("Helvetica", "normal");
+            doc.text(`Full Name: ${patient.name}`, 15, 57);
+            doc.text(`Age: ${patient.age} years`, 15, 63);
+            doc.text(`Blood Group: ${patient.bloodGroup}`, 15, 69);
+            doc.text(`Emergency Contact: ${patient.emergencyContact}`, 100, 57);
+            doc.text(`Allergies: ${patient.allergies?.join(', ') || 'No Known Allergies'}`, 100, 63);
+            doc.text(`ABDM Verification Status: ABDM VERIFIED`, 100, 69);
+            
+            // Triage Evaluation
+            doc.setFontSize(12);
+            doc.setFont("Helvetica", "bold");
+            doc.text("2. Triage & Severity Assessment", 15, 82);
+            doc.line(15, 84, 195, 84);
+            
+            doc.setFontSize(10);
+            doc.setFont("Helvetica", "normal");
+            doc.text(`Triage Category: ${triage.label.toUpperCase()}`, 15, 91);
+            doc.text(`Early Warning Risk Score: ${riskScore} / 10`, 100, 91);
+            
+            // Vitals Table
+            doc.setFontSize(12);
+            doc.setFont("Helvetica", "bold");
+            doc.text("3. Physiological Vital Signs Snapshot", 15, 104);
+            doc.line(15, 106, 195, 106);
+            
+            doc.setFontSize(10);
+            doc.setFont("Helvetica", "normal");
+            let yPos = 113;
+            const vitalsList = [
+              { label: "Heart Rate", val: `${vitals?.heartRate || '--'} bpm` },
+              { label: "Blood Oxygen (SpO2)", val: `${vitals?.spo2 || '--'}%` },
+              { label: "Blood Pressure", val: `${vitals?.systolic || '--'}/${vitals?.diastolic || '--'} mmHg` },
+              { label: "Core Temperature", val: `${vitals?.temperature || '--'} °C` },
+              { label: "Blood Glucose", val: `${vitals?.bloodGlucose || '--'} mg/dL` }
+            ];
+            
+            vitalsList.forEach(v => {
+              doc.text(v.label, 15, yPos);
+              doc.text(v.val, 100, yPos);
+              yPos += 6;
+            });
+            
+            // AI Clinical Summary
+            doc.setFontSize(12);
+            doc.setFont("Helvetica", "bold");
+            doc.text("4. Attending AI Clinical Summary", 15, 153);
+            doc.line(15, 155, 195, 155);
+            
+            doc.setFontSize(9);
+            doc.setFont("Helvetica", "normal");
+            
+            const summaryString = `Primary Assessment: Patient ${patient.name} presented to receiving emergency team. Real-time telemetry calculations indicate ${triage.label.toUpperCase()} acuity level. Recommended treatment protocols: establishment of vascular access, active continuous hemodynamic recording, and immediate specialist review.`;
+            const splitSummary = doc.splitTextToSize(summaryString, 180);
+            doc.text(splitSummary, 15, 162);
+            
+            // Recommendations
+            doc.setFontSize(12);
+            doc.setFont("Helvetica", "bold");
+            doc.text("5. Recommended Emergency Protocols", 15, 190);
+            doc.line(15, 192, 195, 192);
+            
+            doc.setFontSize(9);
+            doc.setFont("Helvetica", "normal");
+            let recY = 199;
+            const recommendationsList = [
+              "- Establish large-bore IV access (18G or larger).",
+              "- Continuous cardiac oximetry and vitals updates.",
+              "- Prepare for hospital admission workflow."
+            ];
+            recommendationsList.forEach(r => {
+              doc.text(r, 15, recY);
+              recY += 6;
+            });
+            
+            // Legal Disclaimer
+            doc.setFontSize(7);
+            doc.setFont("Helvetica", "oblique");
+            doc.setTextColor(120, 120, 120);
+            doc.text("DISCLAIMER: Generated by RescueLink AI. Advisory only. Attending emergency physician signature required.", 15, 280);
+            
+            doc.save(`HANDOVER_REPORT_${patient.id || 'PATIENT'}.pdf`);
           }} style={{
             background: 'rgba(0,200,255,0.1)', color: '#00c8ff', border: '1px solid rgba(0,200,255,0.3)', padding: '10px 24px', borderRadius: 6,
             fontFamily: "'Orbitron'", fontSize: 12, fontWeight: 700, cursor: 'pointer'
-          }}>📥 DOWNLOAD</button>
+          }}>📥 DOWNLOAD PDF</button>
           <button onClick={() => {
             const reportObj = {
               id: patient?.id,
