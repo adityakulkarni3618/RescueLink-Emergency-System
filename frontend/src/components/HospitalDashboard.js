@@ -501,6 +501,66 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
       setAlertData({ title: "❌ CONSULT ERROR", message: err.message });
     }
   };
+  
+  const generatePrognosisReport = () => {
+    setGeneratingPrognosis(true);
+    setTimeout(() => {
+      let condition = "General Assessment";
+      let riskLevel = "LOW RISK";
+      let riskColor = "#00ff88";
+      let details = "";
+      let recommendations = [];
+
+      const hr = latestVitals?.heartRate || 75;
+      const o2 = latestVitals?.spo2 || 98;
+      const sys = latestVitals?.systolic || 120;
+      const temp = latestVitals?.temperature || 36.6;
+
+      if (o2 < 92 || hr > 130 || sys < 90) {
+        condition = "High Risk: Acute Cardiorespiratory Crisis";
+        riskLevel = "CRITICAL / RED";
+        riskColor = "#ff4444";
+        details = "Smart telemetry analysis shows acute deterioration. Low blood oxygenation coupled with severe tachycardia/hypotension indicates potential cardiogenic shock or respiratory failure.";
+        recommendations = [
+          "Establish high-flow oxygen therapy (15 L/min non-rebreather).",
+          "Obtain immediate arterial blood gas (ABG) & cardiac panels.",
+          "Prepare trauma bay for immediate intubation/mechanical ventilation.",
+          "Alert critical care coordinator (ICU Command) for standby bed lock."
+        ];
+      } else if (hr > 105 || o2 < 95 || sys > 145 || temp > 38.0) {
+        condition = "Moderate Risk: Elevated Hemodynamic Acuity";
+        riskLevel = "MODERATE / YELLOW";
+        riskColor = "#ffb800";
+        details = "Smart telemetry analysis shows early-stage hypertensive distress or systemic infection. Mild tachycardia & sub-optimal blood oxygen saturation require close monitoring.";
+        recommendations = [
+          "Initiate continuous vitals polling (15-min intervals).",
+          "Draw peripheral blood cultures x2 and perform septic screen.",
+          "Obtain emergency 12-lead ECG to rule out ischemic changes.",
+          "Standby IV access line hydration (0.9% Normal Saline at 100 mL/hr)."
+        ];
+      } else {
+        condition = "Normal Hemodynamic Profile";
+        riskLevel = "STABLE / GREEN";
+        riskColor = "#00ff88";
+        details = "Vitals are within physiological limits. Wearable streams indicate stable cardiovascular state. Standard emergency triage protocols apply.";
+        recommendations = [
+          "Continue routine vital sign monitoring (30-min intervals).",
+          "Verify standard electronic health record (EHR) medication reconciliation.",
+          "Clear for standard emergency room triage assessment."
+        ];
+      }
+
+      setAiPrognosisReport({
+        condition,
+        riskLevel,
+        riskColor,
+        details,
+        recommendations,
+        generatedAt: new Date().toLocaleTimeString()
+      });
+      setGeneratingPrognosis(false);
+    }, 1500);
+  };
 
   const riskColors = { HIGH: '#ff4444', MEDIUM: '#ffb800', LOW: '#00ff88' };
 
@@ -779,6 +839,47 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
             }}>
             <span>🔗</span> FETCH ABDM EMR
           </button>
+        )}
+
+        {/* AI Care Advisor Panel */}
+        <button
+          onClick={generatePrognosisReport}
+          disabled={generatingPrognosis}
+          style={{
+            width: '100%', padding: '10px', background: 'rgba(0, 255, 136, 0.08)',
+            border: '1px solid #00ff88', borderRadius: 6, color: '#00ff88',
+            fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700,
+            cursor: 'pointer', transition: 'all 0.2s',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+          }}>
+          <span>🧠</span> {generatingPrognosis ? 'GENERATING AI PROGNOSIS...' : 'GENERATE AI CARE PROGNOSIS'}
+        </button>
+
+        {aiPrognosisReport && (
+          <div style={{
+            background: 'rgba(0, 200, 255, 0.04)', border: `1px solid ${aiPrognosisReport.riskColor}`,
+            borderRadius: 8, padding: 12, marginTop: 10, textAlign: 'left'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: "'Orbitron'", fontSize: 10, marginBottom: 6 }}>
+              <span style={{ color: '#00c8ff' }}>AI CARE DECISION ADVISOR</span>
+              <span style={{ color: aiPrognosisReport.riskColor, fontWeight: 'bold' }}>{aiPrognosisReport.riskLevel}</span>
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 'bold', color: '#e0eaff', marginBottom: 4 }}>
+              Prognosis: {aiPrognosisReport.condition}
+            </div>
+            <p style={{ fontSize: 11, color: 'rgba(160,200,255,0.7)', margin: '4px 0 8px 0', lineHeight: 1.4 }}>
+              {aiPrognosisReport.details}
+            </p>
+            <div style={{ fontSize: 10, color: '#00ff88', fontWeight: 'bold', marginBottom: 4 }}>RECOMMENDED PROTOCOLS:</div>
+            {aiPrognosisReport.recommendations.map((rec, idx) => (
+              <div key={idx} style={{ fontSize: 10, color: 'rgba(200,240,255,0.9)', paddingLeft: 8, borderLeft: `2px solid ${aiPrognosisReport.riskColor}`, marginBottom: 3 }}>
+                • {rec}
+              </div>
+            ))}
+            <div style={{ fontSize: 8, color: 'rgba(160,200,255,0.3)', marginTop: 8, textAlign: 'right', fontFamily: "'Share Tech Mono'" }}>
+              GENERATED AT {aiPrognosisReport.generatedAt}
+            </div>
+          </div>
         )}
       </div>
 
@@ -1373,6 +1474,8 @@ export default function HospitalDashboard({ socket, connected }) {
   const [messages, setMessages] = useState([]);
   const [incidentNotes, setIncidentNotes] = useState([]);
   const [savedReports, setSavedReports] = useState([]);
+  const [aiPrognosisReport, setAiPrognosisReport] = useState(null);
+  const [generatingPrognosis, setGeneratingPrognosis] = useState(false);
 
   // Fleet Visibility States
   const [ambulances, setAmbulances] = useState({});

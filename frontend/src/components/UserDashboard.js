@@ -190,6 +190,7 @@ export default function UserDashboard({ socket, connected }) {
   const [isBleScanning, setIsBleScanning] = useState(false);
   const [bleScanProgress, setBleScanProgress] = useState(0);
   const [wearableVitals, setWearableVitals] = useState({ heartRate: 75, spo2: 98, systolic: 120, diastolic: 80, temperature: 36.6 });
+  const [isIotSimOpen, setIsIotSimOpen] = useState(false);
   const SERVER_URL_CONST = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
 
   useEffect(() => {
@@ -405,6 +406,13 @@ export default function UserDashboard({ socket, connected }) {
     if (!wearableConnected) return;
     const timer = setInterval(() => {
       setWearableVitals(prev => {
+        if (prev.manualControl) {
+          // If manual control is active, send current values without drifting
+          if (currentReqId && socket && connected) {
+            socket.emit('vitals-update', { ...prev, reqId: currentReqId });
+          }
+          return prev;
+        }
         // Add random biological variance
         const hrDiff = Math.floor(Math.random() * 5) - 2; // -2 to +2
         const spo2Diff = Math.random() > 0.85 ? (Math.random() > 0.5 ? 1 : -1) : 0;
@@ -415,7 +423,8 @@ export default function UserDashboard({ socket, connected }) {
           systolic: Math.max(100, Math.min(140, prev.systolic + (Math.random() > 0.8 ? (Math.random() > 0.5 ? 1 : -1) : 0))),
           diastolic: Math.max(60, Math.min(90, prev.diastolic + (Math.random() > 0.8 ? (Math.random() > 0.5 ? 1 : -1) : 0))),
           temperature: Math.max(36.1, Math.min(37.5, parseFloat((prev.temperature + (Math.random() * 0.2 - 0.1)).toFixed(1)))),
-          source: 'LIVE'
+          source: 'LIVE',
+          manualControl: false
         };
 
         // If there's an active emergency mission, stream live smartwatch vitals to the paramedic & hospital
@@ -1756,6 +1765,197 @@ export default function UserDashboard({ socket, connected }) {
           <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', marginTop: 6, lineHeight: 1.4 }}>
             Time critical: {aiAnalysisResult.estimatedTimeToDeterioration}
           </div>
+        </div>
+      )}
+
+      {/* IoT Wearable Simulator Widget (Floating Demo Controls) */}
+      {wearableConnected && (
+        <div style={{
+          position: 'fixed', bottom: 85, right: 25, zIndex: 11000,
+          fontFamily: "'Rajdhani', sans-serif"
+        }}>
+          {!isIotSimOpen ? (
+            <button
+              onClick={() => setIsIotSimOpen(true)}
+              style={{
+                background: 'linear-gradient(135deg, #00c8ff 0%, #0072ff 100%)',
+                border: 'none', borderRadius: 20, color: '#ffffff',
+                padding: '10px 18px', fontSize: 11, fontWeight: 'bold',
+                fontFamily: "'Orbitron'", cursor: 'pointer',
+                boxShadow: '0 8px 24px rgba(0,200,255,0.3)',
+                display: 'flex', alignItems: 'center', gap: 6,
+                letterSpacing: '0.05em'
+              }}
+            >
+              ⌚ IoT SIMULATOR
+            </button>
+          ) : (
+            <div style={{
+              width: 280, background: 'rgba(5, 15, 40, 0.95)',
+              border: '1px solid rgba(0, 200, 255, 0.4)', borderRadius: 12,
+              padding: 16, boxShadow: '0 10px 30px rgba(0,0,0,0.6)',
+              backdropFilter: 'blur(10px)', display: 'flex', flexDirection: 'column', gap: 12
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', fontWeight: 900 }}>⌚ IoT WEARABLE SIMULATOR</div>
+                <button
+                  onClick={() => setIsIotSimOpen(false)}
+                  style={{ background: 'none', border: 'none', color: '#ff4444', cursor: 'pointer', fontSize: 16 }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Sliders */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'rgba(160,200,255,0.7)' }}>
+                    <span>HEART RATE</span>
+                    <span style={{ color: '#ff4444', fontWeight: 'bold' }}>{wearableVitals.heartRate} BPM</span>
+                  </div>
+                  <input
+                    type="range" min="40" max="180"
+                    value={wearableVitals.heartRate}
+                    onChange={(e) => {
+                      const hr = parseInt(e.target.value);
+                      setWearableVitals(prev => {
+                        const next = { ...prev, heartRate: hr, manualControl: true };
+                        if (currentReqId && socket && connected) socket.emit('vitals-update', { ...next, reqId: currentReqId });
+                        return next;
+                      });
+                    }}
+                    style={{ width: '100%', height: 4, background: '#00c8ff', outline: 'none' }}
+                  />
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'rgba(160,200,255,0.7)' }}>
+                    <span>BLOOD OXYGEN (SpO2)</span>
+                    <span style={{ color: '#00c8ff', fontWeight: 'bold' }}>{wearableVitals.spo2}%</span>
+                  </div>
+                  <input
+                    type="range" min="70" max="100"
+                    value={wearableVitals.spo2}
+                    onChange={(e) => {
+                      const sp = parseInt(e.target.value);
+                      setWearableVitals(prev => {
+                        const next = { ...prev, spo2: sp, manualControl: true };
+                        if (currentReqId && socket && connected) socket.emit('vitals-update', { ...next, reqId: currentReqId });
+                        return next;
+                      });
+                    }}
+                    style={{ width: '100%', height: 4, background: '#00c8ff', outline: 'none' }}
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <div>
+                    <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.7)', marginBottom: 2 }}>SYS BP</div>
+                    <input
+                      type="number" min="80" max="200"
+                      value={wearableVitals.systolic}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 120;
+                        setWearableVitals(prev => {
+                          const next = { ...prev, systolic: val, manualControl: true };
+                          if (currentReqId && socket && connected) socket.emit('vitals-update', { ...next, reqId: currentReqId });
+                          return next;
+                        });
+                      }}
+                      style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,200,255,0.2)', color: '#fff', fontSize: 11, padding: 4, borderRadius: 4 }}
+                    />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.7)', marginBottom: 2 }}>DIA BP</div>
+                    <input
+                      type="number" min="50" max="120"
+                      value={wearableVitals.diastolic}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 80;
+                        setWearableVitals(prev => {
+                          const next = { ...prev, diastolic: val, manualControl: true };
+                          if (currentReqId && socket && connected) socket.emit('vitals-update', { ...next, reqId: currentReqId });
+                          return next;
+                        });
+                      }}
+                      style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,200,255,0.2)', color: '#fff', fontSize: 11, padding: 4, borderRadius: 4 }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'rgba(160,200,255,0.7)' }}>
+                    <span>TEMPERATURE</span>
+                    <span style={{ color: '#00ff88', fontWeight: 'bold' }}>{wearableVitals.temperature}°C</span>
+                  </div>
+                  <input
+                    type="range" min="35.0" max="41.0" step="0.1"
+                    value={wearableVitals.temperature}
+                    onChange={(e) => {
+                      const temp = parseFloat(e.target.value);
+                      setWearableVitals(prev => {
+                        const next = { ...prev, temperature: temp, manualControl: true };
+                        if (currentReqId && socket && connected) socket.emit('vitals-update', { ...next, reqId: currentReqId });
+                        return next;
+                      });
+                    }}
+                    style={{ width: '100%', height: 4, background: '#00c8ff', outline: 'none' }}
+                  />
+                </div>
+              </div>
+
+              {/* Event Injectors */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, borderTop: '1px solid rgba(0,200,255,0.15)', paddingTop: 10 }}>
+                <button
+                  onClick={() => {
+                    playAlertBeep();
+                    showAlert('⚠️ FALL DETECTED BY WEARABLE. Auto-Dispatching SOS...');
+                    requestAmbulance(null, true);
+                    setIsIotSimOpen(false);
+                  }}
+                  style={{
+                    padding: '8px', background: 'rgba(255,68,68,0.15)', border: '1px solid #ff4444',
+                    borderRadius: 6, color: '#ff4444', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 9, fontWeight: 700
+                  }}
+                >
+                  💥 TRIGGER AUTO-FALL SOS
+                </button>
+
+                <button
+                  onClick={() => {
+                    setWearableVitals(prev => {
+                      const next = { ...prev, heartRate: 155, spo2: 85, systolic: 90, diastolic: 55, temperature: 37.2, manualControl: true };
+                      if (currentReqId && socket && connected) socket.emit('vitals-update', { ...next, reqId: currentReqId });
+                      return next;
+                    });
+                    showAlert('💓 Arrhythmia & Cardiac shock vitals injected into Wearable Stream.');
+                  }}
+                  style={{
+                    padding: '8px', background: 'rgba(255,184,0,0.15)', border: '1px solid #ffb800',
+                    borderRadius: 6, color: '#ffb800', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 9, fontWeight: 700
+                  }}
+                >
+                  ❤️ SIMULATE CARDIAC ARREST
+                </button>
+
+                <button
+                  onClick={() => {
+                    setWearableVitals(prev => {
+                      const next = { ...prev, manualControl: false };
+                      return next;
+                    });
+                    showAlert('🔄 IoT Watch returned to automatic bio-variance mode.');
+                  }}
+                  style={{
+                    padding: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: 6, color: '#aaa', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 8
+                  }}
+                >
+                  🔄 ENABLE AUTO-DRIFT
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
