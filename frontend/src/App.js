@@ -1521,45 +1521,7 @@ export default function App() {
       <style>{styles}</style>
       <div className="scanline" />
 
-      {/* Official MSME Header Banner (Visible in Light Theme for presenting to Ministry) */}
-      {theme === 'light' && (
-        <div style={{
-          background: '#ffffff',
-          padding: '15px 30px',
-          display: 'flex',
-          alignItems: 'center',
-          borderBottom: '1px solid #cbd5e0',
-          fontFamily: "'Inter', sans-serif",
-          zIndex: 10500,
-          position: 'relative'
-        }}>
-          {/* National Emblem of India */}
-          <img 
-            src="https://upload.wikimedia.org/wikipedia/commons/5/55/Emblem_of_India.svg" 
-            alt="Emblem of India" 
-            style={{ height: 60, marginRight: 20 }}
-          />
-          <div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#1b4f72', letterSpacing: '0.02em', lineHeight: 1.2 }}>
-              सूक्ष्म, लघु और मध्यम उद्यम मंत्रालय
-            </div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#5d6d7e', letterSpacing: '0.05em', marginTop: 2 }}>
-              MINISTRY OF
-            </div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#1b4f72', letterSpacing: '0.03em', marginTop: 1 }}>
-              MICRO, SMALL & MEDIUM ENTERPRISES
-            </div>
-          </div>
-          <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#154360', letterSpacing: '0.05em', fontFamily: "'Orbitron'" }}>
-              MSME IDEA HACKATHON 6.0
-            </div>
-            <div style={{ fontSize: 10, color: '#5d6d7e', fontFamily: "'Share Tech Mono'", marginTop: 4 }}>
-              PROPOSAL ID: 26INC06MH038769
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {/* Global Actions Bar (Top Right) */}
       <div className="global-buttons-container" style={{ position: 'fixed', top: 14, right: 25, zIndex: 11000, display: 'flex', gap: 12, alignItems: 'center' }}>

@@ -66,6 +66,7 @@ const InsuranceClaim = require('../models/InsuranceClaim')(sequelize);
 const Consent = require('../models/Consent')(sequelize);
 const Ambulance = require('../models/Ambulance')(sequelize);
 const DoctorHospital = require('../models/DoctorHospital')(sequelize);
+const ChronicLog = require('../models/ChronicLog')(sequelize);
 
 // Define relations / associations
 Hospital.hasMany(User, { foreignKey: 'hospital_id', as: 'users' });
@@ -116,6 +117,10 @@ User.hasMany(Ambulance, { foreignKey: 'ownerId', as: 'ambulances' });
 Ambulance.belongsTo(User, { foreignKey: 'ownerId', as: 'owner' });
 User.belongsToMany(Hospital, { through: DoctorHospital, foreignKey: 'doctorId', as: 'doctorHospitals' });
 Hospital.belongsToMany(User, { through: DoctorHospital, foreignKey: 'hospitalId', as: 'hospitalDoctors' });
+
+// ChronicLog relations
+Patient.hasMany(ChronicLog, { foreignKey: 'patient_id', as: 'chronicLogs' });
+ChronicLog.belongsTo(Patient, { foreignKey: 'patient_id', as: 'patient' });
 
 /**
  * Performs db health-check.
@@ -209,6 +214,7 @@ module.exports = {
   Consent,
   Ambulance,
   DoctorHospital,
+  ChronicLog,
   syncDatabase,
   healthCheck,
   closeDatabase

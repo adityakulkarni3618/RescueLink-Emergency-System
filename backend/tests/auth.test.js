@@ -72,6 +72,9 @@ const mockDb = {
   AuditLog: {
     create: jest.fn().mockResolvedValue({ id: 'audit-1' })
   },
+  Ambulance: {
+    findOne: jest.fn().mockResolvedValue(null)
+  },
   sequelize: {
     authenticate: jest.fn().mockResolvedValue(true),
     sync: jest.fn().mockResolvedValue(true)

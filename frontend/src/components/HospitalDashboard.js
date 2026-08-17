@@ -351,6 +351,54 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
   const [specialists, setSpecialists] = useState([]);
   const [showSpecialistModal, setShowSpecialistModal] = useState(false);
 
+  // Chronic Disease Management & AI Prediction States
+  const [chronicLogs, setChronicLogs] = useState([]);
+  const [aiPrediction, setAiPrediction] = useState(null);
+  const [predicting, setPredicting] = useState(false);
+  const [showChronicTab, setShowChronicTab] = useState(false);
+
+  const token = sessionStorage.getItem('rescuelink_token') || '';
+
+  useEffect(() => {
+    if (!patient?.id) return;
+    const fetchChronicLogs = async () => {
+      try {
+        const res = await fetch(`/api/chronic/logs/${patient.id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!data.error) {
+          setChronicLogs(data);
+        }
+      } catch (err) {
+        console.warn('Failed to fetch chronic logs', err);
+      }
+    };
+    fetchChronicLogs();
+    setAiPrediction(null); // Reset prediction when patient changes
+  }, [patient?.id, token]);
+
+  const handlePredictRisk = async () => {
+    if (!patient?.id) return;
+    setPredicting(true);
+    try {
+      const res = await fetch(`/api/chronic/predict-risk/${patient.id}`, {
+        method: 'POST',
+        headers: { 
+          Authorization: `Bearer ${token}`, 
+          'Content-Type': 'application/json' 
+        }
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setAiPrediction(data);
+    } catch (err) {
+      setAlertData({ title: "AI Prediction Failed", message: err.message });
+    } finally {
+      setPredicting(false);
+    }
+  };
+
   if (!patient) return (
     <div style={{
       background: 'rgba(5,15,40,0.8)', border: '1px solid rgba(0,200,255,0.12)',
@@ -362,8 +410,6 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
       </div>
     </div>
   );
-
-  const token = sessionStorage.getItem('rescuelink_token') || '';
 
   const handleHisAdmit = async () => {
     try {
@@ -463,99 +509,186 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
       background: 'rgba(5,15,40,0.8)', border: '1px solid rgba(0,200,255,0.2)',
       borderRadius: 10, padding: 20,
     }}>
-      <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', letterSpacing: '0.1em', marginBottom: 16 }}>
-        PATIENT RECORD — {patient?.id}
+      <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', letterSpacing: '0.1em', marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+        <span>PATIENT RECORD — {patient?.id}</span>
+        <button onClick={() => setShowChronicTab(!showChronicTab)} style={{
+          background: showChronicTab ? 'rgba(0, 200, 255, 0.2)' : 'rgba(0,0,0,0.3)',
+          border: '1px solid rgba(0, 200, 255, 0.4)', color: '#00c8ff', padding: '2px 8px', borderRadius: 4, fontFamily: "'Orbitron'", fontSize: 9, cursor: 'pointer'
+        }}>
+          {showChronicTab ? '🏥 VIEW CLINICAL OVERVIEW' : '📈 VIEW CHRONIC CARE & AI'}
+        </button>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-        <div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: '#e0eaff', marginBottom: 2 }}>
-            {patient.name}
-            {abdmLinked && (
-              <span style={{
-                marginLeft: 10, background: 'rgba(0,255,136,0.15)', color: '#00ff88', border: '1px solid #00ff88',
-                borderRadius: 12, padding: '2px 6px', fontSize: 9, fontFamily: "'Orbitron'",
-                display: 'inline-flex', alignItems: 'center', gap: 4, verticalAlign: 'middle'
-              }}>
-                ✅ ABDM VERIFIED
-              </span>
+      {!showChronicTab ? (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+            <div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: '#e0eaff', marginBottom: 2 }}>
+                {patient.name}
+                {abdmLinked && (
+                  <span style={{
+                    marginLeft: 10, background: 'rgba(0,255,136,0.15)', color: '#00ff88', border: '1px solid #00ff88',
+                    borderRadius: 12, padding: '2px 6px', fontSize: 9, fontFamily: "'Orbitron'",
+                    display: 'inline-flex', alignItems: 'center', gap: 4, verticalAlign: 'middle'
+                  }}>
+                    ✅ ABDM VERIFIED
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: 13, color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'" }}>
+                Age: {patient.age} · Blood: {patient.bloodGroup}
+              </div>
+            </div>
+
+            {/* Dynamic Triage & Source Badges */}
+            {vitals && (
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <div style={{
+                  padding: '6px 12px', borderRadius: 4,
+                  background: `${calculateTriage(vitals).color}22`,
+                  border: `1px solid ${calculateTriage(vitals).color}66`,
+                  color: calculateTriage(vitals).color,
+                  fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700,
+                  animation: calculateTriage(vitals).level === 'RED' ? 'pulse 1.5s infinite' : 'none',
+                }}>
+                  {calculateTriage(vitals).label}
+                </div>
+                <div style={{
+                  padding: '6px 12px', borderRadius: 4,
+                  background: `${vitals.source === 'LIVE' ? '#00ff88' : vitals.source === 'MANUAL' ? '#ffb800' : '#00c8ff'}22`,
+                  border: `1px solid ${vitals.source === 'LIVE' ? '#00ff88' : vitals.source === 'MANUAL' ? '#ffb800' : '#00c8ff'}66`,
+                  color: vitals.source === 'LIVE' ? '#00ff88' : vitals.source === 'MANUAL' ? '#ffb800' : '#00c8ff',
+                  fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700,
+                }}>
+                  {vitals.source || 'SIMULATED'}
+                </div>
+              </div>
             )}
           </div>
-          <div style={{ fontSize: 13, color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'" }}>
-            Age: {patient.age} · Blood: {patient.bloodGroup}
-          </div>
-        </div>
 
-        {/* Dynamic Triage & Source Badges */}
-        {vitals && (
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <div style={{
-              padding: '6px 12px', borderRadius: 4,
-              background: `${calculateTriage(vitals).color}22`,
-              border: `1px solid ${calculateTriage(vitals).color}66`,
-              color: calculateTriage(vitals).color,
-              fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700,
-              animation: calculateTriage(vitals).level === 'RED' ? 'pulse 1.5s infinite' : 'none',
-            }}>
-              {calculateTriage(vitals).label}
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 11, color: '#ff6b6b', fontFamily: "'Orbitron'", letterSpacing: '0.1em', marginBottom: 6 }}>
+              ⚠ ALLERGIES
             </div>
-            <div style={{
-              padding: '6px 12px', borderRadius: 4,
-              background: `${vitals.source === 'LIVE' ? '#00ff88' : vitals.source === 'MANUAL' ? '#ffb800' : '#00c8ff'}22`,
-              border: `1px solid ${vitals.source === 'LIVE' ? '#00ff88' : vitals.source === 'MANUAL' ? '#ffb800' : '#00c8ff'}66`,
-              color: vitals.source === 'LIVE' ? '#00ff88' : vitals.source === 'MANUAL' ? '#ffb800' : '#00c8ff',
-              fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700,
-            }}>
-              {vitals.source || 'SIMULATED'}
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {(!patient.allergies || patient.allergies.length === 0) ? (
+                <span style={{ color: '#00ff88', fontSize: 12, fontFamily: "'Share Tech Mono'" }}>NONE KNOWN</span>
+              ) : patient.allergies.map(a => (
+                <span key={a} style={{
+                  padding: '3px 10px', background: 'rgba(255,80,80,0.15)',
+                  border: '1px solid rgba(255,80,80,0.3)', borderRadius: 4,
+                  color: '#ff8888', fontSize: 12, fontFamily: "'Share Tech Mono'",
+                }}>{a}</span>
+              ))}
             </div>
           </div>
-        )}
-      </div>
 
-      <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 11, color: '#ff6b6b', fontFamily: "'Orbitron'", letterSpacing: '0.1em', marginBottom: 6 }}>
-          ⚠ ALLERGIES
-        </div>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {(!patient.allergies || patient.allergies.length === 0) ? (
-            <span style={{ color: '#00ff88', fontSize: 12, fontFamily: "'Share Tech Mono'" }}>NONE KNOWN</span>
-          ) : patient.allergies.map(a => (
-            <span key={a} style={{
-              padding: '3px 10px', background: 'rgba(255,80,80,0.15)',
-              border: '1px solid rgba(255,80,80,0.3)', borderRadius: 4,
-              color: '#ff8888', fontSize: 12, fontFamily: "'Share Tech Mono'",
-            }}>{a}</span>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ marginBottom: 12 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-          <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", letterSpacing: '0.1em' }}>
-            MEDICAL HISTORY
-          </div>
-          <button onClick={handleFetchHisEhr} style={{ background: 'transparent', border: '1px solid rgba(0,200,255,0.3)', color: '#00c8ff', fontSize: 10, fontFamily: "'Orbitron'", padding: '2px 8px', borderRadius: 4, cursor: 'pointer' }}>
-            🔄 SYNC HIS
-          </button>
-        </div>
-        
-        {ehrRecord ? (
-          <div>
-            <div style={{ fontSize: 11, color: '#00ff88', marginBottom: 4 }}>✓ HIS Connected • Diagnoses Loaded:</div>
-            {ehrRecord.diagnoses.map((d, i) => (
-              <div key={i} style={{ fontSize: 12, color: '#e0eaff', marginBottom: 2 }}>
-                • {d.description} ({d.date})
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", letterSpacing: '0.1em' }}>
+                MEDICAL HISTORY
               </div>
-            ))}
-          </div>
-        ) : (
-          patient.medicalHistory?.map((h, i) => (
-            <div key={i} style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', marginBottom: 3, paddingLeft: 12, borderLeft: '2px solid rgba(0,200,255,0.3)' }}>
-              {h}
+              <button onClick={handleFetchHisEhr} style={{ background: 'transparent', border: '1px solid rgba(0,200,255,0.3)', color: '#00c8ff', fontSize: 10, fontFamily: "'Orbitron'", padding: '2px 8px', borderRadius: 4, cursor: 'pointer' }}>
+                🔄 SYNC HIS
+              </button>
             </div>
-          )) || <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.3)', fontFamily: "'Share Tech Mono'" }}>NO RECORDS AVAILABLE</div>
-        )}
-      </div>
+            
+            {ehrRecord ? (
+              <div>
+                <div style={{ fontSize: 11, color: '#00ff88', marginBottom: 4 }}>✓ HIS Connected • Diagnoses Loaded:</div>
+                {ehrRecord.diagnoses.map((d, i) => (
+                  <div key={i} style={{ fontSize: 12, color: '#e0eaff', marginBottom: 2 }}>
+                    • {d.description} ({d.date})
+                  </div>
+                ))}
+              </div>
+            ) : (
+              patient.medicalHistory?.map((h, i) => (
+                <div key={i} style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', marginBottom: 3, paddingLeft: 12, borderLeft: '2px solid rgba(0,200,255,0.3)' }}>
+                  {h}
+                </div>
+              )) || <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.3)', fontFamily: "'Share Tech Mono'" }}>NO RECORDS AVAILABLE</div>
+            )}
+          </div>
+        </>
+      ) : (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <span style={{ fontSize: 13, fontFamily: "'Orbitron'", color: '#e0eaff', fontWeight: 'bold' }}>📈 CHRONIC VITAL HISTORY</span>
+            <button onClick={handlePredictRisk} disabled={predicting} style={{
+              background: 'linear-gradient(135deg, #00c8ff 0%, #0072ff 100%)', border: 'none', color: '#fff', padding: '6px 12px', borderRadius: 6,
+              fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 700, cursor: 'pointer'
+            }}>
+              {predicting ? 'RUNNING AI ENGINE...' : '🧠 PROACTIVE AI PREDICTION'}
+            </button>
+          </div>
+
+          {/* AI prediction display panel */}
+          {aiPrediction && (
+            <div style={{
+              background: 'rgba(0, 200, 255, 0.05)', border: `1px solid ${aiPrediction.status === 'CRITICAL' ? '#ff4444' : aiPrediction.status === 'MODERATE' ? '#ffb800' : '#00ff88'}`,
+              borderRadius: 8, padding: 12, marginBottom: 16
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: "'Orbitron'", fontSize: 11, marginBottom: 8 }}>
+                <span style={{ color: '#00c8ff' }}>AI RISK PREDICTION ({aiPrediction.model})</span>
+                <span style={{ color: aiPrediction.status === 'CRITICAL' ? '#ff4444' : aiPrediction.status === 'MODERATE' ? '#ffb800' : '#00ff88', fontWeight: 'bold' }}>
+                  {aiPrediction.status} (RISK: {aiPrediction.riskScore}/10)
+                </span>
+              </div>
+              
+              <div style={{ fontSize: 11, color: '#ff8888', marginBottom: 6, fontWeight: 'bold' }}>ALERTS:</div>
+              {aiPrediction.alerts.map((al, idx) => (
+                <div key={idx} style={{ fontSize: 11, color: 'rgba(255,255,255,0.9)', paddingLeft: 10, borderLeft: '2px solid #ff4444', marginBottom: 4 }}>
+                  ⚠️ {al}
+                </div>
+              ))}
+
+              <div style={{ fontSize: 11, color: '#00ff88', marginTop: 10, marginBottom: 6, fontWeight: 'bold' }}>REC:</div>
+              {aiPrediction.recommendations.map((rec, idx) => (
+                <div key={idx} style={{ fontSize: 11, color: 'rgba(200,240,255,0.95)', paddingLeft: 10, borderLeft: '2px solid #00ff88', marginBottom: 4 }}>
+                  • {rec}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Visualizing chronic logs */}
+          {chronicLogs.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,200,255,0.1)', borderRadius: 6, padding: 10 }}>
+                <div style={{ fontSize: 10, color: '#00c8ff', fontFamily: "'Orbitron'", marginBottom: 6 }}>BLOOD GLUCOSE TRENDS (mg/dL)</div>
+                <ResponsiveContainer width="100%" height={100}>
+                  <LineChart data={[...chronicLogs].reverse()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,200,255,0.05)" />
+                    <XAxis dataKey="timestamp" hide />
+                    <YAxis domain={['auto', 'auto']} tick={{ fontSize: 8, fill: 'rgba(160,200,255,0.4)' }} />
+                    <Tooltip contentStyle={{ background: '#050d1a', border: '1px solid rgba(0,200,255,0.2)', fontSize: 10 }} />
+                    <Line type="monotone" dataKey="blood_glucose" stroke="#00ff88" strokeWidth={2} dot={{ r: 3 }} connectNulls />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,200,255,0.1)', borderRadius: 6, padding: 10 }}>
+                <div style={{ fontSize: 10, color: '#ffb800', fontFamily: "'Orbitron'", marginBottom: 6 }}>BLOOD PRESSURE TRENDS (mmHg)</div>
+                <ResponsiveContainer width="100%" height={100}>
+                  <LineChart data={[...chronicLogs].reverse()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,200,255,0.05)" />
+                    <XAxis dataKey="timestamp" hide />
+                    <YAxis tick={{ fontSize: 8, fill: 'rgba(160,200,255,0.4)' }} />
+                    <Tooltip contentStyle={{ background: '#050d1a', border: '1px solid rgba(0,200,255,0.2)', fontSize: 10 }} />
+                    <Line type="monotone" dataKey="systolic_bp" stroke="#ff4444" strokeWidth={2} name="Systolic" dot={{ r: 3 }} connectNulls />
+                    <Line type="monotone" dataKey="diastolic_bp" stroke="#ffb800" strokeWidth={2} name="Diastolic" dot={{ r: 3 }} connectNulls />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          ) : (
+            <div style={{ padding: 20, textAlign: 'center', background: 'rgba(0,0,0,0.3)', borderRadius: 8, border: '1px dashed rgba(0,200,255,0.2)' }}>
+              <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>NO CHRONIC LOG DIARY FOUND</div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* EHR & Telemedicine Actions Section */}
       <div style={{ marginTop: 24, borderTop: '1px solid rgba(0,200,255,0.2)', paddingTop: 16, display: 'flex', gap: 8, flexDirection: 'column' }}>

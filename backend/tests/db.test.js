@@ -1,5 +1,6 @@
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test_secret_for_rescuelink_jest_tests_32_chars';
+process.env.FORCE_SQLITE = 'true';
 
 const { encrypt, decrypt } = require('../utils/encryption');
 
