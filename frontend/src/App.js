@@ -133,30 +133,48 @@ const styles = `
   [data-theme='light'] div[style*="min-height: 70" i], 
   [data-theme='light'] div[style*="min-height: 60" i],
   [data-theme='light'] div[style*="min-height: 64" i],
-  [data-theme='light'] div[style*="rgba(5, 20, 10" i] {
+  [data-theme='light'] div[style*="rgba(5, 20, 10" i],
+  [data-theme='light'] div[style*="rgba(5,20,10" i] {
     background: #1b4f72 !important; /* MSME Top Bar color */
     border-bottom: 2px solid #154360 !important;
     color: #ffffff !important;
   }
   [data-theme='light'] div[style*="min-height: 70" i] *, 
   [data-theme='light'] div[style*="min-height: 60" i] *,
-  [data-theme='light'] div[style*="rgba(5, 20, 10" i] * {
+  [data-theme='light'] div[style*="rgba(5, 20, 10" i] *,
+  [data-theme='light'] div[style*="rgba(5,20,10" i] * {
     color: #ffffff !important;
   }
 
   /* Pattern match and convert ALL inline dark containers/cards to clean MSME White Cards */
   [data-theme='light'] div[style*="rgba(5, 15, 40" i],
+  [data-theme='light'] div[style*="rgba(5,15,40" i],
   [data-theme='light'] div[style*="rgba(5, 20, 45" i],
+  [data-theme='light'] div[style*="rgba(5,20,45" i],
   [data-theme='light'] div[style*="rgba(10, 22, 48" i],
+  [data-theme='light'] div[style*="rgba(10,22,48" i],
   [data-theme='light'] div[style*="rgba(5, 20, 10" i],
+  [data-theme='light'] div[style*="rgba(5,20,10" i],
   [data-theme='light'] div[style*="rgba(3, 10, 28" i],
+  [data-theme='light'] div[style*="rgba(3,10,28" i],
   [data-theme='light'] div[style*="rgba(3, 8, 22" i],
+  [data-theme='light'] div[style*="rgba(3,8,22" i],
   [data-theme='light'] div[style*="rgba(0, 0, 0, 0." i],
   [data-theme='light'] div[style*="background: 'rgba(5,20,45,0.6)'" i],
   [data-theme='light'] div[style*="rgba(255, 255, 255, 0.03)" i],
   [data-theme='light'] div[style*="rgba(255,255,255,0.03)" i],
   [data-theme='light'] div[style*="rgba(255, 255, 255, 0.05)" i],
-  [data-theme='light'] div[style*="rgba(255,255,255,0.05)" i] {
+  [data-theme='light'] div[style*="rgba(255,255,255,0.05)" i],
+  [data-theme='light'] div[style*="rgba(5, 10, 30" i],
+  [data-theme='light'] div[style*="rgba(5,10,30" i],
+  [data-theme='light'] div[style*="rgba(7, 22, 44" i],
+  [data-theme='light'] div[style*="rgba(7,22,44" i],
+  [data-theme='light'] div[style*="rgba(0, 5, 15" i],
+  [data-theme='light'] div[style*="rgba(0,5,15" i],
+  [data-theme='light'] div[style*="#050a1e" i],
+  [data-theme='light'] div[style*="#020611" i],
+  [data-theme='light'] div[style*="#010512" i],
+  [data-theme='light'] div[style*="#0a1526" i] {
     background: #ffffff !important;
     border: 1px solid #cbd5e0 !important;
     color: #212529 !important;
@@ -201,15 +219,33 @@ const styles = `
     color: #212529 !important;
   }
 
-  /* Auto-convert inline styled action buttons in Light Mode */
-  [data-theme='light'] button[style*="background: 'rgba(0,200,255" i],
-  [data-theme='light'] button[style*="background: 'rgba(0,255,136" i],
-  [data-theme='light'] button[style*="background: 'rgba(255,255,255" i],
-  [data-theme='light'] button[style*="border: '1px solid #00c8ff'" i],
-  [data-theme='light'] button[style*="border: '1px solid rgba(0,200,255" i],
+  /* Auto-convert inline styled action buttons in Light Mode to readable colors */
+  [data-theme='light'] button {
+    background: #ffffff !important;
+    color: #1b4f72 !important;
+    border: 1px solid #cbd5e0 !important;
+  }
   [data-theme='light'] button[style*="rgba(0, 200, 255" i],
-  [data-theme='light'] button[style*="rgba(0, 255, 136" i] {
+  [data-theme='light'] button[style*="rgba(0,200,255" i],
+  [data-theme='light'] button[style*="rgba(0, 255, 136" i],
+  [data-theme='light'] button[style*="rgba(0,255,136" i],
+  [data-theme='light'] button[style*="rgba(255, 255, 255" i],
+  [data-theme='light'] button[style*="rgba(255,255,255" i],
+  [data-theme='light'] button[style*="#00c8ff" i],
+  [data-theme='light'] button[style*="#00ff88" i],
+  [data-theme='light'] button[style*="#0072ff" i] {
     background: linear-gradient(135deg, #1b4f72 0%, #154360 100%) !important;
+    color: #ffffff !important;
+    border: none !important;
+    box-shadow: 0 4px 10px rgba(27, 79, 114, 0.2) !important;
+  }
+  [data-theme='light'] button[style*="rgba(255, 68, 68" i],
+  [data-theme='light'] button[style*="rgba(255,68,68" i],
+  [data-theme='light'] button[style*="rgba(255, 60, 60" i],
+  [data-theme='light'] button[style*="rgba(255,60,60" i],
+  [data-theme='light'] button[style*="#ff4444" i],
+  [data-theme='light'] button[style*="red" i] {
+    background: #dc2626 !important;
     color: #ffffff !important;
     border: none !important;
   }
@@ -227,18 +263,42 @@ const styles = `
   [data-theme='light'] [style*="orbitron" i] {
     color: #1b4f72 !important;
   }
-  [data-theme='light'] [style*="rgba(160,200,255" i] {
-    color: #5d6d7e !important;
-  }
-  [data-theme='light'] [style*="color: rgb(160, 200, 255" i] {
-    color: #5d6d7e !important;
-  }
-  [data-theme='light'] [style*="color: #fff" i], [data-theme='light'] [style*="color: rgb(255, 255, 255)" i] {
+
+  /* High contrast redirects for light-mode text readability */
+  [data-theme='light'] [style*="color: #fff" i], 
+  [data-theme='light'] [style*="color: rgb(255, 255, 255)" i],
+  [data-theme='light'] [style*="color:#fff" i] {
     color: #212529 !important;
   }
-  [data-theme='light'] [style*="color: #e0eaff" i] {
+  [data-theme='light'] [style*="color: #e0eaff" i],
+  [data-theme='light'] [style*="color:#e0eaff" i] {
     color: #2c3e50 !important;
   }
+  [data-theme='light'] [style*="rgba(160, 200, 255" i],
+  [data-theme='light'] [style*="rgba(160,200,255" i],
+  [data-theme='light'] [style*="rgb(160, 200, 255)" i] {
+    color: #5d6d7e !important;
+  }
+  [data-theme='light'] [style*="color: rgb(0, 200, 255)" i],
+  [data-theme='light'] [style*="color: #00c8ff" i],
+  [data-theme='light'] [style*="color:#00c8ff" i],
+  [data-theme='light'] [style*="color: #0072ff" i] {
+    color: #0c4a6e !important; /* Deep Sky Blue/Teal */
+  }
+  [data-theme='light'] [style*="color: rgb(0, 255, 136)" i],
+  [data-theme='light'] [style*="color: #00ff88" i],
+  [data-theme='light'] [style*="color:#00ff88" i],
+  [data-theme='light'] [style*="color: #88ff88" i] {
+    color: #166534 !important; /* Deep Green */
+  }
+  [data-theme='light'] [style*="color: #ffb800" i] {
+    color: #a16207 !important; /* Dark Amber */
+  }
+  [data-theme='light'] [style*="color: #ff4444" i],
+  [data-theme='light'] [style*="color: #ff3333" i] {
+    color: #991b1b !important; /* Dark Red */
+  }
+
   [data-theme='light'] [style*="background: rgba(0,0,0,0.3)" i] {
     background: #f2f4f4 !important;
     border: 1px solid #cbd5e0 !important;
