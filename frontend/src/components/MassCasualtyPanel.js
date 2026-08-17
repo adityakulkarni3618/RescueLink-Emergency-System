@@ -276,12 +276,40 @@ export default function MassCasualtyPanel({ socket }) {
         </div>
         
         {!activeMci ? (
-          <button onClick={() => setShowDeclareModal(true)} style={{
-            padding: '10px 20px', background: 'rgba(255,50,50,0.15)', border: '1px solid #ff3333',
-            borderRadius: 6, color: '#ff5555', fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700, cursor: 'pointer'
-          }}>
-            DECLARE MCI
-          </button>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={() => {
+              const mockEvent = {
+                id: 'MCI-' + Date.now().toString(36).toUpperCase(),
+                eventType: 'Chemical Factory Fire',
+                estimatedVictims: 15,
+                description: 'Warehouse Sector 4 chemical fire & toxic fumes.',
+                timestamp: Date.now(),
+                casualties: [
+                  { id: 'C-01', casualtyName: 'Victim A (Severe Burns)', tag: 'RED', timestamp: Date.now() },
+                  { id: 'C-02', casualtyName: 'Victim B (Inhalation)', tag: 'YELLOW', timestamp: Date.now() },
+                  { id: 'C-03', casualtyName: 'Victim C (Shock)', tag: 'RED', timestamp: Date.now() },
+                  { id: 'C-04', casualtyName: 'Victim D (Laceration)', tag: 'GREEN', timestamp: Date.now() }
+                ],
+                resourceRequests: [
+                  { id: 'R-01', resourceType: 'Ambulance (ALS)', quantity: 3, sector: 'Sector 4', status: 'deployed', urgency: 'CRITICAL' },
+                  { id: 'R-02', resourceType: 'O- Negative Blood (Units)', quantity: 10, sector: 'Triage Base', status: 'approved', urgency: 'HIGH' }
+                ]
+              };
+              setActiveMci(mockEvent);
+              if (socket) socket.emit('mass-casualty-declare', mockEvent);
+            }} style={{
+              padding: '10px 20px', background: 'rgba(0,255,136,0.15)', border: '1px solid #00ff88',
+              borderRadius: 6, color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700, cursor: 'pointer'
+            }}>
+              ⚡ MCI DEMO SIMULATOR
+            </button>
+            <button onClick={() => setShowDeclareModal(true)} style={{
+              padding: '10px 20px', background: 'rgba(255,50,50,0.15)', border: '1px solid #ff3333',
+              borderRadius: 6, color: '#ff5555', fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700, cursor: 'pointer'
+            }}>
+              DECLARE MCI
+            </button>
+          </div>
         ) : (
           <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={generateSitRepPDF} style={{
