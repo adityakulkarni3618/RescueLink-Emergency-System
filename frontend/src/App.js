@@ -107,114 +107,70 @@ const styles = `
     color: #e0eaff !important;
   }
 
-  /* Light Theme Overrides - MSME Blue & White Official Portal Style */
+  /* Light Theme Overrides - Clean Professional Portal Style */
   [data-theme='light'] body { 
-    background: #eef2f6 !important; 
-    color: #212529 !important; 
+    background: #f4f7fa !important; 
+    color: #1a202c !important; 
   }
   [data-theme='light'] .scanline { 
-    background: linear-gradient(90deg, transparent, rgba(15, 76, 129, 0.02), transparent); 
+    background: transparent !important; 
   }
   [data-theme='light'] .app-root { 
-    background: #eef2f6 !important; 
+    background: #f4f7fa !important; 
   }
 
   /* Target all radial-gradient layouts and outer container backgrounds to clear them in light mode */
   [data-theme='light'] div[style*="radial-gradient" i] {
-    background: #eef2f6 !important;
+    background: #f4f7fa !important;
   }
   [data-theme='light'] div[style*="height: 100vh" i],
   [data-theme='light'] div[style*="height: '100vh'" i],
   [data-theme='light'] div[style*="min-height: 100vh" i] {
-    background: #eef2f6 !important;
+    background: #f4f7fa !important;
   }
 
-  /* Clean MSME Header Bar styling in Light Mode */
+  /* Deep Blue Header Bar styling in Light Mode */
   [data-theme='light'] div[style*="min-height: 70" i], 
   [data-theme='light'] div[style*="min-height: 60" i],
   [data-theme='light'] div[style*="min-height: 64" i],
+  [data-theme='light'] div[style*="rgba(5,20,10" i],
   [data-theme='light'] div[style*="rgba(5, 20, 10" i] {
-    background: #1b4f72 !important; /* MSME Top Bar color */
-    border-bottom: 2px solid #154360 !important;
+    background: #1a365d !important; /* Deep Navy Blue */
+    border-bottom: 2px solid #1a202c !important;
     color: #ffffff !important;
   }
   [data-theme='light'] div[style*="min-height: 70" i] *, 
   [data-theme='light'] div[style*="min-height: 60" i] *,
+  [data-theme='light'] div[style*="rgba(5,20,10" i] *,
   [data-theme='light'] div[style*="rgba(5, 20, 10" i] * {
     color: #ffffff !important;
   }
 
-  /* Pattern match and convert ALL inline dark containers/cards to clean MSME White Cards */
+  /* Cards styling in Light Mode */
+  [data-theme='light'] div.rl-card,
   [data-theme='light'] div[style*="rgba(5, 15, 40" i],
   [data-theme='light'] div[style*="rgba(5, 20, 45" i],
   [data-theme='light'] div[style*="rgba(10, 22, 48" i],
-  [data-theme='light'] div[style*="rgba(5, 20, 10" i],
   [data-theme='light'] div[style*="rgba(3, 10, 28" i],
-  [data-theme='light'] div[style*="rgba(3, 8, 22" i],
-  [data-theme='light'] div[style*="rgba(0, 0, 0, 0." i],
-  [data-theme='light'] div[style*="background: 'rgba(5,20,45,0.6)'" i],
-  [data-theme='light'] div[style*="rgba(255, 255, 255, 0.03)" i],
-  [data-theme='light'] div[style*="rgba(255,255,255,0.03)" i],
-  [data-theme='light'] div[style*="rgba(255, 255, 255, 0.05)" i],
-  [data-theme='light'] div[style*="rgba(255,255,255,0.05)" i] {
+  [data-theme='light'] div[style*="rgba(3, 8, 22" i] {
     background: #ffffff !important;
-    border: 1px solid #cbd5e0 !important;
-    color: #212529 !important;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.04) !important;
-    border-radius: 8px !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #1a202c !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+    border-radius: 12px !important;
   }
 
-  /* Structured Light Theme Classes (MSME White Card Style) */
-  [data-theme='light'] .rl-card {
-    background: #ffffff !important;
-    border: 1px solid #cbd5e0 !important;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05) !important;
-    color: #212529 !important;
-    border-radius: 8px !important;
-  }
-  [data-theme='light'] .rl-input {
-    background: #ffffff !important;
-    border: 1px solid #a0aec0 !important;
-    color: #212529 !important;
-  }
-  [data-theme='light'] .rl-btn-primary {
-    background: linear-gradient(135deg, #1b4f72 0%, #154360 100%) !important;
-    color: #ffffff !important;
-    box-shadow: 0 4px 12px rgba(27, 79, 114, 0.2) !important;
-    border: none !important;
-  }
-  [data-theme='light'] .rl-btn-secondary {
-    background: #ffffff !important;
-    color: #1b4f72 !important;
-    border: 1px solid rgba(27, 79, 114, 0.5) !important;
-  }
-  [data-theme='light'] .rl-btn-secondary:hover {
-    background: rgba(27, 79, 114, 0.08) !important;
+  [data-theme='light'] div.rl-card * {
+    color: inherit;
   }
 
-  /* Auto-convert generic inputs, textareas, and select menus in Light Mode */
+  /* Input fields in Light Mode */
+  [data-theme='light'] .rl-input,
   [data-theme='light'] input,
   [data-theme='light'] textarea,
   [data-theme='light'] select {
     background: #ffffff !important;
     border: 1px solid #cbd5e0 !important;
-    color: #212529 !important;
-  }
-
-  /* Auto-convert inline styled action buttons in Light Mode */
-  [data-theme='light'] button[style*="background: 'rgba(0,200,255" i],
-  [data-theme='light'] button[style*="background: 'rgba(0,255,136" i],
-  [data-theme='light'] button[style*="background: 'rgba(255,255,255" i],
-  [data-theme='light'] button[style*="border: '1px solid #00c8ff'" i],
-  [data-theme='light'] button[style*="border: '1px solid rgba(0,200,255" i],
-  [data-theme='light'] button[style*="rgba(0, 200, 255" i],
-  [data-theme='light'] button[style*="rgba(0, 255, 136" i] {
-    background: linear-gradient(135deg, #1b4f72 0%, #154360 100%) !important;
-    color: #ffffff !important;
-    border: none !important;
-  }
-
-  /* Universal Text Color Overrides for MSME Light Mode */
   [data-theme='light'] h1, [data-theme='light'] h2, [data-theme='light'] h3, [data-theme='light'] h4, [data-theme='light'] h5, [data-theme='light'] h6 {
     color: #1b4f72 !important;
   }
