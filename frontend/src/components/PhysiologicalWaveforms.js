@@ -362,6 +362,9 @@ const PhysiologicalWaveforms = ({ vitals, news2Score = 0, sensorError = false })
           <span style={{ position: 'absolute', top: 6, left: 8, fontSize: 9, fontFamily: "'Share Tech Mono'", color: '#00ff66', letterSpacing: '0.05em' }}>
             ECG (II)
           </span>
+          <span style={{ position: 'absolute', bottom: 6, left: 8, fontSize: 8, fontFamily: "'Share Tech Mono'", color: rhythmType === 'vtach' ? '#ff4444' : rhythmType === 'asystole' ? '#ff4444' : '#00ff66', fontWeight: 'bold' }}>
+            AI DIAGNOSIS: {rhythmType === 'vtach' ? '⚠️ VENTRICULAR TACHYCARDIA (CRITICAL)' : rhythmType === 'asystole' ? '💀 ASYSTOLE (CARDIAC ARREST)' : rhythmType === 'disconnect' ? '📡 SCANNING / DISCONNECTED' : '🟢 NORMAL SINUS RHYTHM'}
+          </span>
         </div>
         <div style={{ width: 75, background: '#02040b', borderRadius: 6, border: '1px solid rgba(0, 255, 102, 0.15)', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
           <span style={{ fontSize: 9, fontFamily: "'Share Tech Mono'", color: 'rgba(0, 255, 102, 0.6)' }}>HR</span>
@@ -377,6 +380,9 @@ const PhysiologicalWaveforms = ({ vitals, news2Score = 0, sensorError = false })
           <span style={{ position: 'absolute', top: 6, left: 8, fontSize: 9, fontFamily: "'Share Tech Mono'", color: '#00e5ff', letterSpacing: '0.05em' }}>
             PLETH / SpO2
           </span>
+          <span style={{ position: 'absolute', bottom: 6, left: 8, fontSize: 8, fontFamily: "'Share Tech Mono'", color: spo2 < 92 ? '#ff4444' : '#00e5ff', fontWeight: 'bold' }}>
+            AI DIAGNOSIS: {spo2 < 92 ? '⚠️ CRITICAL O2 DESATURATION (HYPOXIA)' : '🟢 ADEQUATE SYSTEMIC OXYGENATION'}
+          </span>
         </div>
         <div style={{ width: 75, background: '#02040b', borderRadius: 6, border: '1px solid rgba(0, 229, 255, 0.15)', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
           <span style={{ fontSize: 9, fontFamily: "'Share Tech Mono'", color: 'rgba(0, 229, 255, 0.6)' }}>SpO2</span>
@@ -391,6 +397,9 @@ const PhysiologicalWaveforms = ({ vitals, news2Score = 0, sensorError = false })
           <canvas ref={respCanvasRef} style={{ width: '100%', height: '100%' }} />
           <span style={{ position: 'absolute', top: 6, left: 8, fontSize: 9, fontFamily: "'Share Tech Mono'", color: '#ffaa00', letterSpacing: '0.05em' }}>
             RESP
+          </span>
+          <span style={{ position: 'absolute', bottom: 6, left: 8, fontSize: 8, fontFamily: "'Share Tech Mono'", color: rr > 25 || rr < 12 ? '#ff4444' : '#ffaa00', fontWeight: 'bold' }}>
+            AI DIAGNOSIS: {rr > 25 ? '⚠️ TACHYPNEA (RESPIRATORY DISTRESS)' : rr < 12 ? '⚠️ BRADYPNEA' : '🟢 NORMAL RESPIRATORY RATE'}
           </span>
         </div>
         <div style={{ width: 75, background: '#02040b', borderRadius: 6, border: '1px solid rgba(255, 170, 0, 0.15)', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
