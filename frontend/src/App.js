@@ -1629,39 +1629,50 @@ export default function App() {
       </div>
 
       {/* Premium Theme Switcher - Bottom Left */}
-      <div
+      <button
         onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+        title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
         style={{
           position: 'fixed', bottom: 25, left: 25, zIndex: 11000,
-          width: 70, height: 34, borderRadius: 20,
-          background: theme === 'dark' ? 'rgba(0,200,255,0.1)' : 'rgba(255,255,255,0.9)',
-          border: `1px solid ${theme === 'dark' ? '#00c8ff' : '#cbd5e0'}`,
-          cursor: 'pointer', display: 'flex', alignItems: 'center',
-          padding: '0 4px', transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-          boxShadow: theme === 'dark' ? '0 10px 20px rgba(0,0,0,0.5)' : '0 5px 15px rgba(0,0,0,0.1)'
+          width: 46, height: 46, borderRadius: '50%',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          background: theme === 'dark' ? 'rgba(0, 200, 255, 0.08)' : '#ffffff',
+          border: `1px solid ${theme === 'dark' ? 'rgba(0, 200, 255, 0.4)' : '#1b4f72'}`,
+          color: theme === 'dark' ? '#00c8ff' : '#1b4f72',
+          boxShadow: theme === 'dark' ? '0 8px 24px rgba(0,0,0,0.6)' : '0 4px 12px rgba(0,0,0,0.1)',
+          outline: 'none',
+          padding: 0
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'scale(1.1)';
+          e.currentTarget.style.background = theme === 'dark' ? 'rgba(0, 200, 255, 0.18)' : 'rgba(27, 79, 114, 0.08)';
+          e.currentTarget.style.boxShadow = theme === 'dark' ? '0 0 20px rgba(0, 200, 255, 0.5)' : '0 0 15px rgba(27, 79, 114, 0.3)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1)';
+          e.currentTarget.style.background = theme === 'dark' ? 'rgba(0, 200, 255, 0.08)' : '#ffffff';
+          e.currentTarget.style.boxShadow = theme === 'dark' ? '0 8px 24px rgba(0,0,0,0.6)' : '0 4px 12px rgba(0,0,0,0.1)';
         }}
       >
-        <div style={{
-          width: 26, height: 26, borderRadius: '50%',
-          background: theme === 'dark' ? '#00c8ff' : '#ffffff',
-          boxShadow: theme === 'dark' ? '0 0 10px #00c8ff' : '0 2px 5px rgba(0,0,0,0.2)',
-          transform: `translateX(${theme === 'dark' ? '36px' : '0px'})`,
-          transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14
-        }}>
-          {theme === 'dark' ? '🌙' : '☀️'}
-        </div>
-        <span style={{
-          position: 'absolute',
-          left: theme === 'dark' ? 10 : 'auto',
-          right: theme === 'dark' ? 'auto' : 10,
-          fontSize: 10, fontFamily: "'Orbitron'", fontWeight: 700,
-          color: theme === 'dark' ? '#00c8ff' : '#718096',
-          transition: 'all 0.4s ease', opacity: 0.8
-        }}>
-          {theme === 'dark' ? 'DARK' : 'LIGHT'}
-        </span>
-      </div>
+        {theme === 'dark' ? (
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        ) : (
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+        )}
+      </button>
 
       {role === 'user' && <UserDashboard socket={socket} connected={connected} />}
       {role === 'ambulance' && <AmbulanceStreamer socket={socket} connected={connected} />}
