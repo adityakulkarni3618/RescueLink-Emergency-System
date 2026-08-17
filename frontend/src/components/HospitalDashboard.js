@@ -980,6 +980,69 @@ function ResourcePanel({ socket }) {
           </div>
         ))}
       </div>
+
+      {/* Interactive ER Bed Tracker & Grid */}
+      <div style={{ marginTop: 20, borderTop: '1px solid rgba(0,200,255,0.15)', paddingTop: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', letterSpacing: '0.1em' }}>
+            ER BED OCCUPANCY TRACKER
+          </div>
+          <div style={{ fontFamily: "'Share Tech Mono'", fontSize: 11, color: 'rgba(160,200,255,0.5)' }}>
+            12 BEDS TOTAL
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+          {[
+            { id: 1, status: 'RESERVED', label: 'Bed 01' },
+            { id: 2, status: 'AVAILABLE', label: 'Bed 02' },
+            { id: 3, status: 'OCCUPIED', label: 'Bed 03' },
+            { id: 4, status: 'AVAILABLE', label: 'Bed 04' },
+            { id: 5, status: 'AVAILABLE', label: 'Bed 05' },
+            { id: 6, status: 'OCCUPIED', label: 'Bed 06' },
+            { id: 7, status: 'AVAILABLE', label: 'Bed 07' },
+            { id: 8, status: 'AVAILABLE', label: 'Bed 08' },
+            { id: 9, status: 'OCCUPIED', label: 'Bed 09' },
+            { id: 10, status: 'AVAILABLE', label: 'Bed 10' },
+            { id: 11, status: 'AVAILABLE', label: 'Bed 11' },
+            { id: 12, status: 'AVAILABLE', label: 'Bed 12' }
+          ].map((bed) => {
+            const BedButton = () => {
+              const [status, setStatus] = useState(bed.status);
+              const statusColor = status === 'OCCUPIED' ? '#ff4444' : status === 'RESERVED' ? '#ffb800' : '#00ff88';
+              return (
+                <button
+                  onClick={() => {
+                    if (status === 'AVAILABLE') {
+                      setStatus('RESERVED');
+                      showAlert(`Bed ${bed.id} successfully reserved for active incoming mission.`);
+                    } else {
+                      setStatus('AVAILABLE');
+                      showAlert(`Bed ${bed.id} is now available.`);
+                    }
+                  }}
+                  style={{
+                    background: 'rgba(5, 10, 30, 0.4)',
+                    border: `1px solid ${statusColor}44`,
+                    borderRadius: 6,
+                    padding: 8,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 4
+                  }}
+                >
+                  <span style={{ fontSize: 13 }}>🛏️</span>
+                  <span style={{ fontSize: 9, color: '#e0eaff', fontFamily: "'Orbitron'", fontWeight: 'bold' }}>{bed.label}</span>
+                  <span style={{ fontSize: 8, color: statusColor, fontFamily: "'Share Tech Mono'", fontWeight: 'bold' }}>{status}</span>
+                </button>
+              );
+            };
+            return <BedButton key={bed.id} />;
+          })}
+        </div>
+      </div>
     </div>
   );
 }
