@@ -142,7 +142,10 @@ function syncMissionToDB(reqId) {
         gps_log: gps_log,
         notes: notes,
         payment_status: req.payment_status || 'pending',
-        razorpay_order_id: req.razorpay_order_id || null
+        razorpay_order_id: req.razorpay_order_id || null,
+        attending_doctor_name: req.attendingDoctorName || null,
+        attending_doctor_specialty: req.attendingDoctorSpecialty || null,
+        attending_team_details: req.attendingTeamDetails || null
       });
       console.log(`[DB SYNC] Synced incident ${reqId} to PostgreSQL`);
     } catch (err) {
@@ -1612,6 +1615,24 @@ io.on('connection', (socket) => {
     io.emit('ambulances-update', getCombinedAmbulances());
   });
 
+  socket.on('toggle-active-duty', async (data) => {
+    const { active } = data;
+    if (ambulances[socket.id]) {
+      ambulances[socket.id].available = active;
+      ambulances[socket.id].is_active = active;
+      
+      const unitId = ambulances[socket.id].unitId;
+      if (unitId) {
+        const { Ambulance } = require('./utils/db');
+        await Ambulance.update({ is_active: active }, { where: { vehicleNo: unitId } })
+          .catch(e => console.error('[DB ERROR] Failed to toggle ambulance active status:', e.message));
+      }
+      
+      io.emit('ambulances-update', getCombinedAmbulances());
+      console.log(`[ACTIVE DUTY] Ambulance ${socket.id} set active status to ${active}`);
+    }
+  });
+
   socket.on('register-hospital', async (data) => {
     const { id, token } = data;
     console.log(`[SOCKET_LOG] register-hospital event received for hospitalId/id: ${id}`);
@@ -1741,7 +1762,7 @@ io.on('connection', (socket) => {
     const allowedCells = [userCellId, ...neighbors];
 
     const combinedAmbulances = getCombinedAmbulances();
-    const availableAmbulances = Object.keys(combinedAmbulances).filter(id => combinedAmbulances[id].available);
+    const availableAmbulances = Object.keys(combinedAmbulances).filter(id => combinedAmbulances[id].available && combinedAmbulances[id].is_active !== false);
 
     // Clinical Capability Triage (ALS vs. BLS)
     const highAcuity = isHighAcuity(patientDetails);
@@ -2072,6 +2093,11 @@ io.on('connection', (socket) => {
       req.hospitalSocket = socket.id;
       req.hospitalId = hospitals[socket.id].id; // STASH PERSISTENT ID
       req.readyServices = data.readyServices;
+      
+      // Save attending medical team information
+      req.attendingDoctorName = data.attendingDoctorName || '';
+      req.attendingDoctorSpecialty = data.attendingDoctorSpecialty || '';
+      req.attendingTeamDetails = data.attendingTeamDetails || null;
 
       // Hospital joins the stable mission room
       socket.join(`mission_${req.id}`);
