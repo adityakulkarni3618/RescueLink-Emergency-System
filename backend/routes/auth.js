@@ -554,8 +554,6 @@ router.post('/register-hospital', async (req, res) => {
   }
 });
 
-const { verifyToken } = require('../middleware/auth');
-
 /**
  * @route POST /api/auth/register-fleet-ambulance
  * @desc Add a new vehicle to an organization's fleet
