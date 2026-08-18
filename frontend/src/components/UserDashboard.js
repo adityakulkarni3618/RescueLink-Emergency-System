@@ -236,6 +236,7 @@ export default function UserDashboard({ socket, connected }) {
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [erasureReason, setErasureReason] = useState('');
   const [consentGranted, setConsentGranted] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const SERVER_URL_CONST = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
 
   useEffect(() => {
@@ -810,102 +811,111 @@ export default function UserDashboard({ socket, connected }) {
           }
         }
         /* Custom scrollbar for sidebar */
-        .sidebar-container::-webkit-scrollbar {
-          width: 6px;
-        }
-        .sidebar-container::-webkit-scrollbar-track {
-          background: rgba(5, 10, 30, 0.3);
-        }
-        .sidebar-container::-webkit-scrollbar-thumb {
-          background: rgba(0, 200, 255, 0.3);
-          border-radius: 3px;
-        }
-        .sidebar-container::-webkit-scrollbar-thumb:hover {
-          background: rgba(0, 200, 255, 0.6);
-        }
-        /* ── Mobile phone layout overrides ── */
-        @media (max-width: 480px) {
-          .feature-grid {
-            grid-template-columns: 1fr 1fr !important;
-          }
-          .header-container h1 {
-            font-size: 15px !important;
-          }
-          .header-container {
-            gap: 6px !important;
-          }
+        .sidebar-container::-webkit-scrollbar { width: 6px; }
+        .sidebar-container::-webkit-scrollbar-track { background: rgba(5,10,30,0.3); }
+        .sidebar-container::-webkit-scrollbar-thumb { background: rgba(0,200,255,0.3); border-radius: 3px; }
+        .sidebar-container::-webkit-scrollbar-thumb:hover { background: rgba(0,200,255,0.6); }
+
+        /* ══ MOBILE DASHBOARD OVERRIDES (≤768px) ══ */
+        .ud-mobile-menu-btn { display: none; }
+        .ud-desktop-status { display: flex; }
+        @media (max-width: 768px) {
+          /* Header */
+          .header-container { padding: 10px 14px !important; flex-wrap: nowrap !important; }
+          .ud-desktop-status { display: none !important; }
+          .ud-mobile-menu-btn { display: flex !important; }
+          .desktop-header-spacer { display: none !important; }
+          /* Sidebar becomes full-height scroll */
           .sidebar-container {
-            padding: 16px 12px 80px !important;
+            width: 100% !important;
+            height: auto !important;
+            max-height: none !important;
+            border-right: none !important;
+            border-bottom: 1px solid rgba(0,200,255,0.1) !important;
+            padding: 14px 12px 90px !important;
           }
+          /* Map stacks below */
+          .main-content-layout { flex-direction: column !important; overflow-y: auto !important; }
+          .map-view-container { flex: none !important; height: 55vh !important; width: 100% !important; }
+          /* Feature grid always 2 cols */
+          .feature-grid { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+          /* Mobile dropdown menu */
+          .ud-mobile-dropdown {
+            position: absolute; top: 56px; left: 0; right: 0; z-index: 9999;
+            background: rgba(5,15,40,0.98); border-bottom: 1px solid rgba(0,200,255,0.25);
+            padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;
+            backdrop-filter: blur(12px);
+          }
+        }
+        @media (min-width: 769px) {
+          .ud-mobile-dropdown { display: none !important; }
+          .feature-grid { grid-template-columns: 1fr 1fr 1fr !important; }
         }
       `}</style>
 
-      {/* Header */}
-      <div className="header-container" style={{ background: 'rgba(5,15,40,0.95)', padding: '12px 24px', borderBottom: '1px solid rgba(0,200,255,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ fontSize: 24 }}>🚑</div>
-            <h1 style={{ margin: 0, fontSize: 20, fontFamily: "'Orbitron'", letterSpacing: 2, color: '#00c8ff' }}>RESCUELINK USER</h1>
-          </div>
+      {/* ══ HEADER ══ */}
+      <div className="header-container" style={{ position: 'relative', background: 'rgba(5,15,40,0.97)', padding: '10px 20px', borderBottom: '1px solid rgba(0,200,255,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, zIndex: 200 }}>
 
-          {/* 📡 LIVE NETWORK PULSE */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 12px', background: 'rgba(0,255,136,0.05)', borderRadius: 20, border: '1px solid rgba(0,255,136,0.2)' }}>
-            <div style={{ 
-              width: 8, height: 8, borderRadius: '50%', background: '#00ff88', 
-              boxShadow: '0 0 10px #00ff88', animation: 'pulse-opacity 1.5s infinite' 
-            }} />
-            <span style={{ fontSize: 10, color: '#00ff88', fontFamily: "'Orbitron'", letterSpacing: 1 }}>GATEWAY: ACTIVE</span>
-          </div>
-          
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, position: 'relative' }}>
-            <div style={{
-              width: 10, height: 10, borderRadius: '50%',
-              background: socket?.connected ? '#00ff88' : '#ff4444',
-              boxShadow: socket?.connected ? '0 0 12px #00ff88' : '0 0 8px #ff4444',
-              position: 'relative', zIndex: 2,
-              animation: socket?.connected ? 'pulse-opacity 1s ease-in-out infinite' : 'none'
-            }} />
-            {socket?.connected && (
-              <div style={{
-                position: 'absolute', inset: -4, borderRadius: '50%',
-                background: 'rgba(0,255,136,0.4)', animation: 'pulse-ring 2s ease-out infinite',
-                zIndex: 1
-              }} />
-            )}
-          </div>
+        {/* Logo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 22 }}>🚑</div>
+          <h1 style={{ margin: 0, fontSize: 17, fontFamily: "'Orbitron'", letterSpacing: 2, color: '#00c8ff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>RESCUELINK USER</h1>
+        </div>
 
-          <div style={{ padding: '4px 12px', background: 'rgba(0,255,136,0.1)', color: '#00ff88', borderRadius: 20, fontSize: 12, border: '1px solid rgba(0,255,136,0.3)', fontFamily: "'Orbitron'" }}>
+        {/* Desktop: inline status pills */}
+        <div className="ud-desktop-status" style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 10px', background: 'rgba(0,255,136,0.06)', borderRadius: 20, border: '1px solid rgba(0,255,136,0.2)' }}>
+            <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#00ff88', boxShadow: '0 0 8px #00ff88', animation: 'pulse-opacity 1.5s infinite' }} />
+            <span style={{ fontSize: 9, color: '#00ff88', fontFamily: "'Orbitron'", letterSpacing: 1 }}>GATEWAY: ACTIVE</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, position: 'relative' }}>
+            <div style={{ width: 9, height: 9, borderRadius: '50%', background: socket?.connected ? '#00ff88' : '#ff4444', boxShadow: socket?.connected ? '0 0 10px #00ff88' : '0 0 6px #ff4444', animation: socket?.connected ? 'pulse-opacity 1s infinite' : 'none' }} />
+          </div>
+          <div style={{ padding: '3px 10px', background: 'rgba(0,255,136,0.1)', color: '#00ff88', borderRadius: 20, fontSize: 10, border: '1px solid rgba(0,255,136,0.3)', fontFamily: "'Orbitron'" }}>
             STATUS: {requestStatus.toUpperCase()}
           </div>
-
-          {/* Mission Switcher */}
           {Object.keys(missions).length > 1 && (
-            <div style={{ display: 'flex', gap: 10, padding: '4px 12px', background: 'rgba(0,200,255,0.05)', borderRadius: 20, border: '1px solid rgba(0,200,255,0.1)' }}>
+            <div style={{ display: 'flex', gap: 8, padding: '3px 10px', background: 'rgba(0,200,255,0.05)', borderRadius: 20, border: '1px solid rgba(0,200,255,0.1)' }}>
               {Object.keys(missions).map(id => (
-                <button
-                  key={id}
-                  onClick={() => setCurrentReqId(id)}
-                  style={{
-                    padding: '2px 8px',
-                    background: currentReqId === id ? '#00c8ff' : 'rgba(0,200,255,0.1)',
-                    border: `1px solid ${currentReqId === id ? '#00c8ff' : 'rgba(0,200,255,0.3)'}`,
-                    borderRadius: 4,
-                    color: currentReqId === id ? '#000' : '#00c8ff',
-                    fontSize: 9,
-                    fontFamily: "'Orbitron'",
-                    cursor: 'pointer',
-                    fontWeight: 'bold'
-                  }}
-                >
+                <button key={id} onClick={() => setCurrentReqId(id)} style={{ padding: '2px 7px', background: currentReqId === id ? '#00c8ff' : 'rgba(0,200,255,0.1)', border: `1px solid ${currentReqId === id ? '#00c8ff' : 'rgba(0,200,255,0.3)'}`, borderRadius: 4, color: currentReqId === id ? '#000' : '#00c8ff', fontSize: 9, fontFamily: "'Orbitron'", cursor: 'pointer', fontWeight: 'bold' }}>
                   {id.substring(0, 8)}...
                 </button>
               ))}
             </div>
           )}
         </div>
-        
-        {/* Right side is intentionally left blank to reserve space for global fixed actions bar */}
-        <div style={{ width: 420 }} className="desktop-header-spacer" />
+
+        {/* Mobile: Hamburger ☰ button */}
+        <button
+          className="ud-mobile-menu-btn"
+          onClick={() => setMobileMenuOpen(o => !o)}
+          style={{ background: mobileMenuOpen ? 'rgba(0,200,255,0.15)' : 'rgba(0,200,255,0.07)', border: '1px solid rgba(0,200,255,0.35)', borderRadius: 8, color: '#00c8ff', padding: '7px 12px', fontSize: 18, cursor: 'pointer', flexShrink: 0, lineHeight: 1 }}
+          aria-label="Toggle mobile menu"
+        >
+          {mobileMenuOpen ? '✕' : '☰'}
+        </button>
+
+        {/* Mobile dropdown panel */}
+        {mobileMenuOpen && (
+          <div className="ud-mobile-dropdown" onClick={() => setMobileMenuOpen(false)}>
+            {/* Connection status */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: socket?.connected ? '#00ff88' : '#ff4444', boxShadow: socket?.connected ? '0 0 8px #00ff88' : '0 0 6px #ff4444' }} />
+              <span style={{ fontSize: 11, color: '#00ff88', fontFamily: "'Orbitron'" }}>GATEWAY: {socket?.connected ? 'ACTIVE' : 'OFFLINE'}</span>
+              <div style={{ marginLeft: 'auto', padding: '3px 10px', background: 'rgba(0,255,136,0.1)', color: '#00ff88', borderRadius: 12, fontSize: 10, border: '1px solid rgba(0,255,136,0.3)', fontFamily: "'Orbitron'" }}>
+                {requestStatus.toUpperCase()}
+              </div>
+            </div>
+            {currentReqId && (
+              <div style={{ fontSize: 10, color: 'rgba(0,200,255,0.7)', fontFamily: "'Share Tech Mono'" }}>
+                MISSION: {currentReqId.replace(/-/g,'').slice(-8).toUpperCase()}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Desktop spacer */}
+        <div style={{ width: 100 }} className="desktop-header-spacer" />
       </div>
 
       <div className="main-content-layout" style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>

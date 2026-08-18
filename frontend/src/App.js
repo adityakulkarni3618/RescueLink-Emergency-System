@@ -452,6 +452,23 @@ const styles = `
       padding: 10px 16px !important;
     }
   }
+
+  /* Global action bar: compact icon-only on mobile */
+  @media (max-width: 768px) {
+    .global-buttons-container {
+      top: 8px !important;
+      right: 10px !important;
+      gap: 6px !important;
+    }
+    .global-buttons-container .rl-btn-secondary,
+    .global-buttons-container .rl-btn-primary {
+      padding: 6px 10px !important;
+      font-size: 14px !important;
+      min-width: 0 !important;
+    }
+    /* Hide text labels, show only emoji icons */
+    .global-btn-label { display: none !important; }
+  }
 `;
 
 // Three.js-style Particle Field using Canvas API
@@ -2263,7 +2280,7 @@ export default function App() {
             fontSize: 11
           }}
         >
-          SWITCH ROLE 🔄
+          <span className="global-btn-label">SWITCH ROLE </span>🔄
         </button>
 
         {/* Security settings button */}
@@ -2275,7 +2292,7 @@ export default function App() {
             fontSize: 11
           }}
         >
-          SECURITY 🛡️
+          <span className="global-btn-label">SECURITY </span>🛡️
         </button>
 
         {/* Logout button */}
@@ -2289,7 +2306,7 @@ export default function App() {
             boxShadow: '0 4px 15px rgba(255, 68, 68, 0.2)'
           }}
         >
-          LOGOUT ⏻
+          <span className="global-btn-label">LOGOUT </span>⏻
         </button>
       </div>
 
