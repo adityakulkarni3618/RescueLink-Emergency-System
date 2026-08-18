@@ -599,6 +599,17 @@ export default function AmbulanceStreamer({ socket, connected }) {
   const vitalsSourceRef = useRef(vitalsSource);
   useEffect(() => { vitalsSourceRef.current = vitalsSource; }, [vitalsSource]);
 
+  // Paramedic Heartbeat Emitter for stuck-case tracking
+  useEffect(() => {
+    if (!socket || !connected || !assignedUser?.id) return;
+
+    const interval = setInterval(() => {
+      socket.emit('driver:heartbeat', { reqId: assignedUser.id });
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [socket, connected, assignedUser?.id]);
+
   const [greenCorridorActive, setGreenCorridorActive] = useState(false);
   const [isActiveDuty, setIsActiveDuty] = useState(true);
 
