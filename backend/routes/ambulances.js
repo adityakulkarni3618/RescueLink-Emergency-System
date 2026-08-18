@@ -10,8 +10,9 @@ const bcrypt = require('bcryptjs');
  */
 router.get('/', async (req, res) => {
   try {
+    // Return all registered ambulances — frontend badge shows ACTIVE/ON BREAK per record
     const list = await Ambulance.findAll({
-      where: { is_active: true }
+      order: [['createdAt', 'DESC']]
     });
     return res.json(list);
   } catch (err) {
