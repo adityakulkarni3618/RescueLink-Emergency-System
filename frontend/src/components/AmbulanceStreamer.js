@@ -566,7 +566,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
       const found = AMBULANCE_CREDENTIALS.find(c => c.unitId === emailUpper) || {
         unitId: user.id,
         driverName: user.name,
-        vehicleNo: 'EMG-RL-0101',
+        vehicleNo: user.email?.includes('@') ? user.email.split('@')[0].toUpperCase() : (user.email || 'EMG-RL-0101'),
         type: 'ALS'
       };
       return found;
@@ -581,7 +581,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
       const found = AMBULANCE_CREDENTIALS.find(c => c.unitId === emailUpper) || {
         unitId: user.id,
         driverName: user.name,
-        vehicleNo: 'EMG-RL-0101',
+        vehicleNo: user.email?.includes('@') ? user.email.split('@')[0].toUpperCase() : (user.email || 'EMG-RL-0101'),
         type: 'ALS'
       };
       setAuthUnit(found);
@@ -1912,7 +1912,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
         <div style={{ fontSize: 22 }}>🚑</div>
         <div>
           <div style={{ fontFamily: "'Orbitron'", fontSize: 14, fontWeight: 700, color: '#88ff88', letterSpacing: '0.1em' }}>
-            {(authUnit?.unitId && authUnit.unitId.includes('-')) ? authUnit.unitId.split('-')[0] : (authUnit?.unitId || 'AMBULANCE')} — PARAMEDIC CONSOLE
+            {(authUnit?.vehicleNo || 'AMBULANCE')} — PARAMEDIC CONSOLE
           </div>
           <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>
             {authUnit ? `${authUnit.driverName} · ${authUnit.vehicleNo} · ${authUnit.type}` : 'RESCUELINK FIELD TERMINAL v2.0'}
