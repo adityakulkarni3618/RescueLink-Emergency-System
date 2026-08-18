@@ -985,6 +985,18 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
         viewRole = 'user';
       }
 
+      // Role mismatch guard: prevent ambulance drivers from logging into hospital portal and vice versa
+      if (defaultRole === 'hospital' && viewRole === 'ambulance') {
+        setError('❌ Access Denied: This is a Hospital portal. Use the Ambulance Gateway to sign in as a paramedic.');
+        setLoading(false);
+        return;
+      }
+      if (defaultRole === 'ambulance' && viewRole === 'hospital') {
+        setError('❌ Access Denied: This is the Ambulance portal. Use the Hospital Gateway to sign in as a medical coordinator.');
+        setLoading(false);
+        return;
+      }
+
       onLoginSuccess(viewRole, data.token);
     } catch (err) {
       setError(err.message || 'Invalid credentials');
@@ -1325,11 +1337,11 @@ function AmbulanceLandingHomepage({ onLogin, onRegister, onBack }) {
                   <div style={{ display: 'flex', alignItems: 'center' }}>
                     <span style={{
                       fontSize: 8, fontFamily: "'Share Tech Mono'", fontWeight: 'bold', padding: '3px 8px', borderRadius: 4,
-                      background: a.is_active ? 'rgba(0,255,136,0.1)' : 'rgba(255,68,68,0.1)',
-                      color: a.is_active ? '#00ff88' : '#ff4444',
-                      border: `1px solid ${a.is_active ? '#00ff88' : '#ff4444'}`
+                      background: !!a.is_active ? 'rgba(0,255,136,0.1)' : 'rgba(180,120,50,0.15)',
+                      color: !!a.is_active ? '#00ff88' : '#ffb800',
+                      border: `1px solid ${!!a.is_active ? '#00ff88' : '#ffb800'}`
                     }}>
-                      {a.is_active ? 'ACTIVE' : 'ON BREAK'}
+                      {!!a.is_active ? 'REGISTERED ✔' : 'OFF DUTY'}
                     </span>
                   </div>
                 </div>
