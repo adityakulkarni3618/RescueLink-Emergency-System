@@ -601,14 +601,14 @@ export default function AmbulanceStreamer({ socket, connected }) {
 
   // Paramedic Heartbeat Emitter for stuck-case tracking
   useEffect(() => {
-    if (!socket || !connected || !assignedUser?.id) return;
+    if (!socket || !connected || !authUnit?.unitId) return;
 
     const interval = setInterval(() => {
-      socket.emit('driver:heartbeat', { reqId: assignedUser.id });
+      socket.emit('driver:heartbeat', { reqId: authUnit.unitId });
     }, 15000);
 
     return () => clearInterval(interval);
-  }, [socket, connected, assignedUser?.id]);
+  }, [socket, connected, authUnit?.unitId]);
 
   const [greenCorridorActive, setGreenCorridorActive] = useState(false);
   const [isActiveDuty, setIsActiveDuty] = useState(true);
