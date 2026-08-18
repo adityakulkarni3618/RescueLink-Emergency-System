@@ -635,14 +635,14 @@ router.get('/clear-db-securely', async (req, res) => {
   }
 
   try {
-    const { User, Hospital, Incident, AuditLog, VitalsHistory, BloodRequest, InsuranceClaim } = require('../utils/db');
+    const { User, Hospital, Incident, VitalsHistory, BloodRequest, InsuranceClaim, Ambulance } = require('../utils/db');
     
     // Delete related tables first to prevent constraint violations
     await VitalsHistory.destroy({ where: {} });
     await InsuranceClaim.destroy({ where: {} });
     await Incident.destroy({ where: {} });
-    await AuditLog.destroy({ where: {} });
     await BloodRequest.destroy({ where: {} });
+    await Ambulance.destroy({ where: {} });
     
     const usersCount = await User.destroy({
       where: {
