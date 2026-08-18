@@ -2090,6 +2090,7 @@ io.on('connection', (socket) => {
     if (!req) return;
 
     const isAccepted = data.status === 'hospital_accepted';
+    const oldStatus = req.status;
 
     // FIX C2: Atomic in-memory lock using a dedicated flag.
     // This prevents the race condition where two hospitals accept at the same millisecond.
@@ -2101,9 +2102,9 @@ io.on('connection', (socket) => {
         return socket.emit('error-alert', { message: 'REQUEST_ALREADY_TAKEN: Another hospital accepted this patient 0.01 seconds before you.' });
       }
       req._acceptLock = true; // Immediately lock — synchronous, atomic in single-node
+    } else {
+      req.status = 'hospital_rejected';
     }
-
-    req.status = isAccepted ? 'hospital_accepted' : 'hospital_rejected';
 
     if (isAccepted && hospitals[socket.id]) {
       req.hospitalSocket = socket.id;
@@ -2114,6 +2115,45 @@ io.on('connection', (socket) => {
       req.attendingDoctorName = data.attendingDoctorName || '';
       req.attendingDoctorSpecialty = data.attendingDoctorSpecialty || '';
       req.attendingTeamDetails = data.attendingTeamDetails || null;
+
+      // Atomic bed count reservation and care team persistence
+      try {
+        const { Hospital, Incident } = require('./utils/db');
+        const sequelize = Hospital.sequelize;
+        await sequelize.transaction(async (t) => {
+          const dbHosp = await Hospital.findByPk(hospitals[socket.id].id, { transaction: t, lock: t.LOCK.UPDATE });
+          if (!dbHosp || dbHosp.icu_beds <= 0) {
+            throw new Error('NO_BEDS_AVAILABLE');
+          }
+          await dbHosp.decrement('icu_beds', { by: 1, transaction: t });
+          // Sync memory inventory
+          if (hospitals[socket.id].inventory) {
+            hospitals[socket.id].inventory.beds = dbHosp.icu_beds - 1;
+          }
+          // Persist care team to database in the same transaction
+          await Incident.update({
+            hospital_id: hospitals[socket.id].id,
+            status: 'hospital_accepted',
+            attending_doctor_name: data.attendingDoctorName || null,
+            attending_doctor_specialty: data.attendingDoctorSpecialty || null,
+            attending_team_details: data.attendingTeamDetails || null
+          }, {
+            where: { id: req.id },
+            transaction: t
+          });
+        });
+      } catch (err) {
+        // Rollback memory states on failure
+        req._acceptLock = false;
+        req.status = oldStatus;
+        console.error('[DB ERROR] Hospital acceptance failed:', err.message);
+        if (err.message === 'NO_BEDS_AVAILABLE') {
+          return socket.emit('error-alert', { message: 'NO_BEDS_AVAILABLE: No ICU beds available at this hospital.' });
+        }
+        return socket.emit('error-alert', { message: `CONFIRMATION_FAILED: ${err.message}` });
+      }
+
+      req.status = 'hospital_accepted';
 
       // Hospital joins the stable mission room
       socket.join(`mission_${req.id}`);
@@ -2137,24 +2177,6 @@ io.on('connection', (socket) => {
         } catch (err) {
           console.warn(`[SERVER] Failed to fetch OSRM route: ${err.message}`);
         }
-      }
-
-      // Atomic bed count reservation
-      try {
-        const { Hospital } = require('./utils/db');
-        const sequelize = Hospital.sequelize;
-        await sequelize.transaction(async (t) => {
-          const dbHosp = await Hospital.findByPk(hospitals[socket.id].id, { transaction: t, lock: t.LOCK.UPDATE });
-          if (dbHosp && dbHosp.icu_beds > 0) {
-            await dbHosp.decrement('icu_beds', { by: 1, transaction: t });
-            // Sync memory inventory
-            if (hospitals[socket.id].inventory) {
-              hospitals[socket.id].inventory.beds = dbHosp.icu_beds - 1;
-            }
-          }
-        });
-      } catch (err) {
-        console.error('[DB ERROR] Bed reservation transaction failed:', err.message);
       }
 
       req.assignedHospital = hospitals[socket.id];
