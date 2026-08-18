@@ -2192,7 +2192,7 @@ export default function App() {
           <AmbulanceLandingHomepage
             onLogin={() => { setIsRegisterMode(false); setLoginTargetRole('ambulance'); }}
             onRegister={() => { setIsRegisterMode(true); setLoginTargetRole('ambulance'); }}
-            onBack={() => { window.location.hash = ''; setLoginTargetRole(null); setIsRegisterMode(false); }}
+            onBack={() => { window.location.hash = ''; setRole(null); setLoginTargetRole(null); setIsRegisterMode(false); }}
           />
           {loginTargetRole === 'ambulance' && (
             <LoginScreen
@@ -2214,7 +2214,7 @@ export default function App() {
           <HospitalLandingHomepage
             onLogin={() => { setIsRegisterMode(false); setLoginTargetRole('hospital'); }}
             onRegister={() => { setIsRegisterMode(true); setLoginTargetRole('hospital'); }}
-            onBack={() => { window.location.hash = ''; setLoginTargetRole(null); setIsRegisterMode(false); }}
+            onBack={() => { window.location.hash = ''; setRole(null); setLoginTargetRole(null); setIsRegisterMode(false); }}
           />
           {loginTargetRole === 'hospital' && (
             <LoginScreen
