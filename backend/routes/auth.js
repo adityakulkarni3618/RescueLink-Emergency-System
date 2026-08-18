@@ -424,7 +424,7 @@ router.post('/register-ambulance', async (req, res) => {
     });
   } catch (err) {
     console.error('[AUTH ERROR] register-ambulance failed:', err);
-    return res.status(500).json({ error: 'Internal Server Error during ambulance registration' });
+    return res.status(500).json({ error: `Internal Server Error during ambulance registration: ${err.message}` });
   }
 });
 
@@ -479,7 +479,7 @@ router.post('/register-hospital', async (req, res) => {
     });
   } catch (err) {
     console.error('[AUTH ERROR] register-hospital failed:', err);
-    return res.status(500).json({ error: 'Internal Server Error during hospital registration' });
+    return res.status(500).json({ error: `Internal Server Error during hospital registration: ${err.message}` });
   }
 });
 
