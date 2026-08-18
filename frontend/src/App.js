@@ -856,18 +856,40 @@ function MfaSetupScreen({ setupToken, onComplete, onCancel }) {
   );
 }
 
-
-
-/* ─── Login Screen Component ──────────────────────────────────────────────── */
-function LoginScreen({ onLoginSuccess, onMfaSetup, onMfaVerify }) {
+/* ─── Login & Registration Screen Component with 2FA ───────────────────── */
+function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onClose }) {
+  const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  
+  // Paramedic signup fields
+  const [vehicleNo, setVehicleNo] = useState('');
+  const [driverName, setDriverName] = useState('');
+  const [contactInfo, setContactInfo] = useState('');
+  const [type, setType] = useState('BLS');
+
+  // Hospital signup fields
+  const [hospitalName, setHospitalName] = useState('');
+  const [hospitalContact, setHospitalContact] = useState('');
+  const [lat, setLat] = useState('12.9716');
+  const [lng, setLng] = useState('77.5946');
+  const [totalBeds, setTotalBeds] = useState('50');
+  const [icuBeds, setIcuBeds] = useState('10');
+  const [ventilators, setVentilators] = useState('5');
+
+  // Registration 2FA Setup state
+  const [regQrCode, setRegQrCode] = useState('');
+  const [regTempSecret, setRegTempSecret] = useState('');
+  const [regVerifyCode, setRegVerifyCode] = useState('');
+
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setMessage('');
     setLoading(true);
     try {
       const response = await fetch(`${SERVER_URL}/api/auth/login`, {
@@ -900,7 +922,6 @@ function LoginScreen({ onLoginSuccess, onMfaSetup, onMfaVerify }) {
       sessionStorage.setItem('rescuelink_token', data.token);
       sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
 
-      // Map database role to frontend view role
       let viewRole = 'user';
       if (data.user.role === 'doctor' || data.user.role === 'hospital_admin') {
         viewRole = 'hospital';
@@ -922,112 +943,398 @@ function LoginScreen({ onLoginSuccess, onMfaSetup, onMfaVerify }) {
     }
   };
 
+  const handleRegisterSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setMessage('');
+    setLoading(true);
+    try {
+      let endpoint = '';
+      let payload = {};
+
+      if (defaultRole === 'ambulance') {
+        endpoint = '/api/auth/register-ambulance';
+        payload = { vehicleNo, driverName, contactInfo, type, password };
+      } else {
+        endpoint = '/api/auth/register-hospital';
+        payload = { name: hospitalName, contactInfo: hospitalContact, lat, lng, totalBeds, icuBeds, ventilators, password };
+      }
+
+      const res = await fetch(`${SERVER_URL}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Registration failed');
+
+      setRegQrCode(data.qrCode);
+      setRegTempSecret(data.tempSecret);
+      setMessage(data.message);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegMfaVerify = async (e) => {
+    e.preventDefault();
+    setError('');
+    setMessage('');
+    setLoading(true);
+    try {
+      // Step 2: verify and enable 2FA using registration secret
+      const dummyTokenResponse = await fetch(`${SERVER_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: defaultRole === 'ambulance' ? vehicleNo : `${hospitalName.replace(/\s+/g, '').toLowerCase()}@rescuelink.com`, password })
+      });
+      const loginData = await dummyTokenResponse.json();
+      const setupToken = loginData.setupToken;
+      if (!setupToken) throw new Error('Failed to retrieve setup token');
+
+      const resEnable = await fetch(`${SERVER_URL}/api/mfa/enable`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${setupToken}`
+        },
+        body: JSON.stringify({ code: regVerifyCode, tempSecret: regTempSecret })
+      });
+      const enableData = await resEnable.json();
+      if (!resEnable.ok) throw new Error(enableData.error || 'Failed to verify 2FA token');
+
+      setMessage('2FA setup complete! You can now log in securely.');
+      setRegQrCode('');
+      setRegTempSecret('');
+      setIsRegister(false);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const triggerDirectPatientAccess = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      const response = await fetch(`${SERVER_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'patient@rescuelink.com', password: 'password123' })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Login failed');
+      sessionStorage.setItem('rescuelink_token', data.token);
+      sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
+      onLoginSuccess('user', data.token);
+    } catch (err) {
+      setError(err.message || 'Invalid credentials');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'rgba(5,13,26,0.92)', backdropFilter: 'blur(8px)',
+      fontFamily: "'Rajdhani', sans-serif", padding: 20
+    }}>
+      <div className="rl-card" style={{ width: '100%', maxWidth: 460, padding: 32, position: 'relative' }}>
+        <button onClick={onClose} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: 'rgba(160,200,255,0.6)', fontSize: 20, cursor: 'pointer' }}>✕</button>
+        
+        <h2 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 22, color: '#00c8ff', textAlign: 'center', marginBottom: 4, letterSpacing: '0.1em' }}>
+          {defaultRole ? `${defaultRole.toUpperCase()} GATEWAY` : 'RESCUELINK GATEWAY'}
+        </h2>
+        <p style={{ textAlign: 'center', color: 'rgba(160,200,255,0.4)', fontSize: 10, letterSpacing: '0.15em', marginBottom: 20, fontFamily: "'Share Tech Mono'" }}>
+          SECURE PROTOCOL ACCESS
+        </p>
+
+        {error && (
+          <div style={{ padding: 10, background: 'rgba(255,50,50,0.1)', border: '1px solid rgba(255,50,50,0.4)', borderRadius: 6, color: '#ff8888', marginBottom: 16, fontSize: 12, textAlign: 'center', fontFamily: "'Share Tech Mono'" }}>{error}</div>
+        )}
+        {message && (
+          <div style={{ padding: 10, background: 'rgba(0,255,136,0.1)', border: '1px solid rgba(0,255,136,0.4)', borderRadius: 6, color: '#00ff88', marginBottom: 16, fontSize: 12, textAlign: 'center', fontFamily: "'Share Tech Mono'" }}>{message}</div>
+        )}
+
+        {regQrCode ? (
+          <form onSubmit={handleRegMfaVerify} style={{ display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center' }}>
+            <p style={{ color: 'rgba(160,200,255,0.8)', fontSize: 12, textAlign: 'center' }}>
+              Scan this QR code with your authenticator app to enable mandatory 2FA security:
+            </p>
+            <img src={regQrCode} alt="2FA QR" style={{ border: '4px solid #fff', borderRadius: 8, width: 160, height: 160 }} />
+            <div style={{ width: '100%' }}>
+              <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>CONFIRMATION CODE</label>
+              <input type="text" value={regVerifyCode} onChange={(e) => setRegVerifyCode(e.target.value)} required placeholder="e.g. 123456" className="rl-input" style={{ width: '100%', boxSizing: 'border-box', textAlign: 'center', letterSpacing: 2 }} />
+            </div>
+            <button type="submit" disabled={loading} className="rl-btn-primary" style={{ width: '100%' }}>
+              {loading ? 'VERIFYING...' : 'COMPLETE SIGNUP →'}
+            </button>
+          </form>
+        ) : (
+          <>
+            {/* Login / Register Toggle Tabs */}
+            {defaultRole && defaultRole !== 'user' && defaultRole !== 'admin' && defaultRole !== 'family' && (
+              <div style={{ display: 'flex', background: 'rgba(0,200,255,0.05)', borderRadius: 6, padding: 3, marginBottom: 20, border: '1px solid rgba(0,200,255,0.1)' }}>
+                <button onClick={() => setIsRegister(false)} style={{ flex: 1, padding: '8px 0', border: 'none', background: !isRegister ? 'rgba(0,200,255,0.15)' : 'none', color: !isRegister ? '#00c8ff' : 'rgba(160,200,255,0.6)', fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer', borderRadius: 4 }}>LOGIN</button>
+                <button onClick={() => setIsRegister(true)} style={{ flex: 1, padding: '8px 0', border: 'none', background: isRegister ? 'rgba(0,200,255,0.15)' : 'none', color: isRegister ? '#00c8ff' : 'rgba(160,200,255,0.6)', fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer', borderRadius: 4 }}>REGISTER NEW</button>
+              </div>
+            )}
+
+            {!isRegister ? (
+              <form onSubmit={handleLoginSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>
+                    {defaultRole === 'ambulance' ? 'VEHICLE ID / EMAIL' : 'EMAIL ADDRESS'}
+                  </label>
+                  <input type="text" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={defaultRole === 'ambulance' ? 'e.g. MH-12-AB-1234' : 'doctor@rescuelink.com'} required className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>PASSWORD</label>
+                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                </div>
+                <button type="submit" disabled={loading} className="rl-btn-primary" style={{ width: '100%', marginTop: 8 }}>
+                  {loading ? 'AUTHENTICATING...' : 'ACCESS SYSTEM →'}
+                </button>
+                {defaultRole === 'user' && (
+                  <button type="button" onClick={triggerDirectPatientAccess} className="rl-btn-secondary" style={{ width: '100%', marginTop: 4 }}>
+                    DIRECT PATIENT ACCESS 🧍
+                  </button>
+                )}
+              </form>
+            ) : (
+              <form onSubmit={handleRegisterSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {defaultRole === 'ambulance' ? (
+                  <>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>VEHICLE PLATE NUMBER</label>
+                      <input type="text" value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} required placeholder="MH-12-QW-5678" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>LEAD PARAMEDIC / DRIVER NAME</label>
+                      <input type="text" value={driverName} onChange={(e) => setDriverName(e.target.value)} required placeholder="e.g. John Doe" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>CONTACT PHONE NUMBER</label>
+                      <input type="text" value={contactInfo} onChange={(e) => setContactInfo(e.target.value)} required placeholder="e.g. 9876543210" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>AMBULANCE TYPE</label>
+                      <select value={type} onChange={(e) => setType(e.target.value)} className="rl-input" style={{ width: '100%', background: 'rgba(5,15,40,0.85)' }}>
+                        <option value="BLS">BLS (Basic Life Support)</option>
+                        <option value="ALS">ALS (Advanced Life Support)</option>
+                      </select>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>HOSPITAL FULL NAME</label>
+                      <input type="text" value={hospitalName} onChange={(e) => setHospitalName(e.target.value)} required placeholder="e.g. City General Hospital" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>HOTLINE / PHONE NUMBER</label>
+                      <input type="text" value={hospitalContact} onChange={(e) => setHospitalContact(e.target.value)} required placeholder="e.g. 022-2435-8910" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                    </div>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>LATITUDE</label>
+                        <input type="text" value={lat} onChange={(e) => setLat(e.target.value)} required placeholder="12.9716" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                      </div>
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>LONGITUDE</label>
+                        <input type="text" value={lng} onChange={(e) => setLng(e.target.value)} required placeholder="77.5946" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>TOTAL BEDS</label>
+                        <input type="number" value={totalBeds} onChange={(e) => setTotalBeds(e.target.value)} required className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                      </div>
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>ICU BEDS</label>
+                        <input type="number" value={icuBeds} onChange={(e) => setIcuBeds(e.target.value)} required className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                      </div>
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>VENTILATORS</label>
+                        <input type="number" value={ventilators} onChange={(e) => setVentilators(e.target.value)} required className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                      </div>
+                    </div>
+                  </>
+                )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>ACCESS PASSWORD</label>
+                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                </div>
+                <button type="submit" disabled={loading} className="rl-btn-primary" style={{ width: '100%', marginTop: 8 }}>
+                  {loading ? 'REGISTERING...' : 'REGISTER & BUILD 2FA →'}
+                </button>
+              </form>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── RescueLink Landing Portal Homepage ──────────────────────────────── */
+function LandingHomepage({ onSelectRole }) {
+  const [ambulances, setAmbulances] = useState([]);
+  const [hospitals, setHospitals] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchRegistry = async () => {
+      try {
+        const [resAmb, resHosp] = await Promise.all([
+          fetch(`${SERVER_URL}/api/ambulances`),
+          fetch(`${SERVER_URL}/api/hospitals`)
+        ]);
+        if (resAmb.ok) {
+          const list = await resAmb.json();
+          setAmbulances(list);
+        }
+        if (resHosp.ok) {
+          const list = await resHosp.json();
+          setHospitals(list);
+        }
+      } catch (err) {
+        console.warn('[WIDGET FETCH ERROR]', err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchRegistry();
+    const interval = setInterval(fetchRegistry, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div style={{
       minHeight: '100vh', display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center',
-      background: 'radial-gradient(ellipse at 50% 30%, #0a1e3a 0%, #050d1a 70%)',
-      fontFamily: "'Rajdhani', sans-serif", padding: '20px',
-      position: 'relative', overflow: 'hidden',
+      background: 'radial-gradient(ellipse at 50% 10%, #081b33 0%, #030812 80%)',
+      fontFamily: "'Rajdhani', sans-serif", color: '#fff', position: 'relative', overflowX: 'hidden'
     }}>
       <style>{styles}</style>
       <ParticleCanvas />
       <div className="scanline" />
 
-      <div style={{
-        position: 'absolute', inset: 0, opacity: 0.06,
-        backgroundImage: 'linear-gradient(rgba(0,200,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(0,200,255,0.5) 1px, transparent 1px)',
-        backgroundSize: '40px 40px',
-      }} />
-
-      <div className="rl-card" style={{
-        width: '100%', maxWidth: 400, padding: '40px 32px',
-        zIndex: 1
+      {/* Main Header */}
+      <header style={{
+        padding: '20px 40px', borderBottom: '1px solid rgba(0,200,255,0.15)',
+        display: 'flex', justifySelf: 'stretch', justifyContent: 'space-between', alignItems: 'center',
+        background: 'rgba(5,15,35,0.7)', backdropFilter: 'blur(10px)', zIndex: 10
       }}>
-        <h2 style={{
-          fontFamily: "'Orbitron', sans-serif", fontSize: 24,
-          color: '#00c8ff', textAlign: 'center', marginBottom: 8,
-          textShadow: '0 0 10px rgba(0,200,255,0.4)', letterSpacing: '0.1em'
-        }}>RESCUELINK</h2>
-        <p style={{
-          textAlign: 'center', color: 'rgba(160,200,255,0.5)',
-          fontSize: 11, letterSpacing: '0.2em', marginBottom: 24,
-          fontFamily: "'Share Tech Mono'"
-        }}>SECURE MEDICAL GATEWAY</p>
-
-        {error && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{
-            padding: 12, background: 'rgba(255,50,50,0.1)',
-            border: '1px solid rgba(255,50,50,0.4)', borderRadius: 6,
-            color: '#ff8888', marginBottom: 20, fontSize: 13,
-            textAlign: 'center', fontFamily: "'Share Tech Mono'"
-          }}>{error}</div>
-        )}
+            width: 32, height: 32, border: '2px solid #ff3333', borderRadius: '50%',
+            display: 'flex', alignItems: 'center', justifyCenter: 'center', fontSize: 18, color: '#ff3333', fontWeight: 'bold'
+          }}>🚨</div>
+          <div>
+            <h1 style={{ fontFamily: "'Orbitron'", fontSize: 18, letterSpacing: '0.15em', color: '#00c8ff', margin: 0 }}>RESCUELINK</h1>
+            <span style={{ fontSize: 9, letterSpacing: '0.2em', color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'" }}>NATIONAL HEALTH NETWORK</span>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 15 }}>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>CENTRAL SERVER</div>
+            <div style={{ fontSize: 12, color: '#00ff88', fontWeight: 'bold', fontFamily: "'Share Tech Mono'" }}>ACTIVE // ONLINE</div>
+          </div>
+        </div>
+      </header>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <label style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', letterSpacing: '0.1em', fontFamily: "'Share Tech Mono'" }}>EMAIL ADDRESS</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="e.g. doctor@rescuelink.com"
-              required
-              className="rl-input"
-              style={{ width: '100%', boxSizing: 'border-box' }}
-            />
+      {/* Hero section */}
+      <div style={{ textShadow: '0 0 10px rgba(0,0,0,0.5)', padding: '50px 20px 30px', textAlign: 'center', zIndex: 1 }}>
+        <h2 style={{ fontFamily: "'Orbitron'", fontSize: 'clamp(24px, 5vw, 36px)', color: '#fff', letterSpacing: '0.2em', margin: '0 0 12px' }}>
+          SECURE DISPATCH & RESOURCE GATEWAY
+        </h2>
+        <p style={{ color: 'rgba(160,200,255,0.6)', maxWidth: 700, margin: '0 auto 40px', fontSize: 14, lineHeight: 1.6 }}>
+          Real-time end-to-end medical response coordinator linking patients, paramedics, trauma centers, and government commanders under an encrypted national ledger.
+        </p>
+
+        {/* Gateways Grid */}
+        <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 1200, margin: '0 auto 40px' }}>
+          {[
+            { role: 'user', emoji: '🧍', title: 'EMERGENCY SOS', desc: 'Instant AI triage, location mapping, and telemetry request.', color: '#00ff88' },
+            { role: 'ambulance', emoji: '🚑', title: 'PARAMEDIC HUB', desc: 'Driver active duty toggle, vitals streaming, and ER routing.', color: '#ff6b35' },
+            { role: 'hospital', emoji: '🏥', title: 'HOSPITAL COMMAND', desc: 'ER bed tracking, doctor assignments, and locks verification.', color: '#00c8ff' },
+            { role: 'admin', emoji: '🏛️', title: 'WAR ROOM COMMAND', desc: 'Disaster coordinator, spatial logs, and audit logs viewer.', color: '#cc00ff' },
+            { role: 'family', emoji: '👨‍👩‍👧', title: 'FAMILY TRACKER', desc: 'Real-time telemetry, location, and status mapping for families.', color: '#ffb800' }
+          ].map(g => (
+            <div key={g.role} onClick={() => onSelectRole(g.role)} className="rl-card" style={{
+              width: 210, padding: 24, cursor: 'pointer', display: 'flex', flexDirection: 'column',
+              alignItems: 'center', transition: 'all 0.3s', border: `1px solid rgba(0,200,255,0.2)`
+            }} onMouseEnter={e => { e.currentTarget.style.borderColor = g.color; e.currentTarget.style.boxShadow = `0 0 15px ${g.color}33`; }} onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(0,200,255,0.2)'; e.currentTarget.style.boxShadow = 'none'; }}>
+              <div style={{ fontSize: 36, marginBottom: 12 }}>{g.emoji}</div>
+              <h3 style={{ fontFamily: "'Orbitron'", fontSize: 13, color: g.color, letterSpacing: '0.1em', margin: '0 0 8px' }}>{g.title}</h3>
+              <p style={{ fontSize: 11, color: 'rgba(160,200,255,0.5)', textAlign: 'center', margin: 0, lineHeight: 1.4 }}>{g.desc}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Live Registries split directories */}
+        <div style={{ display: 'flex', gap: 30, maxWidth: 1200, margin: '0 auto', flexWrap: 'wrap', textAlign: 'left' }}>
+          {/* Paramedic Fleet status directory */}
+          <div className="rl-card" style={{ flex: 1, minWidth: 340, padding: 24 }}>
+            <h3 style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#ff6b35', borderBottom: '1px solid rgba(255,107,53,0.3)', paddingBottom: 10, margin: '0 0 16px', letterSpacing: '0.1em' }}>
+              📡 PARAMEDIC FLEET DIRECTORY
+            </h3>
+            {loading ? (
+              <div style={{ color: 'rgba(160,200,255,0.4)', fontSize: 12, fontFamily: "'Share Tech Mono'" }}>Pinging fleet logs...</div>
+            ) : ambulances.length === 0 ? (
+              <div style={{ color: 'rgba(160,200,255,0.4)', fontSize: 12, fontFamily: "'Share Tech Mono'" }}>No ambulance units registered yet.</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 300, overflowY: 'auto' }}>
+                {ambulances.map(a => (
+                  <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(0,200,255,0.03)', borderRadius: 6, border: '1px solid rgba(0,200,255,0.1)' }}>
+                    <div>
+                      <div style={{ fontFamily: "'Orbitron'", fontSize: 12, fontWeight: 'bold', color: '#00c8ff' }}>{a.vehicleNo}</div>
+                      <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)' }}>Driver: {a.driverName} • {a.type}</div>
+                    </div>
+                    <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center' }}>
+                      <span style={{ fontSize: 10, fontFamily: "'Share Tech Mono'", color: a.is_active ? '#00ff88' : '#ff3333', background: a.is_active ? 'rgba(0,255,136,0.1)' : 'rgba(255,51,51,0.1)', padding: '3px 8px', borderRadius: 4, border: `1px solid ${a.is_active ? '#00ff88' : '#ff3333'}` }}>
+                        {a.is_active ? 'ACTIVE / READY' : 'ON BREAK'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <label style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', letterSpacing: '0.1em', fontFamily: "'Share Tech Mono'" }}>PASSWORD</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              className="rl-input"
-              style={{ width: '100%', boxSizing: 'border-box' }}
-            />
+
+          {/* Hospital Center capacity directory */}
+          <div className="rl-card" style={{ flex: 1, minWidth: 340, padding: 24 }}>
+            <h3 style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#00c8ff', borderBottom: '1px solid rgba(0,200,255,0.3)', paddingBottom: 10, margin: '0 0 16px', letterSpacing: '0.1em' }}>
+              🏥 MEDICAL CENTER DIRECTORY
+            </h3>
+            {loading ? (
+              <div style={{ color: 'rgba(160,200,255,0.4)', fontSize: 12, fontFamily: "'Share Tech Mono'" }}>Pinging trauma databases...</div>
+            ) : hospitals.length === 0 ? (
+              <div style={{ color: 'rgba(160,200,255,0.4)', fontSize: 12, fontFamily: "'Share Tech Mono'" }}>No trauma centers registered yet.</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 300, overflowY: 'auto' }}>
+                {hospitals.map(h => (
+                  <div key={h.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(0,200,255,0.03)', borderRadius: 6, border: '1px solid rgba(0,200,255,0.1)' }}>
+                    <div>
+                      <div style={{ fontFamily: "'Orbitron'", fontSize: 12, fontWeight: 'bold', color: '#00c8ff' }}>{h.name}</div>
+                      <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)' }}>ICU Beds: {h.icu_beds} • Ventilators: {h.ventilators}</div>
+                    </div>
+                    <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center' }}>
+                      <span style={{ fontSize: 10, fontFamily: "'Share Tech Mono'", color: '#00ff88', background: 'rgba(0,255,136,0.1)', padding: '3px 8px', borderRadius: 4, border: '1px solid #00ff88' }}>
+                        ONLINE
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="rl-btn-primary"
-            style={{ width: '100%', marginTop: 10 }}
-          >
-            {loading ? 'AUTHENTICATING...' : 'ACCESS SYSTEM →'}
-          </button>
-          <button
-            type="button"
-            disabled={loading}
-            onClick={async () => {
-              setEmail('patient@rescuelink.com');
-              setPassword('password123');
-              setError('');
-              setLoading(true);
-              try {
-                const response = await fetch(`${SERVER_URL}/api/auth/login`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ email: 'patient@rescuelink.com', password: 'password123' })
-                });
-                const data = await response.json();
-                if (!response.ok) throw new Error(data.error || 'Login failed');
-                sessionStorage.setItem('rescuelink_token', data.token);
-                sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
-                onLoginSuccess('user', data.token);
-              } catch (err) {
-                setError(err.message || 'Invalid credentials');
-              } finally {
-                setLoading(false);
-              }
-            }}
-            className="rl-btn-secondary"
-            style={{ width: '100%', marginTop: 8 }}
-          >
-            EMERGENCY PATIENT ACCESS 🧍
-          </button>
-        </form>
+        </div>
       </div>
     </div>
   );
@@ -1461,6 +1768,7 @@ export default function App() {
   const [theme, setTheme] = useState('dark');
   const [globalAlertData, setGlobalAlertData] = useState(null);
   const [showSecurityModal, setShowSecurityModal] = useState(false);
+  const [loginTargetRole, setLoginTargetRole] = useState(null);
 
   // MFA Setup and Verification States
   const [mfaSetupToken, setMfaSetupToken] = useState(null);
@@ -1587,11 +1895,18 @@ export default function App() {
 
   if (!token) {
     return (
-      <LoginScreen
-        onLoginSuccess={handleLoginSuccess}
-        onMfaSetup={(setupToken) => setMfaSetupToken(setupToken)}
-        onMfaVerify={(mfaToken) => setMfaVerifyToken(mfaToken)}
-      />
+      <>
+        <LandingHomepage onSelectRole={(selRole) => setLoginTargetRole(selRole)} />
+        {loginTargetRole && (
+          <LoginScreen
+            defaultRole={loginTargetRole}
+            onLoginSuccess={handleLoginSuccess}
+            onMfaSetup={(setupToken) => setMfaSetupToken(setupToken)}
+            onMfaVerify={(mfaToken) => setMfaVerifyToken(mfaToken)}
+            onClose={() => setLoginTargetRole(null)}
+          />
+        )}
+      </>
     );
   }
 
