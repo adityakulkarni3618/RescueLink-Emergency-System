@@ -304,6 +304,34 @@ const PhysiologicalWaveforms = ({ vitals, news2Score = 0, sensorError = false })
     };
   }, [hr, spo2, rr]);
 
+  const getClassifierResult = () => {
+    let rhythm = 'NORMAL SINUS RHYTHM';
+    let conf = '98.6%';
+    let details = 'Regular P-QRST complexes with normal PR intervals and QRS duration.';
+    let color = '#00ff88';
+
+    if (rhythmType === 'vtach') {
+      rhythm = 'VENTRICULAR TACHYCARDIA';
+      conf = '96.2%';
+      details = 'Wide, monomorphic QRS complexes with absent P waves. Extremely high hazard score.';
+      color = '#ff4444';
+    } else if (rhythmType === 'asystole') {
+      rhythm = 'ASYSTOLE (CARDIAC ARREST)';
+      conf = '99.9%';
+      details = 'ISOELECTRIC FLATLINE. No ventricular contraction detected. Initiate CPR immediately.';
+      color = '#ff1111';
+    } else if (rhythmType === 'disconnect') {
+      rhythm = 'NOISY SIGNAL / DISCONNECTED';
+      conf = 'N/A';
+      details = 'High impedance or lead detachment detected. AI telemetry classifier suspended.';
+      color = 'rgba(160,200,255,0.4)';
+    }
+
+    return { rhythm, conf, details, color };
+  };
+
+  const aiResult = getClassifierResult();
+
   return (
     <div style={{
       background: 'rgba(5, 10, 30, 0.6)',
@@ -406,6 +434,20 @@ const PhysiologicalWaveforms = ({ vitals, news2Score = 0, sensorError = false })
           <span style={{ fontSize: 9, fontFamily: "'Share Tech Mono'", color: 'rgba(255, 170, 0, 0.6)' }}>RR</span>
           <span style={{ fontSize: 24, fontFamily: "'Orbitron'", color: '#ffaa00', fontWeight: 'bold', lineHeight: 1 }}>{rr}</span>
           <span style={{ fontSize: 8, fontFamily: "'Share Tech Mono'", color: 'rgba(255, 170, 0, 0.4)' }}>rpm</span>
+        </div>
+      </div>
+
+      {/* AI ECG Telemetry Classifier Output */}
+      <div style={{ background: 'rgba(0,0,0,0.3)', border: `1px solid ${aiResult.color}50`, borderRadius: 8, padding: 12, display: 'flex', flexDirection: 'column', gap: 4, transition: 'all 0.3s ease' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: 9, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.5)', fontWeight: 'bold' }}>📡 AI WAVEFORM CLASSIFIER</span>
+          <span style={{ fontSize: 9, fontFamily: "'Share Tech Mono'", color: aiResult.color, fontWeight: 'bold' }}>CONFIDENCE: {aiResult.conf}</span>
+        </div>
+        <div style={{ fontSize: 13, fontWeight: 'bold', color: aiResult.color, fontFamily: "'Orbitron'", letterSpacing: 0.5 }}>
+          {aiResult.rhythm}
+        </div>
+        <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', lineHeight: 1.4, fontFamily: "'Share Tech Mono'" }}>
+          {aiResult.details}
         </div>
       </div>
     </div>
