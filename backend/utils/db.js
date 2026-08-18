@@ -173,6 +173,17 @@ async function syncDatabase() {
     await sequelize.sync();
     console.log('[DB] Database synchronized.');
 
+    // Cleanup corrupted entries to allow fresh registration
+    try {
+      const deletedAmbulanceCount = await Ambulance.destroy({ where: { vehicleNo: '' } });
+      const deletedUserCount = await User.destroy({ where: { email: 'mh12ab1234@rescuelink.com' } });
+      if (deletedAmbulanceCount > 0 || deletedUserCount > 0) {
+        console.log(`[DB CLEANUP] Cleaned up ${deletedAmbulanceCount} corrupted ambulance and ${deletedUserCount} orphaned user records.`);
+      }
+    } catch (cleanupErr) {
+      console.warn('[DB CLEANUP WARNING] Failed to run database cleanup:', cleanupErr.message);
+    }
+
     // Auto-seeding disabled to support completely blank system registration from scratch.
     /*
     if (useSqlite && !isSeeding) {
