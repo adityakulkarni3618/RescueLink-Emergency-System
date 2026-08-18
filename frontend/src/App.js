@@ -857,7 +857,8 @@ function MfaSetupScreen({ setupToken, onComplete, onCancel }) {
 }
 
 /* ─── Login & Registration Screen Component with 2FA ───────────────────── */
-function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onClose, isRegister, setIsRegister }) {
+function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onClose, defaultIsRegister }) {
+  const [isRegister, setIsRegister] = useState(defaultIsRegister || false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   
@@ -1983,7 +1984,7 @@ export default function App() {
   const [globalAlertData, setGlobalAlertData] = useState(null);
   const [showSecurityModal, setShowSecurityModal] = useState(false);
   const [loginTargetRole, setLoginTargetRole] = useState(null);
-  const [isRegister, setIsRegister] = useState(false);
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
 
   // MFA Setup and Verification States
   const [mfaSetupToken, setMfaSetupToken] = useState(null);
@@ -2113,9 +2114,9 @@ export default function App() {
       return (
         <>
           <AmbulanceLandingHomepage
-            onLogin={() => setLoginTargetRole('ambulance')}
-            onRegister={() => { setIsRegister(true); setLoginTargetRole('ambulance'); }}
-            onBack={() => { window.location.hash = ''; setLoginTargetRole(null); setIsRegister(false); }}
+            onLogin={() => { setIsRegisterMode(false); setLoginTargetRole('ambulance'); }}
+            onRegister={() => { setIsRegisterMode(true); setLoginTargetRole('ambulance'); }}
+            onBack={() => { window.location.hash = ''; setLoginTargetRole(null); setIsRegisterMode(false); }}
           />
           {loginTargetRole === 'ambulance' && (
             <LoginScreen
@@ -2124,8 +2125,7 @@ export default function App() {
               onMfaSetup={(setupToken) => setMfaSetupToken(setupToken)}
               onMfaVerify={(mfaToken) => setMfaVerifyToken(mfaToken)}
               onClose={() => { setLoginTargetRole(null); }}
-              isRegister={isRegister}
-              setIsRegister={setIsRegister}
+              defaultIsRegister={isRegisterMode}
             />
           )}
         </>
@@ -2136,9 +2136,9 @@ export default function App() {
       return (
         <>
           <HospitalLandingHomepage
-            onLogin={() => setLoginTargetRole('hospital')}
-            onRegister={() => { setIsRegister(true); setLoginTargetRole('hospital'); }}
-            onBack={() => { window.location.hash = ''; setLoginTargetRole(null); setIsRegister(false); }}
+            onLogin={() => { setIsRegisterMode(false); setLoginTargetRole('hospital'); }}
+            onRegister={() => { setIsRegisterMode(true); setLoginTargetRole('hospital'); }}
+            onBack={() => { window.location.hash = ''; setLoginTargetRole(null); setIsRegisterMode(false); }}
           />
           {loginTargetRole === 'hospital' && (
             <LoginScreen
@@ -2147,8 +2147,7 @@ export default function App() {
               onMfaSetup={(setupToken) => setMfaSetupToken(setupToken)}
               onMfaVerify={(mfaToken) => setMfaVerifyToken(mfaToken)}
               onClose={() => { setLoginTargetRole(null); }}
-              isRegister={isRegister}
-              setIsRegister={setIsRegister}
+              defaultIsRegister={isRegisterMode}
             />
           )}
         </>
@@ -2168,8 +2167,7 @@ export default function App() {
             onMfaSetup={(setupToken) => setMfaSetupToken(setupToken)}
             onMfaVerify={(mfaToken) => setMfaVerifyToken(mfaToken)}
             onClose={() => { setLoginTargetRole(null); window.location.hash = ''; }}
-            isRegister={isRegister}
-            setIsRegister={setIsRegister}
+            defaultIsRegister={isRegisterMode}
           />
         )}
       </>
