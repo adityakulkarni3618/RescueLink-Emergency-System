@@ -73,6 +73,18 @@ module.exports = (sequelize) => {
     fhir_priority: {
       type: DataTypes.STRING,
       defaultValue: 'routine'
+    },
+    attending_doctor_name: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    attending_doctor_specialty: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    attending_team_details: {
+      type: DataTypes.JSON,
+      allowNull: true
     }
   }, {
     tableName: 'incidents',

@@ -446,4 +446,112 @@ router.post('/refresh', async (req, res) => {
   }
 });
 
+/**
+ * @route POST /api/auth/register-ambulance
+ * @desc Register a new paramedic ambulance unit with speakeasy 2FA setup
+ */
+router.post('/register-ambulance', async (req, res) => {
+  const { vehicleNo, driverName, contactInfo, type, password } = req.body;
+  if (!vehicleNo || !driverName || !contactInfo || !password) {
+    return res.status(400).json({ error: 'vehicleNo, driverName, contactInfo, and password are required' });
+  }
+
+  try {
+    const { Ambulance } = require('../utils/db');
+    const existing = await Ambulance.findOne({ where: { vehicleNo } });
+    if (existing) {
+      return res.status(400).json({ error: 'Ambulance vehicle number already registered' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const twoFactor = require('../utils/twoFactor');
+    const setupData = await twoFactor.generateSecret(vehicleNo, `${vehicleNo}@rescuelink.com`);
+
+    await Ambulance.create({
+      vehicleNo,
+      driverName,
+      contactInfo,
+      type: type || 'BLS',
+      password: passwordHash,
+      totp_secret: setupData.secret,
+      is_active: true
+    });
+
+    await User.create({
+      name: driverName,
+      email: vehicleNo,
+      password: passwordHash,
+      role: 'paramedic',
+      mobile: contactInfo,
+      totp_secret: setupData.secret,
+      is_active: true
+    });
+
+    return res.json({
+      success: true,
+      qrCode: setupData.qr_code_base64,
+      tempSecret: setupData.secret,
+      message: 'Ambulance registered. Scan the QR code to set up Two-Factor Authentication.'
+    });
+  } catch (err) {
+    console.error('[AUTH ERROR] register-ambulance failed:', err);
+    return res.status(500).json({ error: 'Internal Server Error during ambulance registration' });
+  }
+});
+
+/**
+ * @route POST /api/auth/register-hospital
+ * @desc Register a new hospital unit with speakeasy 2FA setup
+ */
+router.post('/register-hospital', async (req, res) => {
+  const { name, contactInfo, lat, lng, totalBeds, icuBeds, ventilators, password } = req.body;
+  if (!name || !contactInfo || !lat || !lng || !password) {
+    return res.status(400).json({ error: 'name, contactInfo, lat, lng, and password are required' });
+  }
+
+  try {
+    const { Hospital } = require('../utils/db');
+    const existing = await Hospital.findOne({ where: { name } });
+    if (existing) {
+      return res.status(400).json({ error: 'Hospital name already registered' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const twoFactor = require('../utils/twoFactor');
+    const setupData = await twoFactor.generateSecret(name.replace(/\s+/g, ''), `${name.replace(/\s+/g, '')}@rescuelink.com`);
+
+    const newHospital = await Hospital.create({
+      name,
+      contact_number: contactInfo,
+      lat: parseFloat(lat),
+      lng: parseFloat(lng),
+      total_beds: parseInt(totalBeds) || 50,
+      icu_beds: parseInt(icuBeds) || 5,
+      ventilators: parseInt(ventilators) || 2,
+      is_active: true
+    });
+
+    await User.create({
+      name: `${name} Administrator`,
+      email: `${name.replace(/\s+/g, '').toLowerCase()}@rescuelink.com`,
+      password: passwordHash,
+      role: 'hospital_admin',
+      mobile: contactInfo,
+      hospital_id: newHospital.id,
+      totp_secret: setupData.secret,
+      is_active: true
+    });
+
+    return res.json({
+      success: true,
+      qrCode: setupData.qr_code_base64,
+      tempSecret: setupData.secret,
+      message: 'Hospital registered. Scan the QR code to set up Two-Factor Authentication.'
+    });
+  } catch (err) {
+    console.error('[AUTH ERROR] register-hospital failed:', err);
+    return res.status(500).json({ error: 'Internal Server Error during hospital registration' });
+  }
+});
+
 module.exports = router;
