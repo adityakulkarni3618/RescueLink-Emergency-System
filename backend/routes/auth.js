@@ -624,4 +624,42 @@ router.get('/my-fleet', verifyToken(), async (req, res) => {
   }
 });
 
+/**
+ * @route GET /api/auth/clear-db-securely
+ * @desc Securely wipes the database tables for clean testing (Free Tier utility)
+ */
+router.get('/clear-db-securely', async (req, res) => {
+  const { secret } = req.query;
+  if (secret !== 'RescueLinkSecureClear2026') {
+    return res.status(403).json({ error: 'Forbidden: Invalid security clear token' });
+  }
+
+  try {
+    const { User, Hospital, Incident, AuditLog, VitalsHistory, BloodRequest, InsuranceClaim } = require('../utils/db');
+    
+    // Delete related tables first to prevent constraint violations
+    await VitalsHistory.destroy({ where: {} });
+    await InsuranceClaim.destroy({ where: {} });
+    await Incident.destroy({ where: {} });
+    await AuditLog.destroy({ where: {} });
+    await BloodRequest.destroy({ where: {} });
+    
+    const usersCount = await User.destroy({
+      where: {
+        role: ['doctor', 'hospital_admin', 'paramedic']
+      }
+    });
+
+    const hospitalsCount = await Hospital.destroy({ where: {} });
+
+    return res.json({
+      success: true,
+      message: `Database cleaned successfully. Deleted ${usersCount} users and ${hospitalsCount} hospitals.`
+    });
+  } catch (err) {
+    console.error('[CLEANDB ERROR] Secure database wipe failed:', err);
+    return res.status(500).json({ error: `Wipe failed: ${err.message}` });
+  }
+});
+
 module.exports = router;
