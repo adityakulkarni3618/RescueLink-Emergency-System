@@ -1474,6 +1474,15 @@ export default function App() {
     return () => window.removeEventListener('show-custom-alert', handleCustomAlert);
   }, []);
 
+  // Cold start warm-up: Ping the Render backend directly on page load to initiate wake-up sequence
+  useEffect(() => {
+    const warmUpUrl = SOCKET_URL || 'https://rescuelink-emergency-system.onrender.com';
+    fetch(`${warmUpUrl}/health`)
+      .then(res => res.json())
+      .then(data => console.log('[SERVER WARM-UP] Render server active:', data))
+      .catch(err => console.warn('[SERVER WARM-UP] Warm-up ping initiated:', err.message));
+  }, []);
+
   useEffect(() => {
     document.body.setAttribute('data-theme', theme);
   }, [theme]);
