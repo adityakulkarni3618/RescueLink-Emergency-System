@@ -823,6 +823,21 @@ export default function UserDashboard({ socket, connected }) {
         .sidebar-container::-webkit-scrollbar-thumb:hover {
           background: rgba(0, 200, 255, 0.6);
         }
+        /* ── Mobile phone layout overrides ── */
+        @media (max-width: 480px) {
+          .feature-grid {
+            grid-template-columns: 1fr 1fr !important;
+          }
+          .header-container h1 {
+            font-size: 15px !important;
+          }
+          .header-container {
+            gap: 6px !important;
+          }
+          .sidebar-container {
+            padding: 16px 12px 80px !important;
+          }
+        }
       `}</style>
 
       {/* Header */}
@@ -919,7 +934,7 @@ export default function UserDashboard({ socket, connected }) {
           )}
 
           {/* === ENTERPRISE FEATURE QUICK ACCESS === */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
+          <div className="feature-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
             {[
               { icon: '🧠', label: 'AI COPILOT', sublabel: 'Analyze symptoms', color: '#00c8ff', action: () => routeTo('ai-copilot') },
               { icon: '❤️', label: 'CPR GUIDE', sublabel: 'Life-saving mode', color: '#ff4444', action: () => routeTo('cpr') },
