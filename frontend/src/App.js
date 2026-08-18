@@ -1501,13 +1501,31 @@ export default function App() {
 
     const newSocket = io(SOCKET_URL, {
       auth: { token },
-      reconnectionAttempts: 10,
+      query: { role },
+      transports: ['polling', 'websocket'],
+      reconnectionAttempts: 15,
       reconnectionDelay: 1000,
     });
 
     setSocket(newSocket);
-    newSocket.on('connect', () => setConnected(true));
-    newSocket.on('disconnect', () => setConnected(false));
+    newSocket.on('connect', () => {
+      console.log('[SOCKET] Connected successfully to server');
+      setConnected(true);
+    });
+    newSocket.on('disconnect', (reason) => {
+      console.warn('[SOCKET] Disconnected from server:', reason);
+      setConnected(false);
+    });
+    newSocket.on('connect_error', (err) => {
+      console.error('[SOCKET ERROR] Connection failed:', err.message);
+      if (err.message?.toLowerCase().includes('unauthorized') || err.message?.toLowerCase().includes('expired')) {
+        console.warn('[SOCKET] Session expired or unauthorized. Clearing storage and redirecting to login...');
+        sessionStorage.removeItem('rescuelink_token');
+        sessionStorage.removeItem('rescuelink_user');
+        sessionStorage.removeItem('rescueLinkRole');
+        window.location.reload();
+      }
+    });
 
     return () => newSocket.disconnect();
   }, [role, token]);
