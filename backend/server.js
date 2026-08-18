@@ -2842,7 +2842,7 @@ async function startServer() {
     const persisted = await Incident.findAll({
       where: {
         status: {
-          [Op.in]: ['requested', 'dispatched', 'en_route', 'arrived']
+          [Op.notIn]: ['completed', 'cancelled']
         }
       }
     });
@@ -2850,14 +2850,18 @@ async function startServer() {
       activeRequests[m.id] = {
         id: m.id,
         status: m.status,
-        userSocket: m.ambulance_id,
-        ambulanceSocket: m.ambulance_id,
+        unitId: m.ambulance_id, // Map it correctly to match reconnected driver!
+        userSocketId: m.patient_id, // Map it correctly to match reconnected user!
+        userSocket: null,
+        ambulanceSocket: null,
+        hospitalSocket: null,
         hospitalId: m.hospital_id,
         patientDetails: { id: m.patient_id },
         vitalsHistory: m.vitals_log || [],
         chatHistory: [],
         resourceLocks: {},
-        checklist: {}
+        checklist: {},
+        _acceptLock: m.status === 'hospital_accepted'
       };
     });
     console.log(`[ENTERPRISE DB] Restored ${persisted.length} active incidents into memory.`);
