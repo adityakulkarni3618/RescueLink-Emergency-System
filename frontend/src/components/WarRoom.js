@@ -61,6 +61,90 @@ export default function WarRoom({ socket, connected }) {
   const [loginError, setLoginError] = useState('');
   const [activeTab, setActiveTab] = useState('map'); // map, mass_casualty, blood_bank
   const [selectedIncidentId, setSelectedIncidentId] = useState(null);
+  const [selectedIncidentDetails, setSelectedIncidentDetails] = useState(null);
+
+  useEffect(() => {
+    if (!socket || !selectedIncidentId) {
+      setSelectedIncidentDetails(null);
+      return;
+    }
+
+    // Request active mission state
+    socket.emit('get-mission-data', selectedIncidentId);
+
+    const onRejoin = (data) => {
+      if (data && (data.id === selectedIncidentId || data.reqId === selectedIncidentId)) {
+        setSelectedIncidentDetails(data);
+      }
+    };
+
+    const onVitals = (data) => {
+      if (data && data.reqId === selectedIncidentId) {
+        setSelectedIncidentDetails(prev => {
+          if (!prev) return null;
+          return { ...prev, vitals: data };
+        });
+      }
+    };
+
+    const onChecklist = (data) => {
+      if (data && data.reqId === selectedIncidentId) {
+        setSelectedIncidentDetails(prev => {
+          if (!prev) return null;
+          return { ...prev, checklist: data.checklist };
+        });
+      }
+    };
+
+    const onLocks = (data) => {
+      if (data && data.reqId === selectedIncidentId) {
+        setSelectedIncidentDetails(prev => {
+          if (!prev) return null;
+          return { ...prev, readyServices: data.locks };
+        });
+      }
+    };
+
+    const onPatient = (data) => {
+      if (data && data.reqId === selectedIncidentId) {
+        setSelectedIncidentDetails(prev => {
+          if (!prev) return null;
+          return { ...prev, patientDetails: { ...prev.patientDetails, ...data } };
+        });
+      }
+    };
+
+    const onHospitalResponse = (data) => {
+      if (data && data.reqId === selectedIncidentId) {
+        setSelectedIncidentDetails(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            attendingDoctorName: data.attendingDoctorName,
+            attendingDoctorSpecialty: data.attendingDoctorSpecialty,
+            attendingTeamDetails: data.attendingTeamDetails,
+            readyServices: data.readyServices
+          };
+        });
+      }
+    };
+
+    socket.on('rejoin-mission', onRejoin);
+    socket.on('vitals-update', onVitals);
+    socket.on('clinical-checklist-update', onChecklist);
+    socket.on('hospital-resources-locked', onLocks);
+    socket.on('patient-data', onPatient);
+    socket.on('hospital-request-response', onHospitalResponse);
+
+    return () => {
+      socket.off('rejoin-mission', onRejoin);
+      socket.off('vitals-update', onVitals);
+      socket.off('clinical-checklist-update', onChecklist);
+      socket.off('hospital-resources-locked', onLocks);
+      socket.off('patient-data', onPatient);
+      socket.off('hospital-request-response', onHospitalResponse);
+    };
+  }, [socket, selectedIncidentId]);
 
   useEffect(() => {
     if (liveIncidents.length > 0 && !selectedIncidentId) {
@@ -452,6 +536,85 @@ export default function WarRoom({ socket, connected }) {
 
         {/* Right column: Charts + Fleet */}
         <div style={{ background: 'rgba(5,15,40,0.8)', borderRadius: 10, border: '1px solid rgba(0,200,255,0.15)', padding: 16, display: 'flex', flexDirection: 'column', gap: 18, overflowY: 'auto', minHeight: 0 }}>
+
+          {/* Selected Incident Telemetry Replica */}
+          {selectedIncidentDetails && (
+            <div style={{ background: 'rgba(0,10,30,0.6)', border: '1px solid rgba(0,200,255,0.3)', borderRadius: 8, padding: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(0,200,255,0.15)', paddingBottom: 8, marginBottom: 12 }}>
+                <span style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00ff88', fontWeight: 'bold' }}>📡 INCIDENT TELEMETRY REPLICA</span>
+                <span style={{ fontSize: 9, fontFamily: "'Share Tech Mono'", color: 'rgba(160,200,255,0.5)' }}>
+                  CODE: {selectedIncidentDetails.id ? `RL-${selectedIncidentDetails.id.replace(/-/g, '').slice(-4).toUpperCase()}` : 'N/A'}
+                </span>
+              </div>
+
+              {/* Vitals Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 12 }}>
+                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', padding: 8, borderRadius: 6, textAlign: 'center' }}>
+                  <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.4)', fontFamily: "'Orbitron'" }}>HEART RATE</div>
+                  <div style={{ fontSize: 16, fontWeight: 'bold', color: '#ff4444', fontFamily: "'Share Tech Mono'" }}>
+                    {selectedIncidentDetails.vitals?.heartRate || '---'} <span style={{ fontSize: 8 }}>BPM</span>
+                  </div>
+                </div>
+                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', padding: 8, borderRadius: 6, textAlign: 'center' }}>
+                  <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.4)', fontFamily: "'Orbitron'" }}>OXYGEN (SpO2)</div>
+                  <div style={{ fontSize: 16, fontWeight: 'bold', color: '#00c8ff', fontFamily: "'Share Tech Mono'" }}>
+                    {selectedIncidentDetails.vitals?.spo2 || '---'}<span style={{ fontSize: 10 }}>%</span>
+                  </div>
+                </div>
+                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', padding: 8, borderRadius: 6, textAlign: 'center' }}>
+                  <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.4)', fontFamily: "'Orbitron'" }}>BLOOD PRESS.</div>
+                  <div style={{ fontSize: 14, fontWeight: 'bold', color: '#ffb800', fontFamily: "'Share Tech Mono'" }}>
+                    {selectedIncidentDetails.vitals?.systolic || '---'}/{selectedIncidentDetails.vitals?.diastolic || '---'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Medical Team Assignment */}
+              <div style={{ background: 'rgba(0,200,255,0.05)', border: '1px solid rgba(0,200,255,0.1)', padding: 10, borderRadius: 6, marginBottom: 12 }}>
+                <div style={{ fontSize: 9, color: '#00c8ff', fontFamily: "'Orbitron'", fontWeight: 'bold', marginBottom: 4 }}>🏥 ASSIGNED MEDICAL TEAM</div>
+                <div style={{ fontSize: 12, color: '#fff', fontWeight: 600 }}>
+                  Attending: {selectedIncidentDetails.attendingDoctorName || 'Pending Assignment'}
+                </div>
+                <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', marginTop: 2 }}>
+                  Specialty: {selectedIncidentDetails.attendingDoctorSpecialty || 'N/A'}
+                </div>
+                {selectedIncidentDetails.attendingTeamDetails?.nurses && selectedIncidentDetails.attendingTeamDetails.nurses.length > 0 && (
+                  <div style={{ fontSize: 9, color: 'rgba(0,255,136,0.8)', marginTop: 4, fontFamily: "'Share Tech Mono'" }}>
+                    Roster: {selectedIncidentDetails.attendingTeamDetails.nurses.join(', ')}
+                  </div>
+                )}
+              </div>
+
+              {/* Locked Resources */}
+              {selectedIncidentDetails.readyServices && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 12 }}>
+                  {Object.entries(selectedIncidentDetails.readyServices).map(([key, val]) => (
+                    <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(0,0,0,0.2)', padding: '4px 8px', borderRadius: 4, border: `1px solid ${val ? '#ffb800' : 'rgba(255,255,255,0.05)'}` }}>
+                      <span style={{ fontSize: 10 }}>{val ? '🔒' : '○'}</span>
+                      <span style={{ fontSize: 9, color: val ? '#ffb800' : 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>
+                        {key.replace(/([A-Z])/g, ' $1')}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Checklist */}
+              {selectedIncidentDetails.checklist && Object.keys(selectedIncidentDetails.checklist).length > 0 && (
+                <div style={{ background: 'rgba(0,0,0,0.2)', padding: 10, borderRadius: 6 }}>
+                  <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Orbitron'", marginBottom: 6 }}>📋 FIELD PROCEDURES IN PROGRESS</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 100, overflowY: 'auto' }}>
+                    {Object.entries(selectedIncidentDetails.checklist).map(([step, time]) => (
+                      <div key={step} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10 }}>
+                        <span style={{ color: '#00ff88' }}>✓ {step}</span>
+                        <span style={{ color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'", marginLeft: 'auto' }}>{time}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Response Time Area Chart */}
           <div>
