@@ -173,7 +173,8 @@ async function syncDatabase() {
     await sequelize.sync();
     console.log('[DB] Database synchronized.');
 
-    // If using SQLite and no users exist, auto-seed the database
+    // Auto-seeding disabled to support completely blank system registration from scratch.
+    /*
     if (useSqlite && !isSeeding) {
       try {
         const userCount = await User.count();
@@ -189,6 +190,7 @@ async function syncDatabase() {
         console.error('[DB WARNING] Auto-seeding failed:', seedErr.message);
       }
     }
+    */
   } catch (err) {
     const { triggerCriticalAlert } = require('./alerting');
     await triggerCriticalAlert('DATABASE_CONNECT_FAIL', {
