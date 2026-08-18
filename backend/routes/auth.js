@@ -31,13 +31,27 @@ router.post('/login', validate(loginBody), async (req, res) => {
   console.log(`[AUTH] Login attempt for: ${loginIdentifier}`);
 
   try {
-    let user = await User.findOne({ where: { email: loginIdentifier, is_active: true } });
+    const loginEmail = loginIdentifier.includes('@')
+      ? loginIdentifier.toLowerCase()
+      : `${loginIdentifier.replace(/[\s\-]+/g, '').toLowerCase()}@rescuelink.com`;
+
+    let user = await User.findOne({ where: { email: loginEmail, is_active: true } });
     let isAmbulanceTableLogin = false;
     let ambulanceUnit = null;
 
     if (!user) {
       const { Ambulance } = require('../utils/db');
-      ambulanceUnit = await Ambulance.findOne({ where: { vehicleNo: loginIdentifier, is_active: true } });
+      ambulanceUnit = await Ambulance.findOne({
+        where: {
+          vehicleNo: {
+            [require('sequelize').Op.or]: [
+              loginIdentifier,
+              loginIdentifier.replace(/[\s\-]+/g, '').toUpperCase()
+            ]
+          },
+          is_active: true
+        }
+      });
       if (ambulanceUnit) {
         isAmbulanceTableLogin = true;
       }
@@ -386,15 +400,25 @@ router.post('/register-ambulance', async (req, res) => {
 
   try {
     const { Ambulance, User } = require('../utils/db');
-    const existingAmb = await Ambulance.findOne({ where: { vehicleNo } });
-    const existingUser = await User.findOne({ where: { email: vehicleNo } });
+    const normalizedEmail = `${vehicleNo.replace(/[\s\-]+/g, '').toLowerCase()}@rescuelink.com`;
+    const existingAmb = await Ambulance.findOne({
+      where: {
+        vehicleNo: {
+          [require('sequelize').Op.or]: [
+            vehicleNo,
+            vehicleNo.replace(/[\s\-]+/g, '').toUpperCase()
+          ]
+        }
+      }
+    });
+    const existingUser = await User.findOne({ where: { email: normalizedEmail } });
     if (existingAmb || existingUser) {
       return res.status(400).json({ error: 'Ambulance vehicle number or driver account already registered' });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
     const twoFactor = require('../utils/twoFactor');
-    const setupData = await twoFactor.generateSecret(vehicleNo, `${vehicleNo}@rescuelink.com`);
+    const setupData = await twoFactor.generateSecret(vehicleNo, normalizedEmail);
 
     await Ambulance.create({
       vehicleNo,
@@ -408,7 +432,7 @@ router.post('/register-ambulance', async (req, res) => {
 
     await User.create({
       name: driverName,
-      email: vehicleNo,
+      email: normalizedEmail,
       password: passwordHash,
       role: 'paramedic',
       mobile: contactInfo,
@@ -494,16 +518,27 @@ router.post('/register-fleet-ambulance', verifyToken(), async (req, res) => {
   }
 
   try {
-    const { Ambulance } = require('../utils/db');
-    const existing = await Ambulance.findOne({ where: { vehicleNo } });
-    if (existing) {
-      return res.status(400).json({ error: 'Ambulance vehicle number already registered' });
+    const { Ambulance, User } = require('../utils/db');
+    const normalizedEmail = `${vehicleNo.replace(/[\s\-]+/g, '').toLowerCase()}@rescuelink.com`;
+    const existingAmb = await Ambulance.findOne({
+      where: {
+        vehicleNo: {
+          [require('sequelize').Op.or]: [
+            vehicleNo,
+            vehicleNo.replace(/[\s\-]+/g, '').toUpperCase()
+          ]
+        }
+      }
+    });
+    const existingUser = await User.findOne({ where: { email: normalizedEmail } });
+    if (existingAmb || existingUser) {
+      return res.status(400).json({ error: 'Ambulance vehicle number or driver account already registered' });
     }
 
     const bcrypt = require('bcryptjs');
     const passwordHash = await bcrypt.hash(password, 10);
     const twoFactor = require('../utils/twoFactor');
-    const setupData = await twoFactor.generateSecret(vehicleNo, `${vehicleNo}@rescuelink.com`);
+    const setupData = await twoFactor.generateSecret(vehicleNo, normalizedEmail);
 
     await Ambulance.create({
       vehicleNo,
@@ -518,7 +553,7 @@ router.post('/register-fleet-ambulance', verifyToken(), async (req, res) => {
 
     await User.create({
       name: driverName,
-      email: vehicleNo,
+      email: normalizedEmail,
       password: passwordHash,
       role: 'paramedic',
       mobile: contactInfo,
