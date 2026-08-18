@@ -3329,6 +3329,9 @@ export default function AmbulanceStreamer({ socket, connected }) {
             {/* Paramedic Clinical AI Diagnosis & ACLS Advisor */}
             <ClinicalAIDiagnosticAdvisor vitals={vitals} patient={assignedUser?.patientDetails} />
 
+            {/* AI Voice SOS Dispatch Call Simulator */}
+            <AIVoiceDispatcher vitals={vitals} patient={assignedUser?.patientDetails} />
+
             {/* AI Stroke LAMS Copilot */}
             <AIStrokeCopilot />
 
@@ -3940,4 +3943,72 @@ function AIStrokeCopilot() {
   );
 }
 
+function AIVoiceDispatcher({ vitals, patient }) {
+  const [calling, setCalling] = useState(false);
+  const [log, setLog] = useState([]);
 
+  const triggerCall = () => {
+    if (!window.speechSynthesis) {
+      alert("Speech synthesis is not supported on this browser.");
+      return;
+    }
+    setCalling(true);
+    setLog(prev => [...prev, `[${new Date().toLocaleTimeString()}] Establishing AI outbound voice telemetry link...`]);
+
+    const name = patient?.name || "Unknown Patient";
+    const hr = vitals?.heartRate || 75;
+    const spo2 = vitals?.spo2 || 98;
+    const cond = patient?.condition || "Trauma";
+    const text = `Critical Alert. Outbound AI dispatch telemetry link established for patient ${name}. Current heart rate is ${hr} beats per minute. Oxygen saturation level is ${spo2} percent. Diagnosis indicates suspected ${cond}. Preparing clinical reception area.`;
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+
+    utterance.onend = () => {
+      setCalling(false);
+      setLog(prev => [...prev, `[${new Date().toLocaleTimeString()}] AI Outbound VoIP call completed successfully.`]);
+    };
+
+    utterance.onerror = (e) => {
+      setCalling(false);
+      setLog(prev => [...prev, `[${new Date().toLocaleTimeString()}] VoIP Link Error: ${e.error}`]);
+    };
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  return (
+    <div style={{ background: 'rgba(5,20,45,0.8)', border: '1px solid rgba(0,200,255,0.15)', borderRadius: 10, padding: 20, marginBottom: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <div style={{ fontFamily: "'Orbitron'", fontSize: 12, color: '#00c8ff', letterSpacing: '0.1em' }}>📞 AI VOICE TELEMETRY DISPATCH (WebRTC Fallback)</div>
+        <span style={{ fontSize: 8, padding: '2px 6px', background: calling ? 'rgba(255,50,50,0.2)' : 'rgba(160,200,255,0.1)', color: calling ? '#ff4444' : 'rgba(160,200,255,0.6)', borderRadius: 4, fontFamily: "'Share Tech Mono'", fontWeight: 'bold' }}>
+          {calling ? '● ON-CALL' : 'STANDBY'}
+        </span>
+      </div>
+
+      <p style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', lineHeight: 1.5, margin: '0 0 12px 0' }}>
+        Initiate an automated AI VoIP fallback voice transmission to the hospital, reading critical patient diagnostics aloud over the voice channel.
+      </p>
+
+      <button
+        onClick={triggerCall}
+        disabled={calling}
+        style={{
+          width: '100%', padding: '10px', background: calling ? 'rgba(255,68,68,0.2)' : 'linear-gradient(135deg, #00c8ff 0%, #0072ff 100%)',
+          border: 'none', borderRadius: 6, color: '#fff', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 'bold', cursor: 'pointer'
+        }}
+      >
+        {calling ? '🎙️ AI TRANSMITTING TELEMETRY...' : '🔊 INITIATE AUTOMATED AI VOICE CALL'}
+      </button>
+
+      {log.length > 0 && (
+        <div style={{ background: 'rgba(0,0,0,0.3)', padding: 10, borderRadius: 6, border: '1px solid rgba(255,255,255,0.05)', marginTop: 12, maxHeight: 80, overflowY: 'auto' }}>
+          {log.map((l, i) => (
+            <div key={i} style={{ fontSize: 9, fontFamily: "'Share Tech Mono'", color: '#00ff88', marginBottom: 4 }}>{l}</div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
