@@ -1984,7 +1984,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
                 background: 'rgba(0,200,255,0.1)', border: '1px solid #00c8ff', 
                 padding: '4px 12px', borderRadius: 4, fontSize: 11, fontFamily: "'Orbitron'" 
               }}>
-                <span style={{ opacity: 0.5 }}>REQ ID:</span> {assignedUser.id && assignedUser.id.length > 15 ? assignedUser.id.slice(0, 8) + '...' + assignedUser.id.slice(-4) : assignedUser.id}
+                <span style={{ opacity: 0.5 }}>MISSION CODE:</span> {assignedUser.id && assignedUser.id.length > 15 ? `RL-${assignedUser.id.replace(/-/g, '').slice(-4).toUpperCase()}` : assignedUser.id}
               </div>
             )}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, position: 'relative' }}>
