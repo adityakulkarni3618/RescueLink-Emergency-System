@@ -63,6 +63,8 @@ export default function WarRoom({ socket, connected }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedIncidentId, setSelectedIncidentId] = useState(null);
   const [selectedIncidentDetails, setSelectedIncidentDetails] = useState(null);
+  const [stuckMissions, setStuckMissions] = useState({});
+  const [unresponsiveDrivers, setUnresponsiveDrivers] = useState(new Set());
 
   useEffect(() => {
     if (!socket || !selectedIncidentId) {
@@ -274,13 +276,46 @@ export default function WarRoom({ socket, connected }) {
     poll();
     const interval = setInterval(poll, 8000);
 
+    const onStuckCase = (data) => {
+      setStuckMissions(prev => ({ ...prev, [data.reqId]: data.duration }));
+    };
+    const onDriverUnresponsive = (data) => {
+      setUnresponsiveDrivers(prev => {
+        const next = new Set(prev);
+        next.add(data.reqId);
+        return next;
+      });
+    };
+    const onMissionCompleted = (data) => {
+      setStuckMissions(prev => {
+        const next = { ...prev };
+        delete next[data.reqId];
+        return next;
+      });
+      setUnresponsiveDrivers(prev => {
+        const next = new Set(prev);
+        next.delete(data.reqId);
+        return next;
+      });
+      if (selectedIncidentId === data.reqId) {
+        setSelectedIncidentId(null);
+      }
+    };
+
+    socket.on('warroom:stuck-case', onStuckCase);
+    socket.on('warroom:driver-unresponsive', onDriverUnresponsive);
+    socket.on('mission-completed', onMissionCompleted);
+
     return () => {
       clearInterval(interval);
       socket.off('ambulances-update');
       socket.off('ai-prediction-alert');
       socket.off('roles-update');
+      socket.off('warroom:stuck-case', onStuckCase);
+      socket.off('warroom:driver-unresponsive', onDriverUnresponsive);
+      socket.off('mission-completed', onMissionCompleted);
     };
-  }, [socket, connected, isAuthenticated]);
+  }, [socket, connected, isAuthenticated, selectedIncidentId]);
 
   /* ── Login screen ───────────────────────────────────────────────── */
   if (!isAuthenticated) {
@@ -500,7 +535,13 @@ export default function WarRoom({ socket, connected }) {
                       }}
                     >
                       <td style={{ padding: '7px', color: '#00c8ff', fontFamily: "'Share Tech Mono'", fontSize: 9 }}>
-                        {selectedIncidentId === inc.id ? '▶ ' : ''}{String(inc.id).slice(-12)}
+                        {selectedIncidentId === inc.id ? '▶ ' : ''}
+                        {String(inc.id).slice(-12)}
+                        {!!stuckMissions[inc.id] && (
+                          <span className="blink-fast" style={{ marginLeft: 6, color: '#ff4444', fontSize: 8, background: 'rgba(255,68,68,0.15)', padding: '2px 4px', borderRadius: 4, fontWeight: 'bold' }}>
+                            ⚠️ STUCK
+                          </span>
+                        )}
                       </td>
                       <td style={{ padding: '7px', color: '#e0eaff', maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inc.type}</td>
                       <td style={{ padding: '7px', color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>{inc.time}</td>
@@ -581,6 +622,16 @@ export default function WarRoom({ socket, connected }) {
                 </span>
               </div>
 
+              {unresponsiveDrivers.has(selectedIncidentDetails.id) && (
+                <div style={{
+                  background: 'rgba(255,51,51,0.15)', border: '1px solid #ff3333', borderRadius: 6,
+                  padding: '8px 10px', color: '#ff3333', fontSize: 10, fontWeight: 'bold',
+                  marginBottom: 12, textAlign: 'center', animation: 'pulse-glow 1.5s infinite'
+                }}>
+                  ⚠️ PARAMEDIC HEARTBEAT LOST! Driver unresponsive.
+                </div>
+              )}
+
               {/* Vitals Grid */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 12 }}>
                 <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', padding: 8, borderRadius: 6, textAlign: 'center' }}>
@@ -647,6 +698,57 @@ export default function WarRoom({ socket, connected }) {
                   </div>
                 </div>
               )}
+
+              {/* Administrative Actions */}
+              <div style={{ marginTop: 15, paddingTop: 12, borderTop: '1px solid rgba(0,200,255,0.15)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Orbitron'", fontWeight: 'bold' }}>🛡️ ADMIN OVERRIDES</div>
+                
+                {/* Ambulance Reassign Selector */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)' }}>REASSIGN PARAMEDIC UNIT:</label>
+                  <select
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        socket.emit('reassign-ambulance', { reqId: selectedIncidentDetails.id, newAmbulanceId: e.target.value });
+                        e.target.value = ''; // reset
+                      }
+                    }}
+                    style={{
+                      background: 'rgba(5,15,40,0.9)', border: '1px solid rgba(0,200,255,0.3)', borderRadius: 6,
+                      color: '#fff', fontSize: 11, padding: 6, outline: 'none'
+                    }}
+                  >
+                    <option value="">-- Choose Paramedic Unit --</option>
+                    {Object.entries(ambulances).filter(([_, amb]) => amb.available && amb.is_active !== false).map(([id, amb]) => (
+                      <option key={amb.unitId || id} value={amb.unitId || id}>
+                        {amb.unitId || 'Paramedic Unit'} ({amb.driverName || 'On Duty'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Force Close Button */}
+                <button
+                  onClick={() => {
+                    const reason = prompt('Enter mandatory reason for administrative closure:');
+                    if (reason === null) return; // cancelled
+                    if (!reason.trim()) {
+                      alert('A reason is mandatory for auditing purposes!');
+                      return;
+                    }
+                    socket.emit('force-close-mission', { reqId: selectedIncidentDetails.id, reason, operatorName: 'Command Operator' });
+                  }}
+                  style={{
+                    background: 'rgba(255,51,51,0.1)', border: '1px solid #ff3333', borderRadius: 6,
+                    color: '#ff3333', fontSize: 11, padding: '8px 12px', cursor: 'pointer', fontWeight: 'bold',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.target.style.background = 'rgba(255,51,51,0.2)'}
+                  onMouseLeave={(e) => e.target.style.background = 'rgba(255,51,51,0.1)'}
+                >
+                  ⚠️ FORCE CLOSE MISSION (AUDITED)
+                </button>
+              </div>
             </div>
           )}
 
