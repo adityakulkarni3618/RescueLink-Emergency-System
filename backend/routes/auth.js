@@ -54,62 +54,9 @@ router.post('/login', validate(loginBody), async (req, res) => {
     const expectedAmbulancePassword = isAmbulanceId ? ambulancePasswords[loginIdentifier.toLowerCase()] : '';
     const isAmbulanceLogin = isAmbulanceId && password === expectedAmbulancePassword;
 
-    if (!user && !isAmbulanceTableLogin && isAmbulanceLogin) {
-      console.log(`[AUTH] Auto-creating missing demo user: ${loginIdentifier}`);
-      const passwordHash = bcrypt.hashSync(expectedAmbulancePassword, 10);
-      user = await User.create({
-        name: `Unit ${loginIdentifier.substring(4)} Lead Paramedic`,
-        email: loginIdentifier,
-        password: passwordHash,
-        role: 'paramedic',
-        mobile: `+91-887766554${loginIdentifier.substring(4)}`,
-        hospital_id: null,
-        is_active: true
-      });
-    } else if (!user && !isAmbulanceTableLogin && password === 'password123') {
-      const demoUsers = {
-        'admin@rescuelink.com': { name: 'Government Admin', role: 'city_admin', mobile: '+91-7766554433' },
-        'doctor@rescuelink.com': { name: 'Dr. Sarah Smith', role: 'doctor', mobile: '+91-9988776655' },
-        'doctor2@rescuelink.com': { name: 'Dr. James Wilson', role: 'doctor', mobile: '+91-9988776656' },
-        'doctor3@rescuelink.com': { name: 'Dr. Emily Chen', role: 'doctor', mobile: '+91-9988776657' },
-        'paramedic@rescuelink.com': { name: 'Paramedic John Doe', role: 'paramedic', mobile: '+91-8877665544' },
-        'patient@rescuelink.com': { name: 'Emergency Patient', role: 'patient', mobile: '+91-9900887766' }
-      };
-      
-      let demoDetails = demoUsers[loginIdentifier];
-      if (demoDetails) {
-        console.log(`[AUTH] Auto-creating missing demo user: ${loginIdentifier}`);
-        const passwordHash = bcrypt.hashSync('password123', 10);
-        
-        let hospitalId = null;
-        if (demoDetails.role === 'doctor') {
-          const { Hospital } = require('../utils/db');
-          const [defaultHospital] = await Hospital.findOrCreate({
-            where: { name: 'Demo Hospital' },
-            defaults: {
-              city: 'Bengaluru', state: 'Karnataka',
-              lat: 12.9716, lng: 77.5946, contact_number: '+91-80-0000-0000',
-              total_beds: 100, icu_beds: 10, ventilators: 5, is_active: true
-            }
-          });
-          hospitalId = defaultHospital.id;
-        }
-
-        user = await User.create({
-          name: demoDetails.name,
-          email: loginIdentifier,
-          password: passwordHash,
-          role: demoDetails.role,
-          mobile: demoDetails.mobile,
-          hospital_id: hospitalId,
-          is_active: true
-        });
-      }
-    }
-
     if (!user && !ambulanceUnit) {
       console.log(`[AUTH] User not found: ${loginIdentifier}`);
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(404).json({ error: 'Account not found. Please register first.' });
     }
 
     let isMatch = false;
@@ -117,25 +64,6 @@ router.post('/login', validate(loginBody), async (req, res) => {
       isMatch = await bcrypt.compare(password, ambulanceUnit.password);
     } else {
       isMatch = await bcrypt.compare(password, user.password);
-      const isUserAmbId = /^AMB-10[1-5]$/i.test(user.email);
-      const expectedUserAmbPassword = isUserAmbId ? ambulancePasswords[user.email.toLowerCase()] : '';
-      if (!isMatch) {
-        if (isUserAmbId && password === expectedUserAmbPassword) {
-          isMatch = true;
-        } else if (!isUserAmbId && password === 'password123') {
-          const demoEmails = [
-            'admin@rescuelink.com',
-            'doctor@rescuelink.com',
-            'doctor2@rescuelink.com',
-            'doctor3@rescuelink.com',
-            'paramedic@rescuelink.com',
-            'patient@rescuelink.com'
-          ];
-          if (demoEmails.includes(user.email)) {
-            isMatch = true;
-          }
-        }
-      }
     }
 
     if (!isMatch) {
