@@ -854,7 +854,7 @@ export default function UserDashboard({ socket, connected }) {
       `}</style>
 
       {/* ══ HEADER ══ */}
-      <div className="header-container" style={{ position: 'relative', background: 'rgba(5,15,40,0.97)', padding: '10px 20px', borderBottom: '1px solid rgba(0,200,255,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, zIndex: 200 }}>
+      <div className="header-container" style={{ position: 'relative', background: 'rgba(5,15,40,0.97)', padding: '10px 450px 10px 20px', borderBottom: '1px solid rgba(0,200,255,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, zIndex: 200 }}>
 
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
@@ -977,15 +977,38 @@ export default function UserDashboard({ socket, connected }) {
                 } 
               },
             ].map((btn, i) => (
-              <button key={i} onClick={btn.action} style={{
-                padding: '10px 4px', background: `${btn.color}15`,
-                border: `1px solid ${btn.color}40`, borderRadius: 8, cursor: 'pointer',
-                textAlign: 'center', transition: 'all 0.2s',
-                boxShadow: btn.label === 'VOICE SOS' && voiceSosActive ? `0 0 10px ${btn.color}40` : 'none'
-              }}>
-                <div style={{ fontSize: 18, marginBottom: 4 }}>{btn.icon}</div>
-                <div style={{ fontFamily: "'Orbitron'", fontSize: 8, color: btn.color, fontWeight: 700, letterSpacing: '0.05em' }}>{btn.label}</div>
-                <div style={{ fontSize: 8, color: 'rgba(160,200,255,0.5)', marginTop: 2 }}>{btn.sublabel}</div>
+              <button
+                key={i}
+                onClick={btn.action}
+                style={{
+                  padding: '12px 6px',
+                  background: 'rgba(10, 22, 48, 0.65)',
+                  border: `1px solid rgba(0, 200, 255, 0.15)`,
+                  borderRadius: 10,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                  boxShadow: btn.label === 'VOICE SOS' && voiceSosActive ? `0 0 15px ${btn.color}` : '0 4px 12px rgba(0,0,0,0.15)',
+                  minHeight: '85px',
+                  boxSizing: 'border-box'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = btn.color;
+                  e.currentTarget.style.boxShadow = `0 4px 20px ${btn.color}35`;
+                  e.currentTarget.style.transform = 'translateY(-3px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(0, 200, 255, 0.15)';
+                  e.currentTarget.style.boxShadow = btn.label === 'VOICE SOS' && voiceSosActive ? `0 0 15px ${btn.color}` : '0 4px 12px rgba(0,0,0,0.15)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                <div style={{ fontSize: 20, marginBottom: 6 }}>{btn.icon}</div>
+                <div style={{ fontFamily: "'Orbitron'", fontSize: 10, color: '#ffffff', fontWeight: 700, letterSpacing: '0.05em' }}>{btn.label}</div>
+                <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', marginTop: 4, fontFamily: "'Share Tech Mono'", textTransform: 'uppercase' }}>{btn.sublabel}</div>
               </button>
             ))}
           </div>
