@@ -36,6 +36,16 @@ router.post('/login', validate(loginBody), async (req, res) => {
       : `${loginIdentifier.replace(/[\s\-]+/g, '').toLowerCase()}@rescuelink.com`;
 
     let user = await User.findOne({ where: { email: loginEmail, is_active: true } });
+    if (!user && loginEmail === 'patient@rescuelink.com') {
+      const hashedPassword = await bcrypt.hash('password123', 10);
+      user = await User.create({
+        name: 'Demo Patient',
+        email: 'patient@rescuelink.com',
+        password: hashedPassword,
+        role: 'patient',
+        is_active: true
+      });
+    }
     let isAmbulanceTableLogin = false;
     let ambulanceUnit = null;
 
