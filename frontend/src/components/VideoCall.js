@@ -122,7 +122,7 @@ const VideoCall = ({ socket, role, missionId: reqId }) => {
 
   const joinDailyRoom = (url) => {
     if (url.includes('jit.si') || url.includes('meet.jit.si')) {
-      setJitsiUrl(url);
+      window.open(url, '_blank', 'width=1000,height=700,scrollbars=yes,resizable=yes');
       setInCall(true);
       setCalling(false);
       return;
