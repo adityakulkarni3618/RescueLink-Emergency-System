@@ -857,8 +857,7 @@ function MfaSetupScreen({ setupToken, onComplete, onCancel }) {
 }
 
 /* ─── Login & Registration Screen Component with 2FA ───────────────────── */
-function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onClose }) {
-  const [isRegister, setIsRegister] = useState(false);
+function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onClose, isRegister, setIsRegister }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   
@@ -1978,6 +1977,7 @@ export default function App() {
   const [globalAlertData, setGlobalAlertData] = useState(null);
   const [showSecurityModal, setShowSecurityModal] = useState(false);
   const [loginTargetRole, setLoginTargetRole] = useState(null);
+  const [isRegister, setIsRegister] = useState(false);
 
   // MFA Setup and Verification States
   const [mfaSetupToken, setMfaSetupToken] = useState(null);
@@ -2118,6 +2118,8 @@ export default function App() {
               onMfaSetup={(setupToken) => setMfaSetupToken(setupToken)}
               onMfaVerify={(mfaToken) => setMfaVerifyToken(mfaToken)}
               onClose={() => { setLoginTargetRole(null); }}
+              isRegister={isRegister}
+              setIsRegister={setIsRegister}
             />
           )}
         </>
@@ -2139,6 +2141,8 @@ export default function App() {
               onMfaSetup={(setupToken) => setMfaSetupToken(setupToken)}
               onMfaVerify={(mfaToken) => setMfaVerifyToken(mfaToken)}
               onClose={() => { setLoginTargetRole(null); }}
+              isRegister={isRegister}
+              setIsRegister={setIsRegister}
             />
           )}
         </>
@@ -2158,6 +2162,8 @@ export default function App() {
             onMfaSetup={(setupToken) => setMfaSetupToken(setupToken)}
             onMfaVerify={(mfaToken) => setMfaVerifyToken(mfaToken)}
             onClose={() => { setLoginTargetRole(null); window.location.hash = ''; }}
+            isRegister={isRegister}
+            setIsRegister={setIsRegister}
           />
         )}
       </>
