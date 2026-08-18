@@ -193,8 +193,18 @@ async function syncDatabase() {
           ]
         }
       });
-      if (deletedAmbulanceCount > 0 || deletedUserCount > 0) {
-        console.log(`[DB CLEANUP] Purged ${deletedAmbulanceCount} matching ambulances and ${deletedUserCount} users.`);
+      const deletedHospitalCount = await Hospital.destroy({
+        where: {
+          [Op.or]: [
+            { name: { [Op.like]: '%Apollo%' } },
+            { name: { [Op.like]: '%Manipal%' } },
+            { name: { [Op.like]: '%John%' } },
+            { name: { [Op.like]: '%St.%' } }
+          ]
+        }
+      });
+      if (deletedAmbulanceCount > 0 || deletedUserCount > 0 || deletedHospitalCount > 0) {
+        console.log(`[DB CLEANUP] Purged ${deletedAmbulanceCount} matching ambulances, ${deletedUserCount} users, and ${deletedHospitalCount} hospitals.`);
       }
     } catch (cleanupErr) {
       console.warn('[DB CLEANUP WARNING] Failed to run database cleanup:', cleanupErr.message);
