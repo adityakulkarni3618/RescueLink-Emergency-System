@@ -282,6 +282,7 @@ export default function WarRoom({ socket, connected }) {
               { id: 'mass_casualty', label: '⚠️ DISASTER & MASS CASUALTY' },
               { id: 'blood_bank', label: '🩸 NATIONAL BLOOD NETWORK' },
               { id: 'telemedicine', label: '📹 TELEMEDICINE STATUS' },
+              { id: 'privacy', label: '🔐 PRIVACY & ERASURE (DPDP)' },
             ].map(tab => (
               <button
                 key={tab.id}
@@ -434,6 +435,18 @@ export default function WarRoom({ socket, connected }) {
             </div>
           )}
 
+          {activeTab === 'privacy' && (
+            <div style={{ flex: 1, overflowY: 'auto', background: 'rgba(5,15,40,0.8)', borderRadius: 10, padding: 20, border: '1px solid rgba(0,200,255,0.15)', display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <div style={{ fontFamily: "'Orbitron'", fontSize: 13, color: '#00ff88', marginBottom: 12 }}>🔐 DPDP ACT 2023 - RIGHT TO ERASURE & AUDIT CENTER</div>
+              
+              {/* Review pending erasures */}
+              <PendingErasureReviews SERVER_URL_CONST={process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin)} />
+              
+              {/* General Consent Access Logs */}
+              <ConsentAccessLogs SERVER_URL_CONST={process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin)} />
+            </div>
+          )}
+
 
         </div>
 
@@ -527,3 +540,156 @@ export default function WarRoom({ socket, connected }) {
     </div>
   );
 }
+
+function PendingErasureReviews({ SERVER_URL_CONST }) {
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchPending = async () => {
+    setLoading(true);
+    try {
+      const token = sessionStorage.getItem('rescuelink_token') || '';
+      const response = await fetch(`/api/erasure/pending`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setRequests(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPending();
+  }, []);
+
+  const handleReview = async (id, status, notes) => {
+    try {
+      const token = sessionStorage.getItem('rescuelink_token') || '';
+      const response = await fetch(`/api/erasure/review/${id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status, review_notes: notes })
+      });
+      if (response.ok) {
+        alert(`Request ${status === 'APPROVED' ? 'Approved' : 'Rejected'} successfully.`);
+        fetchPending();
+      } else {
+        const err = await response.json();
+        alert(err.error || "Failed to process review");
+      }
+    } catch (err) {
+      alert("Error: " + err.message);
+    }
+  };
+
+  return (
+    <div style={{ background: 'rgba(0,0,0,0.2)', padding: 16, borderRadius: 8, border: '1px solid rgba(0,200,255,0.1)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#ffb800' }}>⚠️ PENDING ERASURE REQUESTS (SECTION 12)</div>
+        <button onClick={fetchPending} style={{ padding: '4px 8px', background: 'rgba(0,200,255,0.15)', border: '1px solid #00c8ff', color: '#00c8ff', borderRadius: 4, fontSize: 9, cursor: 'pointer', fontFamily: "'Orbitron'" }}>REFRESH</button>
+      </div>
+
+      {loading ? (
+        <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.5)' }}>Loading pending erasure requests...</div>
+      ) : requests.length === 0 ? (
+        <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.4)', fontStyle: 'italic' }}>No pending erasure requests under Section 12.</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {requests.map(req => (
+            <div key={req.id} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: 12, color: '#e0eaff' }}>Patient Profile: <strong style={{ fontFamily: "'Share Tech Mono'" }}>{req.patient_id}</strong></div>
+                <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', marginTop: 4 }}>Reason: "{req.reason}"</div>
+                <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', marginTop: 2 }}>Requested: {new Date(req.createdAt).toLocaleString()}</div>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button 
+                  onClick={() => {
+                    const notes = prompt("Enter rejection notes:");
+                    if (notes !== null) handleReview(req.id, 'REJECTED', notes);
+                  }}
+                  style={{ padding: '6px 12px', background: 'rgba(255,68,68,0.15)', border: '1px solid #ff4444', borderRadius: 4, color: '#ff4444', fontSize: 10, fontWeight: 'bold', cursor: 'pointer' }}
+                >
+                  REJECT
+                </button>
+                <button 
+                  onClick={() => {
+                    if (window.confirm("Are you sure you want to approve? This will permanently wipe patient PII and cascade delete all incidents.")) {
+                      handleReview(req.id, 'APPROVED', 'DPDP Compliance Purge');
+                    }
+                  }}
+                  style={{ padding: '6px 12px', background: 'rgba(0,255,136,0.15)', border: '1px solid #00ff88', borderRadius: 4, color: '#00ff88', fontSize: 10, fontWeight: 'bold', cursor: 'pointer' }}
+                >
+                  APPROVE & PURGE
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ConsentAccessLogs({ SERVER_URL_CONST }) {
+  const [logs, setLogs] = useState([]);
+
+  useEffect(() => {
+    const fetchLogs = async () => {
+      try {
+        const token = sessionStorage.getItem('rescuelink_token') || '';
+        const response = await fetch(`/api/audit/consent-log`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setLogs(Array.isArray(data) ? data : []);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchLogs();
+  }, []);
+
+  return (
+    <div style={{ background: 'rgba(0,0,0,0.2)', padding: 16, borderRadius: 8, border: '1px solid rgba(0,200,255,0.1)' }}>
+      <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', marginBottom: 12 }}>📜 CONSENT AUDIT TRAIL LOGS</div>
+      <div style={{ overflowY: 'auto', maxHeight: 200 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
+          <thead>
+            <tr style={{ color: 'rgba(160,200,255,0.5)', borderBottom: '1px solid rgba(0,200,255,0.1)' }}>
+              <th style={{ textAlign: 'left', padding: '5px' }}>ACTOR</th>
+              <th style={{ textAlign: 'left' }}>ACTION</th>
+              <th style={{ textAlign: 'left' }}>RESOURCE</th>
+              <th style={{ textAlign: 'right' }}>DATE</th>
+            </tr>
+          </thead>
+          <tbody>
+            {logs.length === 0 ? (
+              <tr><td colSpan={4} style={{ textAlign: 'center', color: 'rgba(160,200,255,0.3)', padding: 10 }}>No consent audit logs recorded.</td></tr>
+            ) : (
+              logs.map(log => (
+                <tr key={log.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                  <td style={{ padding: '6px 5px', color: '#e0eaff' }}>{log.user?.name || 'SYSTEM'}</td>
+                  <td style={{ color: '#00ff88' }}>{log.action}</td>
+                  <td>{log.resource} ({log.resource_id})</td>
+                  <td style={{ textAlign: 'right', color: 'rgba(160,200,255,0.5)' }}>{new Date(log.createdAt).toLocaleString()}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
