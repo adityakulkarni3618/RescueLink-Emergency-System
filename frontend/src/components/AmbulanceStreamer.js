@@ -382,7 +382,10 @@ function ParamedicToolkit({ patientDetails, socket, reqId, checklist = {}, setCh
             <div style={{ fontSize: 14, fontWeight: 'bold', color: '#fff', marginTop: 4 }}>{drugs.find(d => d.name === selectedDrug).calc(weight)}</div>
           </div>
         )}
-
+        {selectedDrug && checkAllergy(selectedDrug) && (
+          <div style={{ padding: 10, background: 'rgba(255,50,50,0.1)', border: '1px solid rgba(255,50,50,0.4)', borderRadius: 6, color: '#ff8888', fontSize: 11 }}>
+            🚨 CONTRAINDICATION: Patient allergic to Penicillin group.
+          </div>
         )}
       </div>
     </div>
@@ -597,6 +600,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
   useEffect(() => { vitalsSourceRef.current = vitalsSource; }, [vitalsSource]);
 
   const [greenCorridorActive, setGreenCorridorActive] = useState(false);
+  const [isActiveDuty, setIsActiveDuty] = useState(true);
 
   const [bleDevice, setBleDevice] = useState(null);
   const [bleConnecting, setBleConnecting] = useState(false);
@@ -1987,6 +1991,33 @@ export default function AmbulanceStreamer({ socket, connected }) {
                 <span style={{ opacity: 0.5 }}>MISSION CODE:</span> {assignedUser.id && assignedUser.id.length > 15 ? `RL-${assignedUser.id.replace(/-/g, '').slice(-4).toUpperCase()}` : assignedUser.id}
               </div>
             )}
+            {/* Active Duty Switch */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,200,255,0.05)', padding: '6px 12px', borderRadius: 20, border: '1px solid rgba(0,200,255,0.2)' }}>
+              <span style={{ fontSize: 10, fontFamily: "'Orbitron'", color: isActiveDuty ? '#00ff88' : '#ff4444', fontWeight: 'bold' }}>
+                {isActiveDuty ? 'ACTIVE DUTY' : 'ON BREAK'}
+              </span>
+              <button
+                onClick={() => {
+                  const nextStatus = !isActiveDuty;
+                  setIsActiveDuty(nextStatus);
+                  if (socket) {
+                    socket.emit('toggle-active-duty', { active: nextStatus });
+                  }
+                }}
+                style={{
+                  background: isActiveDuty ? '#00ff88' : '#ff4444',
+                  border: 'none', width: 34, height: 18, borderRadius: 10,
+                  position: 'relative', cursor: 'pointer', transition: 'background-color 0.2s',
+                  display: 'flex', alignItems: 'center', padding: '0 2px'
+                }}
+              >
+                <div style={{
+                  width: 14, height: 14, borderRadius: '50%', background: '#051025',
+                  position: 'absolute', left: isActiveDuty ? 18 : 2, transition: 'left 0.2s'
+                }} />
+              </button>
+            </div>
+
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, position: 'relative' }}>
               <div style={{
                 width: 10, height: 10, borderRadius: '50%',
@@ -2337,34 +2368,46 @@ export default function AmbulanceStreamer({ socket, connected }) {
           {/* IDLE STATE — No patient assigned yet */}
           {!assignedUser && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400, gap: 20 }}>
-              <div style={{ fontSize: 60, opacity: 0.3 }}>🚑</div>
-              <div style={{ fontFamily: "'Orbitron'", fontSize: 18, color: 'rgba(160,200,255,0.3)', letterSpacing: '0.15em' }}>AWAITING DISPATCH</div>
-              <div style={{ fontSize: 13, color: 'rgba(160,200,255,0.2)', textAlign: 'center', maxWidth: 400 }}>
-                Ambulance unit is online and ready. Patient vitals and details will appear here once a dispatch request is accepted.
-              </div>
-              {connected ? (
-                <div style={{ padding: '8px 20px', border: '1px solid rgba(0,255,136,0.3)', borderRadius: 6, fontSize: 11, fontFamily: "'Share Tech Mono'", color: '#00ff88', background: 'rgba(0,255,136,0.05)' }}>
-                  ● UNIT ONLINE — STANDING BY
-                </div>
+              {!isActiveDuty ? (
+                <>
+                  <div style={{ fontSize: 60, opacity: 0.5, animation: 'pulse-opacity 2s infinite' }}>🛌</div>
+                  <div style={{ fontFamily: "'Orbitron'", fontSize: 18, color: '#ff4444', letterSpacing: '0.15em' }}>ON BREAK / INACTIVE</div>
+                  <div style={{ fontSize: 13, color: 'rgba(160,200,255,0.4)', textAlign: 'center', maxWidth: 400, lineHeight: 1.5 }}>
+                    You have toggled your status to <strong>INACTIVE</strong>. You will not receive any incoming emergency dispatch requests. Toggle <strong>ACTIVE DUTY</strong> in the header to resume standby.
+                  </div>
+                </>
               ) : (
-                <div style={{ padding: '8px 20px', border: '1px solid rgba(255,68,68,0.3)', borderRadius: 6, fontSize: 11, fontFamily: "'Share Tech Mono'", color: '#ff4444', background: 'rgba(255,68,68,0.05)' }}>
-                  ● OFFLINE
-                </div>
+                <>
+                  <div style={{ fontSize: 60, opacity: 0.3 }}>🚑</div>
+                  <div style={{ fontFamily: "'Orbitron'", fontSize: 18, color: 'rgba(160,200,255,0.3)', letterSpacing: '0.15em' }}>AWAITING DISPATCH</div>
+                  <div style={{ fontSize: 13, color: 'rgba(160,200,255,0.2)', textAlign: 'center', maxWidth: 400 }}>
+                    Ambulance unit is online and ready. Patient vitals and details will appear here once a dispatch request is accepted.
+                  </div>
+                  {connected ? (
+                    <div style={{ padding: '8px 20px', border: '1px solid rgba(0,255,136,0.3)', borderRadius: 6, fontSize: 11, fontFamily: "'Share Tech Mono'", color: '#00ff88', background: 'rgba(0,255,136,0.05)' }}>
+                      ● UNIT ONLINE — STANDING BY
+                    </div>
+                  ) : (
+                    <div style={{ padding: '8px 20px', border: '1px solid rgba(255,68,68,0.3)', borderRadius: 6, fontSize: 11, fontFamily: "'Share Tech Mono'", color: '#ff4444', background: 'rgba(255,68,68,0.05)' }}>
+                      ● OFFLINE
+                    </div>
+                  )}
+                  <div className="rl-card" style={{ marginTop: 30, padding: '20px', width: '100%', maxWidth: 320, textAlign: 'center' }}>
+                    <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Orbitron'", marginBottom: 8, letterSpacing: '0.1em' }}>MANUAL MISSION RECOVERY</div>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <input 
+                        value={manualRecoveryId} 
+                        onChange={e => setManualRecoveryId(e.target.value)}
+                        onKeyDown={handleManualRecoveryKeyDown}
+                        placeholder="REQ ID" 
+                        className="rl-input"
+                        style={{ flex: 1, fontSize: 12, outline: 'none', fontFamily: "'Share Tech Mono'", boxSizing: 'border-box', height: '36px' }} 
+                      />
+                      <button onClick={handleManualRecover} className="rl-btn-primary" style={{ height: '36px', padding: '0 15px', fontSize: 10, fontWeight: 'bold' }}>GO</button>
+                    </div>
+                  </div>
+                </>
               )}
-              <div className="rl-card" style={{ marginTop: 30, padding: '20px', width: '100%', maxWidth: 320, textAlign: 'center' }}>
-                <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Orbitron'", marginBottom: 8, letterSpacing: '0.1em' }}>MANUAL MISSION RECOVERY</div>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <input 
-                    value={manualRecoveryId} 
-                    onChange={e => setManualRecoveryId(e.target.value)}
-                    onKeyDown={handleManualRecoveryKeyDown}
-                    placeholder="REQ ID" 
-                    className="rl-input"
-                    style={{ flex: 1, fontSize: 12, outline: 'none', fontFamily: "'Share Tech Mono'", boxSizing: 'border-box', height: '36px' }} 
-                  />
-                  <button onClick={handleManualRecover} className="rl-btn-primary" style={{ height: '36px', padding: '0 15px', fontSize: 10, fontWeight: 'bold' }}>GO</button>
-                </div>
-              </div>
             </div>
           )}
 
