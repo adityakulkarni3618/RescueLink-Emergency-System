@@ -175,10 +175,26 @@ async function syncDatabase() {
 
     // Cleanup corrupted entries to allow fresh registration
     try {
-      const deletedAmbulanceCount = await Ambulance.destroy({ where: { vehicleNo: '' } });
-      const deletedUserCount = await User.destroy({ where: { email: 'mh12ab1234@rescuelink.com' } });
+      const { Op } = require('sequelize');
+      const deletedAmbulanceCount = await Ambulance.destroy({
+        where: {
+          [Op.or]: [
+            { vehicleNo: '' },
+            { vehicleNo: { [Op.like]: '%MH12%' } },
+            { vehicleNo: { [Op.like]: '%mh12%' } }
+          ]
+        }
+      });
+      const deletedUserCount = await User.destroy({
+        where: {
+          [Op.or]: [
+            { email: { [Op.like]: '%mh12%' } },
+            { email: { [Op.like]: '%aditya%' } }
+          ]
+        }
+      });
       if (deletedAmbulanceCount > 0 || deletedUserCount > 0) {
-        console.log(`[DB CLEANUP] Cleaned up ${deletedAmbulanceCount} corrupted ambulance and ${deletedUserCount} orphaned user records.`);
+        console.log(`[DB CLEANUP] Purged ${deletedAmbulanceCount} matching ambulances and ${deletedUserCount} users.`);
       }
     } catch (cleanupErr) {
       console.warn('[DB CLEANUP WARNING] Failed to run database cleanup:', cleanupErr.message);
