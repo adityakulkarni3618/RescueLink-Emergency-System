@@ -60,6 +60,7 @@ export default function WarRoom({ socket, connected }) {
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
   const [activeTab, setActiveTab] = useState('map'); // map, mass_casualty, blood_bank
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedIncidentId, setSelectedIncidentId] = useState(null);
   const [selectedIncidentDetails, setSelectedIncidentDetails] = useState(null);
 
@@ -360,28 +361,61 @@ export default function WarRoom({ socket, connected }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minHeight: 0 }}>
           
           {/* Tabs */}
-          <div style={{ display: 'flex', gap: 10, flexShrink: 0, borderBottom: '1px solid rgba(0,200,255,0.1)', paddingBottom: 10 }}>
-            {[
-              { id: 'map', label: '🌍 LIVE FLEET & HEATMAP' },
-              { id: 'mass_casualty', label: '⚠️ DISASTER & MASS CASUALTY' },
-              { id: 'blood_bank', label: '🩸 NATIONAL BLOOD NETWORK' },
-              { id: 'telemedicine', label: '📹 TELEMEDICINE STATUS' },
-              { id: 'privacy', label: '🔐 PRIVACY & ERASURE (DPDP)' },
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                style={{
-                  padding: '8px 16px', background: activeTab === tab.id ? 'rgba(0,200,255,0.15)' : 'transparent',
-                  border: `1px solid ${activeTab === tab.id ? '#00c8ff' : 'rgba(255,255,255,0.1)'}`,
-                  borderRadius: 8, color: activeTab === tab.id ? '#00c8ff' : 'rgba(160,200,255,0.6)',
-                  fontFamily: "'Orbitron'", fontSize: 11, fontWeight: activeTab === tab.id ? 700 : 400,
-                  cursor: 'pointer', transition: 'all 0.2s'
-                }}
-              >
-                {tab.label}
+          <div style={{ display: 'flex', gap: 10, flexShrink: 0, borderBottom: '1px solid rgba(0,200,255,0.1)', paddingBottom: 10, position: 'relative', alignItems: 'center' }}>
+            <div className="desktop-nav-group" style={{ display: 'flex', gap: 10 }}>
+              {[
+                { id: 'map', label: '🌍 LIVE FLEET & HEATMAP' },
+                { id: 'mass_casualty', label: '⚠️ DISASTER & MASS CASUALTY' },
+                { id: 'blood_bank', label: '🩸 NATIONAL BLOOD NETWORK' },
+                { id: 'telemedicine', label: '📹 TELEMEDICINE STATUS' },
+                { id: 'privacy', label: '🔐 PRIVACY & ERASURE (DPDP)' },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  style={{
+                    padding: '8px 16px', background: activeTab === tab.id ? 'rgba(0,200,255,0.15)' : 'transparent',
+                    border: `1px solid ${activeTab === tab.id ? '#00c8ff' : 'rgba(255,255,255,0.1)'}`,
+                    borderRadius: 8, color: activeTab === tab.id ? '#00c8ff' : 'rgba(160,200,255,0.6)',
+                    fontFamily: "'Orbitron'", fontSize: 11, fontWeight: activeTab === tab.id ? 700 : 400,
+                    cursor: 'pointer', transition: 'all 0.2s'
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            
+            <div style={{ position: 'relative', display: 'inline-block' }}>
+              <button className="mobile-nav-trigger" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+                ☰ VIEW TABS
               </button>
-            ))}
+              {mobileMenuOpen && (
+                <div className="mobile-nav-dropdown" style={{ left: 0, right: 'auto' }}>
+                  {[
+                    { id: 'map', label: '🌍 LIVE FLEET & HEATMAP' },
+                    { id: 'mass_casualty', label: '⚠️ DISASTER & MASS CASUALTY' },
+                    { id: 'blood_bank', label: '🩸 NATIONAL BLOOD NETWORK' },
+                    { id: 'telemedicine', label: '📹 TELEMEDICINE STATUS' },
+                    { id: 'privacy', label: '🔐 PRIVACY & ERASURE (DPDP)' },
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => { setActiveTab(tab.id); setMobileMenuOpen(false); }}
+                      style={{
+                        padding: '10px 16px', background: activeTab === tab.id ? 'rgba(0,200,255,0.15)' : 'transparent',
+                        border: `1px solid ${activeTab === tab.id ? '#00c8ff' : 'rgba(255,255,255,0.1)'}`,
+                        borderRadius: 8, color: activeTab === tab.id ? '#00c8ff' : 'rgba(160,200,255,0.6)',
+                        fontFamily: "'Orbitron'", fontSize: 11, fontWeight: activeTab === tab.id ? 700 : 400,
+                        cursor: 'pointer', transition: 'all 0.2s', width: '100%', textAlign: 'left'
+                      }}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {activeTab === 'map' && (

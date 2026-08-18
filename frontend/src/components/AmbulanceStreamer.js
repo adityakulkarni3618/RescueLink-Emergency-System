@@ -596,6 +596,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
   const [manualRecoveryId, setManualRecoveryId] = useState('');
   const [vitals, setVitals] = useState({ heartRate: 75, spo2: 98, systolic: 120, diastolic: 80, temperature: 37.0, respRate: 16, bloodGlucose: 100 });
   const [vitalsSource, setVitalsSource] = useState('SIMULATED'); // 'SIMULATED', 'MANUAL', 'LIVE'
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const vitalsSourceRef = useRef(vitalsSource);
   useEffect(() => { vitalsSourceRef.current = vitalsSource; }, [vitalsSource]);
 
@@ -1830,6 +1831,204 @@ export default function AmbulanceStreamer({ socket, connected }) {
 
   const isCritical = arrivedAtUser && (vitals.heartRate > 110 || (vitals.spo2 > 0 && vitals.spo2 < 92) || vitals.systolic > 150 || (vitals.heartRate > 0 && vitals.heartRate < 50));
 
+  const headerActions = (isMobileView = false) => (
+    <>
+      <button
+        onClick={() => {
+          const newState = !simulateTraffic;
+          setSimulateTraffic(newState);
+          trafficRef.current = newState;
+          if (socket && location) {
+            socket.emit('location-update', { ...location, trafficDelay: newState });
+          }
+          if (isMobileView) setMobileMenuOpen(false);
+        }}
+        className={simulateTraffic ? "rl-btn-primary" : "rl-btn-secondary"}
+        style={{
+          padding: '6px 12px',
+          fontSize: 9,
+          display: 'flex', alignItems: 'center', gap: 4
+        }}
+      >
+        <span>🚦</span> {simulateTraffic ? 'JAM' : 'TRAFFIC'}
+      </button>
+
+      <button
+        onClick={() => {
+          const doc = new jsPDF();
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(22);
+          doc.setTextColor(0, 100, 200);
+          doc.text("RESCUELINK INCIDENT HANDOFF REPORT", 105, 20, null, null, "center");
+          doc.setFontSize(12);
+          doc.setTextColor(50, 50, 50);
+          doc.text(`Mission ID: ${assignedUser?.id || 'FIELD_MISSION'}`, 14, 35);
+          doc.text(`Timestamp: ${new Date().toLocaleString()}`, 14, 42);
+          doc.text(`Patient Name: ${selectedPatient ? PATIENT_NAMES[selectedPatient] : (assignedUser?.patientDetails?.name || 'Emergency Case')}`, 14, 49);
+          doc.text(`Assigned Hospital: ${assignedHospital?.name || 'Unknown'}`, 14, 56);
+          const vitals = lastFieldReportRef.current?.vitals || {};
+          autoTable(doc, {
+            startY: 65,
+            head: [['Metric', 'Value']],
+            body: [
+              ['Heart Rate', vitals.heartRate ? `${vitals.heartRate} bpm` : 'N/A'],
+              ['Blood Pressure', vitals.systolic ? `${vitals.systolic}/${vitals.diastolic} mmHg` : 'N/A'],
+              ['SpO2', vitals.spo2 ? `${vitals.spo2}%` : 'N/A'],
+              ['Reported Condition', assignedUser?.patientDetails?.condition || 'N/A'],
+              ['Risk Level', assignedUser?.patientDetails?.riskLevel || 'N/A']
+            ],
+            theme: 'grid',
+            headStyles: { fillColor: [0, 100, 200] }
+          });
+          const notesY = doc.lastAutoTable.finalY + 15;
+          doc.setFont('helvetica', 'bold');
+          doc.text("Incident Notes & Actions", 14, notesY);
+          doc.setFont('helvetica', 'normal');
+          let currentY = notesY + 10;
+          if (incidentNote) {
+            const splitNotes = doc.splitTextToSize(incidentNote, 180);
+            doc.text(splitNotes, 14, currentY);
+          } else {
+            doc.setFont('helvetica', 'italic');
+            doc.text("No manual notes recorded.", 14, currentY);
+          }
+          doc.save(`MISSION_REPORT_${assignedUser?.id || 'FIELD_MISSION'}.pdf`);
+          if (isMobileView) setMobileMenuOpen(false);
+        }}
+        className="rl-btn-secondary"
+        style={{
+          padding: '6px 12px',
+          fontSize: 9,
+          display: 'flex', alignItems: 'center', gap: 4
+        }}
+      >
+        <span>📥</span> REPORT
+      </button>
+
+      <button
+        onClick={() => {
+          if (window.confirm("Abort current mission and reset?")) {
+            setRequestAccepted(false);
+            setAssignedUser(null);
+            setAssignedHospital(null);
+            setRoutePath(null);
+            setSelectedPatient(null);
+            setArrivedAtUser(false);
+            setIncomingRequest(null);
+            setStreaming(false);
+            setPatientLoaded(false);
+            setArrivalCountdown(20);
+            setResourceLocks({ traumaBay: false, bloodUnits: false, ventilatorStandby: false });
+            if (socket) {
+              if (activeMissionId) {
+                socket.emit('complete-mission', { reqId: activeMissionId });
+              }
+              const storedToken = sessionStorage.getItem('rescuelink_token');
+              socket.emit('register-ambulance', { 
+                location, 
+                available: true,
+                unitId: authUnit?.unitId,
+                token: storedToken
+              });
+            }
+            localStorage.removeItem('activeMissionId');
+            localStorage.removeItem('amb_requestAccepted');
+            localStorage.removeItem('amb_assignedUser');
+            localStorage.removeItem('amb_assignedHospital');
+            localStorage.removeItem('amb_selectedPatient');
+            localStorage.removeItem('amb_arrivedAtUser');
+            localStorage.removeItem('amb_streaming');
+            localStorage.removeItem('amb_incomingRequest');
+          }
+          if (isMobileView) setMobileMenuOpen(false);
+        }}
+        className="rl-btn-primary"
+        style={{
+          padding: '6px 12px',
+          fontSize: 9,
+          background: 'linear-gradient(135deg, #ff4444 0%, #cc0000 100%)',
+          boxShadow: 'none',
+          display: 'flex', alignItems: 'center', gap: 4
+        }}
+      >
+        <span>🛑</span> CLEAR
+      </button>
+
+      <button
+        onClick={() => {
+          if (window.confirm("Switch unit identity? All active unit session data will be reset.")) {
+            localStorage.removeItem('ambulance_auth');
+            sessionStorage.clear();
+            localStorage.removeItem('activeMissionId');
+            localStorage.removeItem('amb_requestAccepted');
+            localStorage.removeItem('amb_assignedUser');
+            localStorage.removeItem('amb_assignedHospital');
+            localStorage.removeItem('amb_selectedPatient');
+            localStorage.removeItem('amb_arrivedAtUser');
+            localStorage.removeItem('amb_streaming');
+            localStorage.removeItem('amb_incomingRequest');
+            window.location.reload();
+          }
+          if (isMobileView) setMobileMenuOpen(false);
+        }}
+        className="rl-btn-secondary"
+        style={{
+          padding: '6px 12px',
+          fontSize: 9, cursor: 'pointer',
+          fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4
+        }}
+      >
+        <span>🚪</span> SWITCH
+      </button>
+
+      <button
+        onClick={() => {
+          setShowSettingsModal(true);
+          if (isMobileView) setMobileMenuOpen(false);
+        }}
+        className="rl-btn-primary"
+        style={{
+          padding: '6px 12px',
+          fontSize: 9, cursor: 'pointer',
+          fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4
+        }}
+      >
+        <span>⚙️</span> SETTINGS
+      </button>
+
+      <button
+        onClick={() => {
+          toggleOffline();
+          if (isMobileView) setMobileMenuOpen(false);
+        }}
+        className="rl-btn-secondary"
+        style={{
+          padding: '6px 12px',
+          fontSize: 9, cursor: 'pointer',
+          fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4
+        }}
+      >
+        <span>📟</span> {isOffline ? 'ONLINE' : 'DEAD ZONE'}
+      </button>
+
+      <button
+        onClick={() => {
+          setStreaming(!streaming);
+          if (isMobileView) setMobileMenuOpen(false);
+        }}
+        style={{
+          padding: '6px 12px', background: streaming ? 'rgba(255,40,40,0.2)' : 'rgba(0,255,136,0.1)',
+          border: `1px solid ${streaming ? 'rgba(255,80,80,0.5)' : 'rgba(0,255,136,0.3)'}`,
+          borderRadius: 4, color: streaming ? '#ff6060' : '#00ff88', fontFamily: "'Orbitron'",
+          fontSize: 9, fontWeight: 'bold', cursor: 'pointer', boxShadow: streaming ? '0 0 10px rgba(255,40,40,0.2)' : 'none',
+          display: 'flex', alignItems: 'center', gap: 4
+        }}
+      >
+        <span>{streaming ? '■' : '▶'}</span> {streaming ? 'STOP' : 'STREAM'}
+      </button>
+    </>
+  );
+
   return (
     <div style={{
       height: '100vh',
@@ -2050,201 +2249,19 @@ export default function AmbulanceStreamer({ socket, connected }) {
             </span>
           </div>
 
-          {/* Control Buttons Group */}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center' }}>
-            <button
-              onClick={() => {
-                const newState = !simulateTraffic;
-                setSimulateTraffic(newState);
-                trafficRef.current = newState;
-                if (socket && location) {
-                  socket.emit('location-update', { ...location, trafficDelay: newState });
-                }
-              }}
-              className={simulateTraffic ? "rl-btn-primary" : "rl-btn-secondary"}
-              style={{
-                padding: '6px 12px',
-                fontSize: 9,
-                display: 'flex', alignItems: 'center', gap: 4
-              }}
-            >
-              <span>🚦</span> {simulateTraffic ? 'JAM' : 'TRAFFIC'}
+          {/* Responsive Header Button Controls */}
+          <div className="desktop-nav-group" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center' }}>
+            {headerActions(false)}
+          </div>
+          <div style={{ position: 'relative', display: 'inline-block' }}>
+            <button className="mobile-nav-trigger" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+              ☰ MENU
             </button>
-
-            <button
-              onClick={() => {
-                const doc = new jsPDF();
-                
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(22);
-                doc.setTextColor(0, 100, 200);
-                doc.text("RESCUELINK INCIDENT HANDOFF REPORT", 105, 20, null, null, "center");
-
-                doc.setFontSize(12);
-                doc.setTextColor(50, 50, 50);
-                doc.text(`Mission ID: ${assignedUser?.id || 'FIELD_MISSION'}`, 14, 35);
-                doc.text(`Timestamp: ${new Date().toLocaleString()}`, 14, 42);
-                doc.text(`Patient Name: ${selectedPatient ? PATIENT_NAMES[selectedPatient] : (assignedUser?.patientDetails?.name || 'Emergency Case')}`, 14, 49);
-                doc.text(`Assigned Hospital: ${assignedHospital?.name || 'Unknown'}`, 14, 56);
-
-                // Patient Details & Vitals Table
-                const vitals = lastFieldReportRef.current?.vitals || {};
-                autoTable(doc, {
-                  startY: 65,
-                  head: [['Metric', 'Value']],
-                  body: [
-                    ['Heart Rate', vitals.heartRate ? `${vitals.heartRate} bpm` : 'N/A'],
-                    ['Blood Pressure', vitals.systolic ? `${vitals.systolic}/${vitals.diastolic} mmHg` : 'N/A'],
-                    ['SpO2', vitals.spo2 ? `${vitals.spo2}%` : 'N/A'],
-                    ['Reported Condition', assignedUser?.patientDetails?.condition || 'N/A'],
-                    ['Risk Level', assignedUser?.patientDetails?.riskLevel || 'N/A']
-                  ],
-                  theme: 'grid',
-                  headStyles: { fillColor: [0, 100, 200] }
-                });
-
-                // Notes
-                const notesY = doc.lastAutoTable.finalY + 15;
-                doc.setFont('helvetica', 'bold');
-                doc.text("Incident Notes & Actions", 14, notesY);
-                doc.setFont('helvetica', 'normal');
-                
-                let currentY = notesY + 10;
-                if (incidentNote) {
-                  const splitNotes = doc.splitTextToSize(incidentNote, 180);
-                  doc.text(splitNotes, 14, currentY);
-                } else {
-                  doc.setFont('helvetica', 'italic');
-                  doc.text("No manual notes recorded.", 14, currentY);
-                }
-
-                // Auto-trigger download
-                doc.save(`MISSION_REPORT_${assignedUser?.id || 'FIELD_MISSION'}.pdf`);
-              }}
-              className="rl-btn-secondary"
-              style={{
-                padding: '6px 12px',
-                fontSize: 9,
-                display: 'flex', alignItems: 'center', gap: 4
-              }}
-            >
-              <span>📥</span> REPORT
-            </button>
-
-            <button
-              onClick={() => {
-                if (window.confirm("Abort current mission and reset?")) {
-                  setRequestAccepted(false);
-                  setAssignedUser(null);
-                  setAssignedHospital(null);
-                  setRoutePath(null);
-                  setSelectedPatient(null);
-                  setArrivedAtUser(false);
-                  setIncomingRequest(null);
-                  setStreaming(false);
-                  setPatientLoaded(false);
-                  setArrivalCountdown(20);
-                  setResourceLocks({ traumaBay: false, bloodUnits: false, ventilatorStandby: false });
-                  if (socket) {
-                    if (activeMissionId) {
-                      socket.emit('complete-mission', { reqId: activeMissionId });
-                    }
-                    const storedToken = sessionStorage.getItem('rescuelink_token');
-                    socket.emit('register-ambulance', { 
-                      location, 
-                      available: true,
-                      unitId: authUnit?.unitId,
-                      token: storedToken
-                    });
-                  }
-                  
-                  // Clear active mission local storage state completely
-                  localStorage.removeItem('activeMissionId');
-                  localStorage.removeItem('amb_requestAccepted');
-                  localStorage.removeItem('amb_assignedUser');
-                  localStorage.removeItem('amb_assignedHospital');
-                  localStorage.removeItem('amb_selectedPatient');
-                  localStorage.removeItem('amb_arrivedAtUser');
-                  localStorage.removeItem('amb_streaming');
-                  localStorage.removeItem('amb_incomingRequest');
-                }
-              }}
-              className="rl-btn-primary"
-              style={{
-                padding: '6px 12px',
-                fontSize: 9,
-                background: 'linear-gradient(135deg, #ff4444 0%, #cc0000 100%)',
-                boxShadow: 'none',
-                display: 'flex', alignItems: 'center', gap: 4
-              }}
-            >
-              <span>🛑</span> CLEAR
-            </button>
-            <button
-              onClick={() => {
-                if (window.confirm("Switch unit identity? All active unit session data will be reset.")) {
-                  localStorage.removeItem('ambulance_auth');
-                  sessionStorage.clear();
-                  
-                  // Reset mission keys to prevent state conflicts
-                  localStorage.removeItem('activeMissionId');
-                  localStorage.removeItem('amb_requestAccepted');
-                  localStorage.removeItem('amb_assignedUser');
-                  localStorage.removeItem('amb_assignedHospital');
-                  localStorage.removeItem('amb_selectedPatient');
-                  localStorage.removeItem('amb_arrivedAtUser');
-                  localStorage.removeItem('amb_streaming');
-                  localStorage.removeItem('amb_incomingRequest');
-                  
-                  window.location.reload();
-                }
-              }}
-              className="rl-btn-secondary"
-              style={{
-                padding: '6px 12px',
-                fontSize: 9, cursor: 'pointer',
-                fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4
-              }}
-            >
-              <span>🚪</span> SWITCH
-            </button>
-
-            <button
-              onClick={() => setShowSettingsModal(true)}
-              className="rl-btn-primary"
-              style={{
-                padding: '6px 12px',
-                fontSize: 9, cursor: 'pointer',
-                fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4
-              }}
-            >
-              <span>⚙️</span> SETTINGS
-            </button>
-
-            <button
-              onClick={toggleOffline}
-              className="rl-btn-secondary"
-              style={{
-                padding: '6px 12px',
-                fontSize: 9, cursor: 'pointer',
-                fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4
-              }}
-            >
-              <span>📟</span> {isOffline ? 'ONLINE' : 'DEAD ZONE'}
-            </button>
-
-            <button
-              onClick={() => setStreaming(!streaming)}
-              style={{
-                padding: '6px 12px', background: streaming ? 'rgba(255,40,40,0.2)' : 'rgba(0,255,136,0.1)',
-                border: `1px solid ${streaming ? 'rgba(255,80,80,0.5)' : 'rgba(0,255,136,0.3)'}`,
-                borderRadius: 4, color: streaming ? '#ff6060' : '#00ff88', fontFamily: "'Orbitron'",
-                fontSize: 9, fontWeight: 'bold', cursor: 'pointer', boxShadow: streaming ? '0 0 10px rgba(255,40,40,0.2)' : 'none',
-                display: 'flex', alignItems: 'center', gap: 4
-              }}
-            >
-              <span>{streaming ? '■' : '▶'}</span> {streaming ? 'STOP' : 'STREAM'}
-            </button>
+            {mobileMenuOpen && (
+              <div className="mobile-nav-dropdown">
+                {headerActions(true)}
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -1599,6 +1599,7 @@ export default function HospitalDashboard({ socket, connected }) {
   const lastAlertedIdRef = useRef(null);
   const lastVitalsBeepTimeRef = useRef(0);
   const [showDocAssignModal, setShowDocAssignModal] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [attendingDocName, setAttendingDocName] = useState('');
   const [attendingDocSpecialty, setAttendingDocSpecialty] = useState('');
   const [attendingNurses, setAttendingNurses] = useState('');
@@ -2376,6 +2377,170 @@ export default function HospitalDashboard({ socket, connected }) {
     setChecklist(m.checklist || {});
   };
 
+  const headerActions = (isMobileView = false) => (
+    <>
+      {patient ? (
+        <>
+          <button onClick={() => { downloadFHIR(); if (isMobileView) setMobileMenuOpen(false); }} style={{
+            background: 'rgba(0,255,136,0.1)', border: '1px solid rgba(0,255,136,0.3)',
+            padding: '0 12px', height: '32px', borderRadius: 4, color: '#00ff88',
+            fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700,
+            cursor: 'pointer', letterSpacing: '0.05em', transition: 'all 0.2s',
+            whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            boxSizing: 'border-box'
+          }}>
+            📥 FHIR HL7
+          </button>
+          <button onClick={() => { setShowHandover(true); if (isMobileView) setMobileMenuOpen(false); }} style={{
+            background: 'rgba(0,200,255,0.1)', border: '1px solid rgba(0,200,255,0.3)',
+            padding: '0 12px', height: '32px', borderRadius: 4, color: '#00c8ff',
+            fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700,
+            cursor: 'pointer', letterSpacing: '0.05em', transition: 'all 0.2s',
+            whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            boxSizing: 'border-box'
+          }}>
+            📄 REPORT
+          </button>
+        </>
+      ) : (
+        <button disabled style={{
+          background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+          padding: '0 12px', height: '32px', borderRadius: 4, color: 'rgba(255,255,255,0.3)',
+          fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700,
+          cursor: 'not-allowed', letterSpacing: '0.05em', whiteSpace: 'nowrap',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          boxSizing: 'border-box'
+        }}>
+          📄 AWAITING PATIENT
+        </button>
+      )}
+
+      <button onClick={() => { setShowArchives(true); if (isMobileView) setMobileMenuOpen(false); }} style={{
+        background: 'rgba(160,200,255,0.05)', border: '1px solid rgba(160,200,255,0.2)',
+        padding: '0 12px', height: '32px', borderRadius: 4, color: 'rgba(160,200,255,0.7)',
+        fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700,
+        cursor: 'pointer', letterSpacing: '0.05em', transition: 'all 0.2s',
+        whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        boxSizing: 'border-box'
+      }}>
+        📜 ARCHIVES {savedReports.length > 0 && <span style={{ color: '#00ff88', marginLeft: 4 }}>({savedReports.length})</span>}
+      </button>
+
+      {/* Connection indicators */}
+      {[
+        { label: 'AMBULANCE', count: connectedRoles.ambulance, color: '#ff8855', icon: '🚑' },
+        { label: 'DOCTORS', count: connectedRoles.hospital, color: '#00c8ff', icon: '🏥' },
+      ].map(({ label, count, color, icon }) => (
+        <div key={label} style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px', height: '32px',
+          background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4,
+          fontFamily: "'Share Tech Mono'", fontSize: 10, color: 'rgba(160,200,255,0.7)',
+          boxSizing: 'border-box', whiteSpace: 'nowrap'
+        }}>
+          <span>{icon}</span>
+          <span>{label}:</span>
+          <strong style={{ color: count > 0 ? color : 'rgba(160,200,255,0.25)', fontSize: 11, fontWeight: 700 }}>{count}</strong>
+        </div>
+      ))}
+
+      {alertCount > 0 && (
+        <div style={{
+          padding: '0 12px', height: '32px', background: 'rgba(255,40,40,0.15)',
+          border: '1px solid rgba(255,80,80,0.4)', borderRadius: 4,
+          fontFamily: "'Orbitron'", fontSize: 11, color: '#ff6060',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          animation: 'blink 1s step-end infinite', boxSizing: 'border-box', whiteSpace: 'nowrap'
+        }}>
+          ⚠ {alertCount} ALERT{alertCount > 1 ? 'S' : ''}
+        </div>
+      )}
+
+      {/* Auto-Sync Toggle */}
+      <div
+        onClick={() => { setAutoSync(!autoSync); if (isMobileView) setMobileMenuOpen(false); }}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px', height: '32px',
+          background: autoSync ? 'rgba(0,255,136,0.1)' : 'rgba(255,255,255,0.05)',
+          border: `1px solid ${autoSync ? 'rgba(0,255,136,0.3)' : 'rgba(255,255,255,0.1)'}`,
+          borderRadius: 4, cursor: 'pointer', transition: 'all 0.3s',
+          whiteSpace: 'nowrap', boxSizing: 'border-box'
+        }}
+      >
+        <div style={{
+          width: 8, height: 8, borderRadius: '50%',
+          background: autoSync ? '#00ff88' : '#888',
+          boxShadow: autoSync ? '0 0 8px #00ff88' : 'none'
+        }} />
+        <span style={{ fontSize: 11, fontFamily: "'Orbitron'", color: autoSync ? '#00ff88' : '#aaa', fontWeight: 700, letterSpacing: '0.05em' }}>
+          AUTO-SYNC: {autoSync ? 'ON' : 'OFF'}
+        </span>
+      </div>
+
+      {/* LIVE Connection Badge */}
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px', height: '32px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4, position: 'relative', boxSizing: 'border-box', whiteSpace: 'nowrap' }}>
+        <div style={{
+          width: 8, height: 8, borderRadius: '50%',
+          background: connected ? '#00ff88' : '#ff4444',
+          boxShadow: connected ? '0 0 10px #00ff88' : '0 0 8px #ff4444',
+          position: 'relative', zIndex: 2,
+          animation: connected ? 'pulse-opacity 1s ease-in-out infinite' : 'none'
+        }} />
+        {connected && (
+          <div style={{
+            position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
+            width: 8, height: 8, borderRadius: '50%',
+            background: 'rgba(0,255,136,0.4)', animation: 'pulse-ring 2s ease-out infinite',
+            zIndex: 1
+          }} />
+        )}
+        <span style={{ fontSize: 11, color: connected ? '#00ff88' : '#ff4444', fontFamily: "'Share Tech Mono'", fontWeight: 700, letterSpacing: '0.05em' }}>
+          {connected ? 'LIVE' : 'OFFLINE'}
+        </span>
+      </div>
+
+      {activeMissionId && (
+        <div style={{ padding: '0 12px', height: '32px', background: 'rgba(0,200,255,0.1)', border: '1px solid rgba(0,200,255,0.3)', borderRadius: 4, fontFamily: "'Share Tech Mono'", fontSize: 11, color: '#00c8ff', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' }}>
+          ID: {activeMissionId}
+        </div>
+      )}
+
+      <button
+        onClick={() => {
+          if (window.confirm("Perform hard reset? This will clear all local mission data.")) {
+            localStorage.removeItem('hospital_auth');
+            localStorage.removeItem('active_mission_id');
+            sessionStorage.clear();
+            window.location.reload();
+          }
+          if (isMobileView) setMobileMenuOpen(false);
+        }}
+        style={{ padding: '0 12px', height: '32px', background: 'rgba(255,40,40,0.1)', border: '1px solid rgba(255,80,80,0.4)', borderRadius: 4, color: '#ff6b6b', fontSize: 11, cursor: 'pointer', fontFamily: "'Orbitron'", whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', boxSizing: 'border-box' }}
+      >
+        🛑 RESET
+      </button>
+
+      <button
+        onClick={() => {
+          if (window.confirm("Switch hospital profile? Active mission context will be preserved.")) {
+            localStorage.removeItem('hospital_auth');
+            sessionStorage.clear();
+            window.location.reload();
+          }
+          if (isMobileView) setMobileMenuOpen(false);
+        }}
+        style={{
+          padding: '0 12px', height: '32px', background: 'rgba(255,68,68,0.1)',
+          border: '1px solid rgba(255,68,68,0.3)', borderRadius: 4,
+          color: '#ff4444', fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer',
+          fontWeight: 'bold', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          boxSizing: 'border-box'
+        }}
+      >
+        🚪 SWITCH
+      </button>
+    </>
+  );
+
   if (mfaToken) {
     return (
       <MfaVerifyScreen
@@ -2917,174 +3082,19 @@ export default function HospitalDashboard({ socket, connected }) {
                 />
               </div>
 
-              <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'nowrap' }}>
-
-                {/* Handover & FHIR Buttons */}
-                {patient ? (
-                  <>
-                    <button onClick={downloadFHIR} style={{
-                      background: 'rgba(0,255,136,0.1)', border: '1px solid rgba(0,255,136,0.3)',
-                      padding: '0 12px', height: '32px', borderRadius: 4, color: '#00ff88',
-                      fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700,
-                      cursor: 'pointer', letterSpacing: '0.05em', transition: 'all 0.2s',
-                      whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                      boxSizing: 'border-box'
-                    }}>
-                      📥 FHIR HL7
-                    </button>
-                    <button onClick={() => setShowHandover(true)} style={{
-                      background: 'rgba(0,200,255,0.1)', border: '1px solid rgba(0,200,255,0.3)',
-                      padding: '0 12px', height: '32px', borderRadius: 4, color: '#00c8ff',
-                      fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700,
-                      cursor: 'pointer', letterSpacing: '0.05em', transition: 'all 0.2s',
-                      whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                      boxSizing: 'border-box'
-                    }}>
-                      📄 REPORT
-                    </button>
-                  </>
-                ) : (
-                  <button disabled style={{
-                    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                    padding: '0 12px', height: '32px', borderRadius: 4, color: 'rgba(255,255,255,0.3)',
-                    fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700,
-                    cursor: 'not-allowed', letterSpacing: '0.05em', whiteSpace: 'nowrap',
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    boxSizing: 'border-box'
-                  }}>
-                    📄 AWAITING PATIENT
-                  </button>
-                )}
-
-                <button onClick={() => setShowArchives(true)} style={{
-                  background: 'rgba(160,200,255,0.05)', border: '1px solid rgba(160,200,255,0.2)',
-                  padding: '0 12px', height: '32px', borderRadius: 4, color: 'rgba(160,200,255,0.7)',
-                  fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700,
-                  cursor: 'pointer', letterSpacing: '0.05em', transition: 'all 0.2s',
-                  whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  boxSizing: 'border-box'
-                }}>
-                  📜 ARCHIVES {savedReports.length > 0 && <span style={{ color: '#00ff88', marginLeft: 4 }}>({savedReports.length})</span>}
+              {/* Responsive Header Button Controls */}
+              <div className="desktop-nav-group" style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'nowrap' }}>
+                {headerActions(false)}
+              </div>
+              <div style={{ marginLeft: 'auto', position: 'relative', display: 'inline-block' }}>
+                <button className="mobile-nav-trigger" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+                  ☰ MENU
                 </button>
-
-                <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.15)', margin: '0 4px' }} />
-
-                {/* Connection indicators */}
-                {[
-                  { label: 'AMBULANCE', count: connectedRoles.ambulance, color: '#ff8855', icon: '🚑' },
-                  { label: 'DOCTORS', count: connectedRoles.hospital, color: '#00c8ff', icon: '🏥' },
-                ].map(({ label, count, color, icon }) => (
-                  <div key={label} style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px', height: '32px',
-                    background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4,
-                    fontFamily: "'Share Tech Mono'", fontSize: 10, color: 'rgba(160,200,255,0.7)',
-                    boxSizing: 'border-box', whiteSpace: 'nowrap'
-                  }}>
-                    <span>{icon}</span>
-                    <span>{label}:</span>
-                    <strong style={{ color: count > 0 ? color : 'rgba(160,200,255,0.25)', fontSize: 11, fontWeight: 700 }}>{count}</strong>
-                  </div>
-                ))}
-
-                <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.15)', margin: '0 4px' }} />
-
-                {alertCount > 0 && (
-                  <div style={{
-                    padding: '0 12px', height: '32px', background: 'rgba(255,40,40,0.15)',
-                    border: '1px solid rgba(255,80,80,0.4)', borderRadius: 4,
-                    fontFamily: "'Orbitron'", fontSize: 11, color: '#ff6060',
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    animation: 'blink 1s step-end infinite', boxSizing: 'border-box', whiteSpace: 'nowrap'
-                  }}>
-                    ⚠ {alertCount} ALERT{alertCount > 1 ? 'S' : ''}
+                {mobileMenuOpen && (
+                  <div className="mobile-nav-dropdown">
+                    {headerActions(true)}
                   </div>
                 )}
-
-                {/* Auto-Sync Toggle */}
-                <div
-                  onClick={() => setAutoSync(!autoSync)}
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px', height: '32px',
-                    background: autoSync ? 'rgba(0,255,136,0.1)' : 'rgba(255,255,255,0.05)',
-                    border: `1px solid ${autoSync ? 'rgba(0,255,136,0.3)' : 'rgba(255,255,255,0.1)'}`,
-                    borderRadius: 4, cursor: 'pointer', transition: 'all 0.3s',
-                    whiteSpace: 'nowrap', boxSizing: 'border-box'
-                  }}
-                >
-                  <div style={{
-                    width: 8, height: 8, borderRadius: '50%',
-                    background: autoSync ? '#00ff88' : '#888',
-                    boxShadow: autoSync ? '0 0 8px #00ff88' : 'none'
-                  }} />
-                  <span style={{ fontSize: 11, fontFamily: "'Orbitron'", color: autoSync ? '#00ff88' : '#aaa', fontWeight: 700, letterSpacing: '0.05em' }}>
-                    AUTO-SYNC: {autoSync ? 'ON' : 'OFF'}
-                  </span>
-                </div>
-
-                {/* LIVE Connection Badge */}
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px', height: '32px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4, position: 'relative', boxSizing: 'border-box', whiteSpace: 'nowrap' }}>
-                  <div style={{
-                    width: 8, height: 8, borderRadius: '50%',
-                    background: connected ? '#00ff88' : '#ff4444',
-                    boxShadow: connected ? '0 0 10px #00ff88' : '0 0 8px #ff4444',
-                    position: 'relative', zIndex: 2,
-                    animation: connected ? 'pulse-opacity 1s ease-in-out infinite' : 'none'
-                  }} />
-                  {connected && (
-                    <div style={{
-                      position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
-                      width: 8, height: 8, borderRadius: '50%',
-                      background: 'rgba(0,255,136,0.4)', animation: 'pulse-ring 2s ease-out infinite',
-                      zIndex: 1
-                    }} />
-                  )}
-                  <span style={{ fontSize: 11, color: connected ? '#00ff88' : '#ff4444', fontFamily: "'Share Tech Mono'", fontWeight: 700, letterSpacing: '0.05em' }}>
-                    {connected ? 'LIVE' : 'OFFLINE'}
-                  </span>
-                </div>
-
-                {activeMissionId && (
-                  <div style={{ padding: '0 12px', height: '32px', background: 'rgba(0,200,255,0.1)', border: '1px solid rgba(0,200,255,0.3)', borderRadius: 4, fontFamily: "'Share Tech Mono'", fontSize: 11, color: '#00c8ff', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' }}>
-                    ID: {activeMissionId}
-                  </div>
-                )}
-
-                <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.15)', margin: '0 4px' }} />
-
-                <button
-                  onClick={() => {
-                    if (window.confirm("Perform hard reset? This will clear all local mission data.")) {
-                      localStorage.removeItem('hospital_auth');
-                      localStorage.removeItem('active_mission_id');
-                      sessionStorage.clear();
-                      window.location.reload();
-                    }
-                  }}
-                  style={{ padding: '0 12px', height: '32px', background: 'rgba(255,40,40,0.1)', border: '1px solid rgba(255,80,80,0.4)', borderRadius: 4, color: '#ff6b6b', fontSize: 11, cursor: 'pointer', fontFamily: "'Orbitron'", whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', boxSizing: 'border-box' }}
-                >
-                  🛑 RESET
-                </button>
-
-                {/* Switch Hospital Button */}
-                <button
-                  onClick={() => {
-                    if (window.confirm("Switch hospital profile? Active mission context will be preserved.")) {
-                      localStorage.removeItem('hospital_auth');
-                      sessionStorage.clear();
-                      window.location.reload();
-                    }
-                  }}
-                  style={{
-                    padding: '0 12px', height: '32px', background: 'rgba(255,68,68,0.1)',
-                    border: '1px solid rgba(255,68,68,0.3)', borderRadius: 4,
-                    color: '#ff4444', fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer',
-                    fontWeight: 'bold', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    boxSizing: 'border-box'
-                  }}
-                >
-                  🚪 SWITCH
-                </button>
-
               </div>
             </div>
 
