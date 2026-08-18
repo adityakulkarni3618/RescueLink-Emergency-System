@@ -891,10 +891,13 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
     setMessage('');
     setLoading(true);
     try {
+      const payload = email.includes('@')
+        ? { email, password }
+        : { id: email, password };
       const response = await fetch(`${SERVER_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify(payload)
       });
       const data = await response.json();
 
@@ -984,10 +987,13 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
     setLoading(true);
     try {
       // Step 2: verify and enable 2FA using registration secret
+      const payload = defaultRole === 'ambulance'
+        ? { id: vehicleNo, password }
+        : { email: `${hospitalName.replace(/\s+/g, '').toLowerCase()}@rescuelink.com`, password };
       const dummyTokenResponse = await fetch(`${SERVER_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: defaultRole === 'ambulance' ? vehicleNo : `${hospitalName.replace(/\s+/g, '').toLowerCase()}@rescuelink.com`, password })
+        body: JSON.stringify(payload)
       });
       const loginData = await dummyTokenResponse.json();
       const setupToken = loginData.setupToken;
