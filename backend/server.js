@@ -1323,6 +1323,15 @@ io.on('connection', (socket) => {
         const lngDelta = Math.abs(data.lng - lastLoc.lng);
         const timeDiff = Date.now() - lastLoc.timestamp;
 
+        // GPS Spoofing Mitigation: Detect jump >2km in <5 seconds
+        if (timeDiff < 5000) {
+          const jumpDist = haversineDistance(lastLoc.lat, lastLoc.lng, data.lat, data.lng);
+          if (jumpDist > 2.0) {
+            console.warn(`[GPS_SPOOF_WARNING] Unrealistic GPS jump detected for mission ${reqId}: ${jumpDist.toFixed(2)} km in ${(timeDiff / 1000).toFixed(1)}s`);
+            io.to('admin_warroom').emit('warroom:gps-spoof-warning', { reqId, distance: jumpDist, timeDiff });
+          }
+        }
+
         // Throttle if movement is less than ~2 meters and last broadcast was under 4 seconds, unless Disaster Mode is active
         if (!disasterModeActive && latDelta < 0.00002 && lngDelta < 0.00002 && timeDiff < 4000) {
           return;
@@ -1562,6 +1571,13 @@ io.on('connection', (socket) => {
       req.checklist = checklist;
       io.to(`mission_${reqId}`).emit('clinical-checklist-update', { reqId, checklist });
       syncMissionToDB(reqId);
+    }
+  });
+
+  socket.on('driver:heartbeat', (data) => {
+    const { reqId } = data;
+    if (reqId && activeRequests[reqId]) {
+      activeRequests[reqId].lastDriverHeartbeat = Date.now();
     }
   });
 
@@ -2878,9 +2894,22 @@ async function startServer() {
       }
     };
 
+    // Periodic Unresponsive Driver Heartbeat Job (every 30 seconds)
+    const unresponsiveDriverCheck = async () => {
+      const activeMissions = Object.values(activeRequests).filter(r => r.status !== 'completed' && r.status !== 'cancelled');
+      const now = Date.now();
+      for (const m of activeMissions) {
+        if (m.lastDriverHeartbeat && (now - m.lastDriverHeartbeat > 90000)) {
+          console.warn(`[HEARTBEAT ALERT] Paramedic driver unresponsive for mission ${m.id}`);
+          io.to('admin_warroom').emit('warroom:driver-unresponsive', { reqId: m.id });
+        }
+      }
+    };
+
     if (process.env.NODE_ENV !== 'test') {
       setTimeout(retentionFlagJob, 5000);
       setInterval(retentionFlagJob, 24 * 60 * 60 * 1000);
+      setInterval(unresponsiveDriverCheck, 30000);
     }
   } catch (err) {
     console.error('[FATAL] Database initialization failed. Server will not start.', err);
