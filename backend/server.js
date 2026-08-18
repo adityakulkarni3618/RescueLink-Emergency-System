@@ -2123,6 +2123,24 @@ io.on('connection', (socket) => {
         }
       }
 
+      // Atomic bed count reservation
+      try {
+        const { Hospital } = require('./utils/db');
+        const sequelize = Hospital.sequelize;
+        await sequelize.transaction(async (t) => {
+          const dbHosp = await Hospital.findByPk(hospitals[socket.id].id, { transaction: t, lock: t.LOCK.UPDATE });
+          if (dbHosp && dbHosp.icu_beds > 0) {
+            await dbHosp.decrement('icu_beds', { by: 1, transaction: t });
+            // Sync memory inventory
+            if (hospitals[socket.id].inventory) {
+              hospitals[socket.id].inventory.beds = dbHosp.icu_beds - 1;
+            }
+          }
+        });
+      } catch (err) {
+        console.error('[DB ERROR] Bed reservation transaction failed:', err.message);
+      }
+
       req.assignedHospital = hospitals[socket.id];
       hospitals[socket.id].activeMissionsCount = (hospitals[socket.id].activeMissionsCount || 0) + 1;
       hospitals[socket.id].isBusy = true;
