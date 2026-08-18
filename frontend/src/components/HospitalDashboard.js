@@ -1234,6 +1234,9 @@ function HandoverModal({ patient, vitals, notes, onClose, previousReports, onSav
             </div>
           </div>
 
+          {/* Incident Commander Console */}
+          <MCITriageCommander />
+
           {/* Resource Bottleneck Forecaster */}
           <ResourceBottleneckPredictor />
 
@@ -3799,6 +3802,73 @@ export default function HospitalDashboard({ socket, connected }) {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function MCITriageCommander() {
+  const [isActive, setIsActive] = useState(false);
+
+  const mockPatients = [
+    { name: 'Patient Alpha', age: 45, condition: 'Severe Trauma - Motor Vehicle Accident', status: 'RED', hr: 124, spo2: 89, eta: '4 mins' },
+    { name: 'Patient Beta', age: 62, condition: 'Suspected Acute Myocardial Infarction', status: 'RED', hr: 110, spo2: 94, eta: '7 mins' },
+    { name: 'Patient Gamma', age: 29, condition: 'Fracture / Laceration - Stable', status: 'YELLOW', hr: 88, spo2: 98, eta: '12 mins' },
+    { name: 'Patient Delta', age: 19, condition: 'Minor Contusion', status: 'GREEN', hr: 72, spo2: 99, eta: '18 mins' }
+  ];
+
+  if (!isActive) {
+    return (
+      <div style={{ background: 'rgba(5,20,45,0.4)', border: '1px solid rgba(0,200,255,0.15)', borderRadius: 10, padding: 16, marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h3 style={{ margin: 0, fontFamily: "'Orbitron'", color: '#00c8ff', fontSize: 13 }}>🚨 MASS CASUALTY INCIDENT (MCI) MODE</h3>
+          <p style={{ margin: '4px 0 0 0', fontSize: 11, color: 'rgba(160,200,255,0.6)' }}>Enable multi-patient triage feeds and Incident Commander maps.</p>
+        </div>
+        <button 
+          onClick={() => setIsActive(true)}
+          style={{ background: '#ff3333', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 16px', fontFamily: "'Orbitron'", fontWeight: 'bold', fontSize: 10, cursor: 'pointer', boxShadow: '0 0 15px rgba(255,50,50,0.4)' }}
+        >
+          ACTIVATE MCI MODE
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ background: 'rgba(25,5,5,0.85)', border: '2px solid #ff3333', borderRadius: 10, padding: 20, marginBottom: 20, boxShadow: '0 0 30px rgba(255,50,50,0.2)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,50,50,0.3)', paddingBottom: 10, marginBottom: 15 }}>
+        <div>
+          <h3 style={{ margin: 0, fontFamily: "'Orbitron'", color: '#ff4444', fontSize: 15, letterSpacing: '0.1em' }}>🚨 INCIDENT COMMANDER CONSOLE - ACTIVE MCI</h3>
+          <p style={{ margin: '2px 0 0 0', fontSize: 10, color: 'rgba(255,100,100,0.7)', fontFamily: "'Share Tech Mono'" }}>LEVEL 1 DISASTER DECLARED • DUAL STREAMS DETECTED</p>
+        </div>
+        <button 
+          onClick={() => setIsActive(false)}
+          style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 4, color: '#fff', padding: '4px 10px', fontSize: 9, cursor: 'pointer', fontFamily: "'Orbitron'" }}
+        >
+          DEACTIVATE
+        </button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 15 }}>
+        {mockPatients.map((p, idx) => {
+          const colorMap = { RED: '#ff3333', YELLOW: '#ffb800', GREEN: '#00ff88', BLACK: '#333333' };
+          return (
+            <div key={idx} style={{ background: 'rgba(0,0,0,0.4)', border: `1px solid ${colorMap[p.status]}40`, borderRadius: 8, padding: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <span style={{ fontWeight: 'bold', fontSize: 13, color: '#fff' }}>{p.name} ({p.age}y)</span>
+                <span style={{ fontSize: 9, padding: '2px 8px', background: colorMap[p.status], color: p.status === 'GREEN' || p.status === 'YELLOW' ? '#000' : '#fff', borderRadius: 12, fontFamily: "'Orbitron'", fontWeight: 'bold' }}>
+                  {p.status}
+                </span>
+              </div>
+              <div style={{ fontSize: 11, color: 'rgba(220,230,255,0.8)', marginBottom: 6 }}>{p.condition}</div>
+              <div style={{ display: 'flex', gap: 12, fontSize: 10, fontFamily: "'Share Tech Mono'", color: 'rgba(160,200,255,0.6)' }}>
+                <div>HR: <span style={{ color: p.hr > 100 ? '#ff4444' : '#00ff88', fontWeight: 'bold' }}>{p.hr} bpm</span></div>
+                <div>SpO2: <span style={{ color: p.spo2 < 92 ? '#ff4444' : '#00e5ff', fontWeight: 'bold' }}>{p.spo2}%</span></div>
+                <div>ETA: <span style={{ color: '#ffb800', fontWeight: 'bold' }}>{p.eta}</span></div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
