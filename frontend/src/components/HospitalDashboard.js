@@ -1598,6 +1598,11 @@ export default function HospitalDashboard({ socket, connected }) {
   const [resourceLocks, setResourceLocks] = useState({ traumaBay: false, bloodUnits: false, ventilatorStandby: false });
   const lastAlertedIdRef = useRef(null);
   const lastVitalsBeepTimeRef = useRef(0);
+  const [showDocAssignModal, setShowDocAssignModal] = useState(false);
+  const [attendingDocName, setAttendingDocName] = useState('');
+  const [attendingDocSpecialty, setAttendingDocSpecialty] = useState('');
+  const [attendingNurses, setAttendingNurses] = useState('');
+
   const [activeMissions, setActiveMissions] = useState({}); // { [reqId]: { patient, vitals, messages, notes, route, history } }
   const ignoredMissionsRef = useRef(new Set());
 
@@ -1841,21 +1846,35 @@ export default function HospitalDashboard({ socket, connected }) {
   const handleAcceptAdmission = () => {
     if (!socket || !incomingRequest) return;
 
-    // If not authenticated, we MUST authenticate to "claim" this patient
     if (!isAuthenticated) {
       setIsAuthInModal(true);
       setLoginError('Authentication required to accept regional admission.');
       return;
     }
 
-    // If we ARE authenticated, proceed with the official response
+    // Open Doctor & Assistant Team Assignment Modal instead of accepting immediately
+    setAttendingDocName('');
+    setAttendingDocSpecialty('');
+    setAttendingNurses('');
+    setShowDocAssignModal(true);
+  };
+
+  const handleConfirmTeamAndAccept = () => {
+    if (!socket || !incomingRequest) return;
+
     setAdmissionStep(1); // Show report immediately
 
     socket.emit('hospital-response', {
       reqId: incomingRequest?.id,
       hospitalId: authHospital?.hospitalId || activeHospitalId,
       status: 'hospital_accepted',
-      readyServices
+      readyServices,
+      attendingDoctorName: attendingDocName.trim() || 'Dr. Command',
+      attendingDoctorSpecialty: attendingDocSpecialty.trim() || 'Trauma & Emergency Specialist',
+      attendingTeamDetails: {
+        nurses: attendingNurses.split(',').map(n => n.trim()).filter(Boolean),
+        timestamp: new Date().toLocaleTimeString()
+      }
     });
 
     dismissedRef.current.add(incomingRequest?.id);
@@ -1871,10 +1890,17 @@ export default function HospitalDashboard({ socket, connected }) {
       messages: [],
       incidentNotes: [],
       ambulanceSocket: incomingRequest.ambulanceSocket || incomingRequest.fromSocketId,
-      resourceLocks: { traumaBay: false, bloodUnits: false, ventilatorStandby: false }
+      resourceLocks: { traumaBay: false, bloodUnits: false, ventilatorStandby: false },
+      attendingDoctorName: attendingDocName.trim() || 'Dr. Command',
+      attendingDoctorSpecialty: attendingDocSpecialty.trim() || 'Trauma & Emergency Specialist',
+      attendingTeamDetails: {
+        nurses: attendingNurses.split(',').map(n => n.trim()).filter(Boolean),
+        timestamp: new Date().toLocaleTimeString()
+      }
     });
 
     setIncomingRequest(null);
+    setShowDocAssignModal(false);
     setAdmissionStep(0);
   };
 
@@ -2692,6 +2718,86 @@ export default function HospitalDashboard({ socket, connected }) {
                     <button onClick={handleAcceptAdmission} style={{ flex: 2, padding: '12px', background: '#00ff88', border: 'none', borderRadius: 8, color: '#000', cursor: 'pointer', fontFamily: "'Orbitron'", fontWeight: 'bold' }}>ACCEPT ADMISSION</button>
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Attending Team Assignment Modal Overlay */}
+        {showDocAssignModal && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 10005, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(5px)' }}>
+            <div style={{
+              background: '#0a1526',
+              border: '1px solid #00c8ff',
+              borderRadius: 12,
+              width: 480,
+              padding: 24,
+              boxShadow: '0 0 35px rgba(0,200,255,0.3)',
+              fontFamily: "'Rajdhani', sans-serif"
+            }}>
+              <h3 style={{ fontFamily: "'Orbitron'", fontSize: 16, color: '#00c8ff', marginBottom: 12, textAlign: 'center', letterSpacing: '0.1em' }}>
+                👨‍⚕️ ATTENDING TEAM ALLOCATION
+              </h3>
+              <p style={{ fontSize: 12, color: 'rgba(160,200,255,0.6)', textAlign: 'center', marginBottom: 20 }}>
+                Please specify the emergency physician and staff roster assigned to handle this patient's arrival.
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 15, marginBottom: 24 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>PHYSICIAN IN CHARGE (DOCTOR NAME)</label>
+                  <input
+                    type="text"
+                    value={attendingDocName}
+                    onChange={(e) => setAttendingDocName(e.target.value)}
+                    placeholder="e.g. Dr. Robert Chen"
+                    required
+                    style={{ padding: '10px', background: 'rgba(5,15,40,0.6)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 6, color: '#fff', fontSize: 13, outline: 'none' }}
+                  />
+                </div>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>PHYSICIAN SPECIALIZATION</label>
+                  <input
+                    type="text"
+                    value={attendingDocSpecialty}
+                    onChange={(e) => setAttendingDocSpecialty(e.target.value)}
+                    placeholder="e.g. Cardiologist / Trauma Surgeon"
+                    required
+                    style={{ padding: '10px', background: 'rgba(5,15,40,0.6)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 6, color: '#fff', fontSize: 13, outline: 'none' }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>ASSISTANT NURSES & STAFF (COMMA SEPARATED)</label>
+                  <input
+                    type="text"
+                    value={attendingNurses}
+                    onChange={(e) => setAttendingNurses(e.target.value)}
+                    placeholder="e.g. Nurse Sarah, Nurse David, Resident James"
+                    style={{ padding: '10px', background: 'rgba(5,15,40,0.6)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 6, color: '#fff', fontSize: 13, outline: 'none' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button
+                  onClick={() => setShowDocAssignModal(false)}
+                  style={{ flex: 1, padding: 12, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, color: '#aaa', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 11 }}
+                >
+                  CANCEL
+                </button>
+                <button
+                  onClick={handleConfirmTeamAndAccept}
+                  disabled={!attendingDocName.trim() || !attendingDocSpecialty.trim()}
+                  style={{
+                    flex: 2, padding: 12,
+                    background: (!attendingDocName.trim() || !attendingDocSpecialty.trim()) ? 'rgba(0,255,136,0.2)' : '#00ff88',
+                    border: 'none', borderRadius: 6, color: '#000', cursor: 'pointer',
+                    fontFamily: "'Orbitron'", fontWeight: 'bold', fontSize: 11
+                  }}
+                >
+                  CONFIRM TEAM & ADMIT →
+                </button>
               </div>
             </div>
           </div>
