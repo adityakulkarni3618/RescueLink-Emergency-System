@@ -1911,7 +1911,8 @@ io.on('connection', (socket) => {
       patientDetails,
       userLocation,
       fallbackBLS,
-      checklist: {}
+      checklist: {},
+      createdAt: Date.now()
     };
 
     socket.emit('request-acknowledged', { id: reqId, status: 'searching' });
@@ -2281,6 +2282,116 @@ io.on('connection', (socket) => {
 
     io.emit('hospitals-update', hospitals);
     routeToMission(socket, 'reroute-hospital', data);
+  });
+
+  socket.on('reassign-ambulance', async (data) => {
+    const { reqId, newAmbulanceId } = data;
+    const req = activeRequests[reqId];
+    if (!req) return;
+
+    console.log(`[ADMIN ACTION] Reassigning ambulance for request ${reqId} to ${newAmbulanceId}`);
+
+    // Free the old ambulance if it exists
+    if (req.ambulanceSocket && ambulances[req.ambulanceSocket]) {
+      ambulances[req.ambulanceSocket].available = true;
+      const oldAmbSocket = io.sockets.sockets.get(req.ambulanceSocket);
+      if (oldAmbSocket) oldAmbSocket.leave(`mission_${reqId}`);
+      io.to(req.ambulanceSocket).emit('mission-completed', { reqId, reason: 'reassigned' });
+    }
+
+    // Clear old transport simulation if active (Fixes Rerouting Simulation bug)
+    if (activeSimulations[reqId]) {
+      clearInterval(activeSimulations[reqId].interval);
+      delete activeSimulations[reqId];
+    }
+
+    // Resolve the new ambulance socket ID
+    let newSocketId = ambulances[newAmbulanceId] ? newAmbulanceId : Object.keys(ambulances).find(sid => ambulances[sid].unitId === newAmbulanceId);
+
+    req.unitId = ambulances[newSocketId]?.unitId || newAmbulanceId;
+    req.ambulanceSocket = newSocketId || null;
+    req.status = 'ambulance_accepted';
+
+    if (newSocketId) {
+      const newSocket = io.sockets.sockets.get(newSocketId);
+      if (newSocket) newSocket.join(`mission_${reqId}`);
+      ambulances[newSocketId].available = false;
+      
+      // Notify the new ambulance driver
+      io.to(newSocketId).emit('incoming-ambulance-request', req);
+      io.to(newSocketId).emit('rejoin-mission', req);
+
+      // Recalculate OSRM Route starting from the new ambulance's position to the user
+      const startLoc = ambulances[newSocketId].location;
+      const destLoc = req.userLocation || req.incidentLocation;
+      if (startLoc && destLoc) {
+        try {
+          const route = await getSmartRoute(startLoc, destLoc);
+          if (route) {
+            req.routePath = route;
+            io.to(`mission_${req.id}`).emit('route-update', { reqId: req.id, routePath: route });
+          }
+        } catch (err) {
+          console.warn(`[SERVER] Failed to calculate route for reassigned ambulance: ${err.message}`);
+        }
+      }
+    }
+
+    io.emit('ambulances-update', getCombinedAmbulances());
+    routeToMission(socket, 'reassign-ambulance', req);
+    syncMissionToDB(reqId);
+  });
+
+  socket.on('force-close-mission', async (data) => {
+    const { reqId, reason, operatorName } = data;
+    const req = activeRequests[reqId];
+    if (!req) return;
+
+    const finalReason = reason || 'Terminated by administrative command override.';
+    console.log(`[ADMIN OVERRIDE] Force-closing mission ${reqId}. Reason: ${finalReason}`);
+
+    try {
+      if (dbWriteTimers[reqId]) {
+        clearTimeout(dbWriteTimers[reqId]);
+        delete dbWriteTimers[reqId];
+      }
+
+      await Incident.update({
+        status: 'cancelled',
+        notes: `[FORCE CLOSE BY ${operatorName || 'ADMIN'}] ${finalReason}`
+      }, {
+        where: { id: reqId }
+      });
+
+      await logAudit(
+        'MISSION_FORCE_CLOSE',
+        `Incident force-closed by admin. Reason: ${finalReason}`,
+        { reqId, reason: finalReason, operator: operatorName || 'Admin' },
+        'WARNING',
+        null,
+        socket.handshake.address
+      );
+    } catch (err) {
+      console.error('[DB ERROR] Force close persist failed:', err);
+    }
+
+    io.to(`mission_${reqId}`).emit('mission-completed', { reqId, reason: 'force_closed', notes: finalReason });
+    io.emit('hospital-request-taken', { reqId, acceptedBy: 'FORCE_CLOSED' });
+
+    cleanupSimulation(reqId);
+
+    if (req.ambulanceSocket && ambulances[req.ambulanceSocket]) {
+      ambulances[req.ambulanceSocket].available = true;
+    }
+    if (req.hospitalSocket && hospitals[req.hospitalSocket]) {
+      hospitals[req.hospitalSocket].isBusy = false;
+      hospitals[req.hospitalSocket].activeMissionsCount = Math.max(0, (hospitals[req.hospitalSocket].activeMissionsCount || 1) - 1);
+    }
+
+    io.emit('ambulances-update', getCombinedAmbulances());
+    io.emit('hospitals-update', hospitals);
+
+    delete activeRequests[reqId];
   });
 
   socket.on('complete-mission', async (data) => {
@@ -2861,7 +2972,8 @@ async function startServer() {
         chatHistory: [],
         resourceLocks: {},
         checklist: {},
-        _acceptLock: m.status === 'hospital_accepted'
+        _acceptLock: m.status === 'hospital_accepted',
+        createdAt: m.createdAt ? new Date(m.createdAt).getTime() : Date.now()
       };
     });
     console.log(`[ENTERPRISE DB] Restored ${persisted.length} active incidents into memory.`);
@@ -2928,6 +3040,34 @@ async function startServer() {
         if (m.lastDriverHeartbeat && (now - m.lastDriverHeartbeat > 90000)) {
           console.warn(`[HEARTBEAT ALERT] Paramedic driver unresponsive for mission ${m.id}`);
           io.to('admin_warroom').emit('warroom:driver-unresponsive', { reqId: m.id });
+
+          // Auto-handover logic: release unresponsive ambulance and search again
+          if (m.status === 'ambulance_accepted') {
+            console.log(`[HANDOVER] Releasing unresponsive driver for mission ${m.id}. Reverting to pending_ambulance.`);
+            if (m.ambulanceSocket && ambulances[m.ambulanceSocket]) {
+              ambulances[m.ambulanceSocket].available = true;
+            }
+            m.ambulanceSocket = null;
+            m.status = 'pending_ambulance';
+            m.lastDriverHeartbeat = null; // Clear heartbeat history
+
+            // Notify user/patient that paramedic disconnected and we are search routing again
+            io.to(m.userSocket).emit('ambulance-request-response', { id: m.id, status: 'searching', message: 'Assigned unit disconnected. Rerouting dispatch.' });
+            io.emit('ambulances-update', getCombinedAmbulances());
+            syncMissionToDB(m.id);
+          }
+        }
+      }
+    };
+
+    // Periodic Stuck Case Checker (runs every 15 seconds)
+    const stuckCaseCheck = () => {
+      const activeMissions = Object.values(activeRequests).filter(r => r.status === 'pending_ambulance' || r.status === 'searching');
+      const now = Date.now();
+      for (const m of activeMissions) {
+        if (m.createdAt && (now - m.createdAt > 120000)) { // 2 minutes
+          console.warn(`[STUCK CASE ALERT] Mission ${m.id} is stuck in dispatch queue for >2 minutes.`);
+          io.to('admin_warroom').emit('warroom:stuck-case', { reqId: m.id, duration: now - m.createdAt });
         }
       }
     };
@@ -2936,6 +3076,7 @@ async function startServer() {
       setTimeout(retentionFlagJob, 5000);
       setInterval(retentionFlagJob, 24 * 60 * 60 * 1000);
       setInterval(unresponsiveDriverCheck, 30000);
+      setInterval(stuckCaseCheck, 15000);
     }
   } catch (err) {
     console.error('[FATAL] Database initialization failed. Server will not start.', err);
