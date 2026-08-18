@@ -1041,6 +1041,30 @@ export default function UserDashboard({ socket, connected }) {
                 </div>
               )}
 
+              {/* Green Corridor Control Toggle */}
+              <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,200,255,0.15)', borderRadius: 8, padding: 10, marginBottom: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <span style={{ fontSize: 9, fontFamily: "'Orbitron'", color: '#00c8ff', fontWeight: 'bold' }}>🟢 SIGNAL PREEMPTION SYSTEM</span>
+                  <span style={{ fontSize: 8, color: greenCorridorActive ? '#00ff88' : '#ff4444', fontFamily: "'Share Tech Mono'" }}>{greenCorridorActive ? 'FORCE-GREEN' : 'AUTO-HOLD'}</span>
+                </div>
+                <button
+                  onClick={() => {
+                    setGreenCorridorActive(!greenCorridorActive);
+                    if (!greenCorridorActive) {
+                      setEtaSeconds(prev => prev ? Math.max(10, Math.floor(prev / 2)) : null);
+                    }
+                  }}
+                  style={{
+                    width: '100%', padding: '6px', background: greenCorridorActive ? 'rgba(0,255,136,0.15)' : 'rgba(255,255,255,0.05)',
+                    border: `1px solid ${greenCorridorActive ? '#00ff88' : 'rgba(255,255,255,0.2)'}`,
+                    borderRadius: 4, color: greenCorridorActive ? '#00ff88' : '#aaaaaa',
+                    fontFamily: "'Orbitron'", fontSize: 9, fontWeight: 700, cursor: 'pointer'
+                  }}
+                >
+                  {greenCorridorActive ? '🟢 CLEAR CORRIDOR ACTIVE' : '🚦 REQUEST SIGNAL PREEMPTION'}
+                </button>
+              </div>
+
               {/* Wearable Live Stream Stats */}
               {wearableConnected && (
                 <div style={{ background: 'rgba(0,255,136,0.06)', border: '1px solid rgba(0,255,136,0.3)', borderRadius: 8, padding: 12, marginBottom: 12 }}>
@@ -1439,7 +1463,26 @@ export default function UserDashboard({ socket, connected }) {
             })}
 
             {routePath && (
-              <Polyline positions={routePath} color="#00ff88" weight={5} opacity={0.7} dashArray="10, 10" />
+              <>
+                <Polyline positions={routePath} color="#00ff88" weight={5} opacity={0.7} dashArray="10, 10" />
+                {routePath.length > 2 && [routePath[Math.floor(routePath.length / 3)], routePath[Math.floor(routePath.length * 2 / 3)]].map((pos, idx) => {
+                  const lightIcon = new L.DivIcon({
+                    html: `<div style="font-size: 18px; filter: drop-shadow(0 0 4px ${greenCorridorActive ? '#00ff88' : '#ff3333'});">${greenCorridorActive ? '🟢' : '🔴'}</div>`,
+                    className: 'custom-div-icon',
+                    iconSize: [18, 18],
+                  });
+                  return (
+                    <Marker key={idx} position={pos} icon={lightIcon}>
+                      <Popup>
+                        <div style={{ color: '#333', fontSize: 11 }}>
+                          <strong>🚦 Traffic Signal #{idx + 1}</strong><br />
+                          Status: {greenCorridorActive ? '🟢 Clear (Green Corridor Active)' : '🔴 Red (Preemption Required)'}
+                        </div>
+                      </Popup>
+                    </Marker>
+                  );
+                })}
+              </>
             )}
 
             {Object.values(trafficIncidents).map((incident) => (
