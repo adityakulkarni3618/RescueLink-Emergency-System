@@ -385,10 +385,11 @@ router.post('/register-ambulance', async (req, res) => {
   }
 
   try {
-    const { Ambulance } = require('../utils/db');
-    const existing = await Ambulance.findOne({ where: { vehicleNo } });
-    if (existing) {
-      return res.status(400).json({ error: 'Ambulance vehicle number already registered' });
+    const { Ambulance, User } = require('../utils/db');
+    const existingAmb = await Ambulance.findOne({ where: { vehicleNo } });
+    const existingUser = await User.findOne({ where: { email: vehicleNo } });
+    if (existingAmb || existingUser) {
+      return res.status(400).json({ error: 'Ambulance vehicle number or driver account already registered' });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
