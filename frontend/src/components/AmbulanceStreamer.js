@@ -2107,7 +2107,13 @@ export default function AmbulanceStreamer({ socket, connected }) {
                     if (activeMissionId) {
                       socket.emit('complete-mission', { reqId: activeMissionId });
                     }
-                    socket.emit('register-ambulance', { location, available: true });
+                    const storedToken = sessionStorage.getItem('rescuelink_token');
+                    socket.emit('register-ambulance', { 
+                      location, 
+                      available: true,
+                      unitId: authUnit?.unitId,
+                      token: storedToken
+                    });
                   }
                   
                   // Clear active mission local storage state completely
