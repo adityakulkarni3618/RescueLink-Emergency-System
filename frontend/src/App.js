@@ -1182,6 +1182,215 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
   );
 }
 
+/* ─── Ambulance Hub Landing Homepage (Pre-Auth) ────────────────────────── */
+function AmbulanceLandingHomepage({ onLogin, onRegister, onBack }) {
+  const [ambulances, setAmbulances] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAmbulances = async () => {
+      try {
+        const res = await fetch(`${SERVER_URL}/api/ambulances`);
+        if (res.ok) {
+          const list = await res.json();
+          setAmbulances(list);
+        }
+      } catch (err) {
+        console.warn('[AMB WIDGET FETCH ERROR]', err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAmbulances();
+    const interval = setInterval(fetchAmbulances, 8000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div style={{
+      minHeight: '100vh', display: 'flex', flexDirection: 'column',
+      background: 'radial-gradient(ellipse at 50% 10%, #150903 0%, #050201 80%)',
+      fontFamily: "'Rajdhani', sans-serif", color: '#fff', position: 'relative', overflowX: 'hidden'
+    }}>
+      <style>{styles}</style>
+      <ParticleCanvas />
+      <div className="scanline" />
+
+      {/* Main Header */}
+      <header style={{
+        padding: '20px 40px', borderBottom: '1px solid rgba(255,107,53,0.25)',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        background: 'rgba(25,10,5,0.75)', backdropFilter: 'blur(10px)', zIndex: 10
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ fontSize: 24 }}>🚑</div>
+          <div>
+            <h1 style={{ fontFamily: "'Orbitron'", fontSize: 18, letterSpacing: '0.15em', color: '#ff6b35', margin: 0 }}>RESCUELINK</h1>
+            <span style={{ fontSize: 9, letterSpacing: '0.2em', color: 'rgba(255,180,160,0.5)', fontFamily: "'Share Tech Mono'" }}>PARAMEDIC FLEET HUB</span>
+          </div>
+        </div>
+        <button onClick={onBack} className="rl-btn-secondary" style={{ padding: '8px 16px', fontSize: 11 }}>
+          ← MAIN PORTAL
+        </button>
+      </header>
+
+      {/* Hero / Action Panel */}
+      <div style={{ display: 'flex', flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', zIndex: 1 }}>
+        <div className="rl-card" style={{ width: '100%', maxWidth: 540, padding: 32, textAlign: 'center', border: '1px solid rgba(255,107,53,0.3)', background: 'rgba(15,8,4,0.9)' }}>
+          <div style={{ fontSize: 50, marginBottom: 12 }}>📟</div>
+          <h2 style={{ fontFamily: "'Orbitron'", color: '#ff6b35', fontSize: 22, letterSpacing: '0.1em', margin: '0 0 10px' }}>PARAMEDIC DISPATCH COMMAND</h2>
+          <p style={{ color: 'rgba(255,200,180,0.7)', fontSize: 13, lineHeight: 1.5, marginBottom: 24 }}>
+            Access driver log sheets, monitor active ambulance status, and configure mandatory 2FA. Drivers must register and obtain verification prior to receiving dispatches.
+          </p>
+          <div style={{ display: 'flex', gap: 16 }}>
+            <button onClick={onLogin} className="rl-btn-primary" style={{ flex: 1, background: 'linear-gradient(135deg, #ff6b35 0%, #dd4b14 100%)', boxShadow: '0 4px 15px rgba(255,107,53,0.2)' }}>
+              DRIVER SIGN IN →
+            </button>
+            <button onClick={onRegister} className="rl-btn-secondary" style={{ flex: 1, borderColor: '#ff6b35', color: '#ff6b35' }}>
+              REGISTER NEW UNIT
+            </button>
+          </div>
+        </div>
+
+        {/* Live status view */}
+        <div className="rl-card" style={{ width: '100%', maxWidth: 800, marginTop: 40, padding: 24, textAlign: 'left' }}>
+          <h3 style={{ fontFamily: "'Orbitron'", fontSize: 13, color: '#ff6b35', borderBottom: '1px solid rgba(255,107,53,0.2)', paddingBottom: 8, margin: '0 0 16px' }}>
+            📡 LIVE AMBULANCE NETWORK REGISTRY
+          </h3>
+          {loading ? (
+            <div style={{ color: 'rgba(255,200,180,0.5)', fontSize: 12, fontFamily: "'Share Tech Mono'" }}>Pinging fleet transponders...</div>
+          ) : ambulances.length === 0 ? (
+            <div style={{ color: 'rgba(255,200,180,0.5)', fontSize: 12, fontFamily: "'Share Tech Mono'" }}>No ambulance units online.</div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
+              {ambulances.map(a => (
+                <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', padding: 12, background: 'rgba(255,255,255,0.02)', borderRadius: 8, border: '1px solid rgba(255,107,53,0.15)' }}>
+                  <div>
+                    <div style={{ fontFamily: "'Orbitron'", fontSize: 12, fontWeight: 'bold', color: '#ff6b35' }}>{a.vehicleNo}</div>
+                    <div style={{ fontSize: 10, color: 'rgba(255,200,180,0.6)', marginTop: 2 }}>{a.driverName} · {a.type}</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <span style={{
+                      fontSize: 8, fontFamily: "'Share Tech Mono'", fontWeight: 'bold', padding: '3px 8px', borderRadius: 4,
+                      background: a.is_active ? 'rgba(0,255,136,0.1)' : 'rgba(255,68,68,0.1)',
+                      color: a.is_active ? '#00ff88' : '#ff4444',
+                      border: `1px solid ${a.is_active ? '#00ff88' : '#ff4444'}`
+                    }}>
+                      {a.is_active ? 'ACTIVE' : 'ON BREAK'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Hospital Unit Landing Homepage (Pre-Auth) ─────────────────────────── */
+function HospitalLandingHomepage({ onLogin, onRegister, onBack }) {
+  const [hospitals, setHospitals] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchHospitals = async () => {
+      try {
+        const res = await fetch(`${SERVER_URL}/api/hospitals`);
+        if (res.ok) {
+          const list = await res.json();
+          setHospitals(list);
+        }
+      } catch (err) {
+        console.warn('[HOSP WIDGET FETCH ERROR]', err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchHospitals();
+    const interval = setInterval(fetchHospitals, 8000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div style={{
+      minHeight: '100vh', display: 'flex', flexDirection: 'column',
+      background: 'radial-gradient(ellipse at 50% 10%, #031526 0%, #01050a 80%)',
+      fontFamily: "'Rajdhani', sans-serif", color: '#fff', position: 'relative', overflowX: 'hidden'
+    }}>
+      <style>{styles}</style>
+      <ParticleCanvas />
+      <div className="scanline" />
+
+      {/* Main Header */}
+      <header style={{
+        padding: '20px 40px', borderBottom: '1px solid rgba(0,200,255,0.25)',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        background: 'rgba(5,20,40,0.75)', backdropFilter: 'blur(10px)', zIndex: 10
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ fontSize: 24 }}>🏥</div>
+          <div>
+            <h1 style={{ fontFamily: "'Orbitron'", fontSize: 18, letterSpacing: '0.15em', color: '#00c8ff', margin: 0 }}>RESCUELINK</h1>
+            <span style={{ fontSize: 9, letterSpacing: '0.2em', color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'" }}>MEDICAL COMMAND GATEWAY</span>
+          </div>
+        </div>
+        <button onClick={onBack} className="rl-btn-secondary" style={{ padding: '8px 16px', fontSize: 11 }}>
+          ← MAIN PORTAL
+        </button>
+      </header>
+
+      {/* Hero / Action Panel */}
+      <div style={{ display: 'flex', flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', zIndex: 1 }}>
+        <div className="rl-card" style={{ width: '100%', maxWidth: 540, padding: 32, textAlign: 'center', border: '1px solid rgba(0,200,255,0.3)', background: 'rgba(4,10,24,0.9)' }}>
+          <div style={{ fontSize: 50, marginBottom: 12 }}>🏢</div>
+          <h2 style={{ fontFamily: "'Orbitron'", color: '#00c8ff', fontSize: 22, letterSpacing: '0.1em', margin: '0 0 10px' }}>HOSPITAL EMERGENCY COMMAND</h2>
+          <p style={{ color: 'rgba(160,200,255,0.7)', fontSize: 13, lineHeight: 1.5, marginBottom: 24 }}>
+            Synchronize ER trauma bay capacity, assign incoming physicians, and lock resources for in-transit ICU ambulances. All medical portals require authorized coordinator credentials.
+          </p>
+          <div style={{ display: 'flex', gap: 16 }}>
+            <button onClick={onLogin} className="rl-btn-primary" style={{ flex: 1, background: 'linear-gradient(135deg, #00c8ff 0%, #0072ff 100%)', boxShadow: '0 4px 15px rgba(0,200,255,0.2)' }}>
+              COMMAND SIGN IN →
+            </button>
+            <button onClick={onRegister} className="rl-btn-secondary" style={{ flex: 1, borderColor: '#00c8ff', color: '#00c8ff' }}>
+              REGISTER CLINIC
+            </button>
+          </div>
+        </div>
+
+        {/* Live status view */}
+        <div className="rl-card" style={{ width: '100%', maxWidth: 800, marginTop: 40, padding: 24, textAlign: 'left' }}>
+          <h3 style={{ fontFamily: "'Orbitron'", fontSize: 13, color: '#00c8ff', borderBottom: '1px solid rgba(0,200,255,0.2)', paddingBottom: 8, margin: '0 0 16px' }}>
+            🏥 ACTIVE TRAUMA CENTERS & ICU BEDS
+          </h3>
+          {loading ? (
+            <div style={{ color: 'rgba(160,200,255,0.5)', fontSize: 12, fontFamily: "'Share Tech Mono'" }}>Pinging trauma databases...</div>
+          ) : hospitals.length === 0 ? (
+            <div style={{ color: 'rgba(160,200,255,0.5)', fontSize: 12, fontFamily: "'Share Tech Mono'" }}>No clinics registered yet.</div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
+              {hospitals.map(h => (
+                <div key={h.id} style={{ display: 'flex', justifyContent: 'space-between', padding: 12, background: 'rgba(255,255,255,0.02)', borderRadius: 8, border: '1px solid rgba(0,200,255,0.15)' }}>
+                  <div>
+                    <div style={{ fontFamily: "'Orbitron'", fontSize: 12, fontWeight: 'bold', color: '#00c8ff' }}>{h.name}</div>
+                    <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', marginTop: 2 }}>ICU Beds: {h.icu_beds} · Vents: {h.ventilators}</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <span style={{ fontSize: 9, fontFamily: "'Share Tech Mono'", color: '#00ff88', background: 'rgba(0,255,136,0.1)', padding: '3px 8px', borderRadius: 4, border: '1px solid #00ff88' }}>
+                      ONLINE
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── RescueLink Landing Portal Homepage ──────────────────────────────── */
 function LandingHomepage({ onSelectRole }) {
   const [ambulances, setAmbulances] = useState([]);
@@ -1894,16 +2103,61 @@ export default function App() {
   }
 
   if (!token) {
+    if (window.location.hash === '#ambulance' || loginTargetRole === 'ambulance') {
+      return (
+        <>
+          <AmbulanceLandingHomepage
+            onLogin={() => setLoginTargetRole('ambulance')}
+            onRegister={() => { setIsRegister(true); setLoginTargetRole('ambulance'); }}
+            onBack={() => { window.location.hash = ''; setLoginTargetRole(null); setIsRegister(false); }}
+          />
+          {loginTargetRole === 'ambulance' && (
+            <LoginScreen
+              defaultRole="ambulance"
+              onLoginSuccess={handleLoginSuccess}
+              onMfaSetup={(setupToken) => setMfaSetupToken(setupToken)}
+              onMfaVerify={(mfaToken) => setMfaVerifyToken(mfaToken)}
+              onClose={() => { setLoginTargetRole(null); }}
+            />
+          )}
+        </>
+      );
+    }
+
+    if (window.location.hash === '#hospital' || loginTargetRole === 'hospital') {
+      return (
+        <>
+          <HospitalLandingHomepage
+            onLogin={() => setLoginTargetRole('hospital')}
+            onRegister={() => { setIsRegister(true); setLoginTargetRole('hospital'); }}
+            onBack={() => { window.location.hash = ''; setLoginTargetRole(null); setIsRegister(false); }}
+          />
+          {loginTargetRole === 'hospital' && (
+            <LoginScreen
+              defaultRole="hospital"
+              onLoginSuccess={handleLoginSuccess}
+              onMfaSetup={(setupToken) => setMfaSetupToken(setupToken)}
+              onMfaVerify={(mfaToken) => setMfaVerifyToken(mfaToken)}
+              onClose={() => { setLoginTargetRole(null); }}
+            />
+          )}
+        </>
+      );
+    }
+
     return (
       <>
-        <LandingHomepage onSelectRole={(selRole) => setLoginTargetRole(selRole)} />
+        <LandingHomepage onSelectRole={(selRole) => {
+          setLoginTargetRole(selRole);
+          window.location.hash = selRole;
+        }} />
         {loginTargetRole && (
           <LoginScreen
             defaultRole={loginTargetRole}
             onLoginSuccess={handleLoginSuccess}
             onMfaSetup={(setupToken) => setMfaSetupToken(setupToken)}
             onMfaVerify={(mfaToken) => setMfaVerifyToken(mfaToken)}
-            onClose={() => setLoginTargetRole(null)}
+            onClose={() => { setLoginTargetRole(null); window.location.hash = ''; }}
           />
         )}
       </>
