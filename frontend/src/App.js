@@ -2257,6 +2257,7 @@ export default function App() {
   const [connected, setConnected] = useState(false);
   const [theme, setTheme] = useState('dark');
   const [globalAlertData, setGlobalAlertData] = useState(null);
+  const [emergencyBroadcast, setEmergencyBroadcast] = useState(null);
   const [showSecurityModal, setShowSecurityModal] = useState(false);
   const [loginTargetRole, setLoginTargetRole] = useState(null);
   const [isRegisterMode, setIsRegisterMode] = useState(false);
@@ -2333,6 +2334,10 @@ export default function App() {
     newSocket.on('disconnect', (reason) => {
       console.warn('[SOCKET] Disconnected from server:', reason);
       setConnected(false);
+    });
+    newSocket.on('emergency-broadcast-alert', (data) => {
+      console.log('[SOCKET] Emergency broadcast received:', data.message);
+      setEmergencyBroadcast(data.message);
     });
     newSocket.on('connect_error', (err) => {
       console.error('[SOCKET ERROR] Connection failed:', err.message);
@@ -2570,6 +2575,28 @@ export default function App() {
       {role === 'hospital' && <HospitalDashboard socket={socket} connected={connected} />}
       {role === 'admin' && <WarRoom socket={socket} connected={connected} />}
       {role === 'family' && <FamilyDashboard socket={socket} connected={connected} reqId={familyReqId} />}
+
+      {emergencyBroadcast && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 99999,
+          background: 'linear-gradient(90deg, #ff1e1e 0%, #b30000 100%)',
+          borderBottom: '2px solid #ff3333', color: '#fff', padding: '12px 24px',
+          display: 'flex', alignItems: 'center', gap: 16,
+          boxShadow: '0 4px 20px rgba(255,0,0,0.4)', fontFamily: "'Orbitron', sans-serif"
+        }}>
+          <span style={{ fontSize: 20, animation: 'pulse-opacity 1s infinite' }}>🚨</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)', fontWeight: 'bold', letterSpacing: '0.1em' }}>CRITICAL EMERGENCY BROADCAST FROM WAR ROOM</div>
+            <div style={{ fontSize: 13, fontWeight: 900, marginTop: 2 }}>{emergencyBroadcast}</div>
+          </div>
+          <button 
+            onClick={() => setEmergencyBroadcast(null)}
+            style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 4, color: '#fff', fontSize: 10, padding: '6px 12px', cursor: 'pointer', fontFamily: "'Orbitron'", fontWeight: 'bold' }}
+          >
+            DISMISS
+          </button>
+        </div>
+      )}
 
       {globalAlertData && (
         <CustomAlert
