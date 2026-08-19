@@ -923,8 +923,9 @@ function MfaSetupScreen({ setupToken, onComplete, onCancel }) {
 /* ─── Login & Registration Screen Component with 2FA ───────────────────── */
 function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onClose, defaultIsRegister }) {
   const [isRegister, setIsRegister] = useState(defaultIsRegister || false);
-  const [email, setEmail] = useState(defaultRole === 'admin' ? 'admin@rescuelink.com' : '');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   
   // Paramedic signup fields
   const [vehicleNo, setVehicleNo] = useState('');
@@ -1177,7 +1178,32 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>PASSWORD</label>
-                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                  <div style={{ position: 'relative' }}>
+                    <input 
+                      type={showPassword ? "text" : "password"} 
+                      value={password} 
+                      onChange={(e) => setPassword(e.target.value)} 
+                      placeholder="••••••••" 
+                      required 
+                      className="rl-input" 
+                      style={{ width: '100%', boxSizing: 'border-box', paddingRight: '40px' }} 
+                    />
+                    <button 
+                      type="button" 
+                      onClick={() => setShowPassword(!showPassword)} 
+                      style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'rgba(160,200,255,0.6)', cursor: 'pointer', fontSize: 14 }}
+                    >
+                      {showPassword ? '👁️' : '👁️‍🗨️'}
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 2 }}>
+                    <span 
+                      onClick={() => alert("Please contact City Command Administration at support@rescuelink.com to reset your credentials under SOC2 compliance protocol.")} 
+                      style={{ fontSize: 10, color: '#00c8ff', cursor: 'pointer', fontFamily: "'Share Tech Mono'" }}
+                    >
+                      Forgot Password?
+                    </span>
+                  </div>
                 </div>
                 <button type="submit" disabled={loading} className="rl-btn-primary" style={{ width: '100%', marginTop: 8 }}>
                   {loading ? 'AUTHENTICATING...' : 'ACCESS SYSTEM →'}
@@ -1250,7 +1276,24 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
                 )}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>ACCESS PASSWORD</label>
-                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                  <div style={{ position: 'relative' }}>
+                    <input 
+                      type={showPassword ? "text" : "password"} 
+                      value={password} 
+                      onChange={(e) => setPassword(e.target.value)} 
+                      placeholder="••••••••" 
+                      required 
+                      className="rl-input" 
+                      style={{ width: '100%', boxSizing: 'border-box', paddingRight: '40px' }} 
+                    />
+                    <button 
+                      type="button" 
+                      onClick={() => setShowPassword(!showPassword)} 
+                      style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'rgba(160,200,255,0.6)', cursor: 'pointer', fontSize: 13 }}
+                    >
+                      {showPassword ? '👁️' : '👁️‍🗨️'}
+                    </button>
+                  </div>
                 </div>
                 <button type="submit" disabled={loading} className="rl-btn-primary" style={{ width: '100%', marginTop: 8 }}>
                   {loading ? 'REGISTERING...' : 'REGISTER & BUILD 2FA →'}
