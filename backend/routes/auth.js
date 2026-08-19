@@ -604,9 +604,13 @@ router.post('/register-fleet-ambulance', verifyToken(), async (req, res) => {
  * @desc Securely register a new admin user (only accessible by current city_admin)
  */
 router.post('/register-admin', verifyToken(['city_admin']), async (req, res) => {
-  const { name, email, mobile, password } = req.body;
+  const { name, authority, email, mobile, password } = req.body;
   if (!name || !email || !password) {
     return res.status(400).json({ error: 'Name, email, and password are required' });
+  }
+
+  if (req.user.email !== 'admin@rescuelink.com') {
+    return res.status(403).json({ error: 'Forbidden: Only the super admin (admin@rescuelink.com) can register new authorities' });
   }
 
   try {
@@ -618,29 +622,48 @@ router.post('/register-admin', verifyToken(['city_admin']), async (req, res) => 
 
     const bcrypt = require('bcryptjs');
     const passwordHash = await bcrypt.hash(password, 10);
-    
-    const speakeasy = require('speakeasy');
-    const setupData = speakeasy.generateSecret({ name: `RescueLink Admin:${email}` });
 
     const newAdmin = await User.create({
       name,
+      authority: authority || '',
       email: email.toLowerCase(),
       mobile: mobile || '',
       role: 'city_admin',
       password: passwordHash,
-      totp_secret: setupData.base32,
       is_active: true
     });
 
-    console.log(`[AUTH] New City Admin registered by: ${req.user.email} -> ${newAdmin.email}`);
+    console.log(`[AUTH] New War Room Authority registered by super admin -> ${newAdmin.email} (${newAdmin.authority || 'N/A'})`);
     return res.status(201).json({
-      message: 'Admin registered successfully',
+      message: 'Authority registered successfully',
       id: newAdmin.id,
-      email: newAdmin.email
+      email: newAdmin.email,
+      authority: newAdmin.authority
     });
   } catch (err) {
-    console.error('[AUTH ERROR] Admin registration failed:', err.message);
-    return res.status(500).json({ error: 'Failed to register admin' });
+    console.error('[AUTH ERROR] Authority registration failed:', err.message);
+    return res.status(500).json({ error: 'Failed to register authority' });
+  }
+});
+
+/**
+ * @route GET /api/auth/war-room-authorities
+ * @desc List all registered War Room authorities (super admin only)
+ */
+router.get('/war-room-authorities', verifyToken(['city_admin']), async (req, res) => {
+  if (req.user.email !== 'admin@rescuelink.com') {
+    return res.status(403).json({ error: 'Forbidden: Only super admin can view authority list' });
+  }
+  try {
+    const { User } = require('../utils/db');
+    const authorities = await User.findAll({
+      where: { role: 'city_admin' },
+      attributes: ['id', 'name', 'authority', 'email', 'mobile', 'is_active', 'createdAt']
+    });
+    return res.json(authorities);
+  } catch (err) {
+    console.error('[AUTH ERROR] war-room-authorities fetch failed:', err.message);
+    return res.status(500).json({ error: 'Failed to fetch authorities' });
   }
 });
 

@@ -58,6 +58,11 @@ module.exports = (sequelize) => {
     refresh_token: {
       type: DataTypes.STRING,
       allowNull: true
+    },
+    authority: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      comment: 'Designation/authority title for War Room commanders (e.g. District Collector, Chief Medical Officer)'
     }
   }, {
     tableName: 'users',
