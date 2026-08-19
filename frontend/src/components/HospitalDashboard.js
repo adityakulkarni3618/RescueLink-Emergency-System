@@ -662,32 +662,71 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
             )}
           </div>
 
-          <div style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 11, color: '#ff6b6b', fontFamily: "'Orbitron'", letterSpacing: '0.1em', marginBottom: 6 }}>
-              ⚠ ALLERGIES
-            </div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {(!patient.allergies || patient.allergies.length === 0) ? (
-                <span style={{ color: '#00ff88', fontSize: 12, fontFamily: "'Share Tech Mono'" }}>NONE KNOWN</span>
-              ) : patient.allergies.map(a => (
-                <span key={a} style={{
-                  padding: '3px 10px', background: 'rgba(255,80,80,0.15)',
-                  border: '1px solid rgba(255,80,80,0.3)', borderRadius: 4,
-                  color: '#ff8888', fontSize: 12, fontFamily: "'Share Tech Mono'",
-                }}>{a}</span>
-              ))}
-            </div>
-          </div>
-
-          <div style={{ marginBottom: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", letterSpacing: '0.1em' }}>
-                MEDICAL HISTORY
+          {consentStatus !== 'APPROVED' ? (
+            <div style={{
+              margin: '15px 0', padding: 20, background: 'rgba(255,184,0,0.03)',
+              border: '1px dashed rgba(255,184,0,0.3)', borderRadius: 10, textAlign: 'center', boxSizing: 'border-box'
+            }}>
+              <div style={{ fontSize: 24, marginBottom: 8 }}>🛡️</div>
+              <div style={{ fontFamily: "'Orbitron'", fontSize: 12, color: '#ffb800', fontWeight: 'bold', letterSpacing: '0.05em', marginBottom: 4 }}>
+                ABDM DPDP CONSENT REQUIRED
               </div>
-              <button onClick={handleFetchHisEhr} style={{ background: 'transparent', border: '1px solid rgba(0,200,255,0.3)', color: '#00c8ff', fontSize: 10, fontFamily: "'Orbitron'", padding: '2px 8px', borderRadius: 4, cursor: 'pointer' }}>
-                🔄 SYNC HIS
-              </button>
+              <p style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', lineHeight: 1.4, margin: '0 0 15px 0' }}>
+                Pursuant to India's DPDP Act 2023, access to this patient's clinical history and allergy records requires explicit consent. Request access on the patient's device.
+              </p>
+              
+              {consentStatus === 'PENDING' ? (
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#ffb800', fontFamily: "'Share Tech Mono'" }}>
+                  ⏳ Awaiting patient validation...
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    if (socket && activeMissionId) {
+                      socket.emit('hospital-request-consent', { reqId: activeMissionId, hospitalName: 'Apollo Hospital (RescueLink Command)' });
+                      setConsentStatus('PENDING');
+                    }
+                  }}
+                  style={{
+                    padding: '8px 16px', background: 'rgba(255,184,0,0.15)',
+                    border: '1px solid #ffb800', borderRadius: 6, color: '#ffb800',
+                    fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 'bold', cursor: 'pointer'
+                  }}
+                >
+                  ⚡ REQUEST DATA CONSENT
+                </button>
+              )}
             </div>
+          ) : (
+            <>
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 11, color: '#ff6b6b', fontFamily: "'Orbitron'", letterSpacing: '0.1em', marginBottom: 6 }}>
+                  ⚠ ALLERGIES
+                </div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {(!patient.allergies || patient.allergies.length === 0) ? (
+                    <span style={{ color: '#00ff88', fontSize: 12, fontFamily: "'Share Tech Mono'" }}>NONE KNOWN</span>
+                  ) : patient.allergies.map(a => (
+                    <span key={a} style={{
+                      padding: '3px 10px', background: 'rgba(255,80,80,0.15)',
+                      border: '1px solid rgba(255,80,80,0.3)', borderRadius: 4,
+                      color: '#ff8888', fontSize: 12, fontFamily: "'Share Tech Mono'",
+                    }}>{a}</span>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", letterSpacing: '0.1em' }}>
+                    MEDICAL HISTORY
+                  </div>
+                  <button onClick={handleFetchHisEhr} style={{ background: 'transparent', border: '1px solid rgba(0,200,255,0.3)', color: '#00c8ff', fontSize: 10, fontFamily: "'Orbitron'", padding: '2px 8px', borderRadius: 4, cursor: 'pointer' }}>
+                    🔄 SYNC HIS
+                  </button>
+                </div>
+            </>
+          )}
 
             {ehrRecord ? (
               <div>
@@ -1670,6 +1709,7 @@ export default function HospitalDashboard({ socket, connected }) {
   const [activeMissionId, setActiveMissionId] = useState(null);
   const [resourceLocks, setResourceLocks] = useState({ traumaBay: false, bloodUnits: false, ventilatorStandby: false });
   const [incomingLockRequest, setIncomingLockRequest] = useState(null);
+  const [consentStatus, setConsentStatus] = useState(''); // '', 'PENDING', 'APPROVED', 'DENIED'
   const lastAlertedIdRef = useRef(null);
   const lastVitalsBeepTimeRef = useRef(0);
   const [showDocAssignModal, setShowDocAssignModal] = useState(false);
@@ -2244,6 +2284,18 @@ export default function HospitalDashboard({ socket, connected }) {
         setLocation(data);
         if (data.trafficDelay !== undefined) setTrafficDelay(data.trafficDelay);
         setLocationHistory(prev => [...prev.slice(-99), [data.lat, data.lng]]);
+      }
+    });
+
+    socket.on('consent-response', (data) => {
+      if (data && data.reqId === activeMissionId) {
+        if (data.approved) {
+          setConsentStatus('APPROVED');
+          showAlert('✅ Patient approved clinical record access.');
+        } else {
+          setConsentStatus('DENIED');
+          showAlert('❌ Patient denied clinical record access.');
+        }
       }
     });
 
