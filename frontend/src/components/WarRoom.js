@@ -57,6 +57,7 @@ export default function WarRoom({ socket, connected }) {
   const [kpis, setKpis] = useState({ total: 0, completed: 0, active: 0, cancelled: 0, successRate: 0 });
   const [connectedRoles, setConnectedRoles] = useState({ user: 0, ambulance: 0, hospital: 0 });
   const [isAuthenticated, setIsAuthenticated] = useState(() => sessionStorage.getItem('warroom_auth') === '1');
+  const [loginEmail, setLoginEmail] = useState('admin@rescuelink.com');
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
   const [activeTab, setActiveTab] = useState('map'); // map, mass_casualty, blood_bank
@@ -161,7 +162,7 @@ export default function WarRoom({ socket, connected }) {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: 'admin@rescuelink.com', password: loginPass, role: 'admin', bypassMFA: true })
+        body: JSON.stringify({ id: loginEmail, password: loginPass, role: 'admin', bypassMFA: true })
       });
       const data = await res.json();
 
@@ -326,6 +327,15 @@ export default function WarRoom({ socket, connected }) {
           <div style={{ fontFamily: "'Orbitron'", fontSize: 20, color: '#00ff88', marginBottom: 8 }}>GOVERNMENT ACCESS</div>
           <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.4)', marginBottom: 32, letterSpacing: '0.2em' }}>SECURE WAR ROOM TERMINAL</div>
           <div style={{ marginBottom: 20, textAlign: 'left' }}>
+            <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.5)', marginBottom: 6, fontFamily: "'Orbitron'" }}>ADMIN EMAIL</div>
+            <input
+              type="email" value={loginEmail}
+              onChange={e => setLoginEmail(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleLogin()}
+              placeholder="admin@rescuelink.com"
+              style={{ width: '100%', padding: '12px 14px', background: 'rgba(0,255,136,0.03)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 8, color: '#e0eaff', fontSize: 14, outline: 'none', boxSizing: 'border-box', marginBottom: 16 }}
+            />
+
             <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.5)', marginBottom: 6, fontFamily: "'Orbitron'" }}>ADMIN PASSCODE</div>
             <input
               type="password" value={loginPass}
