@@ -423,6 +423,9 @@ export default function WarRoom({ socket, connected }) {
         next.add(data.reqId);
         return next;
       });
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.speak(new SpeechSynthesisUtterance('Warning. Paramedic heartbeat lost on active mission.'));
+      }
     };
     const onMissionCompleted = (data) => {
       setStuckMissions(prev => {

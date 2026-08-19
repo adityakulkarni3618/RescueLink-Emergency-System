@@ -2179,6 +2179,9 @@ export default function HospitalDashboard({ socket, connected }) {
   const onIncomingHospitalRequest = (req) => {
     if (!req.id || dismissedRef.current.has(req.id)) return;
     playAlertBeep();
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.speak(new SpeechSynthesisUtterance('Attention. New incoming critical patient dispatch request.'));
+    }
     console.log('[HOSPITAL] Queuing incoming request:', req);
 
     // ANCHOR FIX: Stash the ambulance socket ID for direct WebRTC signaling

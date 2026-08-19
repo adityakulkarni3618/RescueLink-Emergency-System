@@ -1010,6 +1010,9 @@ export default function AmbulanceStreamer({ socket, connected }) {
         lastAlertedIdRef.current = req.id;
         setIncomingRequest(req); // { id, userLocation, patientDetails }
         playAlertBeep();
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.speak(new SpeechSynthesisUtterance('Attention. New emergency dispatch request assigned to your unit.'));
+        }
       }
     };
 
