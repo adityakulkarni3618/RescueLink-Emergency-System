@@ -173,42 +173,7 @@ async function syncDatabase() {
     await sequelize.sync();
     console.log('[DB] Database synchronized.');
 
-    // Cleanup corrupted entries to allow fresh registration
-    try {
-      const { Op } = require('sequelize');
-      const deletedAmbulanceCount = await Ambulance.destroy({
-        where: {
-          [Op.or]: [
-            { vehicleNo: '' },
-            { vehicleNo: { [Op.like]: '%MH12%' } },
-            { vehicleNo: { [Op.like]: '%mh12%' } }
-          ]
-        }
-      });
-      const deletedUserCount = await User.destroy({
-        where: {
-          [Op.or]: [
-            { email: { [Op.like]: '%mh12%' } },
-            { email: { [Op.like]: '%aditya%' } }
-          ]
-        }
-      });
-      const deletedHospitalCount = await Hospital.destroy({
-        where: {
-          [Op.or]: [
-            { name: { [Op.like]: '%Apollo%' } },
-            { name: { [Op.like]: '%Manipal%' } },
-            { name: { [Op.like]: '%John%' } },
-            { name: { [Op.like]: '%St.%' } }
-          ]
-        }
-      });
-      if (deletedAmbulanceCount > 0 || deletedUserCount > 0 || deletedHospitalCount > 0) {
-        console.log(`[DB CLEANUP] Purged ${deletedAmbulanceCount} matching ambulances, ${deletedUserCount} users, and ${deletedHospitalCount} hospitals.`);
-      }
-    } catch (cleanupErr) {
-      console.warn('[DB CLEANUP WARNING] Failed to run database cleanup:', cleanupErr.message);
-    }
+
 
     // Auto-seeding disabled to support completely blank system registration from scratch.
     /*
