@@ -662,6 +662,20 @@ app.post('/api/ai/predictive-hospital', async (req, res) => {
   }
 });
 
+app.get('/api/audit/blockchain-explorer', async (req, res) => {
+  try {
+    const { AuditLog } = require('./utils/db');
+    const logs = await AuditLog.findAll({
+      order: [['createdAt', 'DESC']],
+      limit: 100
+    });
+    return res.json(logs);
+  } catch (err) {
+    console.error('[BLOCKCHAIN EXPLORER ERROR]', err);
+    return res.status(500).json({ error: 'Failed to retrieve ledger logs.' });
+  }
+});
+
 app.get('/api/status', (req, res) => {
   res.json({
     activeMissionsCount: Object.keys(activeRequests).length,
