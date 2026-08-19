@@ -543,6 +543,7 @@ export default function WarRoom({ socket, connected }) {
                 { id: 'telemedicine', label: '📹 TELEMEDICINE STATUS' },
                 { id: 'privacy', label: '🔐 PRIVACY & ERASURE (DPDP)' },
                 { id: 'authority', label: '👥 REGISTER AUTHORITY' },
+                { id: 'ledger', label: '⛓️ CRYPTOGRAPHIC AUDIT LEDGER' }
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -573,6 +574,7 @@ export default function WarRoom({ socket, connected }) {
                     { id: 'telemedicine', label: '📹 TELEMEDICINE STATUS' },
                     { id: 'privacy', label: '🔐 PRIVACY & ERASURE (DPDP)' },
                     { id: 'authority', label: '👥 REGISTER AUTHORITY' },
+                    { id: 'ledger', label: '⛓️ CRYPTOGRAPHIC AUDIT LEDGER' }
                   ].map(tab => (
                     <button
                       key={tab.id}
@@ -750,6 +752,10 @@ export default function WarRoom({ socket, connected }) {
               {/* General Consent Access Logs */}
               <ConsentAccessLogs SERVER_URL_CONST={process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin)} />
             </div>
+          )}
+
+          {activeTab === 'ledger' && (
+            <LedgerExplorer />
           )}
 
           {activeTab === 'authority' && (() => {
@@ -1358,6 +1364,92 @@ function AuthorityRegistrationForm() {
               </div>
             ))}
           </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function LedgerExplorer() {
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchLogs = async () => {
+    setLoading(true);
+    try {
+      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
+      const res = await fetch(`${SERVER_URL}/api/audit/blockchain-explorer`);
+      const data = await res.json();
+      if (res.ok) {
+        setLogs(data);
+      }
+    } catch (e) {
+      console.error('[LEDGER EXPLORER] Failed to fetch logs:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLogs();
+  }, []);
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', background: 'rgba(5,15,40,0.85)', borderRadius: 10, padding: 24, border: '1px solid rgba(0,200,255,0.15)', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(0,200,255,0.15)', paddingBottom: 10, marginBottom: 20 }}>
+        <div>
+          <h3 style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#00c8ff', margin: 0, letterSpacing: '0.1em' }}>
+            ⛓️ CRYPTOGRAPHIC AUDIT LEDGER EXPLORER
+          </h3>
+          <span style={{ fontSize: 10, color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'" }}>
+            HIPAA-COMPLIANT SHA-256 HASH-CHAINED SECURITY LOGS
+          </span>
+        </div>
+        <button onClick={fetchLogs} disabled={loading} style={{ padding: '6px 14px', background: 'rgba(0,200,255,0.1)', border: '1px solid rgba(0,200,255,0.3)', borderRadius: 6, color: '#00c8ff', fontFamily: "'Orbitron'", fontSize: 10, cursor: 'pointer' }}>
+          {loading ? 'SYNCING...' : 'REFRESH LEDGER'}
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', flex: 1 }}>
+        {logs.length === 0 ? (
+          <div style={{ textAlign: 'center', color: 'rgba(160,200,255,0.4)', padding: 40 }}>
+            No audit logs sealed in blockchain yet.
+          </div>
+        ) : (
+          logs.map((log, index) => {
+            return (
+              <div key={log.id} style={{ background: 'rgba(0,10,30,0.5)', border: `1px solid ${log.severity === 'CRITICAL' ? 'rgba(255,51,51,0.2)' : 'rgba(0,255,136,0.15)'}`, borderRadius: 8, padding: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ background: log.severity === 'CRITICAL' ? 'rgba(255,51,51,0.15)' : 'rgba(0,200,255,0.1)', color: log.severity === 'CRITICAL' ? '#ff3333' : '#00c8ff', border: `1px solid ${log.severity === 'CRITICAL' ? '#ff333355' : 'rgba(0,200,255,0.3)'}`, borderRadius: 4, padding: '2px 6px', fontSize: 9, fontFamily: "'Orbitron'" }}>
+                      {log.action}
+                    </span>
+                    <span style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>
+                      {new Date(log.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+                  <span style={{ color: '#00ff88', fontSize: 10, fontFamily: "'Orbitron'", fontWeight: 'bold' }}>
+                    ✓ SEALED BLOCK #{logs.length - index}
+                  </span>
+                </div>
+                
+                <p style={{ fontSize: 12, color: '#e0eaff', margin: '0 0 10px 0', lineHeight: 1.4 }}>
+                  {log.details?.reason || log.details?.action || `Audit trail captured: ${log.action} for ${log.actorId}`}
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, background: 'rgba(0,0,0,0.3)', padding: 10, borderRadius: 6, fontFamily: "'Share Tech Mono'", fontSize: 9 }}>
+                  <div style={{ color: 'rgba(160,200,255,0.5)', display: 'flex', justifyContent: 'space-between' }}>
+                    <span>CURRENT HASH:</span>
+                    <span style={{ color: '#00ff88' }}>{log.details?.hash ? `${log.details.hash.slice(0, 16)}...${log.details.hash.slice(-16)}` : 'N/A'}</span>
+                  </div>
+                  <div style={{ color: 'rgba(160,200,255,0.5)', display: 'flex', justifyContent: 'space-between' }}>
+                    <span>PREVIOUS HASH:</span>
+                    <span style={{ color: 'rgba(160,200,255,0.8)' }}>{log.details?.prevHash ? `${log.details.prevHash.slice(0, 16)}...${log.details.prevHash.slice(-16)}` : 'N/A'}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })
         )}
       </div>
     </div>
