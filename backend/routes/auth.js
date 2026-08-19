@@ -97,14 +97,30 @@ router.post('/login', validate(loginBody), async (req, res) => {
 
     const mfaSecret = isAmbulanceTableLogin ? ambulanceUnit.totp_secret : user.totp_secret;
 
+    // Check if user has completed MFA setup (has backup codes)
+    let isMfaFullySetup = false;
+    if (mfaSecret) {
+      if (isAmbulanceTableLogin) {
+        const normalizedEmail = `${ambulanceUnit.vehicleNo.replace(/[\s\-]+/g, '').toLowerCase()}@rescuelink.com`;
+        const assocUser = await User.findOne({ where: { email: normalizedEmail } });
+        if (assocUser && assocUser.backup_codes && assocUser.backup_codes.length > 0) {
+          isMfaFullySetup = true;
+        }
+      } else {
+        if (user && user.backup_codes && user.backup_codes.length > 0) {
+          isMfaFullySetup = true;
+        }
+      }
+    }
+
     // Enforce MFA setup/check in production
     const requiresMfaEnforcement = (isAmbulanceTableLogin || ['doctor', 'hospital_admin', 'city_admin'].includes(user.role)) && 
       process.env.NODE_ENV === 'production' && 
       process.env.DISABLE_MFA !== 'true' && 
       req.body.bypassMFA !== true;
     
-    if (requiresMfaEnforcement && !mfaSecret) {
-      console.log(`[AUTH] MFA setup required for: ${loginIdentifier}`);
+    if (requiresMfaEnforcement && (!mfaSecret || !isMfaFullySetup)) {
+      console.log(`[AUTH] MFA setup required/unverified for: ${loginIdentifier}`);
       const setupToken = jwt.sign(
         { id: isAmbulanceTableLogin ? ambulanceUnit.id : user.id, isAmbulance: isAmbulanceTableLogin, requiresMfaSetup: true },
         JWT_SECRET,
@@ -117,7 +133,7 @@ router.post('/login', validate(loginBody), async (req, res) => {
       });
     }
 
-    if (mfaSecret && req.body.bypassMFA !== true) {
+    if (mfaSecret && isMfaFullySetup && req.body.bypassMFA !== true) {
       const mfaToken = jwt.sign(
         { id: isAmbulanceTableLogin ? ambulanceUnit.id : user.id, isAmbulance: isAmbulanceTableLogin, requiresMFA: true },
         JWT_SECRET,
