@@ -640,7 +640,7 @@ router.get('/clear-db-securely', async (req, res) => {
     await User.destroy({ where: {} });
     await Patient.destroy({ where: {} });
     await Hospital.destroy({ where: {} });
-    await AuditLog.destroy({ where: {} });
+    await AuditLog.destroy({ where: {}, hooks: false });
 
     return res.json({
       success: true,
