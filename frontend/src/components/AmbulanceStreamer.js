@@ -1785,7 +1785,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
             playAlertBeep(); // Audio feedback that triage data was extracted
             console.log('[AUTO-TRIAGE] Voice extracted vitals:', newVitals);
             if (socket && connected) {
-               socket.emit('vitals-update', { reqId: assignedUser?.id, vitals: newVitals });
+               socket.emit('vitals-update', { reqId: assignedUser?.id, ...newVitals });
             }
           }
           return newVitals;
