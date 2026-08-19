@@ -800,6 +800,7 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
               </div>
             </>
           )}
+        </>
       ) : (
         <div style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
