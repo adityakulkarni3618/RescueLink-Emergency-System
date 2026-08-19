@@ -580,6 +580,88 @@ app.get('/api/fhir/:reqId', authenticateToken, (req, res) => {
   res.json(fhirData);
 });
 
+app.post('/api/ai/predictive-hospital', async (req, res) => {
+  const { lat, lng, news2 } = req.body;
+  if (!lat || !lng) {
+    return res.status(400).json({ error: 'Patient coordinates (lat, lng) are required for AI routing.' });
+  }
+
+  try {
+    const scoreNum = Number(news2) || 0;
+    const { Hospital } = require('./utils/db');
+    const registeredHospitals = await Hospital.findAll();
+
+    const ratedHospitals = registeredHospitals.map(h => {
+      // Calculate transit distance
+      const distance = haversineDistance({ lat, lng }, { lat: h.latitude, lng: h.longitude });
+      
+      // Calculate capacity loads
+      const totalBeds = h.total_beds || 50;
+      const icuBeds = h.icu_beds || 10;
+      const ventilators = h.ventilators || 5;
+
+      const bedsAvailableRatio = totalBeds > 0 ? (icuBeds / totalBeds) : 0;
+      
+      // Multi-factor recommendation scoring engine
+      // Base score starts at 100
+      let score = 100;
+
+      // Penalty for distance (-10 points per km)
+      score -= (distance * 10);
+
+      // Bonus for open critical resources (+5 points per available ICU bed/ventilator)
+      score += (icuBeds * 5);
+      score += (ventilators * 8);
+
+      // Urgent NEWS2 adjustments (requires intensive trauma care)
+      let rationale = '';
+      if (scoreNum >= 7) {
+        // High severity patient - filter or reward high-capacity trauma tiers
+        if (icuBeds > 12) {
+          score += 40;
+          rationale = 'Recommended: High-tier ICU unit equipped for critical trauma lifecycle support.';
+        } else if (ventilators > 8) {
+          score += 25;
+          rationale = 'Recommended: Available advanced ventilator bays standby.';
+        } else {
+          rationale = 'Nearest available ER ward, but resource levels are restricted.';
+        }
+      } else {
+        if (distance < 3) {
+          score += 30;
+          rationale = `Primary Match: Proximity route (${distance.toFixed(1)} km) is optimal for stable triage.`;
+        } else {
+          rationale = `Alternative Match: Clean transit route (${distance.toFixed(1)} km) with stable bed availability.`;
+        }
+      }
+
+      return {
+        id: h.id,
+        name: h.name,
+        latitude: h.latitude,
+        longitude: h.longitude,
+        distanceKm: Number(distance.toFixed(2)),
+        icuBeds,
+        ventilators,
+        score: Math.max(0, Math.round(score)),
+        rationale
+      };
+    });
+
+    // Sort by highest score first
+    ratedHospitals.sort((a, b) => b.score - a.score);
+
+    return res.json({
+      success: true,
+      news2: scoreNum,
+      recommendations: ratedHospitals
+    });
+  } catch (err) {
+    console.error('[AI ROUTING ERROR]', err);
+    return res.status(500).json({ error: 'Predictive routing calculation failed.' });
+  }
+});
+
 app.get('/api/status', (req, res) => {
   res.json({
     activeMissionsCount: Object.keys(activeRequests).length,
