@@ -1500,8 +1500,35 @@ const HOSPITAL_CREDENTIALS = [
 
 export default function HospitalDashboard({ socket, connected }) {
   // ── Auth State ──
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    const token = sessionStorage.getItem('rescuelink_token');
+    const userStr = sessionStorage.getItem('rescuelink_user');
+    if (token && userStr) {
+      const user = JSON.parse(userStr);
+      if (user.role === 'doctor' || user.role === 'hospital_admin') {
+        return true;
+      }
+    }
+    return false;
+  });
+
   const [authHospital, setAuthHospital] = useState(() => {
+    // If we have a logged-in user in sessionStorage, use their details
+    const token = sessionStorage.getItem('rescuelink_token');
+    const userStr = sessionStorage.getItem('rescuelink_user');
+    if (token && userStr) {
+      const user = JSON.parse(userStr);
+      if (user.role === 'doctor' || user.role === 'hospital_admin') {
+        return {
+          hospitalId: user.hospital_id || 'HOSP-GENERIC',
+          name: user.name || 'Manipal Global Trauma Center',
+          adminName: user.name || 'Dr. Command',
+          internalId: (user.hospital_id || 'hosp-generic').toLowerCase(),
+          lat: user.lat || 18.5204,
+          lng: user.lng || 73.8567
+        };
+      }
+    }
     const saved = localStorage.getItem('hospital_auth');
     if (saved) {
       const parsed = JSON.parse(saved);
@@ -1513,6 +1540,7 @@ export default function HospitalDashboard({ socket, connected }) {
     }
     return null;
   });
+
   useEffect(() => {
     if (authHospital) {
       setIsAuthenticated(true);
