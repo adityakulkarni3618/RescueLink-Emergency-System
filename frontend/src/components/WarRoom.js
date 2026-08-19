@@ -623,18 +623,33 @@ export default function WarRoom({ socket, connected }) {
             </div>
           )}
 
-          {activeTab === 'authority' && (
-            <div style={{ flex: 1, overflowY: 'auto', background: 'rgba(5,15,40,0.8)', borderRadius: 10, padding: 24, border: '1px solid rgba(0,255,136,0.15)' }}>
-              <h3 style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#00ff88', borderBottom: '1px solid rgba(0,255,136,0.2)', paddingBottom: 10, margin: '0 0 20px', letterSpacing: '0.1em' }}>
-                👥 REGISTER REGIONAL COMMAND AUTHORITY
-              </h3>
-              <p style={{ fontSize: 12, color: 'rgba(160,200,255,0.6)', lineHeight: 1.6, marginBottom: 24 }}>
-                As a primary city administrator, you can delegate credentials to other commanders. 
-                Registered authorities will have full secure access to this War Room, disaster dispatch triggers, and national telemetry heatmaps.
-              </p>
-              <AuthorityRegistrationForm />
-            </div>
-          )}
+          {activeTab === 'authority' && (() => {
+            let isSuperAdmin = false;
+            try {
+              const u = JSON.parse(sessionStorage.getItem('rescuelink_user') || '{}');
+              isSuperAdmin = u.email === 'admin@rescuelink.com';
+            } catch (e) {}
+            if (!isSuperAdmin) return (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
+                <div style={{ fontSize: 48 }}>🔒</div>
+                <div style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#ff4444' }}>SUPER ADMIN ACCESS ONLY</div>
+                <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.5)', textAlign: 'center', maxWidth: 320 }}>
+                  Only the super administrator (admin@rescuelink.com) has permission to register new War Room authorities.
+                </div>
+              </div>
+            );
+            return (
+              <div style={{ flex: 1, overflowY: 'auto', background: 'rgba(5,15,40,0.8)', borderRadius: 10, padding: 24, border: '1px solid rgba(0,255,136,0.15)' }}>
+                <h3 style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#00ff88', borderBottom: '1px solid rgba(0,255,136,0.2)', paddingBottom: 10, margin: '0 0 20px', letterSpacing: '0.1em' }}>
+                  🏛️ WAR ROOM — COMMAND AUTHORITY MANAGEMENT
+                </h3>
+                <p style={{ fontSize: 12, color: 'rgba(160,200,255,0.6)', lineHeight: 1.6, marginBottom: 24 }}>
+                  As Super Admin, you can register official government authorities to access this War Room. Each registered commander will be able to log in with their personal credentials.
+                </p>
+                <AuthorityRegistrationForm />
+              </div>
+            );
+          })()}
 
 
         </div>
@@ -1024,36 +1039,54 @@ function ConsentAccessLogs({ SERVER_URL_CONST }) {
 
 function AuthorityRegistrationForm() {
   const [name, setName] = useState('');
+  const [authority, setAuthority] = useState('');
   const [email, setEmail] = useState('');
   const [mobile, setMobile] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [authorities, setAuthorities] = useState([]);
+  const [listLoading, setListLoading] = useState(true);
+
+  const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
+
+  const fetchAuthorities = async () => {
+    setListLoading(true);
+    try {
+      const token = sessionStorage.getItem('rescuelink_token');
+      const res = await fetch(`${SERVER_URL}/api/auth/war-room-authorities`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) setAuthorities(data);
+    } catch (err) {
+      console.error('[WAR ROOM] Failed to fetch authorities:', err);
+    } finally {
+      setListLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchAuthorities(); }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
     setLoading(true);
-
     try {
       const token = sessionStorage.getItem('rescuelink_token');
-      const res = await fetch('/api/auth/register-admin', {
+      const res = await fetch(`${SERVER_URL}/api/auth/register-admin`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ name, email, mobile, password })
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ name, authority, email, mobile, password })
       });
       const data = await res.json();
       if (res.ok) {
-        setSuccess(`Successfully registered commander: ${email}. They can now log in to the War Room.`);
-        setName('');
-        setEmail('');
-        setMobile('');
-        setPassword('');
+        setSuccess(`✅ Authority registered: ${email} (${authority || 'N/A'}). They can now log in to the War Room.`);
+        setName(''); setAuthority(''); setEmail(''); setMobile(''); setPassword('');
+        fetchAuthorities();
       } else {
         setError(data.error || 'Failed to register authority');
       }
@@ -1065,50 +1098,100 @@ function AuthorityRegistrationForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 450 }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>FULL NAME / CALL SIGN</label>
-        <input
-          type="text" value={name} onChange={e => setName(e.target.value)} required placeholder="e.g. Commander James Vance"
-          style={{ padding: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 6, color: '#fff', fontSize: 13, outline: 'none' }}
-        />
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>SECURE EMAIL ADDRESS</label>
-        <input
-          type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="commander@rescuelink.com"
-          style={{ padding: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 6, color: '#fff', fontSize: 13, outline: 'none' }}
-        />
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>CONTACT PHONE NUMBER</label>
-        <input
-          type="text" value={mobile} onChange={e => setMobile(e.target.value)} placeholder="+91-XXXXXXXXXX"
-          style={{ padding: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 6, color: '#fff', fontSize: 13, outline: 'none' }}
-        />
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>ACCESS PASSWORD</label>
-        <input
-          type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="••••••••"
-          style={{ padding: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 6, color: '#fff', fontSize: 13, outline: 'none' }}
-        />
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, maxWidth: 900 }}>
+      {/* Registration Form */}
+      <div>
+        <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00ff88', marginBottom: 16, letterSpacing: '0.08em' }}>➕ REGISTER NEW AUTHORITY</div>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>FULL NAME</label>
+            <input
+              type="text" value={name} onChange={e => setName(e.target.value)} required placeholder="e.g. District Collector Ramesh Patil"
+              style={{ padding: 11, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 6, color: '#fff', fontSize: 12, outline: 'none' }}
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>DESIGNATION / AUTHORITY TITLE</label>
+            <input
+              type="text" value={authority} onChange={e => setAuthority(e.target.value)} required placeholder="e.g. District Collector, CMO, DCP"
+              style={{ padding: 11, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 6, color: '#fff', fontSize: 12, outline: 'none' }}
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>OFFICIAL EMAIL ADDRESS</label>
+            <input
+              type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="officer@gov.in"
+              style={{ padding: 11, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 6, color: '#fff', fontSize: 12, outline: 'none' }}
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>MOBILE NUMBER (for OTP recovery)</label>
+            <input
+              type="text" value={mobile} onChange={e => setMobile(e.target.value)} placeholder="+91-XXXXXXXXXX"
+              style={{ padding: 11, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 6, color: '#fff', fontSize: 12, outline: 'none' }}
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>ACCESS PASSWORD</label>
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} required placeholder="••••••••"
+                style={{ padding: 11, paddingRight: 38, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 6, color: '#fff', fontSize: 12, outline: 'none', width: '100%', boxSizing: 'border-box' }}
+              />
+              <button type="button" onClick={() => setShowPassword(!showPassword)}
+                style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'rgba(160,200,255,0.5)', cursor: 'pointer', fontSize: 13 }}>
+                {showPassword ? '👁️' : '👁️‍🗨️'}
+              </button>
+            </div>
+          </div>
+
+          {error && <div style={{ color: '#ff4444', fontSize: 11, fontWeight: 'bold', background: 'rgba(255,68,68,0.1)', padding: '8px 12px', borderRadius: 6 }}>⚠️ {error}</div>}
+          {success && <div style={{ color: '#00ff88', fontSize: 11, fontWeight: 'bold', background: 'rgba(0,255,136,0.08)', padding: '8px 12px', borderRadius: 6 }}>{success}</div>}
+
+          <button type="submit" disabled={loading}
+            style={{ marginTop: 8, padding: 13, background: 'linear-gradient(135deg, rgba(0,255,136,0.1) 0%, rgba(0,255,136,0.25) 100%)',
+              border: '1px solid #00ff88', borderRadius: 8, color: '#00ff88', fontFamily: "'Orbitron'",
+              fontSize: 11, fontWeight: 'bold', cursor: 'pointer', letterSpacing: '0.05em' }}
+          >
+            {loading ? 'REGISTERING...' : '🏛️ GRANT WAR ROOM ACCESS'}
+          </button>
+        </form>
       </div>
 
-      {error && <div style={{ color: '#ff4444', fontSize: 12, fontWeight: 'bold' }}>⚠️ {error}</div>}
-      {success && <div style={{ color: '#00ff88', fontSize: 12, fontWeight: 'bold' }}>✓ {success}</div>}
-
-      <button
-        type="submit" disabled={loading}
-        style={{
-          marginTop: 10, padding: 14, background: 'linear-gradient(135deg, rgba(0,255,136,0.1) 0%, rgba(0,255,136,0.25) 100%)',
-          border: '1px solid #00ff88', borderRadius: 8, color: '#00ff88', fontFamily: "'Orbitron'",
-          fontSize: 12, fontWeight: 'bold', cursor: 'pointer', letterSpacing: '0.05em'
-        }}
-      >
-        {loading ? 'REGISTERING...' : 'CONFIRM COMMAND ACCESS'}
-      </button>
-    </form>
+      {/* Registered Authorities List */}
+      <div>
+        <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', marginBottom: 16, letterSpacing: '0.08em', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>📋 REGISTERED AUTHORITIES</span>
+          <button onClick={fetchAuthorities} style={{ background: 'none', border: '1px solid rgba(0,200,255,0.3)', borderRadius: 4, color: '#00c8ff', fontSize: 9, padding: '3px 8px', cursor: 'pointer' }}>↻ REFRESH</button>
+        </div>
+        {listLoading ? (
+          <div style={{ color: 'rgba(160,200,255,0.4)', fontSize: 12, fontStyle: 'italic' }}>Loading...</div>
+        ) : authorities.length === 0 ? (
+          <div style={{ color: 'rgba(160,200,255,0.3)', fontSize: 12, fontStyle: 'italic' }}>No authorities registered yet.</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {authorities.map(a => (
+              <div key={a.id} style={{ background: a.email === 'admin@rescuelink.com' ? 'rgba(0,255,136,0.06)' : 'rgba(0,200,255,0.04)', border: `1px solid ${a.email === 'admin@rescuelink.com' ? 'rgba(0,255,136,0.25)' : 'rgba(0,200,255,0.15)'}`, borderRadius: 8, padding: '10px 14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 'bold', color: '#fff' }}>{a.name}</div>
+                    <div style={{ fontSize: 10, color: '#00c8ff', marginTop: 2, fontFamily: "'Share Tech Mono'" }}>{a.authority || (a.email === 'admin@rescuelink.com' ? 'SUPER ADMINISTRATOR' : 'Authority')}</div>
+                    <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.5)', marginTop: 2 }}>{a.email}</div>
+                    {a.mobile && <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)' }}>{a.mobile}</div>}
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    {a.email === 'admin@rescuelink.com' && (
+                      <span style={{ fontSize: 8, background: 'rgba(0,255,136,0.15)', border: '1px solid rgba(0,255,136,0.3)', borderRadius: 10, padding: '2px 7px', color: '#00ff88', fontFamily: "'Orbitron'" }}>SUPER ADMIN</span>
+                    )}
+                    <div style={{ fontSize: 9, color: a.is_active ? '#00ff88' : '#ff4444', marginTop: 4 }}>{a.is_active ? '● ACTIVE' : '○ INACTIVE'}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
