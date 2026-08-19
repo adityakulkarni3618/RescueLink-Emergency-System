@@ -725,27 +725,81 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
                     🔄 SYNC HIS
                   </button>
                 </div>
+
+                {ehrRecord ? (
+                  <div>
+                    <div style={{ fontSize: 11, color: '#00ff88', marginBottom: 4 }}>✓ HIS Connected • Diagnoses Loaded:</div>
+                    {ehrRecord.diagnoses.map((d, i) => (
+                      <div key={i} style={{ fontSize: 12, color: '#e0eaff', marginBottom: 2 }}>
+                        • {d.description} ({d.date})
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  patient.medicalHistory?.map((h, i) => (
+                    <div key={i} style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', marginBottom: 3, paddingLeft: 12, borderLeft: '2px solid rgba(0,200,255,0.3)' }}>
+                      {h}
+                    </div>
+                  )) || <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.3)', fontFamily: "'Share Tech Mono'" }}>NO RECORDS AVAILABLE</div>
+                )}
+              </div>
+
+              {/* Clinical OCR Scanner Drop Zone */}
+              <div style={{
+                marginTop: 16, padding: 16, background: 'rgba(0,200,255,0.02)',
+                border: '1px dashed rgba(0,200,255,0.2)', borderRadius: 8,
+                textAlign: 'center', boxSizing: 'border-box'
+              }}>
+                <div style={{ fontSize: 18, marginBottom: 6 }}>📄</div>
+                <div style={{ fontSize: 11, fontFamily: "'Orbitron'", color: '#00c8ff', fontWeight: 'bold' }}>
+                  CLINICAL OCR DOCUMENT PARSER
+                </div>
+                <p style={{ fontSize: 10, color: 'rgba(160,200,255,0.5)', margin: '4px 0 10px 0' }}>
+                  Paste raw clinical report text below to automatically extract allergies, blood group, and chronic histories.
+                </p>
+                <textarea
+                  placeholder="Example: Patient Type: O- | DOB: 12/04/1990 | Allergies: Penicillin, Sulfa | History: Asthma..."
+                  style={{
+                    width: '100%', height: 60, background: 'rgba(0,0,0,0.3)',
+                    border: '1px solid rgba(0,200,255,0.15)', borderRadius: 4,
+                    color: '#fff', fontSize: 11, padding: 8, boxSizing: 'border-box',
+                    fontFamily: "'Share Tech Mono'", outline: 'none', resize: 'none'
+                  }}
+                  onKeyDown={async (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      const text = e.target.value;
+                      if (!text.trim()) return;
+                      try {
+                        const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
+                        const res = await fetch(`${SERVER_URL}/api/ocr/parse-report`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ text })
+                        });
+                        const payload = await res.json();
+                        if (payload.success && payload.data) {
+                          const parsed = payload.data;
+                          setPatient(prev => ({
+                            ...prev,
+                            blood_group: parsed.bloodGroup || prev.blood_group,
+                            allergies: parsed.allergies.length > 0 ? parsed.allergies : prev.allergies,
+                            chronic_conditions: parsed.chronicConditions.length > 0 ? parsed.chronicConditions : prev.chronic_conditions,
+                            dob: parsed.dob || prev.dob,
+                            gender: parsed.gender || prev.gender
+                          }));
+                          showAlert('✅ Successfully extracted clinical parameters from scanned document text!');
+                          e.target.value = '';
+                        }
+                      } catch (err) {
+                        showAlert('❌ Document scanning failed: ' + err.message);
+                      }
+                    }
+                  }}
+                />
+              </div>
             </>
           )}
-
-            {ehrRecord ? (
-              <div>
-                <div style={{ fontSize: 11, color: '#00ff88', marginBottom: 4 }}>✓ HIS Connected • Diagnoses Loaded:</div>
-                {ehrRecord.diagnoses.map((d, i) => (
-                  <div key={i} style={{ fontSize: 12, color: '#e0eaff', marginBottom: 2 }}>
-                    • {d.description} ({d.date})
-                  </div>
-                ))}
-              </div>
-            ) : (
-              patient.medicalHistory?.map((h, i) => (
-                <div key={i} style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', marginBottom: 3, paddingLeft: 12, borderLeft: '2px solid rgba(0,200,255,0.3)' }}>
-                  {h}
-                </div>
-              )) || <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.3)', fontFamily: "'Share Tech Mono'" }}>NO RECORDS AVAILABLE</div>
-            )}
-          </div>
-        </>
       ) : (
         <div style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
