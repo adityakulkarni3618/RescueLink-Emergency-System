@@ -600,6 +600,51 @@ router.post('/register-fleet-ambulance', verifyToken(), async (req, res) => {
 });
 
 /**
+ * @route POST /api/auth/register-admin
+ * @desc Securely register a new admin user (only accessible by current city_admin)
+ */
+router.post('/register-admin', verifyToken(['city_admin']), async (req, res) => {
+  const { name, email, mobile, password } = req.body;
+  if (!name || !email || !password) {
+    return res.status(400).json({ error: 'Name, email, and password are required' });
+  }
+
+  try {
+    const { User } = require('../utils/db');
+    const existing = await User.findOne({ where: { email: email.toLowerCase() } });
+    if (existing) {
+      return res.status(400).json({ error: 'Email is already registered' });
+    }
+
+    const bcrypt = require('bcryptjs');
+    const passwordHash = await bcrypt.hash(password, 10);
+    
+    const speakeasy = require('speakeasy');
+    const setupData = speakeasy.generateSecret({ name: `RescueLink Admin:${email}` });
+
+    const newAdmin = await User.create({
+      name,
+      email: email.toLowerCase(),
+      mobile: mobile || '',
+      role: 'city_admin',
+      password: passwordHash,
+      totp_secret: setupData.base32,
+      is_active: true
+    });
+
+    console.log(`[AUTH] New City Admin registered by: ${req.user.email} -> ${newAdmin.email}`);
+    return res.status(201).json({
+      message: 'Admin registered successfully',
+      id: newAdmin.id,
+      email: newAdmin.email
+    });
+  } catch (err) {
+    console.error('[AUTH ERROR] Admin registration failed:', err.message);
+    return res.status(500).json({ error: 'Failed to register admin' });
+  }
+});
+
+/**
  * @route GET /api/auth/my-fleet
  * @desc Get all ambulances registered under the logged-in user
  */
