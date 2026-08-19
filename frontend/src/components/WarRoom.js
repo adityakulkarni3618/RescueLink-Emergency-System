@@ -8,6 +8,7 @@ import BloodEmergencyNetwork from './BloodEmergencyNetwork';
 import VideoCall from './VideoCall';
 import { generateMonthlyReport } from '../utils/reportGenerator';
 import { exportMetricsToExcel } from '../utils/excelExporter';
+import PhysiologicalWaveforms from './PhysiologicalWaveforms';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -826,6 +827,16 @@ export default function WarRoom({ socket, connected }) {
                   </div>
                 </div>
               </div>
+
+              {/* Physiological Telemetry Streams */}
+              {selectedIncidentDetails.vitals && (
+                <div style={{ marginBottom: 12 }}>
+                  <PhysiologicalWaveforms 
+                    vitals={selectedIncidentDetails.vitals} 
+                    news2Score={calculateNews2Score(selectedIncidentDetails.vitals)} 
+                  />
+                </div>
+              )}
 
               {/* Medical Team Assignment */}
               <div style={{ background: 'rgba(0,200,255,0.05)', border: '1px solid rgba(0,200,255,0.1)', padding: 10, borderRadius: 6, marginBottom: 12 }}>
