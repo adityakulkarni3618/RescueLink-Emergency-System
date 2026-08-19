@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMap, Polyline } from 'react-leaflet';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -85,6 +85,24 @@ export default function WarRoom({ socket, connected }) {
   const [aiRecommendations, setAiRecommendations] = useState([]);
   const [aiLoading, setAiLoading] = useState(false);
 
+  // OSRM Routing states
+  const [routeToPatient, setRouteToPatient] = useState([]);
+  const [routeToHospital, setRouteToHospital] = useState([]);
+
+  // Fetch navigation path from OSRM public API
+  const fetchOSRMRoute = async (start, end) => {
+    try {
+      const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${start.lng},${start.lat};${end.lng},${end.lat}?overview=full&geometries=geojson`);
+      const data = await res.json();
+      if (data.routes && data.routes.length > 0) {
+        return data.routes[0].geometry.coordinates.map(coord => [coord[1], coord[0]]);
+      }
+    } catch (e) {
+      console.error('[OSRM ERROR] Route generation failed:', e);
+    }
+    return [];
+  };
+
   // NEWS2 scoring helper
   const calculateNews2Score = (vitals) => {
     if (!vitals) return 0;
@@ -143,6 +161,47 @@ export default function WarRoom({ socket, connected }) {
     };
     fetchAiRouting();
   }, [selectedIncidentDetails, selectedIncidentId]);
+
+  // Compute road navigation paths using OSRM
+  useEffect(() => {
+    if (!selectedIncidentDetails) {
+      setRouteToPatient([]);
+      setRouteToHospital([]);
+      return;
+    }
+
+    const computeRoutes = async () => {
+      const userLoc = selectedIncidentDetails.userLocation;
+      const ambLoc = selectedIncidentDetails.ambulanceLocation;
+      const hospId = selectedIncidentDetails.hospitalId || selectedIncidentDetails.destinationId;
+
+      // 1. Calculate path from ambulance to patient
+      if (ambLoc && userLoc) {
+        const path = await fetchOSRMRoute(ambLoc, userLoc);
+        setRouteToPatient(path);
+      } else {
+        setRouteToPatient([]);
+      }
+
+      // 2. Calculate path from patient to assigned hospital
+      let hospitalCoords = null;
+      if (hospId) {
+        const hosp = Object.values(hospitals).find(h => h.id === hospId);
+        if (hosp) {
+          hospitalCoords = { lat: hosp.latitude, lng: hosp.longitude };
+        }
+      }
+
+      if (userLoc && hospitalCoords) {
+        const path = await fetchOSRMRoute(userLoc, hospitalCoords);
+        setRouteToHospital(path);
+      } else {
+        setRouteToHospital([]);
+      }
+    };
+
+    computeRoutes();
+  }, [selectedIncidentDetails, selectedIncidentId, hospitals]);
 
   useEffect(() => {
     if (!socket || !selectedIncidentId) {
@@ -571,6 +630,12 @@ export default function WarRoom({ socket, connected }) {
                     <Popup><div style={{ color: h.color, fontWeight: 'bold' }}>{h.type}</div><div style={{ fontSize: 11, color: '#000' }}>Radius: {(h.radius / 1000).toFixed(1)} km</div></Popup>
                   </Circle>
                 ))}
+                {routeToPatient.length > 0 && (
+                  <Polyline positions={routeToPatient} pathOptions={{ color: '#00ff88', weight: 4, opacity: 0.85, dashArray: '6, 12' }} />
+                )}
+                {routeToHospital.length > 0 && (
+                  <Polyline positions={routeToHospital} pathOptions={{ color: '#00c8ff', weight: 4, opacity: 0.85 }} />
+                )}
               </MapContainer>
             </div>
           </div>
