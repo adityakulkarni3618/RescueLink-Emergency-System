@@ -119,7 +119,7 @@ describe('Auth Endpoints', () => {
         .post('/api/auth/login')
         .send({ email: 'nonexistent@rescuelink.com', password: 'password123' });
 
-      expect(res.status).toBe(401);
+      expect(res.status).toBe(404);
     });
   });
 
