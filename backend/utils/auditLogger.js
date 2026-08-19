@@ -36,6 +36,30 @@ async function logAudit(eventCategory, action, details = {}, severity = 'INFO', 
             const isHighSeverityAction = ['PATIENT_UNMASK', 'BULK_EXPORT', 'ROLE_CHANGE', 'MFA_DISABLED'].includes(action) || severity === 'CRITICAL';
             const finalSeverity = isHighSeverityAction ? 'CRITICAL' : severity;
 
+            // Fetch the last audit log to get its hash
+            let prevHash = '0000000000000000000000000000000000000000000000000000000000000000';
+            try {
+                const lastLog = await AuditLog.findOne({
+                    order: [['createdAt', 'DESC']]
+                });
+                if (lastLog && lastLog.details && lastLog.details.hash) {
+                    prevHash = lastLog.details.hash;
+                }
+            } catch (hashErr) {
+                console.warn('[AUDIT HASH] Failed to fetch last log, using default base block:', hashErr.message);
+            }
+
+            // Generate cryptographic SHA-256 hash chaining
+            const crypto = require('crypto');
+            const logString = `${timestamp}|${eventCategory}|${action}|${finalSeverity}|${userId || ''}|${ipAddress || ''}|${JSON.stringify(details)}|${prevHash}`;
+            const currentHash = crypto.createHash('sha256').update(logString).digest('hex');
+
+            const detailsWithChain = {
+                ...details,
+                hash: currentHash,
+                prevHash: prevHash
+            };
+
             await AuditLog.create({
                 user_id: userId || details.userId || null,
                 action: action,
@@ -44,7 +68,7 @@ async function logAudit(eventCategory, action, details = {}, severity = 'INFO', 
                 ip_address: ipAddress || details.ipAddress || null,
                 severity: finalSeverity,
                 category: eventCategory,
-                details: details
+                details: detailsWithChain
             });
 
             // If it is critical, trigger a suspicious activity notification/alert to connected admins
