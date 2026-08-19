@@ -61,8 +61,54 @@ async function isTokenBlacklisted(token) {
   return memoryBlacklist.has(token);
 }
 
+/**
+ * Acquires a distributed lock.
+ * @param {string} resource Name of lock
+ * @param {string} value Value for lock (e.g. socket id)
+ * @param {number} ttlSeconds Time-to-live in seconds
+ * @returns {Promise<boolean>} True if lock acquired
+ */
+async function acquireLock(resource, value, ttlSeconds = 15) {
+  if (redis && redis.status === 'ready') {
+    try {
+      const result = await redis.set(`lock:${resource}`, value, 'NX', 'EX', ttlSeconds);
+      return result === 'OK';
+    } catch (err) {
+      console.log('[REDIS ERROR] acquireLock failed:', err.message);
+    }
+  }
+  return false;
+}
+
+/**
+ * Releases a distributed lock.
+ * @param {string} resource Name of lock
+ * @param {string} value Value matching lock value
+ * @returns {Promise<boolean>} True if lock released
+ */
+async function releaseLock(resource, value) {
+  if (redis && redis.status === 'ready') {
+    try {
+      const luaScript = `
+        if redis.call('get', KEYS[1]) == ARGV[1] then
+          return redis.call('del', KEYS[1])
+        else
+          return 0
+        end
+      `;
+      const result = await redis.eval(luaScript, 1, `lock:${resource}`, value);
+      return result === 1;
+    } catch (err) {
+      console.log('[REDIS ERROR] releaseLock failed:', err.message);
+    }
+  }
+  return false;
+}
+
 module.exports = {
   redis,
   blacklistToken,
-  isTokenBlacklisted
+  isTokenBlacklisted,
+  acquireLock,
+  releaseLock
 };
