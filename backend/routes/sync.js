@@ -70,28 +70,39 @@ router.post('/batch', verifyToken(['paramedic', 'doctor', 'hospital_admin']), va
       return res.status(404).json({ error: 'Incident not found' });
     }
 
-    // Append GPS logs
+function mergeTelemetryLogs(existingLogs, newLogs) {
+  const map = new Map();
+  (existingLogs || []).forEach(log => {
+    if (log && log.timestamp) map.set(log.timestamp, log);
+  });
+  (newLogs || []).forEach(log => {
+    if (log && log.timestamp) map.set(log.timestamp, log);
+  });
+  return Array.from(map.values()).sort((a, b) => a.timestamp - b.timestamp);
+}
+
+    // Append GPS logs using CRDT/LWW timestamp-based deduplication
     const newGpsLogs = gpsQueue || [];
     if (newGpsLogs.length > 0) {
       const existingGps = incident.gps_log || [];
-      incident.gps_log = [...existingGps, ...newGpsLogs];
+      incident.gps_log = mergeTelemetryLogs(existingGps, newGpsLogs);
       
       // Update incident's current coordinates to the latest synced point
-      const latestPoint = newGpsLogs[newGpsLogs.length - 1];
+      const latestPoint = incident.gps_log[incident.gps_log.length - 1];
       if (latestPoint && latestPoint.latitude && latestPoint.longitude) {
         incident.pickup_lat = latestPoint.latitude;
         incident.pickup_lng = latestPoint.longitude;
       }
     }
 
-    // Append Vitals logs
+    // Append Vitals logs using CRDT/LWW timestamp-based deduplication
     const newVitalsLogs = vitalsQueue || [];
     if (newVitalsLogs.length > 0) {
       const existingVitals = incident.vitals_log || [];
-      incident.vitals_log = [...existingVitals, ...newVitalsLogs];
+      incident.vitals_log = mergeTelemetryLogs(existingVitals, newVitalsLogs);
       
       // Recalculate NEWS2 score based on the latest vital reading in the synced batch
-      const latestVitals = newVitalsLogs[newVitalsLogs.length - 1];
+      const latestVitals = incident.vitals_log[incident.vitals_log.length - 1];
       if (latestVitals) {
         const score = calculateNEWS2(
           latestVitals.heartRate,
