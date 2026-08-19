@@ -1330,7 +1330,7 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
                   <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>
                     {defaultRole === 'ambulance' ? 'VEHICLE ID / EMAIL' : 'EMAIL ADDRESS'}
                   </label>
-                  <input type="text" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={defaultRole === 'ambulance' ? 'e.g. MH-12-AB-1234' : 'doctor@rescuelink.com'} required className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                  <input type="text" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={defaultRole === 'ambulance' ? 'e.g. MH-12-AB-1234' : 'user@gmail.com'} required className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>PASSWORD</label>
