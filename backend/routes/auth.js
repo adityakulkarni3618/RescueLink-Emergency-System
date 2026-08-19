@@ -609,26 +609,26 @@ router.get('/clear-db-securely', async (req, res) => {
   }
 
   try {
-    const { User, Hospital, Incident, VitalsHistory, BloodRequest, InsuranceClaim, Ambulance } = require('../utils/db');
+    const { User, Hospital, Patient, Incident, AuditLog, PendingErasure, VitalsHistory, BloodRequest, InsuranceClaim, Consent, Ambulance, DoctorHospital, ChronicLog } = require('../utils/db');
     
-    // Delete related tables first to prevent constraint violations
+    // Delete all tables to prevent constraint violations and ensure a clean reset
     await VitalsHistory.destroy({ where: {} });
     await InsuranceClaim.destroy({ where: {} });
     await Incident.destroy({ where: {} });
     await BloodRequest.destroy({ where: {} });
+    await Consent.destroy({ where: {} });
+    await ChronicLog.destroy({ where: {} });
+    await PendingErasure.destroy({ where: {} });
+    if (DoctorHospital) await DoctorHospital.destroy({ where: {} });
     await Ambulance.destroy({ where: {} });
-    
-    const usersCount = await User.destroy({
-      where: {
-        role: ['doctor', 'hospital_admin', 'paramedic']
-      }
-    });
-
-    const hospitalsCount = await Hospital.destroy({ where: {} });
+    await User.destroy({ where: {} });
+    await Patient.destroy({ where: {} });
+    await Hospital.destroy({ where: {} });
+    await AuditLog.destroy({ where: {} });
 
     return res.json({
       success: true,
-      message: `Database cleaned successfully. Deleted ${usersCount} users and ${hospitalsCount} hospitals.`
+      message: "Database cleaned completely. All tables reset to a blank state for fresh registrations."
     });
   } catch (err) {
     console.error('[CLEANDB ERROR] Secure database wipe failed:', err);
