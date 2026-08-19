@@ -186,4 +186,87 @@ Provide the output in STRIXT JSON format. Do not write any markdown blocks, expl
   }
 });
 
+/**
+ * @route POST /api/ai/soap
+ * @desc Generate a SOAP (Subjective, Objective, Assessment, Plan) summary from unstructured notes & vitals
+ */
+router.post('/soap', verifyToken(), async (req, res) => {
+  const { notes, vitalsHistory } = req.body;
+  if (!notes) {
+    return res.status(400).json({ error: 'Paramedic notes are required for SOAP summarization.' });
+  }
+
+  const vitalsText = vitalsHistory && vitalsHistory.length > 0 
+    ? JSON.stringify(vitalsHistory.slice(-5))
+    : 'No vitals history recorded.';
+
+  try {
+    let soapSummary;
+
+    if (aiModel) {
+      const prompt = `You are an emergency medicine clinical AI scribe.
+Analyze the following unstructured paramedic dictation notes and vital sign telemetry logs:
+---
+PARAMEDIC NOTES:
+"${notes}"
+
+RECENT VITALS LOGS:
+${vitalsText}
+---
+
+Generate a standard medical SOAP Note (Subjective, Objective, Assessment, Plan) matching this context.
+1. Subjective: History of present illness, symptoms, paramedic notes.
+2. Objective: Clinical vital signs readings, physical findings.
+3. Assessment: Triage evaluation, provisional diagnosis, clinical acuity.
+4. Plan: Immediate pre-hospital care, trauma bay prep instructions, diagnostic or drug orders suggested.
+
+Provide the output in STRICT JSON format. Do not write any markdown blocks, explanations, or code fences around the JSON. The response must be a single parseable JSON object matching this structure exactly:
+{
+  "subjective": "string",
+  "objective": "string",
+  "assessment": "string",
+  "plan": "string"
+}`;
+
+      try {
+        const result = await aiModel.generateContent(prompt);
+        const textResponse = result.response.text().trim();
+        const cleaned = textResponse.replace(/^```json/, '').replace(/```$/, '').trim();
+        soapSummary = JSON.parse(cleaned);
+      } catch (geminiErr) {
+        console.warn('[AI COPILOT] Gemini SOAP Note call failed, resorting to rule-based fallback:', geminiErr.message);
+        soapSummary = getFallbackSoapNote(notes, vitalsHistory);
+      }
+    } else {
+      soapSummary = getFallbackSoapNote(notes, vitalsHistory);
+    }
+
+    await logAudit(
+      'CLINICAL_AI',
+      'AI_SOAP_SUMMARY',
+      { resource: 'AIModel', resourceId: 'gemini-1.5-flash' },
+      'INFO',
+      req.user.id,
+      req.ip || req.connection.remoteAddress
+    );
+
+    return res.json(soapSummary);
+  } catch (err) {
+    console.error('[AI COPILOT ROUTE] Error in SOAP note generation:', err.message);
+    return res.status(500).json({ error: 'SOAP note generation failed' });
+  }
+});
+
+function getFallbackSoapNote(notes, vitalsHistory) {
+  const latestVitals = vitalsHistory && vitalsHistory.length > 0 ? vitalsHistory[vitalsHistory.length - 1] : {};
+  const bpText = latestVitals.systolic ? `${latestVitals.systolic}/${latestVitals.diastolic} mmHg` : 'N/A';
+  
+  return {
+    subjective: `Patient presents with: ${notes}. Historical timeline dictated by paramedic team during transit.`,
+    objective: `Vitals recorded: HR ${latestVitals.heartRate || 'N/A'} bpm, SpO2 ${latestVitals.spo2 || 'N/A'}%, BP ${bpText}.`,
+    assessment: `Emergency presentation evaluated. Acuity status aligned with pre-hospital observations.`,
+    plan: `Admit patient to ER trauma bay. Prepare cardiac monitoring, secure IV access, and await physician secondary survey.`
+  };
+}
+
 module.exports = router;
