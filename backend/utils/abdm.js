@@ -1,5 +1,6 @@
 const axios = require('axios');
 const dotenv = require('dotenv');
+const crypto = require('crypto');
 dotenv.config();
 
 /**
@@ -270,6 +271,67 @@ class ABDMService {
     }
 
     return { name: patientName, gender: patientGender };
+  }
+
+  /**
+   * Encrypts data using ECDH shared secret with a receiver's raw public key.
+   * @param {string|object} data Data to encrypt.
+   * @param {string} receiverPublicKeyHex Public key of the receiver in hex format.
+   * @returns {object} { encryptedData, tag, iv, salt, senderPublicKey }
+   */
+  encryptWithECDH(data, receiverPublicKeyHex) {
+    const stringData = typeof data === 'string' ? data : JSON.stringify(data);
+    const sender = crypto.createECDH('prime256v1');
+    sender.generateKeys();
+    
+    const sharedSecret = sender.computeSecret(Buffer.from(receiverPublicKeyHex, 'hex'));
+    const salt = crypto.randomBytes(32);
+    const iv = crypto.randomBytes(12);
+    const key = crypto.hkdfSync('sha256', sharedSecret, salt, Buffer.from('ABDM-Data-Transfer', 'utf-8'), 32);
+    
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+    let encrypted = cipher.update(stringData, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    const tag = cipher.getAuthTag().toString('hex');
+    
+    return {
+      encryptedData: encrypted,
+      tag: tag,
+      iv: iv.toString('hex'),
+      salt: salt.toString('hex'),
+      senderPublicKey: sender.getPublicKey('hex')
+    };
+  }
+
+  /**
+   * Decrypts data using ECDH shared secret with a sender's public key.
+   * @param {string} encryptedData 
+   * @param {string} tag 
+   * @param {string} ivHex 
+   * @param {string} saltHex 
+   * @param {string} senderPublicKeyHex 
+   * @param {string} receiverPrivateKeyPem Private key of the receiver (PEM).
+   * @returns {string} Decrypted string.
+   */
+  decryptWithECDH(encryptedData, tag, ivHex, saltHex, senderPublicKeyHex, receiverPrivateKeyPem) {
+    const sharedSecret = crypto.diffieHellman({
+      privateKey: crypto.createPrivateKey(receiverPrivateKeyPem),
+      publicKey: crypto.createPublicKey({
+        key: Buffer.from(senderPublicKeyHex, 'hex'),
+        format: 'der',
+        type: 'spki'
+      })
+    });
+    
+    const salt = Buffer.from(saltHex, 'hex');
+    const iv = Buffer.from(ivHex, 'hex');
+    const key = crypto.hkdfSync('sha256', sharedSecret, salt, Buffer.from('ABDM-Data-Transfer', 'utf-8'), 32);
+    
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+    decipher.setAuthTag(Buffer.from(tag, 'hex'));
+    let decrypted = decipher.update(encryptedData, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
   }
 }
 
