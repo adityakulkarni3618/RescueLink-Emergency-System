@@ -213,6 +213,8 @@ export default function UserDashboard({ socket, connected }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [manualCenter, setManualCenter] = useState(null);
 
+  const [pendingConsentRequest, setPendingConsentRequest] = useState(null);
+
   // ─── Enterprise Features State ──────────────────────────────────────────────
   const [showAICopilot, setShowAICopilot] = useState(false);
   const [showCPRGuide, setShowCPRGuide] = useState(false);
@@ -657,6 +659,11 @@ export default function UserDashboard({ socket, connected }) {
       setMissions(prev => ({ ...prev, [data.id]: { ...data, status: 'searching' } }));
       setCurrentReqId(data.id);
       setRequestStatus('searching');
+    });
+
+    socket.on('consent-requested', (data) => {
+      setPendingConsentRequest(data);
+      playAlertBeep();
     });
 
     socket.on('mission-completed', (data) => {
@@ -1598,6 +1605,46 @@ export default function UserDashboard({ socket, connected }) {
               </React.Fragment>
             ))}
           </MapContainer>
+
+          {/* 🔐 ABDM DPDP CONSENT POPUP */}
+          {pendingConsentRequest && (
+            <div style={{
+              position: 'fixed', inset: 0, background: 'rgba(0,10,30,0.95)', zIndex: 99999,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)'
+            }}>
+              <div style={{
+                background: 'linear-gradient(135deg, #0a1e3a 0%, #020814 100%)',
+                border: '2px solid #00ff88', borderRadius: 20, width: 400, padding: 30,
+                textAlign: 'center', boxShadow: '0 0 50px rgba(0,255,136,0.2)'
+              }}>
+                <div style={{ fontSize: 48, marginBottom: 20 }}>🛡️</div>
+                <h2 style={{ fontFamily: "'Orbitron'", color: '#00ff88', marginBottom: 10, fontSize: 18 }}>ABDM DATA CONSENT REQUEST</h2>
+                <p style={{ fontSize: 13, color: 'rgba(160,200,255,0.7)', marginBottom: 24, lineHeight: 1.5 }}>
+                  <strong>{pendingConsentRequest.hospitalName}</strong> is requesting permission to access your clinical history, allergies, and ABHA Health Card records to prepare emergency care.
+                </p>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <button
+                    onClick={() => {
+                      socket.emit('patient-respond-consent', { reqId: pendingConsentRequest.reqId, approved: false });
+                      setPendingConsentRequest(null);
+                    }}
+                    style={{ flex: 1, padding: 12, background: 'rgba(255,51,51,0.1)', border: '1px solid #ff3333', borderRadius: 8, color: '#ff3333', cursor: 'pointer', fontFamily: "'Orbitron'", fontWeight: 'bold' }}
+                  >
+                    DENY
+                  </button>
+                  <button
+                    onClick={() => {
+                      socket.emit('patient-respond-consent', { reqId: pendingConsentRequest.reqId, approved: true });
+                      setPendingConsentRequest(null);
+                    }}
+                    style={{ flex: 1, padding: 12, background: '#00ff88', border: 'none', borderRadius: 8, color: '#000', cursor: 'pointer', fontFamily: "'Orbitron'", fontWeight: 'bold' }}
+                  >
+                    APPROVE (DPDP)
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* 🔐 ABDM CONSENT GATEWAY (OTP MODAL) */}
           {showOtpModal && (
