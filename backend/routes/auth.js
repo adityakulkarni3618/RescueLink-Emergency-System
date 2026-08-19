@@ -652,4 +652,27 @@ router.get('/clear-db-securely', async (req, res) => {
   }
 });
 
+/**
+ * @route GET /api/auth/seed-db-securely
+ * @desc Securely seeds the database tables with default users and records (Free Tier utility)
+ */
+router.get('/seed-db-securely', async (req, res) => {
+  const { secret } = req.query;
+  if (secret !== 'RescueLinkSecureClear2026') {
+    return res.status(403).json({ error: 'Forbidden: Invalid security clear token' });
+  }
+
+  try {
+    const seed = require('../scripts/seed_db');
+    await seed();
+    return res.json({
+      success: true,
+      message: "Database seeded completely. Default accounts (admin@rescuelink.com, doctor@rescuelink.com) are ready."
+    });
+  } catch (err) {
+    console.error('[SEEDDB ERROR] Secure database seed failed:', err);
+    return res.status(500).json({ error: `Seeding failed: ${err.message}` });
+  }
+});
+
 module.exports = router;
