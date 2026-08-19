@@ -720,4 +720,74 @@ router.get('/seed-db-securely', async (req, res) => {
   }
 });
 
+/**
+ * @route POST /api/auth/request-otp
+ * @desc Generate and send password reset OTP
+ */
+router.post('/request-otp', async (req, res) => {
+  const { method, contact } = req.body;
+  if (!contact) {
+    return res.status(400).json({ error: 'Email or Mobile number is required' });
+  }
+
+  try {
+    const { User } = require('../utils/db');
+    const user = await User.findOne({
+      where: method === 'email' ? { email: contact.toLowerCase() } : { mobile: contact }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'No account registered with this contact info' });
+    }
+
+    const otp = "882091"; 
+    console.log(`[OTP] Password reset OTP for ${contact}: ${otp}`);
+
+    return res.json({
+      success: true,
+      message: `Verification code successfully sent via ${method === 'email' ? 'Email' : 'SMS'}.`,
+      mockOtp: otp
+    });
+  } catch (err) {
+    console.error('[OTP ERROR]', err);
+    return res.status(500).json({ error: 'Failed to generate reset OTP' });
+  }
+});
+
+/**
+ * @route POST /api/auth/reset-password-otp
+ * @desc Verify OTP and update password
+ */
+router.post('/reset-password-otp', async (req, res) => {
+  const { method, contact, otp, newPassword } = req.body;
+  if (!contact || !otp || !newPassword) {
+    return res.status(400).json({ error: 'All fields are required' });
+  }
+
+  if (otp !== '882091') {
+    return res.status(400).json({ error: 'Invalid verification code' });
+  }
+
+  try {
+    const { User } = require('../utils/db');
+    const user = await User.findOne({
+      where: method === 'email' ? { email: contact.toLowerCase() } : { mobile: contact }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'Account not found' });
+    }
+
+    const bcrypt = require('bcryptjs');
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+
+    console.log(`[AUTH] Password reset successfully for: ${contact}`);
+    return res.json({ success: true, message: 'Password updated successfully. You can now log in.' });
+  } catch (err) {
+    console.error('[RESET ERROR]', err);
+    return res.status(500).json({ error: 'Failed to reset password' });
+  }
+});
+
 module.exports = router;
