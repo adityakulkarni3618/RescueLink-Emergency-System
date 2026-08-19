@@ -848,6 +848,17 @@ export default function AmbulanceStreamer({ socket, connected }) {
   const arrivedHospitalRef = useRef(false);
   const lastAlertedIdRef = useRef(null);
   const lastVitalsAlertRef = useRef(0);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('offline_backlog');
+      if (saved) {
+        offlineBacklog.current = JSON.parse(saved);
+        console.log(`[OFFLINE RECOVERY] Loaded ${offlineBacklog.current.length} records from LocalStorage.`);
+      }
+    } catch (e) {
+      console.error('[OFFLINE RECOVERY] Failed to load backlog:', e);
+    }
+  }, []);
   useEffect(() => { arrivedRef.current = arrivedAtUser; }, [arrivedAtUser]);
   useEffect(() => { patientRef.current = selectedPatient; }, [selectedPatient]);
   useEffect(() => { hospitalRef.current = assignedHospital; }, [assignedHospital]);
@@ -1117,6 +1128,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
           vitalsHistory: offlineBacklog.current
         });
         offlineBacklog.current = []; // Clear the buffer
+        localStorage.removeItem('offline_backlog');
       }
     }
 
@@ -1252,6 +1264,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
           if (isOfflineRef.current) {
             offlineBacklog.current.push({ ...vitalsWithSource, timestamp: Date.now() });
             if (offlineBacklog.current.length > 100) offlineBacklog.current.shift();
+            localStorage.setItem('offline_backlog', JSON.stringify(offlineBacklog.current));
           } else {
             socket.emit('vitals-update', { ...vitalsWithSource, reqId: assignedUserRef.current?.id });
           }
