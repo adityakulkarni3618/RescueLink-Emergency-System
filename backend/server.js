@@ -34,6 +34,7 @@ const whatsappService = require('./utils/whatsapp');
 const { getETA, haversineDistance } = require('./utils/maps');
 const { initVitalsBridge } = require('./utils/vitalsBridge');
 const cache = require('./utils/cache');
+const { acquireLock, releaseLock } = require('./utils/redis');
 const { sendPushNotification, sendTopicNotification } = require('./utils/pushNotifications');
 
 // NOTE: @socket.io/cluster-adapter only works inside a Node.js cluster (PM2/master-worker).
@@ -1993,7 +1994,12 @@ io.on('connection', (socket) => {
     if (!req) return;
 
     if (data.accepted) {
-      if (req._ambulanceAcceptLock || req.status !== 'pending_ambulance') {
+      const lockAcquired = await acquireLock(`dispatch:${data.reqId}`, socket.id, 15);
+      const hasMemoryLock = req._ambulanceAcceptLock || req.status !== 'pending_ambulance';
+      const { redis } = require('./utils/redis');
+      const isRedisConnected = redis && redis.status === 'ready';
+
+      if ((isRedisConnected && !lockAcquired) || (!isRedisConnected && hasMemoryLock)) {
         socket.emit('error-alert', { message: 'This mission has already been claimed by another unit.' });
         return;
       }
@@ -2098,7 +2104,12 @@ io.on('connection', (socket) => {
     // This prevents the race condition where two hospitals accept at the same millisecond.
     // In multi-node (Redis) production, this would be a Redlock distributed lock.
     if (isAccepted) {
-      if (req._acceptLock) {
+      const lockAcquired = await acquireLock(`hospital:${reqId}`, socket.id, 15);
+      const hasMemoryLock = req._acceptLock;
+      const { redis } = require('./utils/redis');
+      const isRedisConnected = redis && redis.status === 'ready';
+
+      if ((isRedisConnected && !lockAcquired) || (!isRedisConnected && hasMemoryLock)) {
         // Another hospital beat this one by milliseconds
         console.warn(`[RACE CONDITION BLOCKED] Hospital ${socket.id} lost race for ${reqId}`);
         return socket.emit('error-alert', { message: 'REQUEST_ALREADY_TAKEN: Another hospital accepted this patient 0.01 seconds before you.' });
