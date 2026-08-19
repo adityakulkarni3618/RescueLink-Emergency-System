@@ -3091,7 +3091,9 @@ export default function HospitalDashboard({ socket, connected }) {
               <div style={{ fontSize: 22, flexShrink: 0 }}>🏥</div>
               <div style={{ flexShrink: 0, minWidth: 'fit-content' }}>
                 <div style={{ fontFamily: "'Orbitron'", fontSize: 14, fontWeight: 700, color: '#00c8ff', letterSpacing: '0.1em' }}>
-                  {authHospital?.hospitalId || 'HOSPITAL'} — {authHospital?.adminName || 'DR. DASHBOARD'}
+                  {authHospital?.hospitalId && authHospital.hospitalId.length > 15 
+                    ? `HOSP-${authHospital.hospitalId.slice(0, 8).toUpperCase()}` 
+                    : authHospital?.hospitalId || 'HOSPITAL'} — {authHospital?.adminName || 'DR. DASHBOARD'}
                 </div>
                 <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>
                   {authHospital?.name?.toUpperCase() || activeHospital?.name?.toUpperCase() || 'EMERGENCY WING'} · EMERGENCY WING
