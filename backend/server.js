@@ -2978,6 +2978,29 @@ async function startServer() {
     await syncDatabase();
     console.log('[ENTERPRISE DB] Persistence Layer Online');
 
+    // ── Auto-bootstrap super admin (runs on every startup, safe upsert) ──
+    try {
+      const superAdminEmail = 'admin@rescuelink.com';
+      const existing = await User.findOne({ where: { email: superAdminEmail } });
+      if (!existing) {
+        const passwordHash = bcrypt.hashSync('password123', 10);
+        await User.create({
+          name: 'Government Super Admin',
+          email: superAdminEmail,
+          password: passwordHash,
+          role: 'city_admin',
+          mobile: '+91-7766554433',
+          authority: 'Super Administrator',
+          is_active: true
+        });
+        console.log('[BOOTSTRAP] Super admin (admin@rescuelink.com) created automatically.');
+      } else {
+        console.log('[BOOTSTRAP] Super admin already exists. Skipping creation.');
+      }
+    } catch (bootstrapErr) {
+      console.error('[BOOTSTRAP] Failed to auto-create super admin:', bootstrapErr.message);
+    }
+
     // 2. Hydrate in-memory state from database
     const persisted = await Incident.findAll({
       where: {
