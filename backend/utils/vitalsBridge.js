@@ -1,10 +1,52 @@
 const { SerialPort } = require('serialport');
 const { ReadlineParser } = require('@serialport/parser-readline');
+const tf = require('@tensorflow/tfjs');
 const dotenv = require('dotenv');
 dotenv.config();
 
 let portInstance = null;
 let simulatedInterval = null;
+let localPredictiveModel = null;
+
+async function initPredictiveModel() {
+  try {
+    localPredictiveModel = tf.sequential();
+    localPredictiveModel.add(tf.layers.dense({ units: 16, inputShape: [5], activation: 'relu' }));
+    localPredictiveModel.add(tf.layers.dense({ units: 3, activation: 'sigmoid' }));
+    localPredictiveModel.compile({ optimizer: 'adam', loss: 'binaryCrossentropy' });
+    console.log('[ENTERPRISE AI] Local vitals predictive model initialized.');
+  } catch (err) {
+    console.error('[ENTERPRISE AI] Error creating local TF model:', err);
+  }
+}
+initPredictiveModel();
+
+function predictTriageRisk(vitals) {
+  if (!localPredictiveModel) return null;
+  try {
+    const hr = vitals.heartRate || 75;
+    const spo2 = vitals.spo2 || 98;
+    const sbp = vitals.systolic || 120;
+    const rr = vitals.respRate || 16;
+    const temp = vitals.temperature || 37.0;
+
+    const inputTensor = tf.tensor2d([[hr, spo2, sbp, rr, temp]]);
+    const prediction = localPredictiveModel.predict(inputTensor);
+    const data = prediction.dataSync();
+    
+    inputTensor.dispose();
+    prediction.dispose();
+    
+    return {
+      cardiacArrestRisk: Math.round(data[0] * 100) / 100,
+      shockRisk: Math.round(data[1] * 100) / 100,
+      vTachRisk: Math.round(data[2] * 100) / 100
+    };
+  } catch (err) {
+    console.error('[ENTERPRISE AI] Prediction failed:', err.message);
+    return null;
+  }
+}
 
 /**
  * Parses an HL7 v2 ORU^R01 message string to extract patient vital signs.
@@ -134,11 +176,13 @@ function processHL7Message(hl7Msg, io, activeRequests) {
       r => (r.unitId === unitId || r.ambulanceSocket) && r.status !== 'completed'
     );
     
+    const aiPrediction = predictTriageRisk(vitals);
     const payload = {
       ...vitals,
       source: 'LIVE',
       timestamp: Date.now(),
-      reqId: activeMission ? activeMission.id : null
+      reqId: activeMission ? activeMission.id : null,
+      aiPrediction: aiPrediction
     };
     
     if (activeMission) {
@@ -171,12 +215,14 @@ function startSimulation(io, activeRequests) {
     currentVitals = parseHL7ORU(hl7Msg);
     
     const activeMission = Object.values(activeRequests).find(r => r.status !== 'completed');
+    const aiPrediction = predictTriageRisk(currentVitals);
     
     const payload = {
       ...currentVitals,
       source: 'SIMULATED',
       timestamp: Date.now(),
-      reqId: activeMission ? activeMission.id : null
+      reqId: activeMission ? activeMission.id : null,
+      aiPrediction: aiPrediction
     };
     
     if (activeMission) {
