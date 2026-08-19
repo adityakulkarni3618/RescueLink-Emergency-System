@@ -1654,12 +1654,52 @@ io.on('connection', (socket) => {
   socket.on('webrtc-telestration', (data) => routeToMission(socket, 'webrtc-telestration', data));
   socket.on('webrtc-telestration-clear', (data) => routeToMission(socket, 'webrtc-telestration-clear', data));
   socket.on('green-corridor-status', (data) => routeToMission(socket, 'green-corridor-status', data));
-  socket.on('hospital-lock-resources', async (data) => {
+  socket.on('paramedic-request-lock', (data) => {
     const { reqId, locks } = data;
     const req = activeRequests[reqId];
     if (req) {
-      req.resourceLocks = locks;
-      io.to(`mission_${reqId}`).emit('hospital-resources-locked', { reqId, locks });
+      req.resourceLocksPending = locks;
+      req.lockRequestExpires = Date.now() + 20 * 60 * 1000; // 20 mins
+      io.to(`mission_${reqId}`).emit('paramedic-lock-requested', { 
+        reqId, 
+        locks, 
+        expiresAt: req.lockRequestExpires 
+      });
+      console.log(`[LOCK REQUEST] Paramedic requested lock for mission ${reqId}`);
+    }
+  });
+
+  socket.on('hospital-respond-lock', async (data) => {
+    const { reqId, approved } = data;
+    const req = activeRequests[reqId];
+    if (req && req.resourceLocksPending) {
+      if (approved) {
+        req.resourceLocks = req.resourceLocksPending;
+        
+        // Auto-decrement real hospital resources in db
+        try {
+          const { Hospital } = require('./utils/db');
+          const hosp = await Hospital.findByPk(req.hospitalId);
+          if (hosp) {
+            if (req.resourceLocksPending.traumaBay && hosp.total_beds > 0) {
+              hosp.total_beds -= 1;
+            }
+            if (req.resourceLocksPending.ventilatorStandby && hosp.ventilators > 0) {
+              hosp.ventilators -= 1;
+            }
+            await hosp.save();
+            io.emit('hospitals-update', await Hospital.findAll());
+          }
+        } catch (dbErr) {
+          console.error('[LOCK DB ERROR]', dbErr.message);
+        }
+
+        io.to(`mission_${reqId}`).emit('hospital-resources-locked', { reqId, locks: req.resourceLocks, status: 'APPROVED' });
+      } else {
+        io.to(`mission_${reqId}`).emit('hospital-resources-locked', { reqId, locks: {}, status: 'DENIED' });
+      }
+      delete req.resourceLocksPending;
+      delete req.lockRequestExpires;
       syncMissionToDB(reqId);
     }
   });
