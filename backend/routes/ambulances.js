@@ -12,7 +12,8 @@ router.get('/', async (req, res) => {
   try {
     // Return all registered ambulances — frontend badge shows ACTIVE/ON BREAK per record
     const list = await Ambulance.findAll({
-      order: [['createdAt', 'DESC']]
+      order: [['createdAt', 'DESC']],
+      raw: true
     });
     return res.json(list);
   } catch (err) {
