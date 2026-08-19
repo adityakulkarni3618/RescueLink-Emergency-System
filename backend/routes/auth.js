@@ -743,6 +743,15 @@ router.post('/request-otp', async (req, res) => {
     const otp = "882091"; 
     console.log(`[OTP] Password reset OTP for ${contact}: ${otp}`);
 
+    if (method === 'mobile') {
+      try {
+        const whatsappService = require('../utils/whatsapp');
+        await whatsappService.sendSMS(contact, `🚨 RescueLink Emergency System: Your password recovery verification code is: ${otp}. This code is valid for 10 minutes.`);
+      } catch (smsErr) {
+        console.error('[SMS SEND ERROR] Failed to send real SMS via Twilio:', smsErr.message);
+      }
+    }
+
     return res.json({
       success: true,
       message: `Verification code successfully sent via ${method === 'email' ? 'Email' : 'SMS'}.`,
