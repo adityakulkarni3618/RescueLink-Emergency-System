@@ -1194,13 +1194,30 @@ io.on('connection', (socket) => {
       if (reqId) {
         io.to(`mission_${reqId}`).emit('critical-alert', { reasons, vitals: data, timestamp: Date.now(), news2Score });
 
-        // --- SMART RESOURCE ALLOCATION ---
         // If NEWS2 is extremely high, automatically lock trauma resources
         if (news2Score >= 9) {
           io.to(`mission_${reqId}`).emit('smart-resource-alert', {
             message: `CRITICAL TRAUMA DETECTED (NEWS2: ${news2Score}). Autolocking Trauma Bay 1 & alerting Blood Bank.`,
             autoLocks: ['otPrepared', 'bloodBankAlerted']
           });
+
+          // Real-World Escalation: Notify Emergency Contact & Hospital
+          if (activeRequests[reqId] && !activeRequests[reqId]._escalatedAlert) {
+            activeRequests[reqId]._escalatedAlert = true;
+            
+            // 1. Notify Next of Kin
+            const userPhone = activeRequests[reqId].patientDetails?.emergencyContact || '';
+            if (userPhone) {
+              const kinNumber = userPhone.includes('–') ? userPhone.split('–')[1].trim() : userPhone;
+              whatsappService.sendSMS(kinNumber, `🚨 *RESCUELINK URGENT UPDATE*:\nPatient is in critical transit condition (NEWS2: ${news2Score}). Paramedics are actively managing vitals. Current target facility: ${activeRequests[reqId].assignedHospital?.name || 'Emergency Trauma Ward'}.`).catch(e => {});
+            }
+            
+            // 2. Notify Target Hospital ER Supervisor
+            const hospContact = activeRequests[reqId].assignedHospital?.contactInfo || '';
+            if (hospContact) {
+              whatsappService.sendSMS(hospContact, `🏥 *CRITICAL INCOMING ARRIVAL*:\nAmbulance ${activeRequests[reqId].unitId || 'Emergency Unit'} is bringing in a high-acuity patient (NEWS2: ${news2Score}, Reasons: ${reasons.join(', ')}). Autolocked Trauma Bay 1.`).catch(e => {});
+            }
+          }
         }
       }
     }
