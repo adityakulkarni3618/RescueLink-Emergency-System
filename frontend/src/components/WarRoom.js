@@ -404,6 +404,7 @@ export default function WarRoom({ socket, connected }) {
                 { id: 'blood_bank', label: '🩸 NATIONAL BLOOD NETWORK' },
                 { id: 'telemedicine', label: '📹 TELEMEDICINE STATUS' },
                 { id: 'privacy', label: '🔐 PRIVACY & ERASURE (DPDP)' },
+                { id: 'authority', label: '👥 REGISTER AUTHORITY' },
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -433,6 +434,7 @@ export default function WarRoom({ socket, connected }) {
                     { id: 'blood_bank', label: '🩸 NATIONAL BLOOD NETWORK' },
                     { id: 'telemedicine', label: '📹 TELEMEDICINE STATUS' },
                     { id: 'privacy', label: '🔐 PRIVACY & ERASURE (DPDP)' },
+                    { id: 'authority', label: '👥 REGISTER AUTHORITY' },
                   ].map(tab => (
                     <button
                       key={tab.id}
@@ -603,6 +605,19 @@ export default function WarRoom({ socket, connected }) {
               
               {/* General Consent Access Logs */}
               <ConsentAccessLogs SERVER_URL_CONST={process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin)} />
+            </div>
+          )}
+
+          {activeTab === 'authority' && (
+            <div style={{ flex: 1, overflowY: 'auto', background: 'rgba(5,15,40,0.8)', borderRadius: 10, padding: 24, border: '1px solid rgba(0,255,136,0.15)' }}>
+              <h3 style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#00ff88', borderBottom: '1px solid rgba(0,255,136,0.2)', paddingBottom: 10, margin: '0 0 20px', letterSpacing: '0.1em' }}>
+                👥 REGISTER REGIONAL COMMAND AUTHORITY
+              </h3>
+              <p style={{ fontSize: 12, color: 'rgba(160,200,255,0.6)', lineHeight: 1.6, marginBottom: 24 }}>
+                As a primary city administrator, you can delegate credentials to other commanders. 
+                Registered authorities will have full secure access to this War Room, disaster dispatch triggers, and national telemetry heatmaps.
+              </p>
+              <AuthorityRegistrationForm />
             </div>
           )}
 
@@ -989,6 +1004,96 @@ function ConsentAccessLogs({ SERVER_URL_CONST }) {
         </table>
       </div>
     </div>
+  );
+}
+
+function AuthorityRegistrationForm() {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [mobile, setMobile] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    setLoading(true);
+
+    try {
+      const token = sessionStorage.getItem('rescuelink_token');
+      const res = await fetch('/api/auth/register-admin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ name, email, mobile, password })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSuccess(`Successfully registered commander: ${email}. They can now log in to the War Room.`);
+        setName('');
+        setEmail('');
+        setMobile('');
+        setPassword('');
+      } else {
+        setError(data.error || 'Failed to register authority');
+      }
+    } catch (err) {
+      setError('Server connection offline');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 450 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>FULL NAME / CALL SIGN</label>
+        <input
+          type="text" value={name} onChange={e => setName(e.target.value)} required placeholder="e.g. Commander James Vance"
+          style={{ padding: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 6, color: '#fff', fontSize: 13, outline: 'none' }}
+        />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>SECURE EMAIL ADDRESS</label>
+        <input
+          type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="commander@rescuelink.com"
+          style={{ padding: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 6, color: '#fff', fontSize: 13, outline: 'none' }}
+        />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>CONTACT PHONE NUMBER</label>
+        <input
+          type="text" value={mobile} onChange={e => setMobile(e.target.value)} placeholder="+91-XXXXXXXXXX"
+          style={{ padding: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 6, color: '#fff', fontSize: 13, outline: 'none' }}
+        />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>ACCESS PASSWORD</label>
+        <input
+          type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="••••••••"
+          style={{ padding: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 6, color: '#fff', fontSize: 13, outline: 'none' }}
+        />
+      </div>
+
+      {error && <div style={{ color: '#ff4444', fontSize: 12, fontWeight: 'bold' }}>⚠️ {error}</div>}
+      {success && <div style={{ color: '#00ff88', fontSize: 12, fontWeight: 'bold' }}>✓ {success}</div>}
+
+      <button
+        type="submit" disabled={loading}
+        style={{
+          marginTop: 10, padding: 14, background: 'linear-gradient(135deg, rgba(0,255,136,0.1) 0%, rgba(0,255,136,0.25) 100%)',
+          border: '1px solid #00ff88', borderRadius: 8, color: '#00ff88', fontFamily: "'Orbitron'",
+          fontSize: 12, fontWeight: 'bold', cursor: 'pointer', letterSpacing: '0.05em'
+        }}
+      >
+        {loading ? 'REGISTERING...' : 'CONFIRM COMMAND ACCESS'}
+      </button>
+    </form>
   );
 }
 
