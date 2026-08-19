@@ -2641,6 +2641,43 @@ io.on('connection', (socket) => {
     console.log(`[MCI DECLARE] Mass Casualty declared: ${mciEvent.eventType} (${eventId})`);
   });
 
+  socket.on('mass-casualty-broadcast', async (data) => {
+    const { message } = data;
+    if (!message) return;
+    
+    // 1. Broadcast real-time websocket packet
+    io.emit('emergency-broadcast-alert', { message });
+    console.log(`[MCI BROADCAST] Socket alert broadcasted: "${message}"`);
+
+    // 2. Cascade Twilio SMS alerts to all active emergency responders
+    try {
+      const { User } = require('./utils/db');
+      const { Op } = require('sequelize');
+      const responders = await User.findAll({
+        where: {
+          role: { [Op.in]: ['paramedic', 'hospital_admin'] },
+          is_active: true
+        }
+      });
+
+      const whatsappService = require('./utils/whatsapp');
+      for (const responder of responders) {
+        if (responder.mobile) {
+          try {
+            await whatsappService.sendSMS(
+              responder.mobile,
+              `🚨 RescueLink EMERGENCY BROADCAST: ${message}`
+            );
+          } catch (smsErr) {
+            console.error(`[BROADCAST SMS FAILED] to ${responder.mobile}:`, smsErr.message);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[BROADCAST CASCADE ERROR]', err.message);
+    }
+  });
+
   socket.on('mci-triage-update', (data) => {
     const { mciId, casualtyName, tag, symptoms, vitals } = data;
     const mci = activeMciEvents[mciId];
