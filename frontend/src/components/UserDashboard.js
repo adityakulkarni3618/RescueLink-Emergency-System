@@ -380,18 +380,51 @@ export default function UserDashboard({ socket, connected }) {
     
     try {
       const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
-      const res = await fetch('/api/hie/initiate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nationalId })
-      });
+      const res = await fetch(`${SERVER_URL}/api/auth/lookup-abha/${nationalId}`);
       const data = await res.json();
       
-      if (data.status === "SUCCESS") {
-        setOtpTransactionId(data.transactionId);
-        setShowOtpModal(true);
+      if (res.ok) {
+        // Dynamic age calculation from DOB
+        let computedAge = '';
+        if (data.dob) {
+          const birthYear = new Date(data.dob).getFullYear();
+          computedAge = new Date().getFullYear() - birthYear;
+        }
+        
+        setPatientData(prev => {
+          const updated = {
+            ...prev,
+            name: data.name || '',
+            age: computedAge,
+            bloodGroup: data.blood_group || '',
+            mobile: data.mobile || '',
+            isVerified: true,
+            allergies: data.allergies || '',
+            chronicConditions: data.chronic_conditions || '',
+            abhaAddress: data.abha_address || '',
+            abhaNumber: data.abha_number || ''
+          };
+          if (currentReqId && socket) {
+            socket.emit('patient-data', { reqId: currentReqId, ...updated });
+          }
+          return updated;
+        });
+        showAlert(`✅ ABDM HIE SCAN SUCCESS: Loaded patient profile for ${data.name}`);
       } else {
-        throw new Error(data.error);
+        // Fallback to legacy mock verification gateway
+        const resInit = await fetch('/api/hie/initiate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nationalId })
+        });
+        const dataInit = await resInit.json();
+        
+        if (dataInit.status === "SUCCESS") {
+          setOtpTransactionId(dataInit.transactionId);
+          setShowOtpModal(true);
+        } else {
+          throw new Error(dataInit.error || 'ABDM service unreachable');
+        }
       }
     } catch (e) {
       showAlert(`⚠️ HIE Gateway Error: ${e.message}`);
@@ -402,7 +435,6 @@ export default function UserDashboard({ socket, connected }) {
 
   const verifyHieOtp = async (otp) => {
     try {
-      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
       const res = await fetch('/api/hie/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -412,7 +444,6 @@ export default function UserDashboard({ socket, connected }) {
       
       if (data.error) throw new Error(data.error);
 
-      // Add a verified flag since it came from the secure gateway
       setPatientData(prev => {
         let extractedMobile = '';
         if (data.emergencyContact && data.emergencyContact.includes('–')) {

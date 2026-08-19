@@ -282,23 +282,56 @@ function AbdmConnectModal({ patient, onClose, onLinked }) {
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const requestOtp = () => {
+  const requestOtp = async () => {
     if (!abhaId) return;
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
+      const res = await fetch(`${SERVER_URL}/api/auth/lookup-abha/${abhaId}`);
+      const data = await res.json();
+      if (res.ok) {
+        setStep(2);
+      } else {
+        alert(data.error || 'ABHA credential not found in registry.');
+      }
+    } catch (err) {
+      alert('ABDM registry lookup failed.');
+    } finally {
       setLoading(false);
-      setStep(2);
-    }, 1200);
+    }
   };
 
-  const verifyOtp = () => {
+  const verifyOtp = async () => {
     if (!otp) return;
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
+      const res = await fetch(`${SERVER_URL}/api/auth/lookup-abha/${abhaId}`);
+      const data = await res.json();
+      if (res.ok) {
+        let computedAge = 'N/A';
+        if (data.dob) {
+          computedAge = new Date().getFullYear() - new Date(data.dob).getFullYear();
+        }
+        const abhaProfile = {
+          name: data.name,
+          age: computedAge,
+          bloodGroup: data.blood_group || 'N/A',
+          mobile: data.mobile || 'N/A',
+          allergies: data.allergies || 'None',
+          chronicConditions: data.chronic_conditions || 'None',
+          abhaAddress: data.abha_address || abhaId
+        };
+        onLinked(abhaProfile);
+        onClose();
+      } else {
+        alert('Failed to retrieve health records.');
+      }
+    } catch (err) {
+      alert('ABDM consent verification failed.');
+    } finally {
       setLoading(false);
-      onLinked(abhaId);
-      onClose();
-    }, 1500);
+    }
   };
 
   return (
@@ -906,7 +939,19 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
         </div>
       )}
 
-      {showAbdmModal && <AbdmConnectModal patient={patient} onClose={() => setShowAbdmModal(false)} onLinked={(abhaId) => setAbdmLinked(true)} />}
+      {showAbdmModal && (
+        <AbdmConnectModal 
+          patient={patient} 
+          onClose={() => setShowAbdmModal(false)} 
+          onLinked={(abhaProfile) => {
+            setAbdmLinked(true);
+            setPatient(prev => ({ ...prev, ...abhaProfile }));
+            if (activeMissionId && socket) {
+              socket.emit('patient-data', { reqId: activeMissionId, ...abhaProfile, isVerified: true });
+            }
+          }} 
+        />
+      )}
       {alertData && <CustomAlert title={alertData.title} message={alertData.message} onClose={() => setAlertData(null)} />}
     </div>
   );
