@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { User, AuditLog } = require('../utils/db');
+const { User, AuditLog, Patient, Consent } = require('../utils/db');
 const { verifyToken } = require('../middleware/auth');
 
 /**
@@ -206,6 +206,63 @@ router.delete('/:id', verifyToken(['city_admin']), async (req, res) => {
   } catch (err) {
     console.error('[USERS API] Error deleting user:', err.message);
     return res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
+
+/**
+ * @route POST /api/users/consent/revoke
+ * @desc Revoke patient consent dynamically (DPDP Act 2023 Compliance)
+ */
+router.post('/consent/revoke', verifyToken(), async (req, res) => {
+  const { patientId } = req.body;
+  if (!patientId) {
+    return res.status(400).json({ error: 'Patient ID is required' });
+  }
+
+  // Patients can only revoke their own consent, unless they are city admin
+  if (req.user.role === 'patient' && req.user.id !== patientId) {
+    return res.status(403).json({ error: 'Access denied: Cannot revoke consent for other profiles' });
+  }
+
+  try {
+    const patient = await Patient.findByPk(patientId);
+    if (!patient) {
+      return res.status(404).json({ error: 'Patient profile not found' });
+    }
+
+    patient.consent_obtained = false;
+    patient.consent_timestamp = null;
+    await patient.save();
+
+    // Mark all active consents as inactive
+    if (Consent) {
+      await Consent.update(
+        { status: 'inactive' },
+        { where: { patient_id: patientId, status: 'active' } }
+      );
+    }
+
+    // Trigger real-time eviction/masking alert via Socket.io
+    const io = req.app.get('socketio');
+    if (io) {
+      io.emit('consent-revoked', { patientId });
+      console.log(`[DPDP REVOCATION] Emitted real-time eviction alert for patient: ${patientId}`);
+    }
+
+    const { logAudit } = require('../utils/auditLogger');
+    await logAudit(
+      'CONSENT',
+      'CONSENT_REVOKED',
+      { patientId, resource: 'Patient', resourceId: patientId },
+      'WARNING',
+      req.user.id,
+      req.ip || req.connection.remoteAddress
+    );
+
+    return res.json({ message: 'Patient consent revoked successfully and session evicted.' });
+  } catch (err) {
+    console.error('[USERS API] Consent revocation error:', err.message);
+    return res.status(500).json({ error: 'Failed to revoke patient consent' });
   }
 });
 
