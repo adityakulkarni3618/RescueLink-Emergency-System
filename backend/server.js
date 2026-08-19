@@ -1993,10 +1993,11 @@ io.on('connection', (socket) => {
     if (!req) return;
 
     if (data.accepted) {
-      if (req.status !== 'pending_ambulance') {
+      if (req._ambulanceAcceptLock || req.status !== 'pending_ambulance') {
         socket.emit('error-alert', { message: 'This mission has already been claimed by another unit.' });
         return;
       }
+      req._ambulanceAcceptLock = true;
       req.status = 'ambulance_accepted';
       req.ambulanceSocket = socket.id;
       req.unitId = ambulances[socket.id]?.unitId;
