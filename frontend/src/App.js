@@ -2062,6 +2062,16 @@ export default function App() {
   const [loginTargetRole, setLoginTargetRole] = useState(null);
   const [isRegisterMode, setIsRegisterMode] = useState(false);
 
+  const [currentHash, setCurrentHash] = useState(() => window.location.hash);
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      setCurrentHash(window.location.hash);
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
   // MFA Setup and Verification States
   const [mfaSetupToken, setMfaSetupToken] = useState(null);
   const [mfaVerifyToken, setMfaVerifyToken] = useState(null);
@@ -2186,7 +2196,7 @@ export default function App() {
   }
 
   if (!token) {
-    if (window.location.hash === '#ambulance' || loginTargetRole === 'ambulance') {
+    if (currentHash === '#ambulance' || loginTargetRole === 'ambulance') {
       return (
         <>
           <AmbulanceLandingHomepage
@@ -2208,7 +2218,7 @@ export default function App() {
       );
     }
 
-    if (window.location.hash === '#hospital' || loginTargetRole === 'hospital') {
+    if (currentHash === '#hospital' || loginTargetRole === 'hospital') {
       return (
         <>
           <HospitalLandingHomepage
