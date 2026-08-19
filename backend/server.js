@@ -676,6 +676,42 @@ app.get('/api/audit/blockchain-explorer', async (req, res) => {
   }
 });
 
+app.post('/api/ocr/parse-report', (req, res) => {
+  const { text } = req.body;
+  if (!text) {
+    return res.status(400).json({ error: 'No report text provided for OCR scanning.' });
+  }
+
+  const cleanText = text.toLowerCase();
+  
+  // Regex parsing
+  const bloodGroupMatch = text.match(/(blood\s*group|type)\s*[:\-]?\s*([A-B]{1,2}[\s]*[\+\-])/i);
+  const bloodGroup = bloodGroupMatch ? bloodGroupMatch[2].trim().toUpperCase() : null;
+
+  const allergiesMatch = text.match(/(allergies|allergy)\s*[:\-]?\s*([a-zA-Z\s,]+)/i);
+  const allergies = allergiesMatch ? allergiesMatch[2].split(',').map(s => s.trim()) : [];
+
+  const chronicMatch = text.match(/(chronic\s*conditions|medical\s*history|history)\s*[:\-]?\s*([a-zA-Z\s,]+)/i);
+  const chronicConditions = chronicMatch ? chronicMatch[2].split(',').map(s => s.trim()) : [];
+
+  const dobMatch = text.match(/(dob|date\s*of\s*birth)\s*[:\-]?\s*([\d]{2}[\/\-][\d]{2}[\/\-][\d]{4})/i);
+  const dob = dobMatch ? dobMatch[2] : null;
+
+  const genderMatch = text.match(/(gender|sex)\s*[:\-]?\s*(male|female|other)/i);
+  const gender = genderMatch ? genderMatch[2].trim().toUpperCase() : null;
+
+  return res.json({
+    success: true,
+    data: {
+      bloodGroup,
+      allergies,
+      chronicConditions,
+      dob,
+      gender
+    }
+  });
+});
+
 app.get('/api/status', (req, res) => {
   res.json({
     activeMissionsCount: Object.keys(activeRequests).length,
