@@ -1668,6 +1668,26 @@ io.on('connection', (socket) => {
   socket.on('webrtc-telestration', (data) => routeToMission(socket, 'webrtc-telestration', data));
   socket.on('webrtc-telestration-clear', (data) => routeToMission(socket, 'webrtc-telestration-clear', data));
   socket.on('green-corridor-status', (data) => routeToMission(socket, 'green-corridor-status', data));
+  socket.on('hospital-request-consent', (data) => {
+    const { reqId, hospitalName } = data;
+    const req = activeRequests[reqId];
+    if (req) {
+      io.to(`mission_${reqId}`).emit('consent-requested', { reqId, hospitalName });
+      console.log(`[ABDM CONSENT] Consent requested for mission ${reqId} by ${hospitalName}`);
+    }
+  });
+
+  socket.on('patient-respond-consent', (data) => {
+    const { reqId, approved } = data;
+    const req = activeRequests[reqId];
+    if (req) {
+      req.emrConsentApproved = approved;
+      io.to(`mission_${reqId}`).emit('consent-response', { reqId, approved });
+      console.log(`[ABDM CONSENT] Patient responded to consent for mission ${reqId}: ${approved}`);
+      syncMissionToDB(reqId);
+    }
+  });
+
   socket.on('paramedic-request-lock', (data) => {
     const { reqId, locks } = data;
     const req = activeRequests[reqId];
