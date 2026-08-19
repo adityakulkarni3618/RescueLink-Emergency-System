@@ -154,4 +154,72 @@ router.get('/suspicious-activity', verifyToken(['city_admin']), async (req, res)
   }
 });
 
+/**
+ * @route GET /api/audit/verify
+ * @desc Verify integrity of the audit logs chain (re-calculate hashes and verify link integrity)
+ * @access Private (city_admin)
+ */
+router.get('/verify', verifyToken(['city_admin']), async (req, res) => {
+  try {
+    const logs = await AuditLog.findAll({
+      order: [['createdAt', 'ASC']]
+    });
+
+    const crypto = require('crypto');
+    let prevHash = '0000000000000000000000000000000000000000000000000000000000000000';
+    const failures = [];
+
+    for (let i = 0; i < logs.length; i++) {
+      const log = logs[i];
+      const details = log.details || {};
+      const expectedPrevHash = details.prevHash || '0000000000000000000000000000000000000000000000000000000000000000';
+      const actualHash = details.hash;
+
+      const originalDetails = { ...details };
+      delete originalDetails.hash;
+      delete originalDetails.prevHash;
+
+      const logTimestamp = log.createdAt ? new Date(log.createdAt).toISOString() : new Date().toISOString();
+      const logString = `${logTimestamp}|${log.category}|${log.action}|${log.severity}|${log.user_id || ''}|${log.ip_address || ''}|${JSON.stringify(originalDetails)}|${expectedPrevHash}`;
+      const recomputedHash = crypto.createHash('sha256').update(logString).digest('hex');
+
+      if (i > 0 && expectedPrevHash !== prevHash) {
+        failures.push({
+          logId: log.id,
+          index: i,
+          reason: `Broken chain link: Expected previous hash does not match actual previous block hash.`
+        });
+      }
+
+      if (actualHash && actualHash !== recomputedHash) {
+        failures.push({
+          logId: log.id,
+          index: i,
+          reason: `Hash mismatch: Log content recomputed hash does not match saved hash.`
+        });
+      }
+
+      prevHash = actualHash || recomputedHash;
+    }
+
+    if (failures.length > 0) {
+      return res.status(400).json({
+        integrity: 'COMPROMISED',
+        totalLogsChecked: logs.length,
+        failuresCount: failures.length,
+        failures: failures
+      });
+    }
+
+    return res.json({
+      integrity: 'SECURE',
+      totalLogsChecked: logs.length,
+      message: 'Audit log ledger verified successfully. No tampering detected.'
+    });
+  } catch (err) {
+    console.error('[AUDIT VERIFY ERROR]', err.message);
+    return res.status(500).json({ error: 'Failed to verify audit logs integrity', detail: err.message });
+  }
+});
+
 module.exports = router;
