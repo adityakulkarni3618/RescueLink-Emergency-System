@@ -712,7 +712,7 @@ router.get('/seed-db-securely', async (req, res) => {
     await seed();
     return res.json({
       success: true,
-      message: "Database seeded completely. Admin (admin@rescuelink.com / password123) and doctor/paramedic demo accounts are ready (with password 'doctor123')."
+      message: "Database seeded completely. Admin account (admin@rescuelink.com) is ready."
     });
   } catch (err) {
     console.error('[SEEDDB ERROR] Secure database seed failed:', err);
