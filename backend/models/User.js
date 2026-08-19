@@ -38,6 +38,30 @@ module.exports = (sequelize) => {
       type: DataTypes.STRING,
       allowNull: true
     },
+    abha_address: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    blood_group: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    allergies: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
+    chronic_conditions: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
+    dob: {
+      type: DataTypes.DATEONLY,
+      allowNull: true
+    },
+    gender: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
     fcm_token: {
       type: DataTypes.STRING,
       allowNull: true

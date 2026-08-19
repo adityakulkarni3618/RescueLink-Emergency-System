@@ -822,4 +822,85 @@ router.post('/reset-password-otp', async (req, res) => {
   }
 });
 
+/**
+ * @route POST /api/auth/register-abha
+ * @desc Registers detailed patient ABHA health information
+ */
+router.post('/register-abha', async (req, res) => {
+  const { abhaNumber, abhaAddress, email, name, bloodGroup, allergies, chronicConditions, dob, gender } = req.body;
+  if (!abhaNumber || !email || !name) {
+    return res.status(400).json({ error: 'ABHA Number, Email, and Name are required' });
+  }
+
+  try {
+    const { User } = require('../utils/db');
+    let user = await User.findOne({ where: { email: email.toLowerCase() } });
+    
+    if (user) {
+      // Update existing user with ABHA info
+      user.abha_number = abhaNumber;
+      user.abha_address = abhaAddress || '';
+      user.blood_group = bloodGroup || '';
+      user.allergies = allergies || '';
+      user.chronic_conditions = chronicConditions || '';
+      if (dob) user.dob = dob;
+      if (gender) user.gender = gender;
+      await user.save();
+    } else {
+      // Create a mock user role for testing
+      const bcrypt = require('bcryptjs');
+      const dummyPassword = await bcrypt.hash('password123', 10);
+      user = await User.create({
+        name,
+        email: email.toLowerCase(),
+        password: dummyPassword,
+        role: 'patient',
+        abha_number: abhaNumber,
+        abha_address: abhaAddress || '',
+        blood_group: bloodGroup || '',
+        allergies: allergies || '',
+        chronic_conditions: chronicConditions || '',
+        dob: dob || null,
+        gender: gender || '',
+        is_active: true
+      });
+    }
+
+    return res.json({ success: true, message: 'ABHA Profile registered successfully', user });
+  } catch (err) {
+    console.error('[ABHA REGISTRATION ERROR]', err);
+    return res.status(500).json({ error: 'Failed to register ABHA card details' });
+  }
+});
+
+/**
+ * @route GET /api/auth/lookup-abha/:abhaId
+ * @desc Look up patient records dynamically by ABHA ID or ABHA Address
+ */
+router.get('/lookup-abha/:abhaId', async (req, res) => {
+  const { abhaId } = req.params;
+  try {
+    const { User } = require('../utils/db');
+    const { Op } = require('sequelize');
+    const user = await User.findOne({
+      where: {
+        [Op.or]: [
+          { abha_number: abhaId },
+          { abha_address: abhaId.toLowerCase() }
+        ]
+      },
+      attributes: ['name', 'email', 'mobile', 'abha_number', 'abha_address', 'blood_group', 'allergies', 'chronic_conditions', 'dob', 'gender']
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'Patient with this ABHA credential not found' });
+    }
+
+    return res.json(user);
+  } catch (err) {
+    console.error('[ABHA LOOKUP ERROR]', err);
+    return res.status(500).json({ error: 'Failed to lookup ABHA card details' });
+  }
+});
+
 module.exports = router;
