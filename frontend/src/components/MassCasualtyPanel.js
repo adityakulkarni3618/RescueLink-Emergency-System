@@ -26,6 +26,11 @@ export default function MassCasualtyPanel({ socket }) {
   // NDMA warnings feed
   const [ndmaAlerts, setNdmaAlerts] = useState([]);
 
+  // Emergency Broadcast States
+  const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [broadcastLoading, setBroadcastLoading] = useState(false);
+  const [broadcastSuccess, setBroadcastSuccess] = useState('');
+
   useEffect(() => {
     // Fetch active NDMA alerts
     fetch('/api/disaster/ndma-alerts')
@@ -243,6 +248,21 @@ export default function MassCasualtyPanel({ socket }) {
     doc.save(`RescueLink_MCI_SitRep_${activeMci.id}.pdf`);
   };
 
+  const sendEmergencyBroadcast = () => {
+    if (!broadcastMessage.trim()) return;
+    setBroadcastLoading(true);
+    setBroadcastSuccess('');
+    if (socket) {
+      socket.emit('mass-casualty-broadcast', { message: broadcastMessage });
+      setBroadcastSuccess('Broadcast alert dispatched successfully via WebSockets & SMS.');
+      setBroadcastMessage('');
+      setTimeout(() => setBroadcastSuccess(''), 4000);
+    } else {
+      alert('Socket connection is currently offline.');
+    }
+    setBroadcastLoading(false);
+  };
+
   return (
     <div style={{
       background: 'rgba(10, 22, 48, 0.85)',
@@ -325,6 +345,35 @@ export default function MassCasualtyPanel({ socket }) {
               CLEAR MCI STATUS
             </button>
           </div>
+        )}
+      </div>
+
+      {/* Emergency Broadcast Console */}
+      <div style={{ background: 'rgba(255,51,51,0.06)', border: '1px solid rgba(255,51,51,0.3)', borderRadius: 8, padding: 14, marginBottom: 20 }}>
+        <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#ff5555', fontWeight: 900, marginBottom: 8 }}>
+          📢 DISASTER CONTROL UNIT: EMERGENCY SMS & SOCKET BROADCAST
+        </div>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <input
+            type="text"
+            value={broadcastMessage}
+            onChange={e => setBroadcastMessage(e.target.value)}
+            placeholder="Type emergency alert (e.g. Chemical toxic cloud dispersing in Sector-4, keep windows closed)..."
+            style={{ flex: 1, padding: 11, background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,51,51,0.2)', borderRadius: 6, color: '#fff', fontSize: 12 }}
+          />
+          <button
+            onClick={sendEmergencyBroadcast}
+            disabled={broadcastLoading}
+            style={{
+              padding: '10px 20px', background: '#ff333322', border: '1px solid #ff3333',
+              borderRadius: 6, color: '#ff5555', fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700, cursor: 'pointer'
+            }}
+          >
+            {broadcastLoading ? 'DISPATCHING...' : 'DISPATCH BROADCAST'}
+          </button>
+        </div>
+        {broadcastSuccess && (
+          <div style={{ color: '#00ff88', fontSize: 11, marginTop: 6, fontWeight: 'bold' }}>✓ {broadcastSuccess}</div>
         )}
       </div>
 
