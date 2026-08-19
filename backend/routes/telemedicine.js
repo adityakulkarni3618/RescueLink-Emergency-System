@@ -70,15 +70,16 @@ router.post('/accept-consult/:requestId', verifyToken(['doctor']), async (req, r
   consult.acceptedBy = req.user.id;
 
   let roomUrl = `https://api.daily.co/v1/rooms/consult-${requestId}`; // Fallback mock URL
+  let meetingToken = null;
 
-  // If daily API is available, call it to create a room
-  if (process.env.DAILY_CO_API_KEY && process.env.DAILY_CO_API_KEY !== 'your_daily_co_key') {
+  // If daily API is available, call it to create a room and generate a token
+  if (process.env.DAILY_CO_API_KEY && process.env.DAILY_CO_API_KEY !== 'your_daily_co_key' && process.env.DAILY_CO_API_KEY !== 'mock-daily-key-108') {
     try {
       const response = await axios.post(
         'https://api.daily.co/v1/rooms',
         {
           name: `consult-${requestId}`,
-          privacy: 'public',
+          privacy: 'private', // make room private for HIPAA/DPDP privacy
           properties: { enable_chat: true }
         },
         {
@@ -86,12 +87,35 @@ router.post('/accept-consult/:requestId', verifyToken(['doctor']), async (req, r
         }
       );
       roomUrl = response.data.url;
+
+      // Generate a secure owner meeting token for the attending doctor
+      const tokenResponse = await axios.post(
+        'https://api.daily.co/v1/meeting-tokens',
+        {
+          properties: {
+            room_name: `consult-${requestId}`,
+            is_owner: true,
+            user_name: req.user.name,
+            user_id: req.user.id
+          }
+        },
+        {
+          headers: { Authorization: `Bearer ${DAILY_CO_API_KEY}` }
+        }
+      );
+      meetingToken = tokenResponse.data.token;
+      roomUrl = `${roomUrl}?t=${meetingToken}`;
     } catch (err) {
-      console.error('[DAILY.CO ERROR] Room creation failed, using fallback:', err.message);
+      console.error('[DAILY.CO ERROR] Room/Token creation failed, using fallback:', err.message);
     }
+  } else {
+    // Simulated token fallback for development/sandbox testing
+    meetingToken = `mock-token-${Date.now()}`;
+    roomUrl = `${roomUrl}?t=${meetingToken}`;
   }
 
   consult.roomUrl = roomUrl;
+  consult.meetingToken = meetingToken;
 
   // Log to AuditLog
   await AuditLog.create({
