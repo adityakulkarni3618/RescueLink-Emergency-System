@@ -81,6 +81,69 @@ export default function WarRoom({ socket, connected }) {
   const [stuckMissions, setStuckMissions] = useState({});
   const [unresponsiveDrivers, setUnresponsiveDrivers] = useState(new Set());
 
+  // AI Predictive Routing states
+  const [aiRecommendations, setAiRecommendations] = useState([]);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  // NEWS2 scoring helper
+  const calculateNews2Score = (vitals) => {
+    if (!vitals) return 0;
+    let score = 0;
+    const hr = Number(vitals.heartRate);
+    if (hr) {
+      if (hr <= 40 || hr >= 131) score += 3;
+      else if (hr <= 50 || hr >= 111) score += 1;
+      else if (hr <= 90) score += 0;
+      else if (hr <= 110) score += 1;
+    }
+    const spo2 = Number(vitals.spo2);
+    if (spo2) {
+      if (spo2 <= 91) score += 3;
+      else if (spo2 <= 93) score += 2;
+      else if (spo2 <= 95) score += 1;
+    }
+    const sys = Number(vitals.systolic);
+    if (sys) {
+      if (sys <= 90 || sys >= 220) score += 3;
+      else if (sys <= 100) score += 2;
+      else if (sys <= 110) score += 1;
+    }
+    return score;
+  };
+
+  useEffect(() => {
+    if (!selectedIncidentDetails) {
+      setAiRecommendations([]);
+      return;
+    }
+    const fetchAiRouting = async () => {
+      const loc = selectedIncidentDetails.userLocation;
+      if (!loc || !loc.lat || !loc.lng) return;
+      setAiLoading(true);
+      try {
+        const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
+        const res = await fetch(`${SERVER_URL}/api/ai/predictive-hospital`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            lat: loc.lat,
+            lng: loc.lng,
+            news2: selectedIncidentDetails.vitals ? calculateNews2Score(selectedIncidentDetails.vitals) : 0
+          })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setAiRecommendations(data.recommendations);
+        }
+      } catch (err) {
+        console.error('[WAR ROOM AI] Failed to fetch predictive routing:', err);
+      } finally {
+        setAiLoading(false);
+      }
+    };
+    fetchAiRouting();
+  }, [selectedIncidentDetails, selectedIncidentId]);
+
   useEffect(() => {
     if (!socket || !selectedIncidentId) {
       setSelectedIncidentDetails(null);
@@ -728,6 +791,36 @@ export default function WarRoom({ socket, connected }) {
                   ))}
                 </div>
               )}
+
+              {/* AI Predictive Dispatch Recommendations */}
+              <div style={{ background: 'rgba(0,10,35,0.7)', border: '1px solid rgba(0,255,136,0.2)', padding: 10, borderRadius: 6, marginBottom: 12 }}>
+                <div style={{ fontSize: 9, color: '#00ff88', fontFamily: "'Orbitron'", fontWeight: 'bold', marginBottom: 6, display: 'flex', justifyContent: 'space-between' }}>
+                  <span>🧠 AI PREDICTIVE ROUTING MATCH</span>
+                  <span style={{ fontSize: 8, color: 'rgba(0,255,136,0.6)' }}>LIVE CAPACITY FLOW</span>
+                </div>
+                {aiLoading ? (
+                  <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontStyle: 'italic' }}>Computing optimal transit matching...</div>
+                ) : aiRecommendations.length === 0 ? (
+                  <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontStyle: 'italic' }}>No recommendations computed.</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {aiRecommendations.slice(0, 2).map((rec, idx) => (
+                      <div key={rec.id} style={{ background: idx === 0 ? 'rgba(0,255,136,0.06)' : 'rgba(255,255,255,0.02)', border: `1px solid ${idx === 0 ? '#00ff8855' : 'rgba(255,255,255,0.05)'}`, borderRadius: 4, padding: 6 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 'bold' }}>
+                          <span style={{ color: idx === 0 ? '#00ff88' : '#e0eaff' }}>{idx === 0 ? '🏆 ' : ''}{rec.name}</span>
+                          <span style={{ color: '#ffb800', fontFamily: "'Share Tech Mono'" }}>{rec.score} pts</span>
+                        </div>
+                        <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', marginTop: 2 }}>
+                          Distance: {rec.distanceKm} km | ICU: {rec.icuBeds} | Vent: {rec.ventilators}
+                        </div>
+                        <div style={{ fontSize: 8, color: idx === 0 ? '#00ff88cc' : 'rgba(160,200,255,0.5)', fontStyle: 'italic', marginTop: 2 }}>
+                          {rec.rationale}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               {/* Checklist */}
               {selectedIncidentDetails.checklist && Object.keys(selectedIncidentDetails.checklist).length > 0 && (
