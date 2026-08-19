@@ -697,6 +697,8 @@ export default function AmbulanceStreamer({ socket, connected }) {
     });
   };
   const [resourceLocks, setResourceLocks] = useState({ traumaBay: false, bloodUnits: false, ventilatorStandby: false });
+  const [pendingLocks, setPendingLocks] = useState({ traumaBay: false, bloodUnits: false, ventilatorStandby: false });
+  const [lockStatus, setLockStatus] = useState(''); // '', 'PENDING', 'APPROVED', 'DENIED'
   const [trafficIncidents, setTrafficIncidents] = useState({});
   const [clinicalChecklist, setClinicalChecklist] = useState({});
 
@@ -1026,6 +1028,15 @@ export default function AmbulanceStreamer({ socket, connected }) {
     const onResourcesLocked = (data) => {
       if (data && assignedUserRef.current && data.reqId === assignedUserRef.current.id) {
         setResourceLocks(data.locks || { traumaBay: false, bloodUnits: false, ventilatorStandby: false });
+        if (data.status === 'APPROVED') {
+          setLockStatus('APPROVED');
+          showAlert('✅ Hospital approved the emergency resource lock!');
+        } else if (data.status === 'DENIED') {
+          setLockStatus('DENIED');
+          showAlert('❌ Hospital denied the resource lock request.');
+        } else {
+          setLockStatus('');
+        }
         playAlertBeep();
       }
     };
@@ -2636,6 +2647,51 @@ export default function AmbulanceStreamer({ socket, connected }) {
                           </span>
                         )}
                       </div>
+                    </div>
+                  )}
+                  
+                  {/* Two-Phase Resource Locking Controller */}
+                  {assignedHospital && !resourceLocks.traumaBay && !resourceLocks.bloodUnits && !resourceLocks.ventilatorStandby && (
+                    <div style={{ marginTop: 12, padding: '12px', background: 'rgba(255,107,53,0.05)', border: '1px solid rgba(255,107,53,0.2)', borderRadius: 8 }}>
+                      <div style={{ fontSize: 10, color: '#ff6b35', fontFamily: "'Orbitron'", fontWeight: 'bold', letterSpacing: '0.05em', marginBottom: 8 }}>
+                        🏥 EMR RESOURCE LOCKING CONTROL (20-MIN HOLD)
+                      </div>
+                      <div style={{ display: 'flex', gap: 12, marginBottom: 10 }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, cursor: 'pointer' }}>
+                          <input type="checkbox" checked={pendingLocks.traumaBay} onChange={e => setPendingLocks({ ...pendingLocks, traumaBay: e.target.checked })} style={{ accentColor: '#ff6b35' }} />
+                          Trauma Bay
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, cursor: 'pointer' }}>
+                          <input type="checkbox" checked={pendingLocks.ventilatorStandby} onChange={e => setPendingLocks({ ...pendingLocks, ventilatorStandby: e.target.checked })} style={{ accentColor: '#ff6b35' }} />
+                          Ventilator
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, cursor: 'pointer' }}>
+                          <input type="checkbox" checked={pendingLocks.bloodUnits} onChange={e => setPendingLocks({ ...pendingLocks, bloodUnits: e.target.checked })} style={{ accentColor: '#ff6b35' }} />
+                          Blood Units
+                        </label>
+                      </div>
+                      
+                      {lockStatus === 'PENDING' ? (
+                        <div style={{ fontSize: 10, color: '#ffb800', fontStyle: 'italic', fontFamily: "'Share Tech Mono'" }}>
+                          ⏳ Awaiting approval from {assignedHospital.name || 'Hospital Duty Desk'}...
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            if (socket && assignedUser) {
+                              socket.emit('paramedic-request-lock', { reqId: assignedUser.id, locks: pendingLocks });
+                              setLockStatus('PENDING');
+                            }
+                          }}
+                          style={{
+                            width: '100%', padding: '8px', background: 'rgba(255,107,53,0.15)',
+                            border: '1px solid #ff6b35', borderRadius: 4, color: '#ff6b35',
+                            fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 'bold', cursor: 'pointer'
+                          }}
+                        >
+                          🚀 REQUEST CRITICAL RESOURCE LOCKS
+                        </button>
+                      )}
                     </div>
                   )}
                 </>
