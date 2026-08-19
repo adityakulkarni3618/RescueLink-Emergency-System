@@ -58,7 +58,7 @@ function playChirp() {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === 'suspended') audioCtx.resume();
     const ctx = audioCtx;
-    
+
     // First beep: 900Hz
     const osc1 = ctx.createOscillator();
     const gain1 = ctx.createGain();
@@ -341,13 +341,13 @@ function AbdmConnectModal({ patient, onClose, onLinked }) {
           <div style={{ fontFamily: "'Orbitron'", fontSize: 16, color: '#00c8ff', fontWeight: 700, letterSpacing: '0.1em' }}>🔗 ABDM SANDBOX LINKING</div>
           <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#ff4444', fontSize: 24, cursor: 'pointer' }}>×</button>
         </div>
-        
+
         {step === 1 ? (
           <div>
             <div style={{ fontSize: 12, color: 'rgba(220,230,255,0.8)', marginBottom: 16 }}>Enter the patient's Ayushman Bharat Health Account (ABHA) ID to pull longitudinal health records.</div>
-            <input 
+            <input
               value={abhaId} onChange={e => setAbhaId(e.target.value)}
-              placeholder="e.g. 12-3456-7890-1234 or name@abdm" 
+              placeholder="e.g. 12-3456-7890-1234 or name@abdm"
               style={{ width: '100%', padding: '12px', background: 'rgba(0,200,255,0.05)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 6, color: '#fff', marginBottom: 16, boxSizing: 'border-box' }}
             />
             <button onClick={requestOtp} disabled={loading} style={{
@@ -357,8 +357,8 @@ function AbdmConnectModal({ patient, onClose, onLinked }) {
           </div>
         ) : (
           <div>
-             <div style={{ fontSize: 12, color: 'rgba(220,230,255,0.8)', marginBottom: 16 }}>Enter the 6-digit OTP sent to the patient's registered mobile number for consent.</div>
-             <input 
+            <div style={{ fontSize: 12, color: 'rgba(220,230,255,0.8)', marginBottom: 16 }}>Enter the 6-digit OTP sent to the patient's registered mobile number for consent.</div>
+            <input
               value={otp} onChange={e => setOtp(e.target.value)}
               placeholder="6-digit OTP" type="number"
               style={{ width: '100%', padding: '12px', background: 'rgba(0,200,255,0.05)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 6, color: '#fff', marginBottom: 16, boxSizing: 'border-box', letterSpacing: '0.2em', textAlign: 'center', fontSize: 18 }}
@@ -420,9 +420,9 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
     try {
       const res = await fetch(`/api/chronic/predict-risk/${patient.id}`, {
         method: 'POST',
-        headers: { 
-          Authorization: `Bearer ${token}`, 
-          'Content-Type': 'application/json' 
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       });
       const data = await res.json();
@@ -442,7 +442,7 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
     }}>
       <div style={{ fontSize: 32, marginBottom: 12 }}>🔍</div>
       <div style={{ color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'", fontSize: 12 }}>
-        AWAITING PATIENT SELECTION<br/>FROM AMBULANCE UNIT
+        AWAITING PATIENT SELECTION<br />FROM AMBULANCE UNIT
       </div>
     </div>
   );
@@ -537,7 +537,7 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
       setAlertData({ title: "❌ CONSULT ERROR", message: err.message });
     }
   };
-  
+
   const generatePrognosisReport = () => {
     setGeneratingPrognosis(true);
     setTimeout(() => {
@@ -688,7 +688,7 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
                 🔄 SYNC HIS
               </button>
             </div>
-            
+
             {ehrRecord ? (
               <div>
                 <div style={{ fontSize: 11, color: '#00ff88', marginBottom: 4 }}>✓ HIS Connected • Diagnoses Loaded:</div>
@@ -731,7 +731,7 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
                   {aiPrediction.status} (RISK: {aiPrediction.riskScore}/10)
                 </span>
               </div>
-              
+
               <div style={{ fontSize: 11, color: '#ff8888', marginBottom: 6, fontWeight: 'bold' }}>ALERTS:</div>
               {aiPrediction.alerts.map((al, idx) => (
                 <div key={idx} style={{ fontSize: 11, color: 'rgba(255,255,255,0.9)', paddingLeft: 10, borderLeft: '2px solid #ff4444', marginBottom: 4 }}>
@@ -940,16 +940,16 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
       )}
 
       {showAbdmModal && (
-        <AbdmConnectModal 
-          patient={patient} 
-          onClose={() => setShowAbdmModal(false)} 
+        <AbdmConnectModal
+          patient={patient}
+          onClose={() => setShowAbdmModal(false)}
           onLinked={(abhaProfile) => {
             setAbdmLinked(true);
             setPatient(prev => ({ ...prev, ...abhaProfile }));
             if (activeMissionId && socket) {
               socket.emit('patient-data', { reqId: activeMissionId, ...abhaProfile, isVerified: true });
             }
-          }} 
+          }}
         />
       )}
       {alertData && <CustomAlert title={alertData.title} message={alertData.message} onClose={() => setAlertData(null)} />}
@@ -1399,27 +1399,27 @@ function HandoverModal({ patient, vitals, notes, onClose, previousReports, onSav
         <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(0,200,255,0.2)', display: 'flex', justifyContent: 'space-between', background: 'rgba(0,0,0,0.2)' }}>
           <button onClick={() => {
             const doc = new jsPDF();
-            
+
             // Header banner
             doc.setFillColor(7, 22, 44);
             doc.rect(0, 0, 210, 35, 'F');
-            
+
             doc.setTextColor(255, 255, 255);
             doc.setFont("Helvetica", "bold");
             doc.setFontSize(18);
             doc.text("RESCUELINK EMERGENCY CLINICAL HANDOVER", 15, 22);
-            
+
             doc.setFontSize(10);
             doc.setFont("Helvetica", "normal");
             doc.text(`DATE/TIME: ${now.toLocaleString()}`, 15, 29);
             doc.text(`PATIENT ID: ${patient?.id || 'N/A'}`, 140, 29);
-            
+
             // Demographics Section
             doc.setFontSize(12);
             doc.setFont("Helvetica", "bold");
             doc.setTextColor(7, 22, 44);
             doc.text("1. Patient Demographics", 15, 48);
-            
+
             doc.line(15, 50, 195, 50);
             doc.setFontSize(10);
             doc.setFont("Helvetica", "normal");
@@ -1429,24 +1429,24 @@ function HandoverModal({ patient, vitals, notes, onClose, previousReports, onSav
             doc.text(`Emergency Contact: ${patient.emergencyContact}`, 100, 57);
             doc.text(`Allergies: ${patient.allergies?.join(', ') || 'No Known Allergies'}`, 100, 63);
             doc.text(`ABDM Verification Status: ABDM VERIFIED`, 100, 69);
-            
+
             // Triage Evaluation
             doc.setFontSize(12);
             doc.setFont("Helvetica", "bold");
             doc.text("2. Triage & Severity Assessment", 15, 82);
             doc.line(15, 84, 195, 84);
-            
+
             doc.setFontSize(10);
             doc.setFont("Helvetica", "normal");
             doc.text(`Triage Category: ${triage.label.toUpperCase()}`, 15, 91);
             doc.text(`Early Warning Risk Score: ${riskScore} / 10`, 100, 91);
-            
+
             // Vitals Table
             doc.setFontSize(12);
             doc.setFont("Helvetica", "bold");
             doc.text("3. Physiological Vital Signs Snapshot", 15, 104);
             doc.line(15, 106, 195, 106);
-            
+
             doc.setFontSize(10);
             doc.setFont("Helvetica", "normal");
             let yPos = 113;
@@ -1457,32 +1457,32 @@ function HandoverModal({ patient, vitals, notes, onClose, previousReports, onSav
               { label: "Core Temperature", val: `${vitals?.temperature || '--'} °C` },
               { label: "Blood Glucose", val: `${vitals?.bloodGlucose || '--'} mg/dL` }
             ];
-            
+
             vitalsList.forEach(v => {
               doc.text(v.label, 15, yPos);
               doc.text(v.val, 100, yPos);
               yPos += 6;
             });
-            
+
             // AI Clinical Summary
             doc.setFontSize(12);
             doc.setFont("Helvetica", "bold");
             doc.text("4. Attending AI Clinical Summary", 15, 153);
             doc.line(15, 155, 195, 155);
-            
+
             doc.setFontSize(9);
             doc.setFont("Helvetica", "normal");
-            
+
             const summaryString = `Primary Assessment: Patient ${patient.name} presented to receiving emergency team. Real-time telemetry calculations indicate ${triage.label.toUpperCase()} acuity level. Recommended treatment protocols: establishment of vascular access, active continuous hemodynamic recording, and immediate specialist review.`;
             const splitSummary = doc.splitTextToSize(summaryString, 180);
             doc.text(splitSummary, 15, 162);
-            
+
             // Recommendations
             doc.setFontSize(12);
             doc.setFont("Helvetica", "bold");
             doc.text("5. Recommended Emergency Protocols", 15, 190);
             doc.line(15, 192, 195, 192);
-            
+
             doc.setFontSize(9);
             doc.setFont("Helvetica", "normal");
             let recY = 199;
@@ -1495,13 +1495,13 @@ function HandoverModal({ patient, vitals, notes, onClose, previousReports, onSav
               doc.text(r, 15, recY);
               recY += 6;
             });
-            
+
             // Legal Disclaimer
             doc.setFontSize(7);
             doc.setFont("Helvetica", "oblique");
             doc.setTextColor(120, 120, 120);
             doc.text("DISCLAIMER: Generated by RescueLink AI. Advisory only. Attending emergency physician signature required.", 15, 280);
-            
+
             doc.save(`HANDOVER_REPORT_${patient.id || 'PATIENT'}.pdf`);
           }} style={{
             background: 'rgba(0,200,255,0.1)', color: '#00c8ff', border: '1px solid rgba(0,200,255,0.3)', padding: '10px 24px', borderRadius: 6,
@@ -1654,7 +1654,7 @@ export default function HospitalDashboard({ socket, connected }) {
 
   const MAX_HISTORY = 60; // 1 minute of history at 1Hz
   const [icuBeds, setIcuBeds] = useState(10);
-  
+
   useEffect(() => {
     if (socket && isAuthenticated) {
       socket.emit('update-hospital-inventory', { beds: icuBeds });
@@ -1669,6 +1669,7 @@ export default function HospitalDashboard({ socket, connected }) {
   const [patient, setPatient] = useState(null);
   const [activeMissionId, setActiveMissionId] = useState(null);
   const [resourceLocks, setResourceLocks] = useState({ traumaBay: false, bloodUnits: false, ventilatorStandby: false });
+  const [incomingLockRequest, setIncomingLockRequest] = useState(null);
   const lastAlertedIdRef = useRef(null);
   const lastVitalsBeepTimeRef = useRef(0);
   const [showDocAssignModal, setShowDocAssignModal] = useState(false);
@@ -1779,7 +1780,7 @@ export default function HospitalDashboard({ socket, connected }) {
 
       if (res.ok && data.token) {
         sessionStorage.setItem('rescuelink_token', data.token);
-        
+
         // Find in local registry for UI metadata or fallback to response
         const found = HOSPITAL_CREDENTIALS.find(c => c.hospitalId === inputId) || {
           hospitalId: data.user?.hospital_id || inputId,
@@ -1794,26 +1795,26 @@ export default function HospitalDashboard({ socket, connected }) {
         setIsAuthenticated(true);
         setLoginError('');
         if (found.internalId) setActiveHospitalId(found.internalId);
-        
+
         // Dynamically locate the hospital so it appears in the same city as the user for the demo
         let hospitalGps = null;
         try {
           const baseLoc = await fetchIpLocation();
           // Add deterministic small offset based on hospital ID so they don't overlap
-          const hash = inputId.split('').reduce((a,b)=>a+b.charCodeAt(0),0);
-          hospitalGps = { 
-            lat: baseLoc.lat + (hash % 10) * 0.005, 
-            lng: baseLoc.lng + (hash % 7) * 0.005 
+          const hash = inputId.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+          hospitalGps = {
+            lat: baseLoc.lat + (hash % 10) * 0.005,
+            lng: baseLoc.lng + (hash % 7) * 0.005
           };
         } catch (e) {
           hospitalGps = { lat: found.lat || data.lat, lng: found.lng || data.lng };
         }
 
-        if (socket) socket.emit('register-hospital', { 
-          hospitalId: found.hospitalId, 
-          name: found.name, 
-          adminName: found.adminName, 
-          id: found.hospitalId, 
+        if (socket) socket.emit('register-hospital', {
+          hospitalId: found.hospitalId,
+          name: found.name,
+          adminName: found.adminName,
+          id: found.hospitalId,
           lat: hospitalGps ? hospitalGps.lat : (found.lat || data.lat),
           lng: hospitalGps ? hospitalGps.lng : (found.lng || data.lng),
           pos: { lat: hospitalGps ? hospitalGps.lat : (found.lat || data.lat), lng: hospitalGps ? hospitalGps.lng : (found.lng || data.lng) },
@@ -1853,11 +1854,11 @@ export default function HospitalDashboard({ socket, connected }) {
   const handleMfaSuccess = async (viewRole, token) => {
     const userStr = sessionStorage.getItem('rescuelink_user');
     const user = userStr ? JSON.parse(userStr) : {};
-    
+
     sessionStorage.setItem('rescuelink_token', token);
-    
+
     const finalInputId = loginId || user.hospital_id || 'HOSP-GENERIC';
-    
+
     const found = HOSPITAL_CREDENTIALS.find(c => c.hospitalId === finalInputId) || {
       hospitalId: finalInputId,
       name: user.role === 'doctor' ? 'Manipal Global Trauma Center' : 'Emergency Center',
@@ -1871,28 +1872,28 @@ export default function HospitalDashboard({ socket, connected }) {
     setIsAuthenticated(true);
     setLoginError('');
     if (found.internalId) setActiveHospitalId(found.internalId);
-    
+
     let hospitalGps = null;
     try {
       const baseLoc = await fetchIpLocation();
-      const hash = finalInputId.split('').reduce((a,b)=>a+b.charCodeAt(0),0);
-      hospitalGps = { 
-        lat: baseLoc.lat + (hash % 10) * 0.005, 
-        lng: baseLoc.lng + (hash % 7) * 0.005 
+      const hash = finalInputId.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+      hospitalGps = {
+        lat: baseLoc.lat + (hash % 10) * 0.005,
+        lng: baseLoc.lng + (hash % 7) * 0.005
       };
     } catch (e) {
       hospitalGps = { lat: found.lat || user.lat, lng: found.lng || user.lng };
     }
 
-    if (socket) socket.emit('register-hospital', { 
-      hospitalId: found.hospitalId, 
-      name: found.name, 
-      adminName: found.adminName, 
+    if (socket) socket.emit('register-hospital', {
+      hospitalId: found.hospitalId,
+      name: found.name,
+      adminName: found.adminName,
       location: hospitalGps,
       available: true,
       token: token
     });
-    
+
     if (incomingRequest) {
       console.log(`[AUTH] Authentication successful. Completing admission for ${incomingRequest?.id}...`);
       if (incomingRequest.fieldReport) {
@@ -1913,7 +1914,7 @@ export default function HospitalDashboard({ socket, connected }) {
       setShowManualLogin(false);
       setIsAuthInModal(false);
     }
-    
+
     setMfaToken(null);
   };
 
@@ -2318,7 +2319,7 @@ export default function HospitalDashboard({ socket, connected }) {
     socket.on('hospital-resources-locked', (data) => {
       const { reqId, locks } = data;
       console.log(`[EMR LOCK] Hospital resources locked event for mission ${reqId}:`, locks);
-      
+
       // Update in activeMissions registry
       setActiveMissions(prev => {
         const existing = prev[reqId];
@@ -2961,6 +2962,64 @@ export default function HospitalDashboard({ socket, connected }) {
           </div>
         )}
 
+        {/* Paramedic Resource Lock Request Modal */}
+        {incomingLockRequest && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 10005, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(5px)' }}>
+            <div style={{
+              background: '#0a1526',
+              border: '2px solid #ff6b35',
+              borderRadius: 12,
+              width: 420,
+              padding: 24,
+              boxShadow: '0 0 35px rgba(255,107,53,0.3)',
+              fontFamily: "'Rajdhani', sans-serif"
+            }}>
+              <h3 style={{ fontFamily: "'Orbitron'", fontSize: 16, color: '#ff6b35', marginBottom: 12, textAlign: 'center', letterSpacing: '0.1em' }}>
+                🚨 INCOMING RESOURCE LOCK REQUEST
+              </h3>
+              <p style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', textAlign: 'center', marginBottom: 20 }}>
+                Ambulance paramedic is requesting a 20-min temporary hold on the following critical EMR-bound resources:
+              </p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, background: 'rgba(255,255,255,0.02)', padding: 16, borderRadius: 8, border: '1px solid rgba(255,107,53,0.2)', marginBottom: 20 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                  <span>🏨 Trauma Bay</span>
+                  <span style={{ color: incomingLockRequest.locks.traumaBay ? '#00ff88' : '#888', fontWeight: 'bold' }}>{incomingLockRequest.locks.traumaBay ? 'REQUIRED' : 'NO'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                  <span>🫁 Ventilator Standby</span>
+                  <span style={{ color: incomingLockRequest.locks.ventilatorStandby ? '#00ff88' : '#888', fontWeight: 'bold' }}>{incomingLockRequest.locks.ventilatorStandby ? 'REQUIRED' : 'NO'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                  <span>🩸 Blood Units</span>
+                  <span style={{ color: incomingLockRequest.locks.bloodUnits ? '#00ff88' : '#888', fontWeight: 'bold' }}>{incomingLockRequest.locks.bloodUnits ? 'REQUIRED' : 'NO'}</span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button
+                  onClick={() => {
+                    socket.emit('hospital-respond-lock', { reqId: incomingLockRequest.reqId, approved: false });
+                    setIncomingLockRequest(null);
+                  }}
+                  style={{ flex: 1, padding: 12, background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 8, color: '#aaa', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 11 }}
+                >
+                  DENY LOCK
+                </button>
+                <button
+                  onClick={() => {
+                    socket.emit('hospital-respond-lock', { reqId: incomingLockRequest.reqId, approved: true });
+                    setIncomingLockRequest(null);
+                  }}
+                  style={{ flex: 2, padding: 12, background: 'rgba(255,107,53,0.2)', border: '1px solid #ff6b35', borderRadius: 8, color: '#ff6b35', fontFamily: "'Orbitron'", fontWeight: 'bold', cursor: 'pointer', fontSize: 11 }}
+                >
+                  APPROVE LOCK
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Attending Team Assignment Modal Overlay */}
         {showDocAssignModal && (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 10005, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(5px)' }}>
@@ -2992,7 +3051,7 @@ export default function HospitalDashboard({ socket, connected }) {
                     style={{ padding: '10px', background: 'rgba(5,15,40,0.6)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 6, color: '#fff', fontSize: 13, outline: 'none' }}
                   />
                 </div>
-                
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>PHYSICIAN SPECIALIZATION</label>
                   <input
@@ -3136,8 +3195,8 @@ export default function HospitalDashboard({ socket, connected }) {
               <div style={{ fontSize: 22, flexShrink: 0 }}>🏥</div>
               <div style={{ flexShrink: 0, minWidth: 'fit-content' }}>
                 <div style={{ fontFamily: "'Orbitron'", fontSize: 14, fontWeight: 700, color: '#00c8ff', letterSpacing: '0.1em' }}>
-                  {authHospital?.hospitalId && authHospital.hospitalId.length > 15 
-                    ? `HOSP-${authHospital.hospitalId.slice(0, 8).toUpperCase()}` 
+                  {authHospital?.hospitalId && authHospital.hospitalId.length > 15
+                    ? `HOSP-${authHospital.hospitalId.slice(0, 8).toUpperCase()}`
                     : authHospital?.hospitalId || 'HOSPITAL'} — {authHospital?.adminName || 'DR. DASHBOARD'}
                 </div>
                 <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>
@@ -3150,8 +3209,8 @@ export default function HospitalDashboard({ socket, connected }) {
                 <div style={{ fontSize: 10, color: icuBeds > 0 ? '#00ff88' : '#ff4444', fontFamily: "'Orbitron'", fontWeight: 'bold' }}>
                   ICU BEDS: {icuBeds} {icuBeds === 0 && '(DIVERTING)'}
                 </div>
-                <input 
-                  type="range" min="0" max="50" value={icuBeds} 
+                <input
+                  type="range" min="0" max="50" value={icuBeds}
                   onChange={(e) => setIcuBeds(parseInt(e.target.value))}
                   style={{ width: 100, cursor: 'pointer', accentColor: icuBeds > 0 ? '#00ff88' : '#ff4444' }}
                 />
@@ -3323,132 +3382,132 @@ export default function HospitalDashboard({ socket, connected }) {
               {activeTab === 'triage' && (
                 <div className="hospital-triage-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 320px', flex: 1, overflow: 'hidden', width: '100%' }}>
 
-              {/* LEFT: Charts + Map */}
-              <div style={{ padding: 20, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {/* LEFT: Charts + Map */}
+                  <div style={{ padding: 20, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-                {/* --- HUGE CONNECTIONS SCALING: Request Queue --- */}
-                {requestQueue.length > 0 && (
-                  <div style={{ background: 'rgba(255,184,0,0.05)', border: '1px solid rgba(255,184,0,0.3)', borderRadius: 10, padding: 15 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                      <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#ffb800', letterSpacing: '0.1em', fontWeight: 700 }}>
-                        ⚡ REGIONAL ADMISSION QUEUE ({requestQueue.length})
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {requestQueue.map(req => (
-                        <div key={req.id} style={{
-                          background: incomingRequest?.id === req.id ? 'rgba(255,184,0,0.15)' : 'rgba(255,255,255,0.03)',
-                          border: `1px solid ${incomingRequest?.id === req.id ? '#ffb800' : 'rgba(255,255,255,0.1)'}`,
-                          borderRadius: 6, padding: '10px 15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-                        }}>
-                          <div>
-                            <div style={{ fontSize: 12, fontWeight: 'bold' }}>{req.fieldReport?.patientName || 'Emergency Case'}</div>
-                            <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'" }}>{req.ambulanceDetails?.unitId} · {req.fieldReport?.condition}</div>
+                    {/* --- HUGE CONNECTIONS SCALING: Request Queue --- */}
+                    {requestQueue.length > 0 && (
+                      <div style={{ background: 'rgba(255,184,0,0.05)', border: '1px solid rgba(255,184,0,0.3)', borderRadius: 10, padding: 15 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                          <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#ffb800', letterSpacing: '0.1em', fontWeight: 700 }}>
+                            ⚡ REGIONAL ADMISSION QUEUE ({requestQueue.length})
                           </div>
-                          <button
-                            onClick={() => {
-                              setIncomingRequest(req);
-                              setAdmissionStep(0);
-                            }}
-                            style={{
-                              background: '#ffb800', border: 'none', borderRadius: 4, padding: '4px 10px',
-                              color: '#000', fontSize: 10, fontWeight: 'bold', fontFamily: "'Orbitron'", cursor: 'pointer'
-                            }}
-                          >
-                            OPEN TRIAGE
-                          </button>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', letterSpacing: '0.1em' }}>
-                  LIVE VITALS MONITORING
-                </div>
-
-                {chartData.length === 0 ? (
-                  <div style={{
-                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: 'rgba(160,200,255,0.3)', fontFamily: "'Share Tech Mono'", fontSize: 13,
-                    flexDirection: 'column', gap: 12, padding: '40px 0'
-                  }}>
-                    <div style={{ fontSize: 32 }}>📟</div>
-                    <div>{activeMissionId ? "AWAITING PATIENT ONBOARDING (AMBULANCE)" : "AWAITING ACTIVE MISSION CONNECTION"}</div>
-                  </div>
-                ) : (
-                  <>
-                    <VitalChart data={chartData} dataKey="heartRate" color="#ff6b6b" label="HEART RATE" unit="bpm" critHigh={110} critLow={50} domain={[40, 140]} />
-                    <VitalChart data={chartData} dataKey="spo2" color="#00c8ff" label="SpO2 SATURATION" unit="%" critLow={92} domain={[85, 102]} />
-                    <VitalChart data={chartData} dataKey="systolic" color="#ffb800" label="SYSTOLIC BP" unit="mmHg" critHigh={150} domain={[70, 200]} />
-                    <VitalChart data={chartData} dataKey="respRate" color="#88ff88" label="RESPIRATORY RATE" unit="br/min" critHigh={25} critLow={12} domain={[8, 40]} />
-                    <VitalChart data={chartData} dataKey="temperature" color="#ff88aa" label="TEMPERATURE" unit="°C" critHigh={38.5} domain={[34, 42]} />
-                  </>
-                )}
-
-                {/* Incident notes */}
-                {incidentNotes.length > 0 && (
-                  <div style={{
-                    background: 'rgba(255,180,0,0.06)', border: '1px solid rgba(255,180,0,0.2)',
-                    borderRadius: 10, padding: 16,
-                  }}>
-                    <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#ffb800', letterSpacing: '0.1em', marginBottom: 10 }}>
-                      📋 FIELD NOTES FROM PARAMEDIC
-                    </div>
-                    {incidentNotes.map((n, i) => (
-                      <div key={i} style={{ fontSize: 13, color: 'rgba(160,200,255,0.8)', marginBottom: 6, paddingLeft: 12, borderLeft: '2px solid rgba(255,180,0,0.3)' }}>
-                        {n.note}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {requestQueue.map(req => (
+                            <div key={req.id} style={{
+                              background: incomingRequest?.id === req.id ? 'rgba(255,184,0,0.15)' : 'rgba(255,255,255,0.03)',
+                              border: `1px solid ${incomingRequest?.id === req.id ? '#ffb800' : 'rgba(255,255,255,0.1)'}`,
+                              borderRadius: 6, padding: '10px 15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                            }}>
+                              <div>
+                                <div style={{ fontSize: 12, fontWeight: 'bold' }}>{req.fieldReport?.patientName || 'Emergency Case'}</div>
+                                <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'" }}>{req.ambulanceDetails?.unitId} · {req.fieldReport?.condition}</div>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  setIncomingRequest(req);
+                                  setAdmissionStep(0);
+                                }}
+                                style={{
+                                  background: '#ffb800', border: 'none', borderRadius: 4, padding: '4px 10px',
+                                  color: '#000', fontSize: 10, fontWeight: 'bold', fontFamily: "'Orbitron'", cursor: 'pointer'
+                                }}
+                              >
+                                OPEN TRIAGE
+                              </button>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* CENTRE: Map + Patient */}
-              <div style={{ padding: '20px 10px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16, borderLeft: '1px solid rgba(0,200,255,0.08)' }}>
-                {/* Map */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    )}
                     <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', letterSpacing: '0.1em' }}>
-                      🗺 LIVE AMBULANCE TRACKING
+                      LIVE VITALS MONITORING
                     </div>
-                    {trafficDelay && (
-                      <div style={{ fontFamily: "'Share Tech Mono'", fontSize: 10, color: '#ffb800', animation: 'blink 1s step-end infinite' }}>
-                        ⚠ HEAVY TRAFFIC DELAY
+
+                    {chartData.length === 0 ? (
+                      <div style={{
+                        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        color: 'rgba(160,200,255,0.3)', fontFamily: "'Share Tech Mono'", fontSize: 13,
+                        flexDirection: 'column', gap: 12, padding: '40px 0'
+                      }}>
+                        <div style={{ fontSize: 32 }}>📟</div>
+                        <div>{activeMissionId ? "AWAITING PATIENT ONBOARDING (AMBULANCE)" : "AWAITING ACTIVE MISSION CONNECTION"}</div>
+                      </div>
+                    ) : (
+                      <>
+                        <VitalChart data={chartData} dataKey="heartRate" color="#ff6b6b" label="HEART RATE" unit="bpm" critHigh={110} critLow={50} domain={[40, 140]} />
+                        <VitalChart data={chartData} dataKey="spo2" color="#00c8ff" label="SpO2 SATURATION" unit="%" critLow={92} domain={[85, 102]} />
+                        <VitalChart data={chartData} dataKey="systolic" color="#ffb800" label="SYSTOLIC BP" unit="mmHg" critHigh={150} domain={[70, 200]} />
+                        <VitalChart data={chartData} dataKey="respRate" color="#88ff88" label="RESPIRATORY RATE" unit="br/min" critHigh={25} critLow={12} domain={[8, 40]} />
+                        <VitalChart data={chartData} dataKey="temperature" color="#ff88aa" label="TEMPERATURE" unit="°C" critHigh={38.5} domain={[34, 42]} />
+                      </>
+                    )}
+
+                    {/* Incident notes */}
+                    {incidentNotes.length > 0 && (
+                      <div style={{
+                        background: 'rgba(255,180,0,0.06)', border: '1px solid rgba(255,180,0,0.2)',
+                        borderRadius: 10, padding: 16,
+                      }}>
+                        <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#ffb800', letterSpacing: '0.1em', marginBottom: 10 }}>
+                          📋 FIELD NOTES FROM PARAMEDIC
+                        </div>
+                        {incidentNotes.map((n, i) => (
+                          <div key={i} style={{ fontSize: 13, color: 'rgba(160,200,255,0.8)', marginBottom: 6, paddingLeft: 12, borderLeft: '2px solid rgba(255,180,0,0.3)' }}>
+                            {n.note}
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
-                  <div style={{
-                    borderRadius: 10, overflow: 'hidden',
-                    border: '1px solid rgba(0,200,255,0.2)',
-                    height: 320, position: 'relative',
-                  }}>
-                    <MapContainer
-                      center={
-                        hospitalGps ? [hospitalGps.lat, hospitalGps.lng] :
-                          activeHospital?.pos ? [activeHospital.pos.lat, activeHospital.pos.lng] :
-                            [12.9716, 77.5946]
-                      }
-                      zoom={hospitalGps ? 12 : 2}
-                      style={{ height: '100%', width: '100%', background: '#050d1a' }}
-                      zoomControl={false}
-                    >
-                      <TileLayer
-                        url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                        attribution='&copy; OpenStreetMap &copy; CARTO'
-                      />
-                      <SmartMapController 
-                        ambulanceLoc={location} 
-                        userLoc={incidentLocation} 
-                        hospitalLoc={hospitalGps || activeHospital?.pos}
-                      />
 
-                      {/* ANCHOR FIX: SOS Pin — shows exactly where the emergency was triggered */}
-                      {incidentLocation && incidentLocation.lat && (
-                        <Marker
-                          position={[incidentLocation.lat, incidentLocation.lng]}
-                          icon={L.divIcon({
-                            className: '',
-                            html: `<div style="
+                  {/* CENTRE: Map + Patient */}
+                  <div style={{ padding: '20px 10px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16, borderLeft: '1px solid rgba(0,200,255,0.08)' }}>
+                    {/* Map */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', letterSpacing: '0.1em' }}>
+                          🗺 LIVE AMBULANCE TRACKING
+                        </div>
+                        {trafficDelay && (
+                          <div style={{ fontFamily: "'Share Tech Mono'", fontSize: 10, color: '#ffb800', animation: 'blink 1s step-end infinite' }}>
+                            ⚠ HEAVY TRAFFIC DELAY
+                          </div>
+                        )}
+                      </div>
+                      <div style={{
+                        borderRadius: 10, overflow: 'hidden',
+                        border: '1px solid rgba(0,200,255,0.2)',
+                        height: 320, position: 'relative',
+                      }}>
+                        <MapContainer
+                          center={
+                            hospitalGps ? [hospitalGps.lat, hospitalGps.lng] :
+                              activeHospital?.pos ? [activeHospital.pos.lat, activeHospital.pos.lng] :
+                                [12.9716, 77.5946]
+                          }
+                          zoom={hospitalGps ? 12 : 2}
+                          style={{ height: '100%', width: '100%', background: '#050d1a' }}
+                          zoomControl={false}
+                        >
+                          <TileLayer
+                            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                            attribution='&copy; OpenStreetMap &copy; CARTO'
+                          />
+                          <SmartMapController
+                            ambulanceLoc={location}
+                            userLoc={incidentLocation}
+                            hospitalLoc={hospitalGps || activeHospital?.pos}
+                          />
+
+                          {/* ANCHOR FIX: SOS Pin — shows exactly where the emergency was triggered */}
+                          {incidentLocation && incidentLocation.lat && (
+                            <Marker
+                              position={[incidentLocation.lat, incidentLocation.lng]}
+                              icon={L.divIcon({
+                                className: '',
+                                html: `<div style="
                             width:36px; height:36px; background:rgba(255,30,30,0.9);
                             border:3px solid #fff; border-radius:50%;
                             display:flex; align-items:center; justify-content:center;
@@ -3456,402 +3515,402 @@ export default function HospitalDashboard({ socket, connected }) {
                             animation:pulse 1s ease infinite;
                           ">🆘</div>
                           <style>@keyframes pulse{0%,100%{box-shadow:0 0 10px rgba(255,30,30,0.4)}50%{box-shadow:0 0 40px rgba(255,30,30,1)}}</style>`,
-                            iconSize: [36, 36],
-                            iconAnchor: [18, 18],
+                                iconSize: [36, 36],
+                                iconAnchor: [18, 18],
+                              })}
+                            >
+                              <Popup>
+                                <strong>🆘 SOS INCIDENT SITE</strong><br />
+                                This is where the emergency was triggered.<br />
+                                Lat: {incidentLocation.lat.toFixed(4)}<br />
+                                Lng: {incidentLocation.lng.toFixed(4)}
+                              </Popup>
+                            </Marker>
+                          )}
+
+                          {/* Hospital self-marker using real GPS */}
+                          {(hospitalGps || activeHospital?.pos) && (
+                            <Marker
+                              position={hospitalGps ? [hospitalGps.lat, hospitalGps.lng] : [activeHospital.pos.lat, activeHospital.pos.lng]}
+                              icon={hospitalIcon}
+                            >
+                              <Popup><strong>🏥 {activeHospital?.name || authHospital?.name || 'This Hospital'}</strong></Popup>
+                            </Marker>
+                          )}
+                          {routePath && (
+                            <Polyline positions={routePath} color="#00ff88" weight={5} opacity={0.7} dashArray="10, 10" />
+                          )}
+                          {locationHistory.length > 1 && (
+                            <Polyline positions={locationHistory} color={trafficDelay ? "#ffb800" : "#00c8ff"} weight={2} opacity={0.5} dashArray="6,4" />
+                          )}
+
+                          {/* Traffic Incidents Circles */}
+                          {Object.values(trafficIncidents).map((incident) => (
+                            <React.Fragment key={incident.id}>
+                              <Circle
+                                center={[incident.lat, incident.lng]}
+                                radius={incident.radius || 300}
+                                pathOptions={{
+                                  color: '#ff3333',
+                                  fillColor: '#ff3333',
+                                  fillOpacity: 0.15,
+                                  dashArray: '5, 10',
+                                  weight: 2
+                                }}
+                              >
+                                <Popup>
+                                  <div style={{ color: '#333', fontFamily: 'sans-serif' }}>
+                                    <strong style={{ color: '#ff3333' }}>⚠️ Traffic Incident / Blockage</strong>
+                                    <p style={{ margin: '5px 0 0 0', fontSize: '11px' }}>{incident.reason}</p>
+                                    <span style={{ fontSize: '9px', color: '#666' }}>Radius: {incident.radius}m</span>
+                                  </div>
+                                </Popup>
+                              </Circle>
+                              <Circle
+                                center={[incident.lat, incident.lng]}
+                                radius={20}
+                                pathOptions={{
+                                  color: '#ff1111',
+                                  fillColor: '#ff1111',
+                                  fillOpacity: 0.8,
+                                  weight: 1
+                                }}
+                              />
+                            </React.Fragment>
+                          ))}
+
+                          {/* Fleet Overview: All Active Ambulances */}
+                          {Object.entries(ambulances).map(([id, amb]) => {
+                            if (!amb.location) return null;
+                            return (
+                              <Marker key={id} position={[amb.location.lat, amb.location.lng]} icon={ambulanceIcon}>
+                                <Popup>
+                                  <strong>🚑 {amb.name || 'Ambulance'}</strong><br />
+                                  {amb.available ? '🟢 Available' : '🔴 On Mission'}<br />
+                                  {amb.type} Unit
+                                </Popup>
+                              </Marker>
+                            );
                           })}
-                        >
-                          <Popup>
-                            <strong>🆘 SOS INCIDENT SITE</strong><br />
-                            This is where the emergency was triggered.<br />
-                            Lat: {incidentLocation.lat.toFixed(4)}<br />
-                            Lng: {incidentLocation.lng.toFixed(4)}
-                          </Popup>
-                        </Marker>
-                      )}
 
-                      {/* Hospital self-marker using real GPS */}
-                      {(hospitalGps || activeHospital?.pos) && (
-                        <Marker
-                          position={hospitalGps ? [hospitalGps.lat, hospitalGps.lng] : [activeHospital.pos.lat, activeHospital.pos.lng]}
-                          icon={hospitalIcon}
-                        >
-                          <Popup><strong>🏥 {activeHospital?.name || authHospital?.name || 'This Hospital'}</strong></Popup>
-                        </Marker>
-                      )}
-                      {routePath && (
-                        <Polyline positions={routePath} color="#00ff88" weight={5} opacity={0.7} dashArray="10, 10" />
-                      )}
-                      {locationHistory.length > 1 && (
-                        <Polyline positions={locationHistory} color={trafficDelay ? "#ffb800" : "#00c8ff"} weight={2} opacity={0.5} dashArray="6,4" />
-                      )}
+                          {/* Fleet Overview: All Other Hospitals */}
+                          {Object.entries(networkHospitals).map(([id, hosp]) => {
+                            const pos = hosp.location || hosp.pos;
+                            if (!pos || id === socket.id) return null;
+                            return (
+                              <Marker key={id} position={[pos.lat, pos.lng]} icon={hospitalIcon}>
+                                <Popup>
+                                  <strong>🏥 {hosp.name}</strong><br />
+                                  {hosp.isOnline ? '🟢 Online' : '⚪ Offline'}<br />
+                                  {hosp.isBusy ? '🔴 Busy' : '🟢 Ready'}
+                                </Popup>
+                              </Marker>
+                            );
+                          })}
+                        </MapContainer>
 
-                      {/* Traffic Incidents Circles */}
-                      {Object.values(trafficIncidents).map((incident) => (
-                        <React.Fragment key={incident.id}>
-                          <Circle
-                            center={[incident.lat, incident.lng]}
-                            radius={incident.radius || 300}
-                            pathOptions={{
-                              color: '#ff3333',
-                              fillColor: '#ff3333',
-                              fillOpacity: 0.15,
-                              dashArray: '5, 10',
-                              weight: 2
-                            }}
-                          >
-                            <Popup>
-                              <div style={{ color: '#333', fontFamily: 'sans-serif' }}>
-                                <strong style={{ color: '#ff3333' }}>⚠️ Traffic Incident / Blockage</strong>
-                                <p style={{ margin: '5px 0 0 0', fontSize: '11px' }}>{incident.reason}</p>
-                                <span style={{ fontSize: '9px', color: '#666' }}>Radius: {incident.radius}m</span>
-                              </div>
-                            </Popup>
-                          </Circle>
-                          <Circle
-                            center={[incident.lat, incident.lng]}
-                            radius={20}
-                            pathOptions={{
-                              color: '#ff1111',
-                              fillColor: '#ff1111',
-                              fillOpacity: 0.8,
-                              weight: 1
-                            }}
+                        {!location && (
+                          <div style={{
+                            position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            background: 'rgba(5,15,40,0.7)', flexDirection: 'column', gap: 8, zIndex: 1000,
+                          }}>
+                            <div style={{ fontSize: 24 }}>📡</div>
+                            <div style={{ color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'", fontSize: 12 }}>
+                              GPS SIGNAL PENDING...
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Patient Record */}
+                    <div>
+                      <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', letterSpacing: '0.1em', marginBottom: 12 }}>
+                        📋 PATIENT RECORD
+                      </div>
+                      <PatientPanel patient={patient} vitals={latestVitals} activeMissionId={activeMissionId} />
+
+                      {patient && latestVitals && (
+                        <div style={{ marginTop: 16 }}>
+                          <PhysiologicalWaveforms
+                            vitals={latestVitals}
+                            news2Score={calculateTriage(latestVitals).level === 'RED' ? 7 : 0}
                           />
-                        </React.Fragment>
-                      ))}
+                        </div>
+                      )}
 
-                      {/* Fleet Overview: All Active Ambulances */}
-                      {Object.entries(ambulances).map(([id, amb]) => {
-                        if (!amb.location) return null;
-                        return (
-                          <Marker key={id} position={[amb.location.lat, amb.location.lng]} icon={ambulanceIcon}>
-                            <Popup>
-                              <strong>🚑 {amb.name || 'Ambulance'}</strong><br />
-                              {amb.available ? '🟢 Available' : '🔴 On Mission'}<br />
-                              {amb.type} Unit
-                            </Popup>
-                          </Marker>
-                        );
-                      })}
+                      {activeMissionId && (
+                        <div style={{
+                          marginTop: 16,
+                          background: 'rgba(5, 15, 40, 0.8)',
+                          border: '1px solid rgba(0, 200, 255, 0.2)',
+                          borderRadius: 10,
+                          padding: 16,
+                          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
+                        }}>
+                          <div style={{
+                            fontFamily: "'Orbitron'",
+                            fontSize: 11,
+                            color: '#00ff88',
+                            letterSpacing: '0.1em',
+                            marginBottom: 12,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between'
+                          }}>
+                            <span>📋 PRE-HOSPITAL CLINICAL CHECKLIST</span>
+                            <span style={{ fontSize: 9, color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'" }}>REAL-TIME SYNC</span>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            {Object.entries(CLINICAL_PROTOCOLS).map(([protoName, steps]) => {
+                              const activeSteps = steps.filter(step => checklist[step]);
+                              const progressCount = activeSteps.length;
+                              return (
+                                <div key={protoName} style={{
+                                  border: '1px solid rgba(160,200,255,0.08)',
+                                  borderRadius: 6,
+                                  padding: 10,
+                                  background: progressCount > 0 ? 'rgba(0,200,255,0.02)' : 'rgba(0,0,0,0.2)'
+                                }}>
+                                  <div style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    fontSize: 10,
+                                    fontFamily: "'Orbitron'",
+                                    color: progressCount === steps.length ? '#00ff88' : progressCount > 0 ? '#ffb800' : 'rgba(160,200,255,0.6)',
+                                    marginBottom: 8,
+                                    fontWeight: 'bold'
+                                  }}>
+                                    <span>{protoName}</span>
+                                    <span>{progressCount}/{steps.length} DONE</span>
+                                  </div>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    {steps.map((step) => {
+                                      const completedTime = checklist[step];
+                                      return (
+                                        <div key={step} style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'space-between',
+                                          padding: '4px 8px',
+                                          background: completedTime ? 'rgba(0,255,136,0.05)' : 'transparent',
+                                          borderRadius: 4,
+                                          border: `1px solid ${completedTime ? 'rgba(0,255,136,0.2)' : 'transparent'}`
+                                        }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                            <span style={{ color: completedTime ? '#00ff88' : 'rgba(160,200,255,0.3)', fontSize: 12 }}>
+                                              {completedTime ? '✓' : '○'}
+                                            </span>
+                                            <span style={{
+                                              fontSize: 11,
+                                              color: completedTime ? '#00ff88' : '#e0eaff',
+                                              textDecoration: completedTime ? 'line-through' : 'none',
+                                              opacity: completedTime ? 1 : 0.7
+                                            }}>{step}</span>
+                                          </div>
+                                          {completedTime && (
+                                            <span style={{ fontSize: 9, fontFamily: "'Share Tech Mono'", color: 'rgba(0,255,136,0.7)' }}>
+                                              {completedTime}
+                                            </span>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
 
-                      {/* Fleet Overview: All Other Hospitals */}
-                      {Object.entries(networkHospitals).map(([id, hosp]) => {
-                        const pos = hosp.location || hosp.pos;
-                        if (!pos || id === socket.id) return null;
-                        return (
-                          <Marker key={id} position={[pos.lat, pos.lng]} icon={hospitalIcon}>
-                            <Popup>
-                              <strong>🏥 {hosp.name}</strong><br />
-                              {hosp.isOnline ? '🟢 Online' : '⚪ Offline'}<br />
-                              {hosp.isBusy ? '🔴 Busy' : '🟢 Ready'}
-                            </Popup>
-                          </Marker>
-                        );
-                      })}
-                    </MapContainer>
+                      {patient && activeMissionId && (
+                        <div style={{
+                          marginTop: 16,
+                          background: 'rgba(5, 20, 50, 0.6)',
+                          backdropFilter: 'blur(12px)',
+                          border: '1px solid rgba(0, 200, 255, 0.2)',
+                          borderRadius: 10,
+                          padding: 16,
+                          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
+                        }}>
+                          <div style={{
+                            fontFamily: "'Orbitron'",
+                            fontSize: 11,
+                            color: '#00ff88',
+                            letterSpacing: '0.1em',
+                            marginBottom: 12,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8
+                          }}>
+                            🔒 EMR LOCK & RESERVE PANEL
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            {[
+                              { key: 'traumaBay', label: '🏥 Trauma Bay 1' },
+                              { key: 'bloodUnits', label: '🩸 Blood Units (O-Neg)' },
+                              { key: 'ventilatorStandby', label: '🫁 Ventilator Standby' }
+                            ].map(item => {
+                              const isLocked = resourceLocks[item.key];
+                              return (
+                                <label
+                                  key={item.key}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    background: isLocked ? 'rgba(0, 255, 136, 0.1)' : 'rgba(255, 255, 255, 0.02)',
+                                    border: `1px solid ${isLocked ? 'rgba(0, 255, 136, 0.3)' : 'rgba(255, 255, 255, 0.08)'}`,
+                                    borderRadius: 6,
+                                    padding: '10px 14px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                    fontFamily: "'Share Tech Mono'",
+                                    fontSize: 13,
+                                    color: isLocked ? '#00ff88' : '#e0eaff'
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <span>{isLocked ? '✅' : '🔓'}</span>
+                                    <span>{item.label}</span>
+                                  </div>
+                                  <input
+                                    type="checkbox"
+                                    checked={isLocked || false}
+                                    onChange={(e) => {
+                                      const updatedLocks = {
+                                        ...resourceLocks,
+                                        [item.key]: e.target.checked
+                                      };
+                                      setResourceLocks(updatedLocks);
+                                      // Update local activeMissions registry entry
+                                      setActiveMissions(prev => {
+                                        const existing = prev[activeMissionId];
+                                        if (!existing) return prev;
+                                        return {
+                                          ...prev,
+                                          [activeMissionId]: { ...existing, resourceLocks: updatedLocks }
+                                        };
+                                      });
+                                      // Emit event to server
+                                      socket?.emit('hospital-lock-resources', { reqId: activeMissionId, locks: updatedLocks });
+                                    }}
+                                    style={{ cursor: 'pointer' }}
+                                  />
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
-                    {!location && (
+                    {/* Previous Hospital Reports (Reroute History) */}
+                    {previousReports && previousReports.length > 0 && (
                       <div style={{
-                        position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        background: 'rgba(5,15,40,0.7)', flexDirection: 'column', gap: 8, zIndex: 1000,
+                        background: 'rgba(0,255,136,0.06)', border: '1px solid rgba(0,255,136,0.2)',
+                        borderRadius: 10, padding: 16, marginTop: 4
                       }}>
-                        <div style={{ fontSize: 24 }}>📡</div>
-                        <div style={{ color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'", fontSize: 12 }}>
-                          GPS SIGNAL PENDING...
+                        <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00ff88', letterSpacing: '0.1em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                          🔄 REROUTE HISTORY <span style={{ fontSize: 9, opacity: 0.6 }}>(PRIOR HOSPITALS)</span>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          {previousReports.map((report, i) => (
+                            <div key={i} style={{
+                              fontSize: 12,
+                              borderLeft: `2px solid ${report.triageColor || '#00ff88'}`,
+                              paddingLeft: 12,
+                              marginBottom: i < previousReports.length - 1 ? 8 : 0,
+                              paddingBottom: i < previousReports.length - 1 ? 8 : 0,
+                              borderBottom: i < previousReports.length - 1 ? '1px solid rgba(160,200,255,0.05)' : 'none'
+                            }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                                <div style={{ color: '#e0eaff', fontWeight: 600, fontFamily: "'Rajdhani'" }}>{report.hospitalName}</div>
+                                <div style={{
+                                  fontSize: 9, padding: '2px 6px', borderRadius: 3,
+                                  background: `${report.triageColor}22`, color: report.triageColor,
+                                  fontFamily: "'Orbitron'", fontWeight: 700
+                                }}>{report.triageLabel}</div>
+                              </div>
+                              <div style={{ color: 'rgba(160,200,255,0.4)', fontSize: 10, fontFamily: "'Share Tech Mono'", marginBottom: 6 }}>{report.timestamp}</div>
+                              <div style={{ color: 'rgba(160,200,255,0.7)', fontSize: 11, lineHeight: 1.4, fontStyle: 'italic' }}>
+                                "{report.notes}"
+                              </div>
+                              {report.vitals && (
+                                <div style={{ display: 'flex', gap: 8, marginTop: 6, opacity: 0.8 }}>
+                                  <div style={{ fontSize: 9, color: '#ff6b6b' }}>❤️ {report.vitals.heartRate}</div>
+                                  <div style={{ fontSize: 9, color: '#00c8ff' }}>💧 {report.vitals.spo2}%</div>
+                                  <div style={{ fontSize: 9, color: '#ffb800' }}>🩸 {report.vitals.systolic}/{report.vitals.diastolic}</div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
                         </div>
                       </div>
                     )}
+
+
+                    {/* Hospital Readiness */}
+                    <div>
+                      <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', letterSpacing: '0.1em', marginBottom: 12 }}>
+                        ⚙ RESOURCE PREPARATION
+                      </div>
+                      <ResourcePanel socket={socket} />
+                    </div>
                   </div>
-                </div>
 
-                {/* Patient Record */}
-                <div>
-                  <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', letterSpacing: '0.1em', marginBottom: 12 }}>
-                    📋 PATIENT RECORD
-                  </div>
-                  <PatientPanel patient={patient} vitals={latestVitals} activeMissionId={activeMissionId} />
-
-                  {patient && latestVitals && (
-                    <div style={{ marginTop: 16 }}>
-                      <PhysiologicalWaveforms 
-                        vitals={latestVitals} 
-                        news2Score={calculateTriage(latestVitals).level === 'RED' ? 7 : 0} 
-                      />
-                    </div>
-                  )}
-
-                  {activeMissionId && (
-                    <div style={{
-                      marginTop: 16,
-                      background: 'rgba(5, 15, 40, 0.8)',
-                      border: '1px solid rgba(0, 200, 255, 0.2)',
-                      borderRadius: 10,
-                      padding: 16,
-                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
-                    }}>
-                      <div style={{
-                        fontFamily: "'Orbitron'",
-                        fontSize: 11,
-                        color: '#00ff88',
-                        letterSpacing: '0.1em',
-                        marginBottom: 12,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between'
-                      }}>
-                        <span>📋 PRE-HOSPITAL CLINICAL CHECKLIST</span>
-                        <span style={{ fontSize: 9, color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'" }}>REAL-TIME SYNC</span>
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                        {Object.entries(CLINICAL_PROTOCOLS).map(([protoName, steps]) => {
-                          const activeSteps = steps.filter(step => checklist[step]);
-                          const progressCount = activeSteps.length;
-                          return (
-                            <div key={protoName} style={{
-                              border: '1px solid rgba(160,200,255,0.08)',
-                              borderRadius: 6,
-                              padding: 10,
-                              background: progressCount > 0 ? 'rgba(0,200,255,0.02)' : 'rgba(0,0,0,0.2)'
-                            }}>
-                              <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                fontSize: 10,
-                                fontFamily: "'Orbitron'",
-                                color: progressCount === steps.length ? '#00ff88' : progressCount > 0 ? '#ffb800' : 'rgba(160,200,255,0.6)',
-                                marginBottom: 8,
-                                fontWeight: 'bold'
-                              }}>
-                                <span>{protoName}</span>
-                                <span>{progressCount}/{steps.length} DONE</span>
-                              </div>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                {steps.map((step) => {
-                                  const completedTime = checklist[step];
-                                  return (
-                                    <div key={step} style={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'space-between',
-                                      padding: '4px 8px',
-                                      background: completedTime ? 'rgba(0,255,136,0.05)' : 'transparent',
-                                      borderRadius: 4,
-                                      border: `1px solid ${completedTime ? 'rgba(0,255,136,0.2)' : 'transparent'}`
-                                    }}>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <span style={{ color: completedTime ? '#00ff88' : 'rgba(160,200,255,0.3)', fontSize: 12 }}>
-                                          {completedTime ? '✓' : '○'}
-                                        </span>
-                                        <span style={{
-                                          fontSize: 11,
-                                          color: completedTime ? '#00ff88' : '#e0eaff',
-                                          textDecoration: completedTime ? 'line-through' : 'none',
-                                          opacity: completedTime ? 1 : 0.7
-                                        }}>{step}</span>
-                                      </div>
-                                      {completedTime && (
-                                        <span style={{ fontSize: 9, fontFamily: "'Share Tech Mono'", color: 'rgba(0,255,136,0.7)' }}>
-                                          {completedTime}
-                                        </span>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {patient && activeMissionId && (
-                    <div style={{
-                      marginTop: 16,
-                      background: 'rgba(5, 20, 50, 0.6)',
-                      backdropFilter: 'blur(12px)',
-                      border: '1px solid rgba(0, 200, 255, 0.2)',
-                      borderRadius: 10,
-                      padding: 16,
-                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
-                    }}>
-                      <div style={{
-                        fontFamily: "'Orbitron'",
-                        fontSize: 11,
-                        color: '#00ff88',
-                        letterSpacing: '0.1em',
-                        marginBottom: 12,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8
-                      }}>
-                        🔒 EMR LOCK & RESERVE PANEL
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        {[
-                          { key: 'traumaBay', label: '🏥 Trauma Bay 1' },
-                          { key: 'bloodUnits', label: '🩸 Blood Units (O-Neg)' },
-                          { key: 'ventilatorStandby', label: '🫁 Ventilator Standby' }
-                        ].map(item => {
-                          const isLocked = resourceLocks[item.key];
-                          return (
-                            <label
-                              key={item.key}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                background: isLocked ? 'rgba(0, 255, 136, 0.1)' : 'rgba(255, 255, 255, 0.02)',
-                                border: `1px solid ${isLocked ? 'rgba(0, 255, 136, 0.3)' : 'rgba(255, 255, 255, 0.08)'}`,
-                                borderRadius: 6,
-                                padding: '10px 14px',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s',
-                                fontFamily: "'Share Tech Mono'",
-                                fontSize: 13,
-                                color: isLocked ? '#00ff88' : '#e0eaff'
-                              }}
-                            >
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <span>{isLocked ? '✅' : '🔓'}</span>
-                                <span>{item.label}</span>
-                              </div>
-                              <input
-                                type="checkbox"
-                                checked={isLocked || false}
-                                onChange={(e) => {
-                                  const updatedLocks = {
-                                    ...resourceLocks,
-                                    [item.key]: e.target.checked
-                                  };
-                                  setResourceLocks(updatedLocks);
-                                  // Update local activeMissions registry entry
-                                  setActiveMissions(prev => {
-                                    const existing = prev[activeMissionId];
-                                    if (!existing) return prev;
-                                    return {
-                                      ...prev,
-                                      [activeMissionId]: { ...existing, resourceLocks: updatedLocks }
-                                    };
-                                  });
-                                  // Emit event to server
-                                  socket?.emit('hospital-lock-resources', { reqId: activeMissionId, locks: updatedLocks });
-                                }}
-                                style={{ cursor: 'pointer' }}
-                              />
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Previous Hospital Reports (Reroute History) */}
-                {previousReports && previousReports.length > 0 && (
+                  {/* RIGHT: Chat */}
                   <div style={{
-                    background: 'rgba(0,255,136,0.06)', border: '1px solid rgba(0,255,136,0.2)',
-                    borderRadius: 10, padding: 16, marginTop: 4
+                    background: 'rgba(3,8,20,0.95)',
+                    borderLeft: '1px solid rgba(0,200,255,0.1)',
+                    display: 'flex', flexDirection: 'column', overflow: 'hidden',
                   }}>
-                    <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00ff88', letterSpacing: '0.1em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      🔄 REROUTE HISTORY <span style={{ fontSize: 9, opacity: 0.6 }}>(PRIOR HOSPITALS)</span>
+                    <div style={{
+                      padding: '16px 20px',
+                      borderBottom: '1px solid rgba(0,200,255,0.1)',
+                      fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', letterSpacing: '0.1em',
+                    }}>
+                      📞 PARAMEDIC COMM LINK
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      {previousReports.map((report, i) => (
-                        <div key={i} style={{
-                          fontSize: 12,
-                          borderLeft: `2px solid ${report.triageColor || '#00ff88'}`,
-                          paddingLeft: 12,
-                          marginBottom: i < previousReports.length - 1 ? 8 : 0,
-                          paddingBottom: i < previousReports.length - 1 ? 8 : 0,
-                          borderBottom: i < previousReports.length - 1 ? '1px solid rgba(160,200,255,0.05)' : 'none'
-                        }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
-                            <div style={{ color: '#e0eaff', fontWeight: 600, fontFamily: "'Rajdhani'" }}>{report.hospitalName}</div>
-                            <div style={{
-                              fontSize: 9, padding: '2px 6px', borderRadius: 3,
-                              background: `${report.triageColor}22`, color: report.triageColor,
-                              fontFamily: "'Orbitron'", fontWeight: 700
-                            }}>{report.triageLabel}</div>
-                          </div>
-                          <div style={{ color: 'rgba(160,200,255,0.4)', fontSize: 10, fontFamily: "'Share Tech Mono'", marginBottom: 6 }}>{report.timestamp}</div>
-                          <div style={{ color: 'rgba(160,200,255,0.7)', fontSize: 11, lineHeight: 1.4, fontStyle: 'italic' }}>
-                            "{report.notes}"
-                          </div>
-                          {report.vitals && (
-                            <div style={{ display: 'flex', gap: 8, marginTop: 6, opacity: 0.8 }}>
-                              <div style={{ fontSize: 9, color: '#ff6b6b' }}>❤️ {report.vitals.heartRate}</div>
-                              <div style={{ fontSize: 9, color: '#00c8ff' }}>💧 {report.vitals.spo2}%</div>
-                              <div style={{ fontSize: 9, color: '#ffb800' }}>🩸 {report.vitals.systolic}/{report.vitals.diastolic}</div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
+
+                    <VideoCall
+                      socket={socket}
+                      role="hospital"
+                      missionId={activeMissionId}
+                    />
+
+                    {/* Quick directives */}
+                    <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(0,200,255,0.08)' }}>
+                      <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'", marginBottom: 8, letterSpacing: '0.1em' }}>
+                        QUICK DIRECTIVES
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {[
+                          'Administer O2 at 15L/min',
+                          'Start IV line – 0.9% NaCl',
+                          'Give Aspirin 325mg now',
+                          'Do NOT give morphine – allergy',
+                          'ETA: prepare trauma bay 2',
+                        ].map(d => (
+                          <button key={d} onClick={() => socket?.emit('chat-message', { text: d, from: 'hospital', fromLabel: '🏥 Dr. Command' })}
+                            style={{
+                              padding: '6px 10px', textAlign: 'left',
+                              background: 'rgba(0,200,255,0.06)', border: '1px solid rgba(0,200,255,0.15)',
+                              borderRadius: 5, color: 'rgba(160,200,255,0.7)', fontSize: 11,
+                              cursor: 'pointer', transition: 'all 0.2s', fontFamily: "'Rajdhani'",
+                            }}
+                          >{d}</button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div style={{ flex: 1, padding: '12px 16px 40px 16px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                      <ChatPanel socket={socket} messages={messages} activeMissionId={activeMissionId} />
                     </div>
                   </div>
-                )}
-
-
-                {/* Hospital Readiness */}
-                <div>
-                  <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', letterSpacing: '0.1em', marginBottom: 12 }}>
-                    ⚙ RESOURCE PREPARATION
-                  </div>
-                  <ResourcePanel socket={socket} />
                 </div>
-              </div>
-
-              {/* RIGHT: Chat */}
-              <div style={{
-                background: 'rgba(3,8,20,0.95)',
-                borderLeft: '1px solid rgba(0,200,255,0.1)',
-                display: 'flex', flexDirection: 'column', overflow: 'hidden',
-              }}>
-                <div style={{
-                  padding: '16px 20px',
-                  borderBottom: '1px solid rgba(0,200,255,0.1)',
-                  fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', letterSpacing: '0.1em',
-                }}>
-                  📞 PARAMEDIC COMM LINK
-                </div>
-
-                <VideoCall
-                  socket={socket}
-                  role="hospital"
-                  missionId={activeMissionId}
-                />
-
-                {/* Quick directives */}
-                <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(0,200,255,0.08)' }}>
-                  <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'", marginBottom: 8, letterSpacing: '0.1em' }}>
-                    QUICK DIRECTIVES
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {[
-                      'Administer O2 at 15L/min',
-                      'Start IV line – 0.9% NaCl',
-                      'Give Aspirin 325mg now',
-                      'Do NOT give morphine – allergy',
-                      'ETA: prepare trauma bay 2',
-                    ].map(d => (
-                      <button key={d} onClick={() => socket?.emit('chat-message', { text: d, from: 'hospital', fromLabel: '🏥 Dr. Command' })}
-                        style={{
-                          padding: '6px 10px', textAlign: 'left',
-                          background: 'rgba(0,200,255,0.06)', border: '1px solid rgba(0,200,255,0.15)',
-                          borderRadius: 5, color: 'rgba(160,200,255,0.7)', fontSize: 11,
-                          cursor: 'pointer', transition: 'all 0.2s', fontFamily: "'Rajdhani'",
-                        }}
-                      >{d}</button>
-                    ))}
-                  </div>
-                </div>
-
-                <div style={{ flex: 1, padding: '12px 16px 40px 16px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                  <ChatPanel socket={socket} messages={messages} activeMissionId={activeMissionId} />
-                </div>
-              </div>
-            </div>
-          )}
+              )}
 
               {/* Other Tabs */}
               {activeTab === 'er_queue' && (
@@ -3860,13 +3919,13 @@ export default function HospitalDashboard({ socket, connected }) {
                   <div style={{ color: 'rgba(160,200,255,0.7)' }}>ER queue and smart bed management interface will be displayed here.</div>
                 </div>
               )}
-              
+
               {activeTab === 'blood_bank' && (
                 <div style={{ flex: 1, padding: 24, overflowY: 'auto' }}>
                   <BloodEmergencyNetwork socket={socket} userLocation={hospitalGps} />
                 </div>
               )}
-              
+
               {activeTab === 'insurance' && (
                 <div style={{ flex: 1, padding: 24, overflowY: 'auto', display: 'flex', justifyContent: 'center' }}>
                   <div style={{ width: '100%', maxWidth: 600 }}>
@@ -3874,7 +3933,7 @@ export default function HospitalDashboard({ socket, connected }) {
                   </div>
                 </div>
               )}
-              
+
               {activeTab === 'mass_casualty' && (
                 <div style={{ flex: 1, padding: 24, overflowY: 'auto', display: 'flex', justifyContent: 'center' }}>
                   <div style={{ width: '100%', maxWidth: 800 }}>
@@ -3890,61 +3949,61 @@ export default function HospitalDashboard({ socket, connected }) {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                       <div>
                         <label style={{ display: 'block', fontSize: 11, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.6)', marginBottom: 6 }}>HOSPITAL NAME</label>
-                        <input 
-                          value={authHospital?.name || ''} 
+                        <input
+                          value={authHospital?.name || ''}
                           onChange={(e) => setAuthHospital({ ...authHospital, name: e.target.value })}
-                          style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }} 
+                          style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }}
                         />
                       </div>
                       <div style={{ display: 'flex', gap: 16 }}>
                         <div style={{ flex: 1 }}>
                           <label style={{ display: 'block', fontSize: 11, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.6)', marginBottom: 6 }}>LATITUDE</label>
-                          <input 
+                          <input
                             type="number" step="0.0001"
-                            value={hospitalGps?.lat || authHospital?.lat || ''} 
+                            value={hospitalGps?.lat || authHospital?.lat || ''}
                             onChange={(e) => {
                               const lat = parseFloat(e.target.value);
                               setHospitalGps({ ...hospitalGps, lat });
                               setAuthHospital({ ...authHospital, lat });
                             }}
-                            style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }} 
+                            style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }}
                           />
                         </div>
                         <div style={{ flex: 1 }}>
                           <label style={{ display: 'block', fontSize: 11, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.6)', marginBottom: 6 }}>LONGITUDE</label>
-                          <input 
+                          <input
                             type="number" step="0.0001"
-                            value={hospitalGps?.lng || authHospital?.lng || ''} 
+                            value={hospitalGps?.lng || authHospital?.lng || ''}
                             onChange={(e) => {
                               const lng = parseFloat(e.target.value);
                               setHospitalGps({ ...hospitalGps, lng });
                               setAuthHospital({ ...authHospital, lng });
                             }}
-                            style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }} 
+                            style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }}
                           />
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: 16 }}>
                         <div style={{ flex: 1 }}>
                           <label style={{ display: 'block', fontSize: 11, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.6)', marginBottom: 6 }}>TOTAL ICU BEDS</label>
-                          <input 
+                          <input
                             type="number"
-                            value={icuBeds} 
+                            value={icuBeds}
                             onChange={(e) => setIcuBeds(parseInt(e.target.value) || 0)}
-                            style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }} 
+                            style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }}
                           />
                         </div>
                         <div style={{ flex: 1 }}>
                           <label style={{ display: 'block', fontSize: 11, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.6)', marginBottom: 6 }}>VENTILATORS AVAILABLE</label>
-                          <input 
+                          <input
                             type="number"
-                            value={authHospital?.ventilators || 5} 
+                            value={authHospital?.ventilators || 5}
                             onChange={(e) => setAuthHospital({ ...authHospital, ventilators: parseInt(e.target.value) || 0 })}
-                            style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }} 
+                            style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }}
                           />
                         </div>
                       </div>
-                      <button 
+                      <button
                         onClick={async () => {
                           try {
                             const res = await fetch(`/api/hospitals/${authHospital.hospitalId}`, {
@@ -3964,11 +4023,11 @@ export default function HospitalDashboard({ socket, connected }) {
                             if (res.ok) {
                               window.alert('🏥 Hospital settings updated successfully and sync broadcasted!');
                               if (socket) {
-                                socket.emit('register-hospital', { 
-                                  hospitalId: authHospital.hospitalId, 
-                                  name: authHospital.name, 
-                                  adminName: authHospital.adminName, 
-                                  id: authHospital.hospitalId, 
+                                socket.emit('register-hospital', {
+                                  hospitalId: authHospital.hospitalId,
+                                  name: authHospital.name,
+                                  adminName: authHospital.adminName,
+                                  id: authHospital.hospitalId,
                                   lat: hospitalGps?.lat || authHospital.lat,
                                   lng: hospitalGps?.lng || authHospital.lng,
                                   token: sessionStorage.getItem('rescuelink_token')
@@ -4015,7 +4074,7 @@ function MCITriageCommander() {
           <h3 style={{ margin: 0, fontFamily: "'Orbitron'", color: '#00c8ff', fontSize: 13 }}>🚨 MASS CASUALTY INCIDENT (MCI) MODE</h3>
           <p style={{ margin: '4px 0 0 0', fontSize: 11, color: 'rgba(160,200,255,0.6)' }}>Enable multi-patient triage feeds and Incident Commander maps.</p>
         </div>
-        <button 
+        <button
           onClick={() => setIsActive(true)}
           style={{ background: '#ff3333', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 16px', fontFamily: "'Orbitron'", fontWeight: 'bold', fontSize: 10, cursor: 'pointer', boxShadow: '0 0 15px rgba(255,50,50,0.4)' }}
         >
@@ -4032,7 +4091,7 @@ function MCITriageCommander() {
           <h3 style={{ margin: 0, fontFamily: "'Orbitron'", color: '#ff4444', fontSize: 15, letterSpacing: '0.1em' }}>🚨 INCIDENT COMMANDER CONSOLE - ACTIVE MCI</h3>
           <p style={{ margin: '2px 0 0 0', fontSize: 10, color: 'rgba(255,100,100,0.7)', fontFamily: "'Share Tech Mono'" }}>LEVEL 1 DISASTER DECLARED • DUAL STREAMS DETECTED</p>
         </div>
-        <button 
+        <button
           onClick={() => setIsActive(false)}
           style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 4, color: '#fff', padding: '4px 10px', fontSize: 9, cursor: 'pointer', fontFamily: "'Orbitron'" }}
         >
