@@ -923,7 +923,7 @@ function MfaSetupScreen({ setupToken, onComplete, onCancel }) {
 /* ─── Login & Registration Screen Component with 2FA ───────────────────── */
 function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onClose, defaultIsRegister }) {
   const [isRegister, setIsRegister] = useState(defaultIsRegister || false);
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(defaultRole === 'admin' ? 'admin@rescuelink.com' : '');
   const [password, setPassword] = useState('');
   
   // Paramedic signup fields
