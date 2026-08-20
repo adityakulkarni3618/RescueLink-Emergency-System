@@ -1589,7 +1589,6 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
                          <option value="Other">Other</option>
                        </select>
                      </div>
-                   </>
 
                       {/* Emergency Contact details */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
