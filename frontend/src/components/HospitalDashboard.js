@@ -13,6 +13,7 @@ import { showAlert } from '../utils/alert';
 import InsurancePanel from './InsurancePanel';
 import MassCasualtyPanel from './MassCasualtyPanel';
 import HeartbeatViz from './HeartbeatViz';
+import HospitalAnalytics from './HospitalAnalytics';
 import BloodEmergencyNetwork from './BloodEmergencyNetwork';
 import { MfaVerifyScreen } from './MfaVerifyScreen';
 import * as THREE from 'three';
@@ -3730,6 +3731,7 @@ export default function HospitalDashboard({ socket, connected }) {
                 { id: 'blood_bank', label: '🩸 BLOOD BANK' },
                 { id: 'insurance', label: '🛡️ INSURANCE AUTO-PAY' },
                 { id: 'mass_casualty', label: '⚠️ MASS CASUALTY' },
+                { id: 'analytics', label: '📊 ANALYTICS' },
                 { id: 'settings', label: '⚙️ SETTINGS' },
               ].map(tab => (
                 <button
@@ -4590,6 +4592,14 @@ export default function HospitalDashboard({ socket, connected }) {
                 <div style={{ flex: 1, padding: 24, overflowY: 'auto', display: 'flex', justifyContent: 'center' }}>
                   <div style={{ width: '100%', maxWidth: 800 }}>
                     <MassCasualtyPanel socket={socket} />
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'analytics' && (
+                <div style={{ flex: 1, padding: 24, overflowY: 'auto', display: 'flex', justifyContent: 'center' }}>
+                  <div style={{ width: '100%' }}>
+                    <HospitalAnalytics hospitalId={authHospital?.hospitalId || activeHospitalId} />
                   </div>
                 </div>
               )}
