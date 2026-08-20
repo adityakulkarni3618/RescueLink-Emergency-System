@@ -220,4 +220,168 @@ router.post('/register', async (req, res) => {
   }
 });
 
+/**
+ * @route GET /api/hospitals/:id/doctors
+ * @desc Get all doctors associated with the hospital
+ */
+router.get('/:id/doctors', verifyToken(['hospital_admin', 'doctor', 'city_admin']), async (req, res) => {
+  try {
+    const { User } = require('../utils/db');
+    const doctors = await User.findAll({
+      where: { hospital_id: req.params.id, role: 'doctor', is_active: true },
+      attributes: ['id', 'name', 'email', 'mobile', 'specialty', 'is_on_duty', 'doctor_status']
+    });
+    return res.json(doctors);
+  } catch (err) {
+    console.error('[HOSPITALS API] Get doctors failed:', err.message);
+    return res.status(500).json({ error: 'Failed to fetch doctors list' });
+  }
+});
+
+/**
+ * @route POST /api/hospitals/:id/doctors
+ * @desc Add/register a new doctor to the hospital
+ */
+router.post('/:id/doctors', verifyToken(['hospital_admin']), async (req, res) => {
+  const { name, email, password, specialty, mobile } = req.body;
+  if (!name || !email || !password) {
+    return res.status(400).json({ error: 'Name, email, and password are required' });
+  }
+
+  try {
+    const { User, DoctorHospital } = require('../utils/db');
+    const existing = await User.findOne({ where: { email: email.toLowerCase() } });
+    if (existing) {
+      return res.status(400).json({ error: 'Email account already registered' });
+    }
+
+    const bcrypt = require('bcryptjs');
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const doctorUser = await User.create({
+      name,
+      email: email.toLowerCase(),
+      password: passwordHash,
+      role: 'doctor',
+      mobile: mobile || '',
+      hospital_id: req.params.id,
+      specialty: specialty || 'General Medicine',
+      is_on_duty: true,
+      doctor_status: 'AVAILABLE',
+      is_active: true
+    });
+
+    if (DoctorHospital) {
+      await DoctorHospital.create({
+        doctorId: doctorUser.id,
+        hospitalId: req.params.id
+      });
+    }
+
+    console.log(`[STAFF] New doctor registered: ${doctorUser.email} for hospital ${req.params.id}`);
+    return res.status(201).json({
+      id: doctorUser.id,
+      name: doctorUser.name,
+      email: doctorUser.email,
+      specialty: doctorUser.specialty
+    });
+  } catch (err) {
+    console.error('[HOSPITALS API] Invite doctor failed:', err.message);
+    return res.status(500).json({ error: 'Failed to add doctor to hospital registry' });
+  }
+});
+
+/**
+ * @route PUT /api/hospitals/:id/doctors/:doctorId
+ * @desc Update a doctor's shift/duty status
+ */
+router.put('/:id/doctors/:doctorId', verifyToken(['hospital_admin', 'doctor']), async (req, res) => {
+  const { isOnDuty, doctorStatus } = req.body;
+
+  try {
+    const { User } = require('../utils/db');
+    const doctor = await User.findOne({
+      where: { id: req.params.doctorId, hospital_id: req.params.id, role: 'doctor' }
+    });
+
+    if (!doctor) {
+      return res.status(404).json({ error: 'Doctor not found at this hospital' });
+    }
+
+    if (isOnDuty !== undefined) doctor.is_on_duty = isOnDuty;
+    if (doctorStatus !== undefined) doctor.doctor_status = doctorStatus;
+
+    await doctor.save();
+
+    console.log(`[STAFF] Updated doctor ${doctor.name} status: duty=${doctor.is_on_duty}, status=${doctor.doctor_status}`);
+    return res.json({
+      id: doctor.id,
+      name: doctor.name,
+      is_on_duty: doctor.is_on_duty,
+      doctor_status: doctor.doctor_status
+    });
+  } catch (err) {
+    console.error('[HOSPITALS API] Update doctor status failed:', err.message);
+    return res.status(500).json({ error: 'Failed to update doctor status' });
+  }
+});
+
+/**
+ * @route GET /api/hospitals/:id/beds
+ * @desc Get bed tracking layouts for a hospital
+ */
+router.get('/:id/beds', verifyToken(['hospital_admin', 'doctor', 'city_admin']), async (req, res) => {
+  try {
+    const hospital = await Hospital.findByPk(req.params.id);
+    if (!hospital) {
+      return res.status(404).json({ error: 'Hospital not found' });
+    }
+    let beds = [];
+    if (hospital.bed_statuses) {
+      try {
+        beds = JSON.parse(hospital.bed_statuses);
+      } catch (e) {
+        beds = [];
+      }
+    }
+    if (beds.length === 0) {
+      // Default beds structure
+      beds = Array.from({ length: 12 }, (_, i) => ({
+        id: i + 1,
+        status: i % 3 === 0 ? 'OCCUPIED' : i % 4 === 0 ? 'RESERVED' : 'AVAILABLE',
+        label: `Bed ${(i + 1).toString().padStart(2, '0')}`
+      }));
+      hospital.bed_statuses = JSON.stringify(beds);
+      await hospital.save();
+    }
+    return res.json(beds);
+  } catch (err) {
+    console.error('[HOSPITALS API] Get beds error:', err.message);
+    return res.status(500).json({ error: 'Failed to fetch bed layout' });
+  }
+});
+
+/**
+ * @route PUT /api/hospitals/:id/beds
+ * @desc Update bed tracking layouts for a hospital
+ */
+router.put('/:id/beds', verifyToken(['hospital_admin', 'doctor']), async (req, res) => {
+  const { beds } = req.body;
+  if (!Array.isArray(beds)) {
+    return res.status(400).json({ error: 'Beds must be an array' });
+  }
+  try {
+    const hospital = await Hospital.findByPk(req.params.id);
+    if (!hospital) {
+      return res.status(404).json({ error: 'Hospital not found' });
+    }
+    hospital.bed_statuses = JSON.stringify(beds);
+    await hospital.save();
+    return res.json({ success: true, beds });
+  } catch (err) {
+    console.error('[HOSPITALS API] Update beds error:', err.message);
+    return res.status(500).json({ error: 'Failed to save bed layout' });
+  }
+});
+
 module.exports = router;

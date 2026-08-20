@@ -418,8 +418,12 @@ router.post('/refresh', async (req, res) => {
  * @route POST /api/auth/register-ambulance
  * @desc Register a new paramedic ambulance unit with speakeasy 2FA setup
  */
+/**
+ * @route POST /api/auth/register-ambulance
+ * @desc Register a new paramedic ambulance unit with speakeasy 2FA setup
+ */
 router.post('/register-ambulance', async (req, res) => {
-  const { vehicleNo, driverName, contactInfo, type, password } = req.body;
+  const { vehicleNo, driverName, contactInfo, type, password, hospitalId, equipmentChecklist, crewMembers } = req.body;
   if (!vehicleNo || !driverName || !contactInfo || !password) {
     return res.status(400).json({ error: 'vehicleNo, driverName, contactInfo, and password are required' });
   }
@@ -453,7 +457,10 @@ router.post('/register-ambulance', async (req, res) => {
       type: type || 'BLS',
       password: passwordHash,
       totp_secret: setupData.secret,
-      is_active: true
+      is_active: true,
+      hospital_id: hospitalId || null,
+      equipment_checklist: JSON.stringify(equipmentChecklist || []),
+      crew_members: JSON.stringify(crewMembers || [])
     });
 
     await User.create({
@@ -483,21 +490,30 @@ router.post('/register-ambulance', async (req, res) => {
  * @desc Register a new hospital unit with speakeasy 2FA setup
  */
 router.post('/register-hospital', async (req, res) => {
-  const { name, contactInfo, lat, lng, totalBeds, icuBeds, ventilators, password } = req.body;
+  const { name, contactInfo, lat, lng, totalBeds, icuBeds, ventilators, password, licenseNumber, departments, bayCapacity, adminEmail } = req.body;
   if (!name || !contactInfo || !lat || !lng || !password) {
     return res.status(400).json({ error: 'name, contactInfo, lat, lng, and password are required' });
   }
 
   try {
-    const { Hospital } = require('../utils/db');
+    const { Hospital, User } = require('../utils/db');
     const existing = await Hospital.findOne({ where: { name } });
     if (existing) {
       return res.status(400).json({ error: 'Hospital name already registered' });
     }
 
+    const finalAdminEmail = (adminEmail && adminEmail.includes('@')) 
+      ? adminEmail.toLowerCase() 
+      : `${name.replace(/\s+/g, '').toLowerCase()}@rescuelink.com`;
+
+    const existingUser = await User.findOne({ where: { email: finalAdminEmail } });
+    if (existingUser) {
+      return res.status(400).json({ error: 'Admin email account already registered' });
+    }
+
     const passwordHash = await bcrypt.hash(password, 10);
     const twoFactor = require('../utils/twoFactor');
-    const setupData = await twoFactor.generateSecret(name.replace(/\s+/g, ''), `${name.replace(/\s+/g, '')}@rescuelink.com`);
+    const setupData = await twoFactor.generateSecret(name.replace(/\s+/g, ''), finalAdminEmail);
 
     const newHospital = await Hospital.create({
       name,
@@ -507,12 +523,15 @@ router.post('/register-hospital', async (req, res) => {
       total_beds: parseInt(totalBeds) || 50,
       icu_beds: parseInt(icuBeds) || 5,
       ventilators: parseInt(ventilators) || 2,
-      is_active: true
+      is_active: true,
+      license_number: licenseNumber || null,
+      departments: JSON.stringify(departments || []),
+      bay_capacity: parseInt(bayCapacity) || 5
     });
 
     await User.create({
       name: `${name} Administrator`,
-      email: `${name.replace(/\s+/g, '').toLowerCase()}@rescuelink.com`,
+      email: finalAdminEmail,
       password: passwordHash,
       role: 'hospital_admin',
       mobile: contactInfo,
