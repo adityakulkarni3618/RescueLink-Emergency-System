@@ -1222,27 +1222,6 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
     }
   };
 
-  const triggerDirectPatientAccess = async () => {
-    setError('');
-    setLoading(true);
-    try {
-      const response = await fetch(`${SERVER_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'patient@rescuelink.com', password: 'password123' })
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Login failed');
-      sessionStorage.setItem('rescuelink_token', data.token);
-      sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
-      onLoginSuccess('user', data.token);
-    } catch (err) {
-      setError(err.message || 'Invalid credentials');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const triggerGuestEmergencySOS = async () => {
     const promptedPhone = window.prompt("🚨 EMERGENCY SOS DISPATCH\n\nPlease enter your contact phone number to coordinate with the ambulance driver:", "");
     if (promptedPhone === null) return; // cancel
@@ -1449,14 +1428,9 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
                   {loading ? 'AUTHENTICATING...' : 'ACCESS SYSTEM →'}
                 </button>
                 {defaultRole === 'user' && (
-                  <>
-                    <button type="button" onClick={triggerDirectPatientAccess} className="rl-btn-secondary" style={{ width: '100%', marginTop: 4 }}>
-                      DIRECT PATIENT ACCESS 🧍
-                    </button>
-                    <button type="button" onClick={triggerGuestEmergencySOS} style={{ width: '100%', marginTop: 8, padding: '12px', background: 'linear-gradient(135deg, #ff3333, #aa0000)', border: '1px solid #ff4444', color: '#fff', borderRadius: 6, fontFamily: "'Orbitron'", fontSize: 12, fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 0 15px rgba(255,0,0,0.3)', letterSpacing: '0.05em' }}>
-                      🚨 GUEST EMERGENCY DISPATCH (NO LOGIN)
-                    </button>
-                  </>
+                  <button type="button" onClick={triggerGuestEmergencySOS} style={{ width: '100%', marginTop: 8, padding: '12px', background: 'linear-gradient(135deg, #ff3333, #aa0000)', border: '1px solid #ff4444', color: '#fff', borderRadius: 6, fontFamily: "'Orbitron'", fontSize: 12, fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 0 15px rgba(255,0,0,0.3)', letterSpacing: '0.05em' }}>
+                    🚨 GUEST EMERGENCY DISPATCH (NO LOGIN)
+                  </button>
                 )}
               </form>
             ) : (
