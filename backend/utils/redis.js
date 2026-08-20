@@ -2,16 +2,35 @@ const Redis = require('ioredis');
 
 let redis = null;
 try {
-  redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
-    maxRetriesPerRequest: 1,
-    retryStrategy(times) {
-      if (times > 3) {
-        console.log('[REDIS] Max retries reached. Using in-memory fallback.');
-        return null; // stop retrying
+  if (process.env.REDIS_SENTINELS) {
+    const sentinels = process.env.REDIS_SENTINELS.split(',').map(s => {
+      const [host, port] = s.split(':');
+      return { host, port: parseInt(port) || 26379 };
+    });
+    redis = new Redis({
+      sentinels,
+      name: process.env.REDIS_SENTINEL_NAME || 'mymaster',
+      maxRetriesPerRequest: 1,
+      retryStrategy(times) {
+        if (times > 3) {
+          console.log('[REDIS] Max Sentinel retries reached. Using in-memory fallback.');
+          return null;
+        }
+        return 1000;
       }
-      return 1000;
-    }
-  });
+    });
+  } else {
+    redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+      maxRetriesPerRequest: 1,
+      retryStrategy(times) {
+        if (times > 3) {
+          console.log('[REDIS] Max retries reached. Using in-memory fallback.');
+          return null; // stop retrying
+        }
+        return 1000;
+      }
+    });
+  }
 
   redis.on('error', (err) => {
     // Suppress spamming connection errors to console but log a warning
