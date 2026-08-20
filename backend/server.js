@@ -31,7 +31,7 @@ const { verifyToken } = require('./middleware/auth');
 const authRouter = require('./routes/auth');
 const usersRouter = require('./routes/users');
 const whatsappService = require('./utils/whatsapp');
-const { getETA, haversineDistance } = require('./utils/maps');
+const { getSmartRoute, getETA, haversineDistance } = require('./utils/osrmService');
 const { initVitalsBridge } = require('./utils/vitalsBridge');
 const cache = require('./utils/cache');
 const { acquireLock, releaseLock } = require('./utils/redis');
@@ -247,48 +247,7 @@ function checkRouteCollision(route) {
   return null;
 }
 
-// FIX H1: OSRM fetch now has a 8-second timeout to prevent hanging the event loop
-// Enhanced to accept multiple waypoints for detouring
-async function getOSRMRoute(waypoints) {
-  if (!waypoints || waypoints.length < 2) return [];
-  const waypointStr = waypoints.map(w => `${w.lng},${w.lat}`).join(';');
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
-  try {
-    const res = await fetch(
-      `https://router.project-osrm.org/route/v1/driving/${waypointStr}?overview=full&geometries=geojson`,
-      { signal: controller.signal }
-    );
-    const data = await res.json();
-    if (data.routes && data.routes[0]) {
-      return data.routes[0].geometry.coordinates.map(c => ({ lat: c[1], lng: c[0] }));
-    } else {
-      return waypoints;
-    }
-  } catch (e) {
-    console.warn('[OSRM] Route fetch failed, using waypoints fallback.');
-    return waypoints;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
 
-async function getSmartRoute(startLoc, endLoc) {
-  const defaultRoute = await getOSRMRoute([startLoc, endLoc]);
-  const collidedZone = checkRouteCollision(defaultRoute);
-  if (collidedZone) {
-    console.log(`[OSRM Detour] Route intersects with incident zone: "${collidedZone.reason}". Calculating detour waypoint...`);
-    // Offset waypoint by radius + 150m. Convert meters to lat/lng: ~1m = 0.000009 deg
-    const offset = (collidedZone.radius + 150) * 0.000009;
-    const detourPoint = {
-      lat: collidedZone.lat + offset,
-      lng: collidedZone.lng + offset
-    };
-    const detouredRoute = await getOSRMRoute([startLoc, detourPoint, endLoc]);
-    return detouredRoute;
-  }
-  return defaultRoute;
-}
 
 const app = express();
 app.set('trust proxy', 1);
@@ -753,7 +712,15 @@ try {
   const { createAdapter } = require('@socket.io/redis-adapter');
   const Redis = require('ioredis');
 
-  const pubClient = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+  const pubClient = process.env.REDIS_SENTINELS ? new Redis({
+    sentinels: process.env.REDIS_SENTINELS.split(',').map(s => {
+      const [host, port] = s.split(':');
+      return { host, port: parseInt(port) || 26379 };
+    }),
+    name: process.env.REDIS_SENTINEL_NAME || 'mymaster',
+    maxRetriesPerRequest: 1,
+    retryStrategy: (times) => times > 3 ? null : 1000
+  }) : new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
     maxRetriesPerRequest: 1,
     retryStrategy(times) {
       if (times > 3) {
@@ -1302,7 +1269,25 @@ io.on('connection', (socket) => {
     return score;
   }
 
+  // Global processed message IDs set for server-side deduplication
+  if (!global.processedMessageIds) {
+    global.processedMessageIds = new Set();
+  }
+
   socket.on('vitals-update', (data) => {
+    // Deduplication filter
+    if (data && data.msgId) {
+      if (global.processedMessageIds.has(data.msgId)) {
+        socket.emit('vitals-ack', { msgId: data.msgId });
+        return;
+      }
+      global.processedMessageIds.add(data.msgId);
+      if (global.processedMessageIds.size > 10000) {
+        const first = global.processedMessageIds.values().next().value;
+        global.processedMessageIds.delete(first);
+      }
+    }
+
     // Determine the stable mission room this socket belongs to
     const reqId = data.reqId || (Array.from(socket.rooms).find(r => r.startsWith('mission_')) || '').replace('mission_', '');
     const update = { ...data, timestamp: Date.now() };
@@ -1311,6 +1296,10 @@ io.on('connection', (socket) => {
       if (!activeRequests[reqId].vitalsHistory) activeRequests[reqId].vitalsHistory = [];
       activeRequests[reqId].vitalsHistory.push(update);
       syncMissionToDB(reqId);
+    }
+
+    if (data && data.msgId) {
+      socket.emit('vitals-ack', { msgId: data.msgId });
     }
 
     // Check for critical thresholds (Basic + Advanced AI NEWS2)
