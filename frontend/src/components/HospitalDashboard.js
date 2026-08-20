@@ -1977,6 +1977,7 @@ export default function HospitalDashboard({ socket, connected }) {
   const [attendingNurses, setAttendingNurses] = useState('');
 
   const [activeMissions, setActiveMissions] = useState({}); // { [reqId]: { patient, vitals, messages, notes, route, history } }
+  const [greenCorridorActive, setGreenCorridorActive] = useState(false);
   const ignoredMissionsRef = useRef(new Set());
 
   // High-reliability helper to update a specific mission's data
@@ -2642,6 +2643,12 @@ export default function HospitalDashboard({ socket, connected }) {
       setTrafficIncidents(data || {});
     });
 
+    socket.on('green-corridor-status', (data) => {
+      if (data && data.reqId === activeMissionId) {
+        setGreenCorridorActive(data.active);
+      }
+    });
+
     socket.on('mission-completed', (data) => {
       setPendingResumeMission(null);
       if (data && data.reqId) ignoredMissionsRef.current.delete(data.reqId);
@@ -2711,6 +2718,7 @@ export default function HospitalDashboard({ socket, connected }) {
       socket.off('smart-resource-alert');
       socket.off('clinical-checklist-update');
       socket.off('traffic-incidents-update');
+      socket.off('green-corridor-status');
     };
   }, [socket, activeMissionId, authHospital, activeHospitalId, updateMissionData, incomingRequest, isAuthenticated]);
 
@@ -3609,7 +3617,25 @@ export default function HospitalDashboard({ socket, connected }) {
 
             {/* Critical alert banner */}
             <div style={{ position: 'relative', zIndex: 50 }}>
-              {icuBeds === 0 && (
+              {/* Green Corridor Active Banner */}
+             {greenCorridorActive && (
+               <div style={{
+                 background: 'linear-gradient(90deg, rgba(0,255,136,0.25) 0%, rgba(0,255,136,0.05) 100%)',
+                 borderBottom: '2px solid #00ff88',
+                 padding: '12px 24px',
+                 display: 'flex', alignItems: 'center', gap: 12,
+                 animation: 'sosGlow 2s ease infinite',
+                 zIndex: 60,
+                 position: 'relative'
+               }}>
+                 <span style={{ fontSize: 20 }}>🟢</span>
+                 <div style={{ fontFamily: "'Orbitron'", fontSize: 13, color: '#00ff88', fontWeight: 700, letterSpacing: '0.1em' }}>
+                   GREEN CORRIDOR ACTIVE - EMERGENCY SIGNAL PREEMPTION ENGAGED
+                 </div>
+               </div>
+             )}
+
+             {icuBeds === 0 && (
                 <div style={{
                   background: 'linear-gradient(90deg, rgba(255,0,0,0.35) 0%, rgba(255,0,0,0.1) 100%)',
                   borderBottom: '2px solid #ff4444',

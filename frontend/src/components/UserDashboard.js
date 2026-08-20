@@ -666,6 +666,12 @@ export default function UserDashboard({ socket, connected }) {
       playAlertBeep();
     });
 
+    socket.on('green-corridor-status', (data) => {
+      if (data && data.reqId === currentReqId) {
+        setGreenCorridorActive(data.active);
+      }
+    });
+
     socket.on('mission-completed', (data) => {
       const compReqId = data?.reqId;
       console.log(`[MISSION] Completion received for ${compReqId}.`);
@@ -713,6 +719,7 @@ export default function UserDashboard({ socket, connected }) {
       socket.off('request-acknowledged');
       socket.off('mission-completed');
       socket.off('hospital-request-response');
+      socket.off('green-corridor-status');
     };
   }, [socket, connected, userId, userLocation, currentReqId, assignedAmbulanceId, ambulances]);
 
