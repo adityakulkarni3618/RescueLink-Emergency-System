@@ -91,6 +91,14 @@ class WhatsAppService {
     const notificationQueue = require('./notificationQueue');
     notificationQueue.enqueue(formatted, message);
   }
+
+  notifyNextOfKinEmergency(nextOfKinPhone, patientName, vehicleNo, hospitalName, reqId) {
+    const formatted = formatE164(nextOfKinPhone);
+    if (!formatted) return;
+    const message = `🚨 *RescueLink Next-of-Kin Emergency Alert*\n\nEmergency dispatch initiated for *${patientName || 'your family member'}*.\n\n🚑 *Responding Unit*: ${vehicleNo || 'EMS Unit'}\n🏥 *Destination ER*: ${hospitalName || 'Nearest Trauma Center'}\n📌 *Mission Reference*: ${reqId}\n\nYou can track live updates through the RescueLink Emergency Network.`;
+    const notificationQueue = require('./notificationQueue');
+    notificationQueue.enqueue(formatted, message);
+  }
 }
 
 function formatE164(phone) {
