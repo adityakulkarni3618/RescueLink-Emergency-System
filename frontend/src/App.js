@@ -7,6 +7,7 @@ import WarRoom from './components/WarRoom';
 import FamilyDashboard from './components/FamilyDashboard';
 import CustomAlert from './components/CustomAlert';
 import axios from 'axios';
+import PatientPortal from './components/PatientPortal';
 import { MfaVerifyScreen } from './components/MfaVerifyScreen';
 
 const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
@@ -1124,6 +1125,10 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
       if (defaultRole === 'ambulance') {
         endpoint = '/api/auth/register-ambulance';
         payload = { vehicleNo, driverName, contactInfo, type, password, hospitalId, equipmentChecklist, crewMembers };
+      } else if (defaultRole === 'user') {
+        // Patient registration
+        endpoint = '/api/auth/register-patient';
+        payload = { name: driverName, email, password, mobile: contactInfo, abhaNumber: vehicleNo, abhaAddress, bloodGroup, allergies, chronicConditions, dob, gender };
       } else {
         endpoint = '/api/auth/register-hospital';
         payload = { name: hospitalName, contactInfo: hospitalContact, lat, lng, totalBeds, icuBeds, ventilators, password, licenseNumber, departments, bayCapacity, adminEmail };
@@ -1154,9 +1159,14 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
     setLoading(true);
     try {
       // Step 2: verify and enable 2FA using registration secret
-      const payload = defaultRole === 'ambulance'
-        ? { id: vehicleNo, password }
-        : { email: `${hospitalName.replace(/\s+/g, '').toLowerCase()}@rescuelink.com`, password };
+      let payload = {};
+      if (defaultRole === 'ambulance') {
+        payload = { id: vehicleNo, password };
+      } else if (defaultRole === 'user') {
+        payload = { email, password };
+      } else {
+        payload = { email: `${hospitalName.replace(/\s+/g, '').toLowerCase()}@rescuelink.com`, password };
+      }
       const dummyTokenResponse = await fetch(`${SERVER_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1340,10 +1350,10 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
         ) : (
           <>
             {/* Login / Register Toggle Tabs */}
-            {defaultRole && defaultRole !== 'user' && defaultRole !== 'admin' && defaultRole !== 'family' && (
+            {defaultRole && defaultRole !== 'admin' && defaultRole !== 'family' && (
               <div style={{ display: 'flex', background: 'rgba(0,200,255,0.05)', borderRadius: 6, padding: 3, marginBottom: 20, border: '1px solid rgba(0,200,255,0.1)' }}>
-                <button onClick={() => setIsRegister(false)} style={{ flex: 1, padding: '8px 0', border: 'none', background: !isRegister ? 'rgba(0,200,255,0.15)' : 'none', color: !isRegister ? '#00c8ff' : 'rgba(160,200,255,0.6)', fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer', borderRadius: 4 }}>LOGIN</button>
-                <button onClick={() => setIsRegister(true)} style={{ flex: 1, padding: '8px 0', border: 'none', background: isRegister ? 'rgba(0,200,255,0.15)' : 'none', color: isRegister ? '#00c8ff' : 'rgba(160,200,255,0.6)', fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer', borderRadius: 4 }}>REGISTER NEW</button>
+                <button type="button" onClick={() => setIsRegister(false)} style={{ flex: 1, padding: '8px 0', border: 'none', background: !isRegister ? 'rgba(0,200,255,0.15)' : 'none', color: !isRegister ? '#00c8ff' : 'rgba(160,200,255,0.6)', fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer', borderRadius: 4 }}>LOGIN</button>
+                <button type="button" onClick={() => setIsRegister(true)} style={{ flex: 1, padding: '8px 0', border: 'none', background: isRegister ? 'rgba(0,200,255,0.15)' : 'none', color: isRegister ? '#00c8ff' : 'rgba(160,200,255,0.6)', fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer', borderRadius: 4 }}>REGISTER NEW</button>
               </div>
             )}
 
@@ -1452,6 +1462,58 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                        <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>CREW MEMBERS (COMMA SEPARATED)</label>
                        <input type="text" value={crewMembers} onChange={(e) => setCrewMembers(e.target.value)} placeholder="e.g. Paramedic John, Nurse Sarah" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                     </div>
+                   </>
+                 ) : defaultRole === 'user' ? (
+                   <>
+                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                       <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>FULL NAME</label>
+                       <input type="text" value={driverName} onChange={(e) => setDriverName(e.target.value)} required placeholder="e.g. Aditya Kulkarni" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                     </div>
+                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                       <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>EMAIL ADDRESS</label>
+                       <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="aditya@gmail.com" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                     </div>
+                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                       <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>MOBILE PHONE NUMBER</label>
+                       <input type="text" value={contactInfo} onChange={(e) => setContactInfo(e.target.value)} required placeholder="e.g. 9876543210" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                     </div>
+                     <div style={{ display: 'flex', gap: 10 }}>
+                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                         <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>ABHA CARD NUMBER</label>
+                         <input type="text" value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} placeholder="12-3456-7890-12" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                       </div>
+                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                         <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>ABHA ADDRESS ID</label>
+                         <input type="text" value={abhaAddress} onChange={(e) => setAbhaAddress(e.target.value)} placeholder="aditya@abdm" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                       </div>
+                     </div>
+                     <div style={{ display: 'flex', gap: 10 }}>
+                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                         <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>BLOOD GROUP</label>
+                         <input type="text" value={bloodGroup} onChange={(e) => setBloodGroup(e.target.value)} placeholder="O+ve / B-ve" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                       </div>
+                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                         <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>DATE OF BIRTH</label>
+                         <input type="date" value={dob} onChange={(e) => setDob(e.target.value)} className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                       </div>
+                     </div>
+                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                       <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>KNOWN DRUG & METABOLIC ALLERGIES</label>
+                       <input type="text" value={allergies} onChange={(e) => setAllergies(e.target.value)} placeholder="e.g. Penicillin, Peanuts" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                     </div>
+                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                       <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>EXISTING CHRONIC MEDICAL CONDITIONS</label>
+                       <input type="text" value={chronicConditions} onChange={(e) => setChronicConditions(e.target.value)} placeholder="e.g. Asthma, Diabetes" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                     </div>
+                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                       <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>GENDER</label>
+                       <select value={gender} onChange={(e) => setGender(e.target.value)} className="rl-input" style={{ width: '100%', background: 'rgba(5,15,40,0.85)' }}>
+                         <option value="">Select Gender</option>
+                         <option value="Male">Male</option>
+                         <option value="Female">Female</option>
+                         <option value="Other">Other</option>
+                       </select>
                      </div>
                    </>
                  ) : (
@@ -2668,7 +2730,16 @@ export default function App() {
         )}
       </button>
 
-      {role === 'user' && <UserDashboard socket={socket} connected={connected} />}
+      {role === 'user' && (
+        (() => {
+          const userStr = sessionStorage.getItem('rescuelink_user');
+          const parsedUser = userStr ? JSON.parse(userStr) : null;
+          if (parsedUser && parsedUser.role === 'patient') {
+            return <PatientPortal />;
+          }
+          return <UserDashboard socket={socket} connected={connected} />;
+        })()
+      )}
       {role === 'ambulance' && <AmbulanceStreamer socket={socket} connected={connected} />}
       {role === 'hospital' && <HospitalDashboard socket={socket} connected={connected} />}
       {role === 'admin' && <WarRoom socket={socket} connected={connected} />}

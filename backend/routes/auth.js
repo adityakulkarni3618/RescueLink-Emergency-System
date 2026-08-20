@@ -486,6 +486,57 @@ router.post('/register-ambulance', async (req, res) => {
 });
 
 /**
+ * @route POST /api/auth/register-patient
+ * @desc Register a new patient profile with speakeasy 2FA setup
+ */
+router.post('/register-patient', async (req, res) => {
+  const { name, email, password, mobile, abhaNumber, abhaAddress, bloodGroup, allergies, chronicConditions, dob, gender } = req.body;
+  if (!name || !email || !password) {
+    return res.status(400).json({ error: 'Name, email, and password are required' });
+  }
+
+  try {
+    const { User } = require('../utils/db');
+    const existing = await User.findOne({ where: { email: email.toLowerCase() } });
+    if (existing) {
+      return res.status(400).json({ error: 'Email account already registered' });
+    }
+
+    const bcrypt = require('bcryptjs');
+    const passwordHash = await bcrypt.hash(password, 10);
+    const twoFactor = require('../utils/twoFactor');
+    const setupData = await twoFactor.generateSecret(name.replace(/\s+/g, ''), email.toLowerCase());
+
+    const newPatient = await User.create({
+      name,
+      email: email.toLowerCase(),
+      password: passwordHash,
+      role: 'patient',
+      mobile: mobile || '',
+      totp_secret: setupData.secret,
+      is_active: true,
+      abha_number: abhaNumber || null,
+      abha_address: abhaAddress || null,
+      blood_group: bloodGroup || null,
+      allergies: allergies || null,
+      chronic_conditions: chronicConditions || null,
+      dob: dob || null,
+      gender: gender || null
+    });
+
+    return res.json({
+      success: true,
+      qrCode: setupData.qr_code_base64,
+      tempSecret: setupData.secret,
+      message: 'Patient registered successfully. Scan the QR code to set up Two-Factor Authentication.'
+    });
+  } catch (err) {
+    console.error('[AUTH ERROR] register-patient failed:', err);
+    return res.status(500).json({ error: `Internal Server Error during patient registration: ${err.message}` });
+  }
+});
+
+/**
  * @route POST /api/auth/register-hospital
  * @desc Register a new hospital unit with speakeasy 2FA setup
  */

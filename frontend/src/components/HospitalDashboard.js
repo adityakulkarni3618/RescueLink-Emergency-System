@@ -13,6 +13,7 @@ import { showAlert } from '../utils/alert';
 import InsurancePanel from './InsurancePanel';
 import MassCasualtyPanel from './MassCasualtyPanel';
 import HeartbeatViz from './HeartbeatViz';
+import HospitalAnalytics from './HospitalAnalytics';
 import BloodEmergencyNetwork from './BloodEmergencyNetwork';
 import { MfaVerifyScreen } from './MfaVerifyScreen';
 import * as THREE from 'three';
@@ -393,6 +394,13 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
   const [predicting, setPredicting] = useState(false);
   const [showChronicTab, setShowChronicTab] = useState(false);
 
+  // Prescription & Discharge Management States
+  const [showPrescribeModal, setShowPrescribeModal] = useState(false);
+  const [rxDiagnosis, setRxDiagnosis] = useState('');
+  const [rxNotes, setRxNotes] = useState('');
+  const [rxFollowUpDate, setRxFollowUpDate] = useState('');
+  const [rxMedications, setRxMedications] = useState([{ name: '', dosage: '', instructions: '' }]);
+
   const token = sessionStorage.getItem('rescuelink_token') || '';
 
   useEffect(() => {
@@ -517,6 +525,47 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
       });
     } catch (err) {
       setAlertData({ title: "❌ DISCHARGE FAILED", message: err.message });
+    }
+  };
+
+  const handlePrescribeSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const activeMedications = rxMedications.filter(m => m.name.trim());
+      if (activeMedications.length === 0) {
+        alert("Please add at least one medication.");
+        return;
+      }
+      const res = await fetch('/api/prescriptions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          incidentId: activeMissionId,
+          patientId: patient.id,
+          medications: activeMedications,
+          diagnosis: rxDiagnosis,
+          notes: rxNotes,
+          followUpDate: rxFollowUpDate
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to submit prescription');
+      
+      setAlertData({
+        title: "💊 PRESCRIPTION FILED SUCCESSFULLY",
+        message: `Diagnosis: ${rxDiagnosis}\nMedications Prescribed: ${activeMedications.length}\nInstructions dispatched to Patient Portal.`
+      });
+      setShowPrescribeModal(false);
+      // Reset form
+      setRxDiagnosis('');
+      setRxNotes('');
+      setRxFollowUpDate('');
+      setRxMedications([{ name: '', dosage: '', instructions: '' }]);
+    } catch (err) {
+      alert("Error: " + err.message);
     }
   };
 
@@ -907,6 +956,16 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
 
         <div style={{ flexDirection: 'row', display: 'flex', gap: 8 }}>
           <button
+            onClick={() => setShowPrescribeModal(true)}
+            style={{
+              flex: 1, padding: '10px', background: 'rgba(255,100,255,0.1)',
+              border: '1px solid #ff66ff', borderRadius: 6, color: '#ff66ff',
+              fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 700,
+              cursor: 'pointer', transition: 'all 0.2s',
+            }}>
+            📝 WRITE PRESCRIPTION
+          </button>
+          <button
             onClick={handleDischarge}
             style={{
               flex: 1, padding: '10px', background: 'rgba(0,255,136,0.1)',
@@ -916,10 +975,13 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
             }}>
             🏥 DISCHARGE SUMMARY
           </button>
+        </div>
+
+        <div style={{ flexDirection: 'row', display: 'flex', gap: 8 }}>
           <button
             onClick={() => setShowSpecialistModal(true)}
             style={{
-              flex: 1, padding: '10px', background: 'rgba(128,80,255,0.1)',
+              width: '100%', padding: '10px', background: 'rgba(128,80,255,0.1)',
               border: '1px solid #8050ff', borderRadius: 6, color: '#8050ff',
               fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 700,
               cursor: 'pointer', transition: 'all 0.2s',
@@ -1029,6 +1091,131 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
             <button onClick={() => setShowSpecialistModal(false)} style={{ width: '100%', padding: '10px', background: 'transparent', border: 'none', color: '#ff4444', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 11, marginTop: 8 }}>
               CANCEL
             </button>
+          </div>
+        </div>
+      )}
+
+      {showPrescribeModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,5,15,0.85)', zIndex: 11000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(5px)' }}>
+          <div style={{ background: '#0a1526', border: '1px solid #ff66ff', borderRadius: 12, padding: 24, width: '90%', maxWidth: 520, maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 0 35px rgba(255,102,255,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '1px solid rgba(255,102,255,0.2)', paddingBottom: 10 }}>
+              <div style={{ fontFamily: "'Orbitron'", fontSize: 16, color: '#ff66ff', fontWeight: 700, letterSpacing: '0.1em' }}>💊 DISCHARGE & PRESCRIPTION ROUTING</div>
+              <button onClick={() => setShowPrescribeModal(false)} style={{ background: 'transparent', border: 'none', color: '#ff4444', fontSize: 24, cursor: 'pointer' }}>×</button>
+            </div>
+            
+            <form onSubmit={handlePrescribeSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 11, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'", marginBottom: 6 }}>DIAGNOSIS / INDICATIONS</label>
+                <input
+                  type="text"
+                  value={rxDiagnosis}
+                  onChange={e => setRxDiagnosis(e.target.value)}
+                  placeholder="e.g. Acute Coronary Syndrome (ACS) post-triage"
+                  required
+                  style={{ width: '100%', padding: '10px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,102,255,0.2)', borderRadius: 6, color: '#fff', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <label style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>MEDICATIONS</label>
+                  <button
+                    type="button"
+                    onClick={() => setRxMedications([...rxMedications, { name: '', dosage: '', instructions: '' }])}
+                    style={{ background: 'rgba(255,102,255,0.1)', border: '1px solid rgba(255,102,255,0.3)', color: '#ff66ff', fontSize: 9, fontFamily: "'Orbitron'", padding: '2px 8px', borderRadius: 4, cursor: 'pointer' }}
+                  >
+                    + ADD MED
+                  </button>
+                </div>
+
+                {rxMedications.map((med, index) => (
+                  <div key={index} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 2fr auto', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+                    <input
+                      type="text"
+                      placeholder="Medication name"
+                      value={med.name}
+                      required
+                      onChange={e => {
+                        const updated = [...rxMedications];
+                        updated[index].name = e.target.value;
+                        setRxMedications(updated);
+                      }}
+                      style={{ padding: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, color: '#fff', fontSize: 11 }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Dosage"
+                      value={med.dosage}
+                      required
+                      onChange={e => {
+                        const updated = [...rxMedications];
+                        updated[index].dosage = e.target.value;
+                        setRxMedications(updated);
+                      }}
+                      style={{ padding: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, color: '#fff', fontSize: 11 }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Instructions"
+                      value={med.instructions}
+                      required
+                      onChange={e => {
+                        const updated = [...rxMedications];
+                        updated[index].instructions = e.target.value;
+                        setRxMedications(updated);
+                      }}
+                      style={{ padding: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, color: '#fff', fontSize: 11 }}
+                    />
+                    {rxMedications.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => setRxMedications(rxMedications.filter((_, i) => i !== index))}
+                        style={{ background: 'transparent', border: 'none', color: '#ff4444', fontSize: 16, cursor: 'pointer' }}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 11, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'", marginBottom: 6 }}>CLINICAL NOTES & DISCHARGE DIRECTIONS</label>
+                <textarea
+                  value={rxNotes}
+                  onChange={e => setRxNotes(e.target.value)}
+                  placeholder="Additional observations, dietary restrictions, or emergency red flags..."
+                  rows={3}
+                  style={{ width: '100%', padding: '10px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,102,255,0.2)', borderRadius: 6, color: '#fff', boxSizing: 'border-box', resize: 'none' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 11, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'", marginBottom: 6 }}>RECOMMENDED FOLLOW-UP DATE</label>
+                <input
+                  type="date"
+                  value={rxFollowUpDate}
+                  onChange={e => setRxFollowUpDate(e.target.value)}
+                  style={{ width: '100%', padding: '10px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,102,255,0.2)', borderRadius: 6, color: '#fff', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowPrescribeModal(false)}
+                  style={{ flex: 1, padding: 12, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: '#aaa', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 11 }}
+                >
+                  CANCEL
+                </button>
+                <button
+                  type="submit"
+                  style={{ flex: 2, padding: 12, background: '#ff66ff', border: 'none', borderRadius: 8, color: '#000', fontWeight: 'bold', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 11, boxShadow: '0 0 20px rgba(255,102,255,0.3)' }}
+                >
+                  DISPATCH & SYNC Rx
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -1791,6 +1978,7 @@ export default function HospitalDashboard({ socket, connected }) {
   const [attendingNurses, setAttendingNurses] = useState('');
 
   const [activeMissions, setActiveMissions] = useState({}); // { [reqId]: { patient, vitals, messages, notes, route, history } }
+  const [greenCorridorActive, setGreenCorridorActive] = useState(false);
   const ignoredMissionsRef = useRef(new Set());
 
   // High-reliability helper to update a specific mission's data
@@ -2456,6 +2644,12 @@ export default function HospitalDashboard({ socket, connected }) {
       setTrafficIncidents(data || {});
     });
 
+    socket.on('green-corridor-status', (data) => {
+      if (data && data.reqId === activeMissionId) {
+        setGreenCorridorActive(data.active);
+      }
+    });
+
     socket.on('mission-completed', (data) => {
       setPendingResumeMission(null);
       if (data && data.reqId) ignoredMissionsRef.current.delete(data.reqId);
@@ -2525,6 +2719,7 @@ export default function HospitalDashboard({ socket, connected }) {
       socket.off('smart-resource-alert');
       socket.off('clinical-checklist-update');
       socket.off('traffic-incidents-update');
+      socket.off('green-corridor-status');
     };
   }, [socket, activeMissionId, authHospital, activeHospitalId, updateMissionData, incomingRequest, isAuthenticated]);
 
@@ -3423,7 +3618,25 @@ export default function HospitalDashboard({ socket, connected }) {
 
             {/* Critical alert banner */}
             <div style={{ position: 'relative', zIndex: 50 }}>
-              {icuBeds === 0 && (
+              {/* Green Corridor Active Banner */}
+             {greenCorridorActive && (
+               <div style={{
+                 background: 'linear-gradient(90deg, rgba(0,255,136,0.25) 0%, rgba(0,255,136,0.05) 100%)',
+                 borderBottom: '2px solid #00ff88',
+                 padding: '12px 24px',
+                 display: 'flex', alignItems: 'center', gap: 12,
+                 animation: 'sosGlow 2s ease infinite',
+                 zIndex: 60,
+                 position: 'relative'
+               }}>
+                 <span style={{ fontSize: 20 }}>🟢</span>
+                 <div style={{ fontFamily: "'Orbitron'", fontSize: 13, color: '#00ff88', fontWeight: 700, letterSpacing: '0.1em' }}>
+                   GREEN CORRIDOR ACTIVE - EMERGENCY SIGNAL PREEMPTION ENGAGED
+                 </div>
+               </div>
+             )}
+
+             {icuBeds === 0 && (
                 <div style={{
                   background: 'linear-gradient(90deg, rgba(255,0,0,0.35) 0%, rgba(255,0,0,0.1) 100%)',
                   borderBottom: '2px solid #ff4444',
@@ -3518,6 +3731,7 @@ export default function HospitalDashboard({ socket, connected }) {
                 { id: 'blood_bank', label: '🩸 BLOOD BANK' },
                 { id: 'insurance', label: '🛡️ INSURANCE AUTO-PAY' },
                 { id: 'mass_casualty', label: '⚠️ MASS CASUALTY' },
+                { id: 'analytics', label: '📊 ANALYTICS' },
                 { id: 'settings', label: '⚙️ SETTINGS' },
               ].map(tab => (
                 <button
@@ -4378,6 +4592,14 @@ export default function HospitalDashboard({ socket, connected }) {
                 <div style={{ flex: 1, padding: 24, overflowY: 'auto', display: 'flex', justifyContent: 'center' }}>
                   <div style={{ width: '100%', maxWidth: 800 }}>
                     <MassCasualtyPanel socket={socket} />
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'analytics' && (
+                <div style={{ flex: 1, padding: 24, overflowY: 'auto', display: 'flex', justifyContent: 'center' }}>
+                  <div style={{ width: '100%' }}>
+                    <HospitalAnalytics hospitalId={authHospital?.hospitalId || activeHospitalId} />
                   </div>
                 </div>
               )}
