@@ -1256,7 +1256,7 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
       background: 'rgba(5,13,26,0.92)', backdropFilter: 'blur(8px)',
       fontFamily: "'Rajdhani', sans-serif", padding: 20
     }}>
-      <div className="rl-card" style={{ width: '100%', maxWidth: 460, padding: 32, position: 'relative' }}>
+      <div className="rl-card" style={{ width: '100%', maxWidth: 460, padding: 32, position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
         <button onClick={onClose} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: 'rgba(160,200,255,0.6)', fontSize: 20, cursor: 'pointer' }}>✕</button>
         
         <h2 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 22, color: '#00c8ff', textAlign: 'center', marginBottom: 4, letterSpacing: '0.1em' }}>
