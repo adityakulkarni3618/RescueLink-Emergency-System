@@ -1,6 +1,6 @@
 RescueLink Emergency System - Full Codebase Digest
 Generated from: c:\Users\Aditya Kulkarni\Downloads\Health-care-system
-Total files: 165
+Total files: 167
 
 PROJECT STRUCTURE:
 Health-care-system/
@@ -58,6 +58,8 @@ Health-care-system/
             videoCall.js
             add_patient_user.js
             clear_doctors.js
+            delete_hospital.js
+            list_hospitals.js
             run-migrations.js
             seed_db.js
             seed.js
@@ -13661,6 +13663,42 @@ router.put('/:id/settings', async (req, res) => {
   }
 });
 
+/**
+ * @route DELETE /api/ambulances/:id
+ * @desc Delete an ambulance and its associated paramedic user (Admin only)
+ */
+router.delete('/:id', verifyToken(['city_admin']), async (req, res) => {
+  try {
+    const { User } = require('../utils/db');
+    const amb = await Ambulance.findByPk(req.params.id);
+    if (!amb) {
+      return res.status(404).json({ error: 'Ambulance not found' });
+    }
+
+    // Delete associated paramedic user
+    const normalizedEmail = `${amb.vehicleNo.replace(/[\s\-]+/g, '').toLowerCase()}@rescuelink.com`;
+    await User.destroy({ where: { email: normalizedEmail } });
+
+    // Delete ambulance
+    await amb.destroy();
+
+    // Audit Log
+    await AuditLog.create({
+      user_id: req.user.id,
+      action: 'DELETE_AMBULANCE',
+      resource: 'Ambulance',
+      resource_id: req.params.id,
+      ip_address: req.ip || req.connection.remoteAddress,
+      details: { vehicleNo: amb.vehicleNo }
+    });
+
+    return res.json({ success: true, message: 'Ambulance and paramedic user deleted successfully' });
+  } catch (err) {
+    console.error('[AMBULANCES API] Delete failed:', err.message);
+    return res.status(500).json({ error: 'Failed to delete ambulance' });
+  }
+});
+
 module.exports = router;
 
 ================================================
@@ -14653,7 +14691,7 @@ router.post('/register-ambulance', async (req, res) => {
       type: type || 'BLS',
       password: passwordHash,
       totp_secret: setupData.secret,
-      is_active: true,
+      is_active: false,
       hospital_id: hospitalId || null,
       equipment_checklist: JSON.stringify(equipmentChecklist || []),
       crew_members: JSON.stringify(crewMembers || []),
@@ -14781,7 +14819,7 @@ router.post('/register-hospital', async (req, res) => {
       total_beds: parseInt(totalBeds) || 50,
       icu_beds: parseInt(icuBeds) || 5,
       ventilators: parseInt(ventilators) || 2,
-      is_active: true,
+      is_active: false,
       license_number: licenseNumber || null,
       departments: JSON.stringify(departments || []),
       bay_capacity: parseInt(bayCapacity) || 5,
@@ -15818,6 +15856,22 @@ router.get('/', async (req, res) => {
 });
 
 /**
+ * @route GET /api/hospitals/all
+ * @desc Get all hospitals including inactive ones (Admin only)
+ */
+router.get('/all', verifyToken(['city_admin']), async (req, res) => {
+  try {
+    const hospitals = await Hospital.findAll({
+      order: [['createdAt', 'DESC']]
+    });
+    return res.json(hospitals);
+  } catch (err) {
+    console.error('[HOSPITALS API] Fetch all hospitals error:', err.message);
+    return res.status(500).json({ error: 'Failed to fetch all hospitals' });
+  }
+});
+
+/**
  * @route GET /api/hospitals/:id
  * @desc Get details of a single hospital
  */
@@ -16168,6 +16222,44 @@ router.put('/:id/beds', verifyToken(['hospital_admin', 'doctor']), async (req, r
   } catch (err) {
     console.error('[HOSPITALS API] Update beds error:', err.message);
     return res.status(500).json({ error: 'Failed to save bed layout' });
+  }
+});
+
+/**
+ * @route DELETE /api/hospitals/:id
+ * @desc Delete a hospital and its associated users (Admin only)
+ */
+router.delete('/:id', verifyToken(['city_admin']), async (req, res) => {
+  try {
+    const hospital = await Hospital.findByPk(req.params.id);
+    if (!hospital) {
+      return res.status(404).json({ error: 'Hospital not found' });
+    }
+
+    const { User } = require('../utils/db');
+    // Delete associated hospital users
+    await User.destroy({ where: { hospital_id: hospital.id } });
+    
+    // Delete hospital
+    await hospital.destroy();
+
+    // Invalidate caches
+    await cache.del(ALL_HOSPITALS_CACHE_KEY);
+
+    // Audit Log
+    await AuditLog.create({
+      user_id: req.user.id,
+      action: 'DELETE_HOSPITAL',
+      resource: 'Hospital',
+      resource_id: req.params.id,
+      ip_address: req.ip || req.connection.remoteAddress,
+      details: { name: hospital.name }
+    });
+
+    return res.json({ success: true, message: 'Hospital and associated users deleted successfully' });
+  } catch (err) {
+    console.error('[HOSPITALS API] Delete failed:', err.message);
+    return res.status(500).json({ error: 'Failed to delete hospital' });
   }
 });
 
@@ -17371,6 +17463,74 @@ async function clearData() {
 }
 
 clearData();
+
+================================================
+FILE: backend/scripts/delete_hospital.js
+================================================
+require('dotenv').config();
+const { Hospital, User } = require('../utils/db');
+
+async function deleteHospital(name) {
+  if (!name) {
+    console.error('Please specify a hospital name. Example: node scripts/delete_hospital.js "Shaikh Memorial Hospital"');
+    process.exit(1);
+  }
+
+  try {
+    console.log(`[DELETE] Finding hospital with name: "${name}"...`);
+    const hospital = await Hospital.findOne({ where: { name } });
+
+    if (!hospital) {
+      console.log(`[DELETE] No hospital found with name: "${name}".`);
+      process.exit(0);
+    }
+
+    console.log(`[DELETE] Found hospital: "${hospital.name}" (ID: ${hospital.id})`);
+
+    // Delete associated hospital users
+    console.log('[DELETE] Deleting associated users...');
+    const deletedUsers = await User.destroy({
+      where: { hospital_id: hospital.id }
+    });
+    console.log(`[DELETE] Deleted ${deletedUsers} users.`);
+
+    // Delete hospital
+    console.log('[DELETE] Deleting hospital record...');
+    await hospital.destroy();
+    console.log(`[DELETE] Hospital "${name}" deleted successfully.`);
+
+    process.exit(0);
+  } catch (err) {
+    console.error('[DELETE ERROR] Failed to delete hospital:', err);
+    process.exit(1);
+  }
+}
+
+const targetName = process.argv.slice(2).join(' ');
+deleteHospital(targetName || 'Shaikh Memorial Hospital');
+
+================================================
+FILE: backend/scripts/list_hospitals.js
+================================================
+require('dotenv').config();
+const { Hospital } = require('../utils/db');
+
+async function listHospitals() {
+  try {
+    console.log('[LIST] Fetching all registered hospitals...');
+    const hospitals = await Hospital.findAll();
+    console.log(`[LIST] Found ${hospitals.length} hospitals:`);
+    hospitals.forEach(h => {
+      console.log(`- "${h.name}" (ID: ${h.id})`);
+    });
+    process.exit(0);
+  } catch (err) {
+    console.error('[LIST ERROR]', err);
+    process.exit(1);
+  }
+}
+
+listHospitals();
 
 ================================================
 FILE: backend/scripts/run-migrations.js
@@ -19557,6 +19717,22 @@ io.on('connection', (socket) => {
     role = 'ambulance';
 
     // FETCH PERSISTENT REGISTRY DATA
+    const { Ambulance, User } = require('./utils/db');
+    let ambulanceRecord = await Ambulance.findOne({
+      where: {
+        [require('sequelize').Op.or]: [
+          { id: unitId },
+          { vehicleNo: unitId },
+          { vehicleNo: unitId.split('@')[0].toUpperCase() }
+        ]
+      }
+    });
+
+    if (ambulanceRecord && !ambulanceRecord.is_active) {
+      console.log(`[SOCKET_LOG] registration rejected: Ambulance ${ambulanceRecord.vehicleNo} is inactive or pending approval`);
+      return socket.emit('error-alert', { message: 'PENDING_APPROVAL: Your ambulance registration is pending review by the City Administration.' });
+    }
+
     let account = await User.findOne({ where: { id: unitId } });
     if (!account) {
       account = await User.findOne({ where: { email: unitId } });
@@ -19568,8 +19744,8 @@ io.on('connection', (socket) => {
       name: account.name || data.name,
       contactInfo: account.mobile || data.contactInfo,
       driverName: account.driverName || data.driverName,
-      vehicleNo: account.vehicleNo || data.vehicleNo,
-      type: account.unitType || data.type
+      vehicleNo: account.vehicleNo || (ambulanceRecord && ambulanceRecord.vehicleNo) || data.vehicleNo,
+      type: account.unitType || (ambulanceRecord && ambulanceRecord.type) || data.type
     } : {};
 
     ambulances[socket.id] = { ...data, ...registryData, location: { lat, lng }, socketId: socket.id, available: true };
@@ -19632,12 +19808,16 @@ io.on('connection', (socket) => {
 
     // FETCH PERSISTENT REGISTRY DATA
     const account = await Hospital.findOne({ where: { id } });
-    const registryData = account ? {
+    if (!account || !account.is_active) {
+      console.log(`[SOCKET_LOG] registration rejected: Hospital is inactive or pending approval`);
+      return socket.emit('error-alert', { message: 'PENDING_APPROVAL: Your hospital registration is pending review by the City Administration.' });
+    }
+    const registryData = {
       lat: data.lat || data.pos?.lat || account.lat,
       lng: data.lng || data.pos?.lng || account.lng,
       name: account.name,
       contactInfo: account.contact_number
-    } : {};
+    };
 
     hospitals[socket.id] = { ...data, ...registryData, pos: { lat: data.lat || data.pos?.lat || account?.lat, lng: data.lng || data.pos?.lng || account?.lng }, socketId: socket.id, isBusy: false };
     socket.join('global_hospitals');
@@ -19887,6 +20067,18 @@ io.on('connection', (socket) => {
         whatsappService.notifyAmbulanceAssigned(driverMobile, reqId, activeRequests[reqId].userLocation);
         // WhatsApp Notify User
         whatsappService.notifyUserDispatched(userPhone, chosenCandidateId, 5);
+
+        // WhatsApp Notify Next-of-Kin (Family Emergency Alert)
+        const nokPhone = patientDetails?.emergencyContactPhone || patientDetails?.emergency_contact_phone;
+        if (nokPhone) {
+          whatsappService.notifyNextOfKinEmergency(
+            nokPhone,
+            patientDetails?.name || 'Emergency Patient',
+            chosenCandidateId,
+            'En Route to Emergency Site',
+            reqId
+          );
+        }
       }
 
       // FCM Push Notification for user/patient
@@ -19992,6 +20184,22 @@ io.on('connection', (socket) => {
     } else {
       req.status = 'ambulance_rejected';
       io.to(req.userSocket).emit('ambulance-request-response', { ...req, accepted: false });
+    }
+  });
+
+  socket.on('ambulance-telemetry-update', (data) => {
+    const { reqId, oxygenCapacityLiters } = data;
+    if (oxygenCapacityLiters !== undefined && Number(oxygenCapacityLiters) < 50 && Number(oxygenCapacityLiters) > 0) {
+      const warningPayload = {
+        reqId,
+        oxygenCapacityLiters: Number(oxygenCapacityLiters),
+        message: `⚠️ CRITICAL OXYGEN LOW (${oxygenCapacityLiters}L). Request cylinder swap at Hospital Bay!`
+      };
+      socket.emit('ambulance-oxygen-warning', warningPayload);
+      const req = activeRequests[reqId];
+      if (req && req.hospitalId) {
+        io.to(`hospital:${req.hospitalId}`).emit('hospital-oxygen-warning', warningPayload);
+      }
     }
   });
 
@@ -20161,6 +20369,51 @@ io.on('connection', (socket) => {
       const hospContact = hospitals[socket.id]?.contactInfo || '+1234567890';
       const etaMins = req.routePath ? Math.ceil(req.routePath.length / 10) : 10;
       whatsappService.notifyHospitalIncoming(hospContact, reqId, etaMins);
+
+      // Feature 1: Notify Next-of-Kin on Hospital Acceptance
+      const nokPhone = req.patientDetails?.emergencyContactPhone || req.patientDetails?.emergency_contact_phone;
+      if (nokPhone) {
+        whatsappService.notifyNextOfKinEmergency(
+          nokPhone,
+          req.patientDetails?.name || 'Emergency Patient',
+          req.unitId || 'EMS Unit',
+          hospitals[socket.id]?.name || 'Trauma Center',
+          req.id
+        );
+      }
+
+      // Feature 2: Auto-Trigger Instant Insurance Pre-Authorization
+      try {
+        const PMJAYService = require('./utils/pmjay');
+        const preAuthRes = await PMJAYService.requestPreAuth(
+          req.patientDetails?.name || 'Emergency Patient',
+          req.fieldReport?.condition || 'Acute Trauma Emergency',
+          150000,
+          req.hospitalId
+        );
+        req.insurancePreAuth = {
+          status: 'APPROVED',
+          claimId: preAuthRes.claimId || `AUTH-${Date.now()}`,
+          approvedAmount: preAuthRes.coverageAmount || 150000,
+          provider: req.patientDetails?.insuranceProvider || 'PMJAY National Health Scheme'
+        };
+        io.to(`hospital:${req.hospitalId}`).emit('insurance-preauth-updated', { reqId: req.id, preAuth: req.insurancePreAuth });
+      } catch (preAuthErr) {
+        console.warn('[PRE-AUTH] Automatic insurance pre-authorization warning:', preAuthErr.message);
+      }
+
+      // Feature 4: 30-Minute Bed & Ventilator Hold-Lock Reservation Timer
+      req.reservationLock = {
+        icuBedsHeld: 1,
+        ventilatorsHeld: 1,
+        expiresAt: Date.now() + (30 * 60 * 1000),
+        status: 'ACTIVE_HOLD'
+      };
+      io.to(`hospital:${req.hospitalId}`).emit('hospital-inventory-locked', {
+        reqId: req.id,
+        hospitalId: req.hospitalId,
+        reservationLock: req.reservationLock
+      });
 
       // FCM Push Notification for user/patient
       if (req.userSocketId) {
@@ -24631,6 +24884,14 @@ class WhatsAppService {
   notifyHospitalIncoming(hospitalContact, reqId, etaMins) {
     const formatted = formatE164(hospitalContact);
     const message = `🏥 *Inbound Emergency Patient* \n\nMission ID: ${reqId}\nETA: ~${etaMins} mins.\n\nPlease prepare the ER. Secure patient records available via Dashboard.`;
+    const notificationQueue = require('./notificationQueue');
+    notificationQueue.enqueue(formatted, message);
+  }
+
+  notifyNextOfKinEmergency(nextOfKinPhone, patientName, vehicleNo, hospitalName, reqId) {
+    const formatted = formatE164(nextOfKinPhone);
+    if (!formatted) return;
+    const message = `🚨 *RescueLink Next-of-Kin Emergency Alert*\n\nEmergency dispatch initiated for *${patientName || 'your family member'}*.\n\n🚑 *Responding Unit*: ${vehicleNo || 'EMS Unit'}\n🏥 *Destination ER*: ${hospitalName || 'Nearest Trauma Center'}\n📌 *Mission Reference*: ${reqId}\n\nYou can track live updates through the RescueLink Emergency Network.`;
     const notificationQueue = require('./notificationQueue');
     notificationQueue.enqueue(formatted, message);
   }
@@ -44739,6 +45000,24 @@ const styles = `
     backdrop-filter: blur(12px) !important;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   }
+  .rl-modal-card {
+    max-height: 85vh !important;
+    overflow-y: auto !important;
+    scrollbar-width: thin !important;
+    scrollbar-color: #00c8ff rgba(0, 200, 255, 0.1) !important;
+  }
+  .rl-modal-card::-webkit-scrollbar {
+    width: 6px !important;
+  }
+  .rl-modal-card::-webkit-scrollbar-track {
+    background: rgba(0, 200, 255, 0.05) !important;
+    border-radius: 4px !important;
+  }
+  .rl-modal-card::-webkit-scrollbar-thumb {
+    background: #00c8ff !important;
+    border-radius: 4px !important;
+    box-shadow: 0 0 10px rgba(0, 200, 255, 0.5) !important;
+  }
   .rl-card:hover {
     border-color: rgba(0, 200, 255, 0.5) !important;
     box-shadow: 0 15px 40px rgba(0, 200, 255, 0.15) !important;
@@ -45375,13 +45654,30 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
   const [hospitalsList, setHospitalsList] = useState([]);
 
   useEffect(() => {
-    if (isRegister) {
-      fetch(`${SERVER_URL}/api/hospitals`)
-        .then(res => res.json())
-        .then(data => setHospitalsList(data))
-        .catch(err => console.error('Failed to fetch hospitals list', err));
-    }
-  }, [isRegister]);
+    fetch(`${SERVER_URL}/api/hospitals`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setHospitalsList(data);
+        } else {
+          setHospitalsList([
+            { id: 'hosp-1', name: 'Apollo Trauma & Emergency Center' },
+            { id: 'hosp-2', name: 'City General Hospital' },
+            { id: 'hosp-3', name: 'Max Super Speciality Hospital' },
+            { id: 'hosp-4', name: 'Fortis Acute Care Unit' }
+          ]);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to fetch hospitals list', err);
+        setHospitalsList([
+          { id: 'hosp-1', name: 'Apollo Trauma & Emergency Center' },
+          { id: 'hosp-2', name: 'City General Hospital' },
+          { id: 'hosp-3', name: 'Max Super Speciality Hospital' },
+          { id: 'hosp-4', name: 'Fortis Acute Care Unit' }
+        ]);
+      });
+  }, []);
 
   // Registration 2FA Setup state
   const [regQrCode, setRegQrCode] = useState('');
@@ -45573,7 +45869,10 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
       } else if (defaultRole === 'user') {
         payload = { email, password };
       } else {
-        payload = { email: `${hospitalName.replace(/\s+/g, '').toLowerCase()}@rescuelink.com`, password };
+        const finalEmail = (adminEmail && adminEmail.trim().includes('@'))
+          ? adminEmail.trim().toLowerCase()
+          : `${hospitalName.replace(/\s+/g, '').toLowerCase()}@rescuelink.com`;
+        payload = { email: finalEmail, password };
       }
       const dummyTokenResponse = await fetch(`${SERVER_URL}/api/auth/login`, {
         method: 'POST',
@@ -45638,9 +45937,10 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
       position: 'fixed', inset: 0, zIndex: 9999,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       background: 'rgba(5,13,26,0.92)', backdropFilter: 'blur(8px)',
-      fontFamily: "'Rajdhani', sans-serif", padding: 20
+      fontFamily: "'Rajdhani', sans-serif", padding: '20px 10px',
+      overflowY: 'auto'
     }}>
-      <div className="rl-card" style={{ width: '100%', maxWidth: 460, padding: 32, position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
+      <div className="rl-card rl-modal-card" style={{ width: '100%', maxWidth: 480, padding: '28px 24px 32px 24px', position: 'relative' }}>
         <button onClick={onClose} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: 'rgba(160,200,255,0.6)', fontSize: 20, cursor: 'pointer' }}>✕</button>
         
         <h2 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 22, color: '#00c8ff', textAlign: 'center', marginBottom: 4, letterSpacing: '0.1em' }}>
@@ -48543,6 +48843,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
   const [loginError, setLoginError] = useState('');
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [activeMissionId, setActiveMissionId] = useState(null);
+  const [isPendingApproval, setIsPendingApproval] = useState(false);
   const [manualRecoveryId, setManualRecoveryId] = useState('');
   const [vitals, setVitals] = useState({ heartRate: 75, spo2: 98, systolic: 120, diastolic: 80, temperature: 37.0, respRate: 16, bloodGlucose: 100 });
   const [vitalsSource, setVitalsSource] = useState('SIMULATED'); // 'SIMULATED', 'MANUAL', 'LIVE'
@@ -49033,6 +49334,12 @@ export default function AmbulanceStreamer({ socket, connected }) {
       }
     });
 
+    socket.on('error-alert', (data) => {
+      if (data && data.message && data.message.startsWith('PENDING_APPROVAL')) {
+        setIsPendingApproval(true);
+      }
+    });
+
     const onVitalsUpdate = (data) => {
       if (vitalsSourceRef.current === 'LIVE' && data) {
         if (data.reqId && data.reqId !== assignedUserRef.current?.id) return;
@@ -49107,6 +49414,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
       socket.off('traffic-incidents-update');
       socket.off('clinical-checklist-update');
       socket.off('vitals-update', onVitalsUpdate);
+      socket.off('error-alert');
     };
   }, [socket, connected, authUnit]);
 
@@ -50005,6 +50313,54 @@ export default function AmbulanceStreamer({ socket, connected }) {
       </button>
     </>
   );
+
+  if (isPendingApproval) {
+    return (
+      <div style={{
+        height: '100vh', background: 'radial-gradient(ellipse at 50% 30%, #0c0a1e 0%, #02010c 70%)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Rajdhani', sans-serif", color: '#e0eaff'
+      }}>
+        <div style={{
+          width: '90%', maxWidth: 450, padding: '40px 32px',
+          background: 'rgba(12,10,30,0.85)', border: '1px solid rgba(255,60,60,0.3)',
+          borderRadius: 12, backdropFilter: 'blur(10px)', textAlign: 'center',
+          boxShadow: '0 20px 50px rgba(0,0,0,0.6), 0 0 30px rgba(255,60,60,0.1)'
+        }}>
+          <div style={{ fontSize: 56, marginBottom: 20 }}>🚫</div>
+          <h2 style={{
+            fontFamily: "'Orbitron', sans-serif", fontSize: 22,
+            color: '#ff4444', textAlign: 'center', marginBottom: 12,
+            textShadow: '0 0 10px rgba(255,68,68,0.4)', letterSpacing: '0.1em'
+          }}>REGISTRATION PENDING</h2>
+          <p style={{
+            fontSize: 12, color: 'rgba(160,200,255,0.4)', marginBottom: 24,
+            fontFamily: "'Share Tech Mono'", letterSpacing: '0.15em'
+          }}>SYSTEM SECURITY PROTOCOL</p>
+          <div style={{
+            padding: 16, background: 'rgba(255,68,68,0.05)', border: '1px solid rgba(255,68,68,0.2)',
+            borderRadius: 8, color: '#ffb8b8', fontSize: 13, textAlign: 'left', lineHeight: 1.6, marginBottom: 30
+          }}>
+            Your ambulance registration has been recorded. For public safety and authentication, all active emergency units must be verified and approved by the <strong>City Administrator</strong> before operational clearance is granted.
+          </div>
+          <button
+            onClick={() => {
+              sessionStorage.clear();
+              localStorage.clear();
+              window.location.reload();
+            }}
+            style={{
+              width: '100%', padding: '14px', background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6,
+              color: 'rgba(160,200,255,0.7)', fontFamily: "'Orbitron'", fontSize: 12,
+              fontWeight: 700, letterSpacing: '0.15em', cursor: 'pointer', transition: 'all 0.2s'
+            }}
+          >
+            RETURN TO GATEWAY
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -55788,6 +56144,10 @@ export default function HospitalDashboard({ socket, connected }) {
   const [isHandoverSyncing, setIsHandoverSyncing] = useState(false);
   const [requestQueue, setRequestQueue] = useState([]); // High-density scaling for city-wide infrastructure
   const [incomingRequest, setIncomingRequest] = useState(null); // The one currently being viewed in modal
+  const [insurancePreAuth, setInsurancePreAuth] = useState(null);
+  const [reservationLock, setReservationLock] = useState(null);
+  const [oxygenWarning, setOxygenWarning] = useState(null);
+  const [isPendingApproval, setIsPendingApproval] = useState(false);
 
   // --- HUGE CONNECTIONS: Auto-Next Logic ---
   useEffect(() => {
@@ -56191,6 +56551,27 @@ export default function HospitalDashboard({ socket, connected }) {
     socket.on('hospital-request-response', (req) => {
       if (req.status === 'hospital_accepted' && req.routePath) {
         setRoutePath(req.routePath.map(pos => [pos.lat, pos.lng]));
+      }
+    });
+
+    socket.on('insurance-preauth-updated', (data) => {
+      console.log('[HOSPITAL] Received insurance pre-auth update:', data);
+      if (data && data.preAuth) setInsurancePreAuth(data.preAuth);
+    });
+
+    socket.on('hospital-inventory-locked', (data) => {
+      console.log('[HOSPITAL] Received inventory hold-lock update:', data);
+      if (data && data.reservationLock) setReservationLock(data.reservationLock);
+    });
+
+    socket.on('hospital-oxygen-warning', (data) => {
+      console.log('[HOSPITAL] Low oxygen warning received:', data);
+      if (data) setOxygenWarning(data);
+    });
+
+    socket.on('error-alert', (data) => {
+      if (data && data.message && data.message.startsWith('PENDING_APPROVAL')) {
+        setIsPendingApproval(true);
       }
     });
 
@@ -56705,6 +57086,54 @@ export default function HospitalDashboard({ socket, connected }) {
         onLoginSuccess={handleMfaSuccess}
         onCancel={() => setMfaToken(null)}
       />
+    );
+  }
+
+  if (isPendingApproval) {
+    return (
+      <div style={{
+        height: '100vh', background: 'radial-gradient(ellipse at 50% 30%, #0c0a1e 0%, #02010c 70%)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Rajdhani', sans-serif", color: '#e0eaff'
+      }}>
+        <div style={{
+          width: '90%', maxWidth: 450, padding: '40px 32px',
+          background: 'rgba(12,10,30,0.85)', border: '1px solid rgba(255,60,60,0.3)',
+          borderRadius: 12, backdropFilter: 'blur(10px)', textAlign: 'center',
+          boxShadow: '0 20px 50px rgba(0,0,0,0.6), 0 0 30px rgba(255,60,60,0.1)'
+        }}>
+          <div style={{ fontSize: 56, marginBottom: 20 }}>🚫</div>
+          <h2 style={{
+            fontFamily: "'Orbitron', sans-serif", fontSize: 22,
+            color: '#ff4444', textAlign: 'center', marginBottom: 12,
+            textShadow: '0 0 10px rgba(255,68,68,0.4)', letterSpacing: '0.1em'
+          }}>REGISTRATION PENDING</h2>
+          <p style={{
+            fontSize: 12, color: 'rgba(160,200,255,0.4)', marginBottom: 24,
+            fontFamily: "'Share Tech Mono'", letterSpacing: '0.15em'
+          }}>SYSTEM SECURITY PROTOCOL</p>
+          <div style={{
+            padding: 16, background: 'rgba(255,68,68,0.05)', border: '1px solid rgba(255,68,68,0.2)',
+            borderRadius: 8, color: '#ffb8b8', fontSize: 13, textAlign: 'left', lineHeight: 1.6, marginBottom: 30
+          }}>
+            Your hospital registration has been recorded. For public safety and authentication, all clinical nodes must be verified and approved by the <strong>City Administrator</strong> before access is granted.
+          </div>
+          <button
+            onClick={() => {
+              sessionStorage.clear();
+              localStorage.clear();
+              window.location.reload();
+            }}
+            style={{
+              width: '100%', padding: '14px', background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6,
+              color: 'rgba(160,200,255,0.7)', fontFamily: "'Orbitron'", fontSize: 12,
+              fontWeight: 700, letterSpacing: '0.15em', cursor: 'pointer', transition: 'all 0.2s'
+            }}
+          >
+            RETURN TO GATEWAY
+          </button>
+        </div>
+      </div>
     );
   }
 
@@ -63861,6 +64290,7 @@ export default function WarRoom({ socket, connected }) {
                 { id: 'blood_bank', label: '🩸 NATIONAL BLOOD NETWORK' },
                 { id: 'telemedicine', label: '📹 TELEMEDICINE STATUS' },
                 { id: 'privacy', label: '🔐 PRIVACY & ERASURE (DPDP)' },
+                { id: 'approvals', label: '🛡️ REGISTRATION APPROVALS' },
                 { id: 'authority', label: '👥 REGISTER AUTHORITY' },
                 { id: 'ledger', label: '⛓️ CRYPTOGRAPHIC AUDIT LEDGER' }
               ].map(tab => (
@@ -63892,6 +64322,7 @@ export default function WarRoom({ socket, connected }) {
                     { id: 'blood_bank', label: '🩸 NATIONAL BLOOD NETWORK' },
                     { id: 'telemedicine', label: '📹 TELEMEDICINE STATUS' },
                     { id: 'privacy', label: '🔐 PRIVACY & ERASURE (DPDP)' },
+                    { id: 'approvals', label: '🛡️ REGISTRATION APPROVALS' },
                     { id: 'authority', label: '👥 REGISTER AUTHORITY' },
                     { id: 'ledger', label: '⛓️ CRYPTOGRAPHIC AUDIT LEDGER' }
                   ].map(tab => (
@@ -64075,6 +64506,10 @@ export default function WarRoom({ socket, connected }) {
 
           {activeTab === 'ledger' && (
             <LedgerExplorer />
+          )}
+
+          {activeTab === 'approvals' && (
+            <RegistrationApprovals />
           )}
 
           {activeTab === 'authority' && (() => {
@@ -64775,6 +65210,189 @@ function LedgerExplorer() {
   );
 }
 
+function RegistrationApprovals() {
+  const [hospitals, setHospitals] = useState([]);
+  const [ambulances, setAmbulances] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const token = sessionStorage.getItem('rescuelink_token') || '';
+      const headers = { 'Authorization': `Bearer ${token}` };
+      const [hospRes, ambRes] = await Promise.all([
+        fetch('/api/hospitals/all', { headers }),
+        fetch('/api/ambulances', { headers })
+      ]);
+      
+      if (hospRes.ok && ambRes.ok) {
+        const hospData = await hospRes.json();
+        const ambData = await ambRes.json();
+        setHospitals(hospData.filter(h => !h.is_active));
+        setAmbulances(ambData.filter(a => !a.is_active));
+      }
+    } catch (err) {
+      console.error('[APPROVALS] Fetch failed:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleApprove = async (type, id) => {
+    try {
+      const token = sessionStorage.getItem('rescuelink_token') || '';
+      const endpoint = type === 'hospital' ? `/api/hospitals/${id}` : `/api/ambulances/${id}/settings`;
+      const response = await fetch(endpoint, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ is_active: true })
+      });
+      if (response.ok) {
+        alert('Registration approved successfully!');
+        fetchData();
+      } else {
+        const err = await response.json();
+        alert(err.error || 'Failed to approve registration');
+      }
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  };
+
+  const handleReject = async (type, id) => {
+    if (!window.confirm(`Are you sure you want to REJECT and delete this ${type} registration?`)) return;
+    try {
+      const token = sessionStorage.getItem('rescuelink_token') || '';
+      const endpoint = type === 'hospital' ? `/api/hospitals/${id}` : `/api/ambulances/${id}`;
+      const response = await fetch(endpoint, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        alert('Registration rejected and removed from system.');
+        fetchData();
+      } else {
+        const err = await response.json();
+        alert(err.error || 'Failed to reject registration');
+      }
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  };
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', background: 'rgba(5,15,40,0.8)', borderRadius: 10, padding: 24, border: '1px solid rgba(0,255,136,0.15)', display: 'flex', flexDirection: 'column' }}>
+      <h3 style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#00ff88', borderBottom: '1px solid rgba(0,255,136,0.2)', paddingBottom: 10, margin: '0 0 20px', letterSpacing: '0.1em' }}>
+        🛡️ REGISTRATION APPROVAL CENTER
+      </h3>
+      <p style={{ fontSize: 12, color: 'rgba(160,200,255,0.6)', lineHeight: 1.6, marginBottom: 24 }}>
+        Review and authorize pending hospital and emergency ambulance registrations to prevent unauthorized system entries.
+      </p>
+
+      {loading ? (
+        <div style={{ color: 'rgba(160,200,255,0.4)', fontStyle: 'italic', fontSize: 12 }}>Loading pending registrations...</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 30 }}>
+          
+          {/* Pending Hospitals */}
+          <div>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>🏥 PENDING HOSPITALS</span>
+              <span style={{ fontSize: 9, background: 'rgba(0,200,255,0.15)', padding: '2px 6px', borderRadius: 10, color: '#00c8ff', fontFamily: "'Share Tech Mono'" }}>{hospitals.length}</span>
+            </div>
+            {hospitals.length === 0 ? (
+              <div style={{ padding: 16, background: 'rgba(255,255,255,0.02)', borderRadius: 8, color: 'rgba(160,200,255,0.4)', fontSize: 11, fontStyle: 'italic' }}>
+                No pending hospital registrations.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {hospitals.map(h => (
+                  <div key={h.id} style={{ background: 'rgba(0,10,30,0.5)', border: '1px solid rgba(0,200,255,0.15)', borderRadius: 8, padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 'bold', color: '#fff' }}>{h.name}</div>
+                      <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', marginTop: 4, fontFamily: "'Share Tech Mono'" }}>
+                        LIC: {h.license_number || 'N/A'} | Beds: {h.total_beds} (ICU: {h.icu_beds}) | Vents: {h.ventilators}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', marginTop: 4 }}>
+                        📞 Contact: {h.contact_number} | Tier: {h.trauma_tier || 'N/A'}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <button
+                        onClick={() => handleApprove('hospital', h.id)}
+                        style={{ padding: '8px 16px', background: 'rgba(0,255,136,0.15)', border: '1px solid #00ff88', borderRadius: 6, color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 'bold', cursor: 'pointer' }}
+                      >
+                        APPROVE
+                      </button>
+                      <button
+                        onClick={() => handleReject('hospital', h.id)}
+                        style={{ padding: '8px 16px', background: 'rgba(255,68,68,0.1)', border: '1px solid #ff4444', borderRadius: 6, color: '#ff4444', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 'bold', cursor: 'pointer' }}
+                      >
+                        REJECT
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Pending Ambulances */}
+          <div>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#ff8855', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>🚑 PENDING AMBULANCES</span>
+              <span style={{ fontSize: 9, background: 'rgba(255,107,53,0.15)', padding: '2px 6px', borderRadius: 10, color: '#ff6b35', fontFamily: "'Share Tech Mono'" }}>{ambulances.length}</span>
+            </div>
+            {ambulances.length === 0 ? (
+              <div style={{ padding: 16, background: 'rgba(255,255,255,0.02)', borderRadius: 8, color: 'rgba(160,200,255,0.4)', fontSize: 11, fontStyle: 'italic' }}>
+                No pending ambulance registrations.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {ambulances.map(a => (
+                  <div key={a.id} style={{ background: 'rgba(0,10,30,0.5)', border: '1px solid rgba(255,107,53,0.15)', borderRadius: 8, padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 'bold', color: '#fff' }}>{a.vehicleNo} ({a.type})</div>
+                      <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', marginTop: 4, fontFamily: "'Share Tech Mono'" }}>
+                        LIC: {a.license_number || 'N/A'} | O2 Capacity: {a.oxygen_capacity_liters}L
+                      </div>
+                      <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', marginTop: 4 }}>
+                        👤 Driver: {a.driverName} | 📞 Contact: {a.contactInfo}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <button
+                        onClick={() => handleApprove('ambulance', a.id)}
+                        style={{ padding: '8px 16px', background: 'rgba(0,255,136,0.15)', border: '1px solid #00ff88', borderRadius: 6, color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 'bold', cursor: 'pointer' }}
+                      >
+                        APPROVE
+                      </button>
+                      <button
+                        onClick={() => handleReject('ambulance', a.id)}
+                        style={{ padding: '8px 16px', background: 'rgba(255,68,68,0.1)', border: '1px solid #ff4444', borderRadius: 6, color: '#ff4444', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 'bold', cursor: 'pointer' }}
+                      >
+                        REJECT
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 ================================================
 FILE: frontend/src/index.js
@@ -65252,6 +65870,7 @@ graph TD
 - **🚑 Certified Ambulance & Crew Management**: Paramedic license tracking, expiration dates, oxygen capacity (liters), and standard EMS vehicle safety compliance checks.
 - **🏥 Hospital Trauma Tier Routing**: Clinical Trauma Center Ratings (Tier 1 Comprehensive, Tier 2 Major, Tier 3 General ER) combined with JCI/NABH national accreditation tracking for intelligent AI destination routing.
 - **🛡️ DPDP Act 2023 & HIPAA Compliance**: Application-layer AES-256-GCM encryption for PHI/PII, dynamic consent revocation, automated 3-year record purge policies, and immutable cryptographic audit logs.
+- **🛡️ Registration Admin Approvals (Fraud Prevention)**: Workflow to enforce system authorization for hospitals and ambulances. Registrations remain inactive (`is_active: false`) until approved by the City Administrator in the War Room tab dashboard.
 
 ---
 
