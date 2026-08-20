@@ -1,6 +1,6 @@
 # RescueLink: Real-Time Emergency Care Coordination Platform
 
-RescueLink is an enterprise-grade emergency care system designed to coordinate real-time patient telemetry, GPS ambulance routing, and secure hospital resource allocation.
+RescueLink is an enterprise-grade emergency care platform designed to coordinate real-time patient telemetry, GPS ambulance dispatch, ABDM/FHIR clinical interoperability, and hospital resource allocation.
 
 ---
 
@@ -18,8 +18,8 @@ graph TD
 
     subgraph API Gateway / Server Node
         C -->|Port 443 / TLS| D[Express Application Server]
-        D -->|Rate Limiter & Helmet| E{Authentication / MFA}
-        E -->|Doctor / Admin Role| F[maskSensitiveData Middleware]
+        D -->|Rate Limiter & Helmet| E{Authentication / MFA / Guest SOS}
+        E -->|Doctor / Admin / Paramedic Role| F[maskSensitiveData Middleware]
     end
 
     subgraph Persistence Layer
@@ -35,17 +35,27 @@ graph TD
 
 ---
 
-## 2. Tech Stack
+## 2. Real-World Healthcare Features & Capabilities
 
-- **Backend**: Node.js, Express, Socket.io, Sequelize ORM.
-- **Frontend**: React.js, Leaflet Maps, offline PWA Service Worker.
-- **Database**: PostgreSQL (system of record), SQLite (automatic local fallback), Redis (blacklists).
-- **Security**: AES-256-GCM application-layer encryption, TOTP Multi-factor authentication.
-- **Deployments**: Docker, docker-compose, SSL/TLS Nginx.
+- **🚨 Guest Emergency Dispatch (Authentication Bypass)**: Instant SOS dispatch triggering geolocation capture and immediate ambulance routing without requiring account setup or passwords during acute crises.
+- **🧍 Patient Emer-Health Profile Management**: Full patient portal allowing management of ABDM ABHA IDs, blood groups, allergies, chronic conditions, next-of-kin emergency contact numbers, and insurance policies.
+- **🚑 Certified Ambulance & Crew Management**: Paramedic license tracking, expiration dates, oxygen capacity (liters), and standard EMS vehicle safety compliance checks.
+- **🏥 Hospital Trauma Tier Routing**: Clinical Trauma Center Ratings (Tier 1 Comprehensive, Tier 2 Major, Tier 3 General ER) combined with JCI/NABH national accreditation tracking for intelligent AI destination routing.
+- **🛡️ DPDP Act 2023 & HIPAA Compliance**: Application-layer AES-256-GCM encryption for PHI/PII, dynamic consent revocation, automated 3-year record purge policies, and immutable cryptographic audit logs.
 
 ---
 
-## 3. Compliance and Operational Index
+## 3. Tech Stack
+
+- **Backend**: Node.js, Express, Socket.io, Sequelize ORM, PostgreSQL / SQLite.
+- **Frontend**: React.js, Leaflet Maps, Recharts, Custom Glassmorphism UI System.
+- **Database**: PostgreSQL (system of record), SQLite (automatic local fallback), Redis (session & token blacklists).
+- **Security**: AES-256-GCM application-layer encryption, TOTP Multi-factor authentication, DPDP Act 2023 dynamic consent control.
+- **Deployments**: Docker, docker-compose, Vercel (Frontend), Render (Backend Node API).
+
+---
+
+## 4. Compliance and Operational Index
 
 RescueLink is built from the ground up for healthcare compliance audits:
 - **Database Schema**: [SCHEMA.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/SCHEMA.md)
@@ -59,27 +69,28 @@ RescueLink is built from the ground up for healthcare compliance audits:
 
 ---
 
-## 4. Local Quickstart
+## 5. Local Quickstart
 
 ### Prerequisites
 - Node.js v18+
 - PostgreSQL / SQLite
 
 ### Installation
-1. Install server dependencies:
+1. Install backend dependencies:
    ```bash
-   cd server
+   cd backend
    npm install
    ```
 2. Configure environment:
    ```bash
    cp .env.example .env
    ```
-3. Run migrations and database seeds:
+3. Run migrations and database setup:
    ```bash
-   npm run seed
+   npm start
    ```
-4. Start development server:
+4. Start frontend application:
    ```bash
-   npm run dev
+   cd ../frontend
+   npm start
    ```
