@@ -87,6 +87,18 @@ module.exports = (sequelize) => {
       type: DataTypes.STRING,
       allowNull: true,
       comment: 'Designation/authority title for War Room commanders (e.g. District Collector, Chief Medical Officer)'
+    },
+    specialty: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    is_on_duty: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false
+    },
+    doctor_status: {
+      type: DataTypes.STRING,
+      defaultValue: 'AVAILABLE'
     }
   }, {
     tableName: 'users',

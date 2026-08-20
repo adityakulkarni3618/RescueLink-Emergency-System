@@ -41,6 +41,20 @@ module.exports = (sequelize) => {
       type: DataTypes.BOOLEAN,
       defaultValue: true,
       allowNull: false
+    },
+    hospital_id: {
+      type: DataTypes.UUID,
+      allowNull: true
+    },
+    equipment_checklist: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      defaultValue: '[]'
+    },
+    crew_members: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      defaultValue: '[]'
     }
   }, {
     tableName: 'ambulances',

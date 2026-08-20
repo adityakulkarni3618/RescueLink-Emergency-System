@@ -41,6 +41,24 @@ module.exports = (sequelize) => {
     is_active: {
       type: DataTypes.BOOLEAN,
       defaultValue: true
+    },
+    license_number: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    departments: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      defaultValue: '[]'
+    },
+    bay_capacity: {
+      type: DataTypes.INTEGER,
+      defaultValue: 5
+    },
+    bed_statuses: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      defaultValue: '[]'
     }
   }, {
     tableName: 'hospitals',
