@@ -386,6 +386,7 @@ const erasureRouter = require('./routes/erasure');
 const disasterRouter = require('./routes/disaster');
 const syncRouter = require('./routes/sync');
 const chronicRouter = require('./routes/chronic');
+const prescriptionsRouter = require('./routes/prescriptions');
 app.use('/api/his', hisRouter);
 app.use('/api/tele', telemedicineRouter);
 app.use('/api/mfa', mfaRouter);
@@ -394,6 +395,7 @@ app.use('/api/erasure', erasureRouter);
 app.use('/api/disaster', disasterRouter);
 app.use('/api/sync', syncRouter);
 app.use('/api/chronic', chronicRouter);
+app.use('/api/prescriptions', prescriptionsRouter);
 
 app.get('/health', (req, res) => {
   res.json({

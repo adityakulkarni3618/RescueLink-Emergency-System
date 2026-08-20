@@ -85,8 +85,18 @@ const Consent = require('../models/Consent')(sequelize);
 const Ambulance = require('../models/Ambulance')(sequelize);
 const DoctorHospital = require('../models/DoctorHospital')(sequelize);
 const ChronicLog = require('../models/ChronicLog')(sequelize);
+const Prescription = require('../models/Prescription')(sequelize);
 
 // Define relations / associations
+Patient.hasMany(Prescription, { foreignKey: 'patient_id', as: 'prescriptions' });
+Prescription.belongsTo(Patient, { foreignKey: 'patient_id', as: 'patient' });
+
+Incident.hasMany(Prescription, { foreignKey: 'incident_id', as: 'prescriptions' });
+Prescription.belongsTo(Incident, { foreignKey: 'incident_id', as: 'incident' });
+
+Hospital.hasMany(Prescription, { foreignKey: 'hospital_id', as: 'prescriptions' });
+Prescription.belongsTo(Hospital, { foreignKey: 'hospital_id', as: 'hospital' });
+
 Hospital.hasMany(User, { foreignKey: 'hospital_id', as: 'users' });
 User.belongsTo(Hospital, { foreignKey: 'hospital_id', as: 'hospital' });
 
@@ -237,6 +247,7 @@ module.exports = {
   Ambulance,
   DoctorHospital,
   ChronicLog,
+  Prescription,
   syncDatabase,
   healthCheck,
   closeDatabase
