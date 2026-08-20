@@ -1052,7 +1052,7 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
 }
 
 /* ─── Hospital Readiness Panel ────────────────────────────────────────────── */
-function ResourcePanel({ socket }) {
+function ResourcePanel({ socket, bedsList, setBedsList, hospitalId }) {
   const [resources, setResources] = useState({
     otPrepared: false,
     ventilatorReady: false,
@@ -1081,6 +1081,47 @@ function ResourcePanel({ socket }) {
   ];
 
   const readyCount = Object.values(resources).filter(Boolean).length;
+
+  const defaultBeds = [
+    { id: 1, status: 'RESERVED', label: 'Bed 01' },
+    { id: 2, status: 'AVAILABLE', label: 'Bed 02' },
+    { id: 3, status: 'OCCUPIED', label: 'Bed 03' },
+    { id: 4, status: 'AVAILABLE', label: 'Bed 04' },
+    { id: 5, status: 'AVAILABLE', label: 'Bed 05' },
+    { id: 6, status: 'OCCUPIED', label: 'Bed 06' },
+    { id: 7, status: 'AVAILABLE', label: 'Bed 07' },
+    { id: 8, status: 'AVAILABLE', label: 'Bed 08' },
+    { id: 9, status: 'OCCUPIED', label: 'Bed 09' },
+    { id: 10, status: 'AVAILABLE', label: 'Bed 10' },
+    { id: 11, status: 'AVAILABLE', label: 'Bed 11' },
+    { id: 12, status: 'AVAILABLE', label: 'Bed 12' }
+  ];
+
+  const activeBeds = bedsList && bedsList.length > 0 ? bedsList : defaultBeds;
+
+  const handleBedClick = async (bed) => {
+    const nextStatus = bed.status === 'AVAILABLE' ? 'RESERVED' : bed.status === 'RESERVED' ? 'OCCUPIED' : 'AVAILABLE';
+    const updatedBeds = activeBeds.map(b => b.id === bed.id ? { ...b, status: nextStatus } : b);
+    
+    if (setBedsList) setBedsList(updatedBeds);
+    showAlert(`Bed ${bed.id} status updated to ${nextStatus}.`);
+
+    if (hospitalId) {
+      const token = sessionStorage.getItem('rescuelink_token');
+      try {
+        await fetch(`/api/hospitals/${hospitalId}/beds`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ beds: updatedBeds })
+        });
+      } catch (err) {
+        console.error('Failed to sync beds status to DB:', err);
+      }
+    }
+  };
 
   return (
     <div style={{
@@ -1134,53 +1175,29 @@ function ResourcePanel({ socket }) {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-          {[
-            { id: 1, status: 'RESERVED', label: 'Bed 01' },
-            { id: 2, status: 'AVAILABLE', label: 'Bed 02' },
-            { id: 3, status: 'OCCUPIED', label: 'Bed 03' },
-            { id: 4, status: 'AVAILABLE', label: 'Bed 04' },
-            { id: 5, status: 'AVAILABLE', label: 'Bed 05' },
-            { id: 6, status: 'OCCUPIED', label: 'Bed 06' },
-            { id: 7, status: 'AVAILABLE', label: 'Bed 07' },
-            { id: 8, status: 'AVAILABLE', label: 'Bed 08' },
-            { id: 9, status: 'OCCUPIED', label: 'Bed 09' },
-            { id: 10, status: 'AVAILABLE', label: 'Bed 10' },
-            { id: 11, status: 'AVAILABLE', label: 'Bed 11' },
-            { id: 12, status: 'AVAILABLE', label: 'Bed 12' }
-          ].map((bed) => {
-            const BedButton = () => {
-              const [status, setStatus] = useState(bed.status);
-              const statusColor = status === 'OCCUPIED' ? '#ff4444' : status === 'RESERVED' ? '#ffb800' : '#00ff88';
-              return (
-                <button
-                  onClick={() => {
-                    if (status === 'AVAILABLE') {
-                      setStatus('RESERVED');
-                      showAlert(`Bed ${bed.id} successfully reserved for active incoming mission.`);
-                    } else {
-                      setStatus('AVAILABLE');
-                      showAlert(`Bed ${bed.id} is now available.`);
-                    }
-                  }}
-                  style={{
-                    background: 'rgba(5, 10, 30, 0.4)',
-                    border: `1px solid ${statusColor}44`,
-                    borderRadius: 6,
-                    padding: 8,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 4
-                  }}
-                >
-                  <span style={{ fontSize: 13 }}>🛏️</span>
-                  <span style={{ fontSize: 9, color: '#e0eaff', fontFamily: "'Orbitron'", fontWeight: 'bold' }}>{bed.label}</span>
-                  <span style={{ fontSize: 8, color: statusColor, fontFamily: "'Share Tech Mono'", fontWeight: 'bold' }}>{status}</span>
-                </button>
-              );
-            };
-            return <BedButton key={bed.id} />;
+          {activeBeds.map((bed) => {
+            const statusColor = bed.status === 'OCCUPIED' ? '#ff4444' : bed.status === 'RESERVED' ? '#ffb800' : '#00ff88';
+            return (
+              <button
+                key={bed.id}
+                onClick={() => handleBedClick(bed)}
+                style={{
+                  background: 'rgba(5, 10, 30, 0.4)',
+                  border: `1px solid ${statusColor}44`,
+                  borderRadius: 6,
+                  padding: 8,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 4
+                }}
+              >
+                <span style={{ fontSize: 13 }}>🛏️</span>
+                <span style={{ fontSize: 9, color: '#e0eaff', fontFamily: "'Orbitron'", fontWeight: 'bold' }}>{bed.label}</span>
+                <span style={{ fontSize: 8, color: statusColor, fontFamily: "'Share Tech Mono'", fontWeight: 'bold' }}>{bed.status}</span>
+              </button>
+            );
           })}
         </div>
       </div>
@@ -1813,6 +1830,38 @@ export default function HospitalDashboard({ socket, connected }) {
   const [showArchives, setShowArchives] = useState(false);
   const [isAuthInModal, setIsAuthInModal] = useState(false); // New state for modal login
   const [showManualLogin, setShowManualLogin] = useState(false);
+
+  // Doctors and Beds management states
+  const [bedsList, setBedsList] = useState([]);
+  const [doctorsList, setDoctorsList] = useState([]);
+  const [newDoctorName, setNewDoctorName] = useState('');
+  const [newDoctorEmail, setNewDoctorEmail] = useState('');
+  const [newDoctorPassword, setNewDoctorPassword] = useState('');
+  const [newDoctorSpecialty, setNewDoctorSpecialty] = useState('');
+  const [newDoctorMobile, setNewDoctorMobile] = useState('');
+  const [showAddDoctorModal, setShowAddDoctorModal] = useState(false);
+
+  useEffect(() => {
+    const hospId = authHospital?.hospitalId || activeHospitalId;
+    if (hospId && isAuthenticated) {
+      const token = sessionStorage.getItem('rescuelink_token');
+      // Fetch Beds
+      fetch(`/api/hospitals/${hospId}/beds`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then(res => res.json())
+        .then(data => { if (Array.isArray(data)) setBedsList(data); })
+        .catch(err => console.error('Failed to fetch beds:', err));
+
+      // Fetch Doctors
+      fetch(`/api/hospitals/${hospId}/doctors`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then(res => res.json())
+        .then(data => { if (Array.isArray(data)) setDoctorsList(data); })
+        .catch(err => console.error('Failed to fetch doctors:', err));
+    }
+  }, [authHospital, activeHospitalId, isAuthenticated]);
 
   const [connectedRoles, setConnectedRoles] = useState({ ambulance: 0, hospital: 0 });
   const [pendingResumeMission, setPendingResumeMission] = useState(null);
@@ -3966,7 +4015,7 @@ export default function HospitalDashboard({ socket, connected }) {
                       <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', letterSpacing: '0.1em', marginBottom: 12 }}>
                         ⚙ RESOURCE PREPARATION
                       </div>
-                      <ResourcePanel socket={socket} />
+                      <ResourcePanel socket={socket} bedsList={bedsList} setBedsList={setBedsList} hospitalId={authHospital?.hospitalId || activeHospitalId} />
                     </div>
                   </div>
 
@@ -4024,9 +4073,290 @@ export default function HospitalDashboard({ socket, connected }) {
 
               {/* Other Tabs */}
               {activeTab === 'er_queue' && (
-                <div style={{ flex: 1, padding: 24, overflowY: 'auto' }}>
-                  <div style={{ fontFamily: "'Orbitron'", fontSize: 24, color: '#ffb800', marginBottom: 20 }}>ER QUEUE & BEDS</div>
-                  <div style={{ color: 'rgba(160,200,255,0.7)' }}>ER queue and smart bed management interface will be displayed here.</div>
+                <div style={{ flex: 1, padding: 24, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
+                  
+                  {/* Bed Occupancy Grid */}
+                  <div style={{ background: 'rgba(5, 15, 40, 0.8)', border: '1px solid rgba(0, 200, 255, 0.2)', borderRadius: 12, padding: 24 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                      <div>
+                        <h3 style={{ fontFamily: "'Orbitron'", fontSize: 16, color: '#00c8ff', margin: 0, letterSpacing: '0.05em' }}>🛌 REAL-TIME ER BED OCCUPANCY TRACKER</h3>
+                        <p style={{ fontSize: 11, color: 'rgba(160,200,255,0.5)', margin: '4px 0 0 0' }}>Click a bed to toggle its current status. Changes are saved instantly to the database.</p>
+                      </div>
+                      <div style={{ fontFamily: "'Share Tech Mono'", fontSize: 13, color: '#00ff88', background: 'rgba(0,255,136,0.1)', padding: '4px 10px', borderRadius: 4 }}>
+                        DATABASE STORAGE PERSISTENCE ACTIVE
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12 }}>
+                      {(bedsList && bedsList.length > 0 ? bedsList : Array.from({ length: 12 }, (_, i) => ({
+                        id: i + 1,
+                        status: 'AVAILABLE',
+                        label: `Bed ${(i + 1).toString().padStart(2, '0')}`
+                      }))).map((bed) => {
+                        const statusColor = bed.status === 'OCCUPIED' ? '#ff4444' : bed.status === 'RESERVED' ? '#ffb800' : '#00ff88';
+                        return (
+                          <button
+                            key={bed.id}
+                            onClick={async () => {
+                              const nextStatus = bed.status === 'AVAILABLE' ? 'RESERVED' : bed.status === 'RESERVED' ? 'OCCUPIED' : 'AVAILABLE';
+                              const activeBeds = bedsList && bedsList.length > 0 ? bedsList : Array.from({ length: 12 }, (_, i) => ({
+                                id: i + 1,
+                                status: 'AVAILABLE',
+                                label: `Bed ${(i + 1).toString().padStart(2, '0')}`
+                              }));
+                              const updatedBeds = activeBeds.map(b => b.id === bed.id ? { ...b, status: nextStatus } : b);
+                              setBedsList(updatedBeds);
+                              
+                              const hospId = authHospital?.hospitalId || activeHospitalId;
+                              if (hospId) {
+                                const token = sessionStorage.getItem('rescuelink_token');
+                                try {
+                                  await fetch(`/api/hospitals/${hospId}/beds`, {
+                                    method: 'PUT',
+                                    headers: {
+                                      'Content-Type': 'application/json',
+                                      'Authorization': `Bearer ${token}`
+                                    },
+                                    body: JSON.stringify({ beds: updatedBeds })
+                                  });
+                                } catch (err) {
+                                  console.error('Failed to sync beds status to DB:', err);
+                                }
+                              }
+                            }}
+                            style={{
+                              background: 'rgba(5, 10, 30, 0.4)',
+                              border: `1px solid ${statusColor}44`,
+                              borderRadius: 8,
+                              padding: 16,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              gap: 6,
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            <span style={{ fontSize: 20 }}>🛏️</span>
+                            <span style={{ fontSize: 11, color: '#e0eaff', fontFamily: "'Orbitron'", fontWeight: 'bold' }}>{bed.label}</span>
+                            <span style={{ fontSize: 9, color: statusColor, fontFamily: "'Share Tech Mono'", fontWeight: 'bold' }}>{bed.status}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Attending Staff Management */}
+                  <div style={{ background: 'rgba(5, 15, 40, 0.8)', border: '1px solid rgba(0, 200, 255, 0.2)', borderRadius: 12, padding: 24 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                      <div>
+                        <h3 style={{ fontFamily: "'Orbitron'", fontSize: 16, color: '#00c8ff', margin: 0, letterSpacing: '0.05em' }}>👨‍⚕️ HOSPITAL STAFF & DUTY ROSTER</h3>
+                        <p style={{ fontSize: 11, color: 'rgba(160,200,255,0.5)', margin: '4px 0 0 0' }}>Manage emergency physicians, toggle active shift duty, and assign specialization parameters.</p>
+                      </div>
+                      <button
+                        onClick={() => setShowAddDoctorModal(true)}
+                        style={{
+                          background: 'rgba(0,200,255,0.15)', border: '1px solid #00c8ff',
+                          borderRadius: 6, padding: '8px 16px', color: '#00c8ff',
+                          fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700, cursor: 'pointer'
+                        }}
+                      >
+                        + REGISTER NEW DOCTOR
+                      </button>
+                    </div>
+
+                    {doctorsList.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '30px 0', color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'", fontSize: 12 }}>
+                        NO DOCTORS REGISTERED IN HOSPITAL DEPT. CLICK REGISTER ABOVE TO OBOARD A PHYSICIAN.
+                      </div>
+                    ) : (
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid rgba(0,200,255,0.2)', color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 10 }}>
+                              <th style={{ padding: 12 }}>NAME</th>
+                              <th style={{ padding: 12 }}>SPECIALITY</th>
+                              <th style={{ padding: 12 }}>CONTACT</th>
+                              <th style={{ padding: 12 }}>EMAIL</th>
+                              <th style={{ padding: 12 }}>SHIFT STATUS</th>
+                              <th style={{ padding: 12 }}>CURRENT STATUS</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {doctorsList.map((doc) => (
+                              <tr key={doc.id} style={{ borderBottom: '1px solid rgba(160,200,255,0.05)', color: '#e0eaff' }}>
+                                <td style={{ padding: 12, fontWeight: 'bold' }}>{doc.name}</td>
+                                <td style={{ padding: 12 }}>{doc.specialty}</td>
+                                <td style={{ padding: 12, fontFamily: "'Share Tech Mono'" }}>{doc.mobile || 'N/A'}</td>
+                                <td style={{ padding: 12, fontSize: 12, opacity: 0.8 }}>{doc.email}</td>
+                                <td style={{ padding: 12 }}>
+                                  <button
+                                    onClick={async () => {
+                                      const hospId = authHospital?.hospitalId || activeHospitalId;
+                                      const token = sessionStorage.getItem('rescuelink_token');
+                                      try {
+                                        const res = await fetch(`/api/hospitals/${hospId}/doctors/${doc.id}`, {
+                                          method: 'PUT',
+                                          headers: {
+                                            'Content-Type': 'application/json',
+                                            'Authorization': `Bearer ${token}`
+                                          },
+                                          body: JSON.stringify({ isOnDuty: !doc.is_on_duty })
+                                        });
+                                        if (res.ok) {
+                                          const updated = await res.json();
+                                          setDoctorsList(prev => prev.map(d => d.id === doc.id ? { ...d, is_on_duty: updated.is_on_duty } : d));
+                                          showAlert(`${doc.name} shift toggled to ${updated.is_on_duty ? 'ON DUTY' : 'OFF DUTY'}`);
+                                        }
+                                      } catch (e) {
+                                        console.error(e);
+                                      }
+                                    }}
+                                    style={{
+                                      padding: '4px 10px',
+                                      background: doc.is_on_duty ? 'rgba(0,255,136,0.15)' : 'rgba(255,255,255,0.05)',
+                                      border: `1px solid ${doc.is_on_duty ? '#00ff88' : 'rgba(255,255,255,0.2)'}`,
+                                      borderRadius: 4,
+                                      color: doc.is_on_duty ? '#00ff88' : 'rgba(255,255,255,0.6)',
+                                      fontSize: 10,
+                                      fontFamily: "'Orbitron'",
+                                      fontWeight: 'bold',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    {doc.is_on_duty ? 'ON SHIFT' : 'OFF DUTY'}
+                                  </button>
+                                </td>
+                                <td style={{ padding: 12 }}>
+                                  <select
+                                    value={doc.doctor_status || 'AVAILABLE'}
+                                    onChange={async (e) => {
+                                      const hospId = authHospital?.hospitalId || activeHospitalId;
+                                      const token = sessionStorage.getItem('rescuelink_token');
+                                      try {
+                                        const res = await fetch(`/api/hospitals/${hospId}/doctors/${doc.id}`, {
+                                          method: 'PUT',
+                                          headers: {
+                                            'Content-Type': 'application/json',
+                                            'Authorization': `Bearer ${token}`
+                                          },
+                                          body: JSON.stringify({ doctorStatus: e.target.value })
+                                        });
+                                        if (res.ok) {
+                                          const updated = await res.json();
+                                          setDoctorsList(prev => prev.map(d => d.id === doc.id ? { ...d, doctor_status: updated.doctor_status } : d));
+                                          showAlert(`${doc.name} status updated to ${updated.doctor_status}`);
+                                        }
+                                      } catch (err) {
+                                        console.error(err);
+                                      }
+                                    }}
+                                    style={{
+                                      background: 'rgba(5, 10, 30, 0.6)',
+                                      border: '1px solid rgba(0,200,255,0.2)',
+                                      borderRadius: 4,
+                                      padding: '4px 8px',
+                                      color: doc.doctor_status === 'AVAILABLE' ? '#00ff88' : doc.doctor_status === 'BUSY' ? '#ffb800' : '#ff4444',
+                                      fontWeight: 'bold',
+                                      fontSize: 11,
+                                      fontFamily: "'Share Tech Mono'",
+                                      outline: 'none',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    <option value="AVAILABLE" style={{ color: '#00ff88', background: '#0a1526' }}>AVAILABLE</option>
+                                    <option value="BUSY" style={{ color: '#ffb800', background: '#0a1526' }}>BUSY</option>
+                                    <option value="IN_SURGERY" style={{ color: '#ff4444', background: '#0a1526' }}>IN SURGERY</option>
+                                  </select>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Add Doctor Modal Overlay */}
+                  {showAddDoctorModal && (
+                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,5,15,0.8)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(5px)' }}>
+                      <div style={{ background: '#0a1526', border: '1px solid #00c8ff', borderRadius: 12, padding: 24, width: '90%', maxWidth: 450, boxSizing: 'border-box', boxShadow: '0 0 30px rgba(0,200,255,0.2)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                          <div style={{ fontFamily: "'Orbitron'", fontSize: 16, color: '#00c8ff', fontWeight: 700, letterSpacing: '0.1em' }}>👨‍⚕️ OBOARD MEDICAL STAFF</div>
+                          <button onClick={() => setShowAddDoctorModal(false)} style={{ background: 'transparent', border: 'none', color: '#ff4444', fontSize: 24, cursor: 'pointer' }}>×</button>
+                        </div>
+
+                        <form onSubmit={async (e) => {
+                          e.preventDefault();
+                          const hospId = authHospital?.hospitalId || activeHospitalId;
+                          const token = sessionStorage.getItem('rescuelink_token');
+                          try {
+                            const res = await fetch(`/api/hospitals/${hospId}/doctors`, {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                              },
+                              body: JSON.stringify({
+                                name: newDoctorName,
+                                email: newDoctorEmail,
+                                password: newDoctorPassword,
+                                specialty: newDoctorSpecialty,
+                                mobile: newDoctorMobile
+                              })
+                            });
+                            if (res.ok) {
+                              const added = await res.json();
+                              setDoctorsList(prev => [...prev, { ...added, is_on_duty: true, doctor_status: 'AVAILABLE' }]);
+                              setNewDoctorName('');
+                              setNewDoctorEmail('');
+                              setNewDoctorPassword('');
+                              setNewDoctorSpecialty('');
+                              setNewDoctorMobile('');
+                              setShowAddDoctorModal(false);
+                              showAlert('✅ Doctor successfully added to hospital registry!');
+                            } else {
+                              const data = await res.json();
+                              showAlert('⚠️ Registration failed: ' + (data.error || 'Unknown error'));
+                            }
+                          } catch (err) {
+                            console.error(err);
+                            showAlert('⚠️ Failed to add doctor.');
+                          }
+                        }} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>PHYSICIAN FULL NAME</label>
+                            <input type="text" value={newDoctorName} onChange={(e) => setNewDoctorName(e.target.value)} required placeholder="e.g. Dr. Robert Chen" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>SPECIALITY</label>
+                            <input type="text" value={newDoctorSpecialty} onChange={(e) => setNewDoctorSpecialty(e.target.value)} required placeholder="e.g. Cardiologist / Trauma Surgeon" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>CONTACT PHONE NUMBER</label>
+                            <input type="text" value={newDoctorMobile} onChange={(e) => setNewDoctorMobile(e.target.value)} required placeholder="e.g. 9876543210" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>EMAIL ADDRESS</label>
+                            <input type="email" value={newDoctorEmail} onChange={(e) => setNewDoctorEmail(e.target.value)} required placeholder="dr.chen@rescuelink.com" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>PASSWORD</label>
+                            <input type="password" value={newDoctorPassword} onChange={(e) => setNewDoctorPassword(e.target.value)} required placeholder="••••••••" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                          </div>
+
+                          <button type="submit" className="rl-btn-primary" style={{ width: '100%', marginTop: 8 }}>
+                            VERIFY & ACTIVATE STAFF
+                          </button>
+                        </form>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
