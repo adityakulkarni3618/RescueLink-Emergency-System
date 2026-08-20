@@ -963,6 +963,30 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
   const [equipmentChecklist, setEquipmentChecklist] = useState([]);
   const [crewMembers, setCrewMembers] = useState('');
 
+  // Missing & New Patient Fields
+  const [abhaAddress, setAbhaAddress] = useState('');
+  const [bloodGroup, setBloodGroup] = useState('');
+  const [allergies, setAllergies] = useState('');
+  const [chronicConditions, setChronicConditions] = useState('');
+  const [dob, setDob] = useState('');
+  const [gender, setGender] = useState('');
+  const [emergencyContactName, setEmergencyContactName] = useState('');
+  const [emergencyContactRelationship, setEmergencyContactRelationship] = useState('');
+  const [emergencyContactPhone, setEmergencyContactPhone] = useState('');
+  const [insuranceProvider, setInsuranceProvider] = useState('');
+  const [policyNumber, setPolicyNumber] = useState('');
+  const [groupNumber, setGroupNumber] = useState('');
+  const [consentToShareData, setConsentToShareData] = useState(false);
+
+  // New Ambulance Fields
+  const [licenseExpiry, setLicenseExpiry] = useState('');
+  const [isSystemStandard, setIsSystemStandard] = useState(true);
+  const [oxygenCapacityLiters, setOxygenCapacityLiters] = useState('0');
+
+  // New Hospital Fields
+  const [traumaTier, setTraumaTier] = useState('Tier 3');
+  const [accreditationId, setAccreditationId] = useState('');
+
   // List of active hospitals for dropdown selection
   const [hospitalsList, setHospitalsList] = useState([]);
 
@@ -1124,14 +1148,14 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
 
       if (defaultRole === 'ambulance') {
         endpoint = '/api/auth/register-ambulance';
-        payload = { vehicleNo, driverName, contactInfo, type, password, hospitalId, equipmentChecklist, crewMembers };
+        payload = { vehicleNo, driverName, contactInfo, type, password, hospitalId, equipmentChecklist, crewMembers, licenseNumber, licenseExpiry, isSystemStandard, oxygenCapacityLiters };
       } else if (defaultRole === 'user') {
         // Patient registration
         endpoint = '/api/auth/register-patient';
-        payload = { name: driverName, email, password, mobile: contactInfo, abhaNumber: vehicleNo, abhaAddress, bloodGroup, allergies, chronicConditions, dob, gender };
+        payload = { name: driverName, email, password, mobile: contactInfo, abhaNumber: vehicleNo, abhaAddress, bloodGroup, allergies, chronicConditions, dob, gender, emergencyContactName, emergencyContactRelationship, emergencyContactPhone, insuranceProvider, policyNumber, groupNumber, consentToShareData };
       } else {
         endpoint = '/api/auth/register-hospital';
-        payload = { name: hospitalName, contactInfo: hospitalContact, lat, lng, totalBeds, icuBeds, ventilators, password, licenseNumber, departments, bayCapacity, adminEmail };
+        payload = { name: hospitalName, contactInfo: hospitalContact, lat, lng, totalBeds, icuBeds, ventilators, password, licenseNumber, departments, bayCapacity, adminEmail, traumaTier, accreditationId };
       }
 
       const res = await fetch(`${SERVER_URL}${endpoint}`, {
@@ -1214,6 +1238,33 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
       onLoginSuccess('user', data.token);
     } catch (err) {
       setError(err.message || 'Invalid credentials');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const triggerGuestEmergencySOS = async () => {
+    const promptedPhone = window.prompt("🚨 EMERGENCY SOS DISPATCH\n\nPlease enter your contact phone number to coordinate with the ambulance driver:", "");
+    if (promptedPhone === null) return; // cancel
+    const promptedName = window.prompt("Please enter your name (Optional):", "Guest SOS Patient");
+    
+    setError('');
+    setLoading(true);
+    try {
+      const response = await fetch(`${SERVER_URL}/api/auth/guest-emergency`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: promptedPhone, name: promptedName })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Guest login failed');
+      
+      sessionStorage.setItem('rescuelink_token', data.token);
+      sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
+      sessionStorage.setItem('guest_auto_sos', 'true'); // Flag to auto-trigger dispatch on dashboard load
+      onLoginSuccess('user', data.token);
+    } catch (err) {
+      setError(err.message || 'Failed to establish guest session');
     } finally {
       setLoading(false);
     }
@@ -1398,9 +1449,14 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
                   {loading ? 'AUTHENTICATING...' : 'ACCESS SYSTEM →'}
                 </button>
                 {defaultRole === 'user' && (
-                  <button type="button" onClick={triggerDirectPatientAccess} className="rl-btn-secondary" style={{ width: '100%', marginTop: 4 }}>
-                    DIRECT PATIENT ACCESS 🧍
-                  </button>
+                  <>
+                    <button type="button" onClick={triggerDirectPatientAccess} className="rl-btn-secondary" style={{ width: '100%', marginTop: 4 }}>
+                      DIRECT PATIENT ACCESS 🧍
+                    </button>
+                    <button type="button" onClick={triggerGuestEmergencySOS} style={{ width: '100%', marginTop: 8, padding: '12px', background: 'linear-gradient(135deg, #ff3333, #aa0000)', border: '1px solid #ff4444', color: '#fff', borderRadius: 6, fontFamily: "'Orbitron'", fontSize: 12, fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 0 15px rgba(255,0,0,0.3)', letterSpacing: '0.05em' }}>
+                      🚨 GUEST EMERGENCY DISPATCH (NO LOGIN)
+                    </button>
+                  </>
                 )}
               </form>
             ) : (
@@ -1460,9 +1516,27 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
                        </div>
                      </div>
                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                       <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>CREW MEMBERS (COMMA SEPARATED)</label>
-                       <input type="text" value={crewMembers} onChange={(e) => setCrewMembers(e.target.value)} placeholder="e.g. Paramedic John, Nurse Sarah" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
-                     </div>
+                        <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>CREW MEMBERS (COMMA SEPARATED)</label>
+                        <input type="text" value={crewMembers} onChange={(e) => setCrewMembers(e.target.value)} placeholder="e.g. Paramedic John, Nurse Sarah" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>LEAD LICENSE NUMBER</label>
+                          <input type="text" value={licenseNumber} onChange={(e) => setLicenseNumber(e.target.value)} placeholder="e.g. EMT-99211" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>LICENSE EXPIRY</label>
+                          <input type="date" value={licenseExpiry} onChange={(e) => setLicenseExpiry(e.target.value)} className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>OXYGEN CAPACITY (LITERS)</label>
+                        <input type="number" value={oxygenCapacityLiters} onChange={(e) => setOxygenCapacityLiters(e.target.value)} placeholder="e.g. 500" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                      </div>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#e0eaff', cursor: 'pointer', marginTop: 4 }}>
+                        <input type="checkbox" checked={isSystemStandard} onChange={(e) => setIsSystemStandard(e.target.checked)} style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#00c8ff' }} />
+                        <span>This vehicle is certified under Standard EMS vehicle safety metrics.</span>
+                      </label>
                    </>
                  ) : defaultRole === 'user' ? (
                    <>
@@ -1515,6 +1589,43 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
                          <option value="Other">Other</option>
                        </select>
                      </div>
+                   </>
+
+                      {/* Emergency Contact details */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <label style={{ fontSize: 9, color: '#ffb800', fontFamily: "'Share Tech Mono'" }}>EMERGENCY CONTACT NAME (NEXT OF KIN)</label>
+                        <input type="text" value={emergencyContactName} onChange={(e) => setEmergencyContactName(e.target.value)} placeholder="e.g. Jane Doe" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>RELATIONSHIP</label>
+                          <input type="text" value={emergencyContactRelationship} onChange={(e) => setEmergencyContactRelationship(e.target.value)} placeholder="e.g. Spouse" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>CONTACT PHONE</label>
+                          <input type="text" value={emergencyContactPhone} onChange={(e) => setEmergencyContactPhone(e.target.value)} placeholder="e.g. 9876543210" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                        </div>
+                      </div>
+
+                      {/* Insurance Info */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <label style={{ fontSize: 9, color: '#00ff88', fontFamily: "'Share Tech Mono'" }}>INSURANCE PROVIDER</label>
+                        <input type="text" value={insuranceProvider} onChange={(e) => setInsuranceProvider(e.target.value)} placeholder="e.g. Star Health" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>POLICY NUMBER</label>
+                          <input type="text" value={policyNumber} onChange={(e) => setPolicyNumber(e.target.value)} placeholder="e.g. POL-12345" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>GROUP NUMBER</label>
+                          <input type="text" value={groupNumber} onChange={(e) => setGroupNumber(e.target.value)} placeholder="e.g. GRP-6789" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                        </div>
+                      </div>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#e0eaff', cursor: 'pointer', marginTop: 4 }}>
+                        <input type="checkbox" checked={consentToShareData} onChange={(e) => setConsentToShareData(e.target.checked)} style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#00ff88' }} />
+                        <span>I consent to share emergency EMR parameters under ABDM/HIPAA.</span>
+                      </label>
                    </>
                  ) : (
                   <>
@@ -1586,6 +1697,20 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
                             </label>
                           );
                         })}
+                      </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>TRAUMA CENTER TIER</label>
+                        <select value={traumaTier} onChange={(e) => setTraumaTier(e.target.value)} className="rl-input" style={{ width: '100%', background: 'rgba(5,15,40,0.85)' }}>
+                          <option value="Tier 1">Tier 1 (Comprehensive)</option>
+                          <option value="Tier 2">Tier 2 (Major Trauma)</option>
+                          <option value="Tier 3">Tier 3 (General ER)</option>
+                        </select>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>NATIONAL ACCREDITATION ID</label>
+                        <input type="text" value={accreditationId} onChange={(e) => setAccreditationId(e.target.value)} placeholder="e.g. NABH-9921" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
                       </div>
                     </div>
                   </>

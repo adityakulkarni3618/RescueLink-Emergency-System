@@ -12,6 +12,27 @@ export default function PatientPortal() {
   const [loading, setLoading] = useState(true);
   const [fhirPreview, setFhirPreview] = useState(null);
 
+  // Profile Edit states
+  const [name, setName] = useState('');
+  const [mobile, setMobile] = useState('');
+  const [bloodGroup, setBloodGroup] = useState('');
+  const [allergies, setAllergies] = useState('');
+  const [chronicConditions, setChronicConditions] = useState('');
+  const [dob, setDob] = useState('');
+  const [gender, setGender] = useState('');
+  const [emergencyContactName, setEmergencyContactName] = useState('');
+  const [emergencyContactRelationship, setEmergencyContactRelationship] = useState('');
+  const [emergencyContactPhone, setEmergencyContactPhone] = useState('');
+  const [insuranceProvider, setInsuranceProvider] = useState('');
+  const [policyNumber, setPolicyNumber] = useState('');
+  const [groupNumber, setGroupNumber] = useState('');
+  const [consentToShareData, setConsentToShareData] = useState(false);
+  const [abhaNumber, setAbhaNumber] = useState('');
+  const [abhaAddress, setAbhaAddress] = useState('');
+  
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
+
   useEffect(() => {
     const fetchPatientData = async () => {
       const token = sessionStorage.getItem('rescuelink_token');
@@ -22,6 +43,23 @@ export default function PatientPortal() {
         });
         const profileData = await profileRes.json();
         setProfile(profileData);
+        
+        setName(profileData.name || '');
+        setMobile(profileData.mobile || '');
+        setBloodGroup(profileData.blood_group || '');
+        setAllergies(profileData.allergies || '');
+        setChronicConditions(profileData.chronic_conditions || '');
+        setDob(profileData.dob || '');
+        setGender(profileData.gender || '');
+        setEmergencyContactName(profileData.emergency_contact_name || '');
+        setEmergencyContactRelationship(profileData.emergency_contact_relationship || '');
+        setEmergencyContactPhone(profileData.emergency_contact_phone || '');
+        setInsuranceProvider(profileData.insurance_provider || '');
+        setPolicyNumber(profileData.policy_number || '');
+        setGroupNumber(profileData.group_number || '');
+        setConsentToShareData(profileData.consent_to_share_data || false);
+        setAbhaNumber(profileData.abha_number || '');
+        setAbhaAddress(profileData.abha_address || '');
 
         // Fetch Incident History
         const incidentsRes = await fetch(`${SERVER_URL}/api/users/me/incidents`, {
@@ -83,6 +121,48 @@ export default function PatientPortal() {
     }
   };
 
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setSaveMessage('');
+    const token = sessionStorage.getItem('rescuelink_token');
+    try {
+      const res = await fetch(`${SERVER_URL}/api/auth/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name,
+          mobile,
+          bloodGroup,
+          allergies,
+          chronicConditions,
+          dob,
+          gender,
+          emergencyContactName,
+          emergencyContactRelationship,
+          emergencyContactPhone,
+          insuranceProvider,
+          policyNumber,
+          groupNumber,
+          consentToShareData,
+          abhaNumber,
+          abhaAddress
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update profile');
+      setProfile(data);
+      setSaveMessage('✅ Profile updated successfully!');
+    } catch (err) {
+      setSaveMessage(`❌ Error: ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00c8ff', fontFamily: "'Orbitron'" }}>
@@ -110,7 +190,8 @@ export default function PatientPortal() {
           { id: 'overview', label: '📋 PROFILE OVERVIEW' },
           { id: 'incidents', label: '🚑 DISPATCH HISTORY' },
           { id: 'vitals', label: '📈 HEART & VITAL TRENDS' },
-          { id: 'prescriptions', label: '💊 DISCHARGE PRESCRIPTIONS' }
+          { id: 'prescriptions', label: '💊 DISCHARGE PRESCRIPTIONS' },
+          { id: 'profile', label: '⚙️ MANAGE PROFILE' }
         ].map(tab => (
           <button
             key={tab.id}
@@ -288,6 +369,143 @@ export default function PatientPortal() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {activeTab === 'profile' && (
+          <div style={{ color: '#fff' }}>
+            <h3 style={{ fontFamily: "'Orbitron'", color: '#00c8ff', marginBottom: 16 }}>⚙️ MANAGE EMER-HEALTH PROFILE</h3>
+            {saveMessage && (
+              <div style={{
+                padding: 12, borderRadius: 6,
+                background: saveMessage.includes('✅') ? 'rgba(0,255,136,0.1)' : 'rgba(255,68,68,0.1)',
+                border: `1px solid ${saveMessage.includes('✅') ? '#00ff88' : '#ff4444'}`,
+                color: saveMessage.includes('✅') ? '#00ff88' : '#ff4444',
+                marginBottom: 16, fontSize: 13, fontFamily: "'Share Tech Mono'"
+              }}>
+                {saveMessage}
+              </div>
+            )}
+
+            <form onSubmit={handleUpdateProfile} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              {/* Profile Block */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>FULL NAME</label>
+                  <input type="text" value={name} onChange={e => setName(e.target.value)} required style={{ padding: 10, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 6, color: '#fff' }} />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>MOBILE NUMBER</label>
+                  <input type="text" value={mobile} onChange={e => setMobile(e.target.value)} style={{ padding: 10, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 6, color: '#fff' }} />
+                </div>
+              </div>
+
+              {/* ABDM Registry Link */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>ABHA CARD NUMBER</label>
+                  <input type="text" value={abhaNumber} onChange={e => setAbhaNumber(e.target.value)} placeholder="12-3456-7890-12" style={{ padding: 10, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 6, color: '#fff' }} />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>ABHA ADDRESS ID</label>
+                  <input type="text" value={abhaAddress} onChange={e => setAbhaAddress(e.target.value)} placeholder="name@abdm" style={{ padding: 10, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 6, color: '#fff' }} />
+                </div>
+              </div>
+
+              {/* Clinical Details */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>BLOOD GROUP</label>
+                  <input type="text" value={bloodGroup} onChange={e => setBloodGroup(e.target.value)} style={{ padding: 10, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 6, color: '#fff' }} />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>DATE OF BIRTH</label>
+                  <input type="date" value={dob} onChange={e => setDob(e.target.value)} style={{ padding: 10, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 6, color: '#fff' }} />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>GENDER</label>
+                  <select value={gender} onChange={e => setGender(e.target.value)} style={{ padding: 10, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 6, color: '#fff' }}>
+                    <option value="">Select</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Allergies & Conditions */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>ALLERGIES</label>
+                  <input type="text" value={allergies} onChange={e => setAllergies(e.target.value)} style={{ padding: 10, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 6, color: '#fff' }} />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>CHRONIC CONDITIONS</label>
+                  <input type="text" value={chronicConditions} onChange={e => setChronicConditions(e.target.value)} style={{ padding: 10, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 6, color: '#fff' }} />
+                </div>
+              </div>
+
+              {/* Emergency Contact */}
+              <div style={{ padding: 16, border: '1px solid rgba(255,184,0,0.2)', borderRadius: 8, background: 'rgba(255,184,0,0.02)' }}>
+                <h4 style={{ color: '#ffb800', fontFamily: "'Orbitron'", margin: '0 0 12px 0', fontSize: 12 }}>🚨 EMERGENCY CONTACT (NEXT OF KIN)</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>CONTACT NAME</label>
+                    <input type="text" value={emergencyContactName} onChange={e => setEmergencyContactName(e.target.value)} style={{ padding: 10, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,184,0,0.2)', borderRadius: 6, color: '#fff' }} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>RELATIONSHIP</label>
+                    <input type="text" value={emergencyContactRelationship} onChange={e => setEmergencyContactRelationship(e.target.value)} style={{ padding: 10, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,184,0,0.2)', borderRadius: 6, color: '#fff' }} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>PHONE NUMBER</label>
+                    <input type="text" value={emergencyContactPhone} onChange={e => setEmergencyContactPhone(e.target.value)} style={{ padding: 10, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,184,0,0.2)', borderRadius: 6, color: '#fff' }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Insurance */}
+              <div style={{ padding: 16, border: '1px solid rgba(0,255,136,0.2)', borderRadius: 8, background: 'rgba(0,255,136,0.02)' }}>
+                <h4 style={{ color: '#00ff88', fontFamily: "'Orbitron'", margin: '0 0 12px 0', fontSize: 12 }}>💳 INSURANCE & COVERAGE DETAILS</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>PROVIDER</label>
+                    <input type="text" value={insuranceProvider} onChange={e => setInsuranceProvider(e.target.value)} style={{ padding: 10, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 6, color: '#fff' }} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>POLICY NUMBER</label>
+                    <input type="text" value={policyNumber} onChange={e => setPolicyNumber(e.target.value)} style={{ padding: 10, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 6, color: '#fff' }} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>GROUP NUMBER</label>
+                    <input type="text" value={groupNumber} onChange={e => setGroupNumber(e.target.value)} style={{ padding: 10, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 6, color: '#fff' }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Consent check */}
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#e0eaff', cursor: 'pointer' }}>
+                <input type="checkbox" checked={consentToShareData} onChange={e => setConsentToShareData(e.target.checked)} style={{ width: 16, height: 16, accentColor: '#00ff88' }} />
+                <span>I explicitly consent to let dispatch teams view my vital emergency profile parameters during live triage runs.</span>
+              </label>
+
+              <button type="submit" disabled={saving} style={{
+                padding: '12px 24px',
+                background: 'linear-gradient(135deg, #00c8ff22, #00c8ff55)',
+                border: '1px solid #00c8ff',
+                borderRadius: 8,
+                color: '#00c8ff',
+                fontFamily: "'Orbitron'",
+                fontSize: 12,
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                letterSpacing: '0.1em',
+                transition: 'all 0.2s',
+                alignSelf: 'flex-start'
+              }}>
+                {saving ? 'SAVING PROFILE CONFIG...' : '💾 SAVE PROFILE CHANGES'}
+              </button>
+            </form>
           </div>
         )}
       </div>

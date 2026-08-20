@@ -99,6 +99,34 @@ module.exports = (sequelize) => {
     doctor_status: {
       type: DataTypes.STRING,
       defaultValue: 'AVAILABLE'
+    },
+    emergency_contact_name: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    emergency_contact_relationship: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    emergency_contact_phone: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    insurance_provider: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    policy_number: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    group_number: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    consent_to_share_data: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false
     }
   }, {
     tableName: 'users',
