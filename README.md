@@ -42,6 +42,7 @@ graph TD
 - **🚑 Certified Ambulance & Crew Management**: Paramedic license tracking, expiration dates, oxygen capacity (liters), and standard EMS vehicle safety compliance checks.
 - **🏥 Hospital Trauma Tier Routing**: Clinical Trauma Center Ratings (Tier 1 Comprehensive, Tier 2 Major, Tier 3 General ER) combined with JCI/NABH national accreditation tracking for intelligent AI destination routing.
 - **🛡️ DPDP Act 2023 & HIPAA Compliance**: Application-layer AES-256-GCM encryption for PHI/PII, dynamic consent revocation, automated 3-year record purge policies, and immutable cryptographic audit logs.
+- **🛡️ Registration Admin Approvals (Fraud Prevention)**: Workflow to enforce system authorization for hospitals and ambulances. Registrations remain inactive (`is_active: false`) until approved by the City Administrator in the War Room tab dashboard.
 
 ---
 
