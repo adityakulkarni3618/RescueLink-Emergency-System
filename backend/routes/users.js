@@ -4,6 +4,50 @@ const { User, AuditLog, Patient, Consent } = require('../utils/db');
 const { verifyToken } = require('../middleware/auth');
 
 /**
+ * @route GET /api/users/me/incidents
+ * @desc Get incident history for the authenticated patient
+ */
+router.get('/me/incidents', verifyToken(['patient']), async (req, res) => {
+  try {
+    const { Incident } = require('../utils/db');
+    const incidents = await Incident.findAll({
+      where: { patient_id: req.user.id },
+      order: [['createdAt', 'DESC']]
+    });
+    return res.json(incidents);
+  } catch (err) {
+    console.error('[USERS API] Error fetching patient incidents:', err.message);
+    return res.status(500).json({ error: 'Failed to fetch incident history' });
+  }
+});
+
+/**
+ * @route GET /api/users/me/vitals-history
+ * @desc Get historical vitals log for the authenticated patient
+ */
+router.get('/me/vitals-history', verifyToken(['patient']), async (req, res) => {
+  try {
+    const { VitalsHistory, Incident } = require('../utils/db');
+    // Find all incidents/missions for this patient first
+    const incidents = await Incident.findAll({
+      where: { patient_id: req.user.id },
+      attributes: ['id']
+    });
+    const incidentIds = incidents.map(inc => inc.id);
+    
+    const vitals = await VitalsHistory.findAll({
+      where: { incident_id: incidentIds },
+      order: [['timestamp', 'ASC']],
+      limit: 100
+    });
+    return res.json(vitals);
+  } catch (err) {
+    console.error('[USERS API] Error fetching patient vitals history:', err.message);
+    return res.status(500).json({ error: 'Failed to fetch vitals history' });
+  }
+});
+
+/**
  * @route GET /api/users
  * @desc Get all users (Admin/Hospital staff only)
  */
