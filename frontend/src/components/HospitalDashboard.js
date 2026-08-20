@@ -2062,6 +2062,7 @@ export default function HospitalDashboard({ socket, connected }) {
   const [insurancePreAuth, setInsurancePreAuth] = useState(null);
   const [reservationLock, setReservationLock] = useState(null);
   const [oxygenWarning, setOxygenWarning] = useState(null);
+  const [isPendingApproval, setIsPendingApproval] = useState(false);
 
   // --- HUGE CONNECTIONS: Auto-Next Logic ---
   useEffect(() => {
@@ -2481,6 +2482,12 @@ export default function HospitalDashboard({ socket, connected }) {
     socket.on('hospital-oxygen-warning', (data) => {
       console.log('[HOSPITAL] Low oxygen warning received:', data);
       if (data) setOxygenWarning(data);
+    });
+
+    socket.on('error-alert', (data) => {
+      if (data && data.message && data.message.startsWith('PENDING_APPROVAL')) {
+        setIsPendingApproval(true);
+      }
     });
 
     socket.on('hospital-request-taken', (data) => {
@@ -2994,6 +3001,54 @@ export default function HospitalDashboard({ socket, connected }) {
         onLoginSuccess={handleMfaSuccess}
         onCancel={() => setMfaToken(null)}
       />
+    );
+  }
+
+  if (isPendingApproval) {
+    return (
+      <div style={{
+        height: '100vh', background: 'radial-gradient(ellipse at 50% 30%, #0c0a1e 0%, #02010c 70%)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Rajdhani', sans-serif", color: '#e0eaff'
+      }}>
+        <div style={{
+          width: '90%', maxWidth: 450, padding: '40px 32px',
+          background: 'rgba(12,10,30,0.85)', border: '1px solid rgba(255,60,60,0.3)',
+          borderRadius: 12, backdropFilter: 'blur(10px)', textAlign: 'center',
+          boxShadow: '0 20px 50px rgba(0,0,0,0.6), 0 0 30px rgba(255,60,60,0.1)'
+        }}>
+          <div style={{ fontSize: 56, marginBottom: 20 }}>🚫</div>
+          <h2 style={{
+            fontFamily: "'Orbitron', sans-serif", fontSize: 22,
+            color: '#ff4444', textAlign: 'center', marginBottom: 12,
+            textShadow: '0 0 10px rgba(255,68,68,0.4)', letterSpacing: '0.1em'
+          }}>REGISTRATION PENDING</h2>
+          <p style={{
+            fontSize: 12, color: 'rgba(160,200,255,0.4)', marginBottom: 24,
+            fontFamily: "'Share Tech Mono'", letterSpacing: '0.15em'
+          }}>SYSTEM SECURITY PROTOCOL</p>
+          <div style={{
+            padding: 16, background: 'rgba(255,68,68,0.05)', border: '1px solid rgba(255,68,68,0.2)',
+            borderRadius: 8, color: '#ffb8b8', fontSize: 13, textAlign: 'left', lineHeight: 1.6, marginBottom: 30
+          }}>
+            Your hospital registration has been recorded. For public safety and authentication, all clinical nodes must be verified and approved by the <strong>City Administrator</strong> before access is granted.
+          </div>
+          <button
+            onClick={() => {
+              sessionStorage.clear();
+              localStorage.clear();
+              window.location.reload();
+            }}
+            style={{
+              width: '100%', padding: '14px', background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6,
+              color: 'rgba(160,200,255,0.7)', fontFamily: "'Orbitron'", fontSize: 12,
+              fontWeight: 700, letterSpacing: '0.15em', cursor: 'pointer', transition: 'all 0.2s'
+            }}
+          >
+            RETURN TO GATEWAY
+          </button>
+        </div>
+      </div>
     );
   }
 

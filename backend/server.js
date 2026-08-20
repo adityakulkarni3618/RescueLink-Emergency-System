@@ -1814,6 +1814,22 @@ io.on('connection', (socket) => {
     role = 'ambulance';
 
     // FETCH PERSISTENT REGISTRY DATA
+    const { Ambulance, User } = require('./utils/db');
+    let ambulanceRecord = await Ambulance.findOne({
+      where: {
+        [require('sequelize').Op.or]: [
+          { id: unitId },
+          { vehicleNo: unitId },
+          { vehicleNo: unitId.split('@')[0].toUpperCase() }
+        ]
+      }
+    });
+
+    if (ambulanceRecord && !ambulanceRecord.is_active) {
+      console.log(`[SOCKET_LOG] registration rejected: Ambulance ${ambulanceRecord.vehicleNo} is inactive or pending approval`);
+      return socket.emit('error-alert', { message: 'PENDING_APPROVAL: Your ambulance registration is pending review by the City Administration.' });
+    }
+
     let account = await User.findOne({ where: { id: unitId } });
     if (!account) {
       account = await User.findOne({ where: { email: unitId } });
@@ -1825,8 +1841,8 @@ io.on('connection', (socket) => {
       name: account.name || data.name,
       contactInfo: account.mobile || data.contactInfo,
       driverName: account.driverName || data.driverName,
-      vehicleNo: account.vehicleNo || data.vehicleNo,
-      type: account.unitType || data.type
+      vehicleNo: account.vehicleNo || (ambulanceRecord && ambulanceRecord.vehicleNo) || data.vehicleNo,
+      type: account.unitType || (ambulanceRecord && ambulanceRecord.type) || data.type
     } : {};
 
     ambulances[socket.id] = { ...data, ...registryData, location: { lat, lng }, socketId: socket.id, available: true };
@@ -1889,12 +1905,16 @@ io.on('connection', (socket) => {
 
     // FETCH PERSISTENT REGISTRY DATA
     const account = await Hospital.findOne({ where: { id } });
-    const registryData = account ? {
+    if (!account || !account.is_active) {
+      console.log(`[SOCKET_LOG] registration rejected: Hospital is inactive or pending approval`);
+      return socket.emit('error-alert', { message: 'PENDING_APPROVAL: Your hospital registration is pending review by the City Administration.' });
+    }
+    const registryData = {
       lat: data.lat || data.pos?.lat || account.lat,
       lng: data.lng || data.pos?.lng || account.lng,
       name: account.name,
       contactInfo: account.contact_number
-    } : {};
+    };
 
     hospitals[socket.id] = { ...data, ...registryData, pos: { lat: data.lat || data.pos?.lat || account?.lat, lng: data.lng || data.pos?.lng || account?.lng }, socketId: socket.id, isBusy: false };
     socket.join('global_hospitals');

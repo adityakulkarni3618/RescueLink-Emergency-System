@@ -31,6 +31,22 @@ router.get('/', async (req, res) => {
 });
 
 /**
+ * @route GET /api/hospitals/all
+ * @desc Get all hospitals including inactive ones (Admin only)
+ */
+router.get('/all', verifyToken(['city_admin']), async (req, res) => {
+  try {
+    const hospitals = await Hospital.findAll({
+      order: [['createdAt', 'DESC']]
+    });
+    return res.json(hospitals);
+  } catch (err) {
+    console.error('[HOSPITALS API] Fetch all hospitals error:', err.message);
+    return res.status(500).json({ error: 'Failed to fetch all hospitals' });
+  }
+});
+
+/**
  * @route GET /api/hospitals/:id
  * @desc Get details of a single hospital
  */
@@ -381,6 +397,44 @@ router.put('/:id/beds', verifyToken(['hospital_admin', 'doctor']), async (req, r
   } catch (err) {
     console.error('[HOSPITALS API] Update beds error:', err.message);
     return res.status(500).json({ error: 'Failed to save bed layout' });
+  }
+});
+
+/**
+ * @route DELETE /api/hospitals/:id
+ * @desc Delete a hospital and its associated users (Admin only)
+ */
+router.delete('/:id', verifyToken(['city_admin']), async (req, res) => {
+  try {
+    const hospital = await Hospital.findByPk(req.params.id);
+    if (!hospital) {
+      return res.status(404).json({ error: 'Hospital not found' });
+    }
+
+    const { User } = require('../utils/db');
+    // Delete associated hospital users
+    await User.destroy({ where: { hospital_id: hospital.id } });
+    
+    // Delete hospital
+    await hospital.destroy();
+
+    // Invalidate caches
+    await cache.del(ALL_HOSPITALS_CACHE_KEY);
+
+    // Audit Log
+    await AuditLog.create({
+      user_id: req.user.id,
+      action: 'DELETE_HOSPITAL',
+      resource: 'Hospital',
+      resource_id: req.params.id,
+      ip_address: req.ip || req.connection.remoteAddress,
+      details: { name: hospital.name }
+    });
+
+    return res.json({ success: true, message: 'Hospital and associated users deleted successfully' });
+  } catch (err) {
+    console.error('[HOSPITALS API] Delete failed:', err.message);
+    return res.status(500).json({ error: 'Failed to delete hospital' });
   }
 });
 
