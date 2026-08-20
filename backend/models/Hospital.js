@@ -59,6 +59,14 @@ module.exports = (sequelize) => {
       type: DataTypes.TEXT,
       allowNull: true,
       defaultValue: '[]'
+    },
+    trauma_tier: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    accreditation_id: {
+      type: DataTypes.STRING,
+      allowNull: true
     }
   }, {
     tableName: 'hospitals',
