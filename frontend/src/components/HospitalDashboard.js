@@ -2059,6 +2059,9 @@ export default function HospitalDashboard({ socket, connected }) {
   const [isHandoverSyncing, setIsHandoverSyncing] = useState(false);
   const [requestQueue, setRequestQueue] = useState([]); // High-density scaling for city-wide infrastructure
   const [incomingRequest, setIncomingRequest] = useState(null); // The one currently being viewed in modal
+  const [insurancePreAuth, setInsurancePreAuth] = useState(null);
+  const [reservationLock, setReservationLock] = useState(null);
+  const [oxygenWarning, setOxygenWarning] = useState(null);
 
   // --- HUGE CONNECTIONS: Auto-Next Logic ---
   useEffect(() => {
@@ -2463,6 +2466,21 @@ export default function HospitalDashboard({ socket, connected }) {
       if (req.status === 'hospital_accepted' && req.routePath) {
         setRoutePath(req.routePath.map(pos => [pos.lat, pos.lng]));
       }
+    });
+
+    socket.on('insurance-preauth-updated', (data) => {
+      console.log('[HOSPITAL] Received insurance pre-auth update:', data);
+      if (data && data.preAuth) setInsurancePreAuth(data.preAuth);
+    });
+
+    socket.on('hospital-inventory-locked', (data) => {
+      console.log('[HOSPITAL] Received inventory hold-lock update:', data);
+      if (data && data.reservationLock) setReservationLock(data.reservationLock);
+    });
+
+    socket.on('hospital-oxygen-warning', (data) => {
+      console.log('[HOSPITAL] Low oxygen warning received:', data);
+      if (data) setOxygenWarning(data);
     });
 
     socket.on('hospital-request-taken', (data) => {
