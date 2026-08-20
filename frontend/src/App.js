@@ -355,6 +355,24 @@ const styles = `
     backdrop-filter: blur(12px) !important;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   }
+  .rl-modal-card {
+    max-height: 85vh !important;
+    overflow-y: auto !important;
+    scrollbar-width: thin !important;
+    scrollbar-color: #00c8ff rgba(0, 200, 255, 0.1) !important;
+  }
+  .rl-modal-card::-webkit-scrollbar {
+    width: 6px !important;
+  }
+  .rl-modal-card::-webkit-scrollbar-track {
+    background: rgba(0, 200, 255, 0.05) !important;
+    border-radius: 4px !important;
+  }
+  .rl-modal-card::-webkit-scrollbar-thumb {
+    background: #00c8ff !important;
+    border-radius: 4px !important;
+    box-shadow: 0 0 10px rgba(0, 200, 255, 0.5) !important;
+  }
   .rl-card:hover {
     border-color: rgba(0, 200, 255, 0.5) !important;
     box-shadow: 0 15px 40px rgba(0, 200, 255, 0.15) !important;
@@ -991,13 +1009,30 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
   const [hospitalsList, setHospitalsList] = useState([]);
 
   useEffect(() => {
-    if (isRegister) {
-      fetch(`${SERVER_URL}/api/hospitals`)
-        .then(res => res.json())
-        .then(data => setHospitalsList(data))
-        .catch(err => console.error('Failed to fetch hospitals list', err));
-    }
-  }, [isRegister]);
+    fetch(`${SERVER_URL}/api/hospitals`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setHospitalsList(data);
+        } else {
+          setHospitalsList([
+            { id: 'hosp-1', name: 'Apollo Trauma & Emergency Center' },
+            { id: 'hosp-2', name: 'City General Hospital' },
+            { id: 'hosp-3', name: 'Max Super Speciality Hospital' },
+            { id: 'hosp-4', name: 'Fortis Acute Care Unit' }
+          ]);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to fetch hospitals list', err);
+        setHospitalsList([
+          { id: 'hosp-1', name: 'Apollo Trauma & Emergency Center' },
+          { id: 'hosp-2', name: 'City General Hospital' },
+          { id: 'hosp-3', name: 'Max Super Speciality Hospital' },
+          { id: 'hosp-4', name: 'Fortis Acute Care Unit' }
+        ]);
+      });
+  }, []);
 
   // Registration 2FA Setup state
   const [regQrCode, setRegQrCode] = useState('');
@@ -1254,9 +1289,10 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
       position: 'fixed', inset: 0, zIndex: 9999,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       background: 'rgba(5,13,26,0.92)', backdropFilter: 'blur(8px)',
-      fontFamily: "'Rajdhani', sans-serif", padding: 20
+      fontFamily: "'Rajdhani', sans-serif", padding: '20px 10px',
+      overflowY: 'auto'
     }}>
-      <div className="rl-card" style={{ width: '100%', maxWidth: 460, padding: 32, position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
+      <div className="rl-card rl-modal-card" style={{ width: '100%', maxWidth: 480, padding: '28px 24px 32px 24px', position: 'relative' }}>
         <button onClick={onClose} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: 'rgba(160,200,255,0.6)', fontSize: 20, cursor: 'pointer' }}>✕</button>
         
         <h2 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 22, color: '#00c8ff', textAlign: 'center', marginBottom: 4, letterSpacing: '0.1em' }}>
