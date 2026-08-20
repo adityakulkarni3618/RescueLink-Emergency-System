@@ -87,4 +87,40 @@ router.put('/:id/settings', async (req, res) => {
   }
 });
 
+/**
+ * @route DELETE /api/ambulances/:id
+ * @desc Delete an ambulance and its associated paramedic user (Admin only)
+ */
+router.delete('/:id', verifyToken(['city_admin']), async (req, res) => {
+  try {
+    const { User } = require('../utils/db');
+    const amb = await Ambulance.findByPk(req.params.id);
+    if (!amb) {
+      return res.status(404).json({ error: 'Ambulance not found' });
+    }
+
+    // Delete associated paramedic user
+    const normalizedEmail = `${amb.vehicleNo.replace(/[\s\-]+/g, '').toLowerCase()}@rescuelink.com`;
+    await User.destroy({ where: { email: normalizedEmail } });
+
+    // Delete ambulance
+    await amb.destroy();
+
+    // Audit Log
+    await AuditLog.create({
+      user_id: req.user.id,
+      action: 'DELETE_AMBULANCE',
+      resource: 'Ambulance',
+      resource_id: req.params.id,
+      ip_address: req.ip || req.connection.remoteAddress,
+      details: { vehicleNo: amb.vehicleNo }
+    });
+
+    return res.json({ success: true, message: 'Ambulance and paramedic user deleted successfully' });
+  } catch (err) {
+    console.error('[AMBULANCES API] Delete failed:', err.message);
+    return res.status(500).json({ error: 'Failed to delete ambulance' });
+  }
+});
+
 module.exports = router;

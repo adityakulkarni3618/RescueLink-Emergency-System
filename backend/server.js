@@ -1814,6 +1814,22 @@ io.on('connection', (socket) => {
     role = 'ambulance';
 
     // FETCH PERSISTENT REGISTRY DATA
+    const { Ambulance, User } = require('./utils/db');
+    let ambulanceRecord = await Ambulance.findOne({
+      where: {
+        [require('sequelize').Op.or]: [
+          { id: unitId },
+          { vehicleNo: unitId },
+          { vehicleNo: unitId.split('@')[0].toUpperCase() }
+        ]
+      }
+    });
+
+    if (ambulanceRecord && !ambulanceRecord.is_active) {
+      console.log(`[SOCKET_LOG] registration rejected: Ambulance ${ambulanceRecord.vehicleNo} is inactive or pending approval`);
+      return socket.emit('error-alert', { message: 'PENDING_APPROVAL: Your ambulance registration is pending review by the City Administration.' });
+    }
+
     let account = await User.findOne({ where: { id: unitId } });
     if (!account) {
       account = await User.findOne({ where: { email: unitId } });
@@ -1825,8 +1841,8 @@ io.on('connection', (socket) => {
       name: account.name || data.name,
       contactInfo: account.mobile || data.contactInfo,
       driverName: account.driverName || data.driverName,
-      vehicleNo: account.vehicleNo || data.vehicleNo,
-      type: account.unitType || data.type
+      vehicleNo: account.vehicleNo || (ambulanceRecord && ambulanceRecord.vehicleNo) || data.vehicleNo,
+      type: account.unitType || (ambulanceRecord && ambulanceRecord.type) || data.type
     } : {};
 
     ambulances[socket.id] = { ...data, ...registryData, location: { lat, lng }, socketId: socket.id, available: true };
@@ -1889,12 +1905,16 @@ io.on('connection', (socket) => {
 
     // FETCH PERSISTENT REGISTRY DATA
     const account = await Hospital.findOne({ where: { id } });
-    const registryData = account ? {
+    if (!account || !account.is_active) {
+      console.log(`[SOCKET_LOG] registration rejected: Hospital is inactive or pending approval`);
+      return socket.emit('error-alert', { message: 'PENDING_APPROVAL: Your hospital registration is pending review by the City Administration.' });
+    }
+    const registryData = {
       lat: data.lat || data.pos?.lat || account.lat,
       lng: data.lng || data.pos?.lng || account.lng,
       name: account.name,
       contactInfo: account.contact_number
-    } : {};
+    };
 
     hospitals[socket.id] = { ...data, ...registryData, pos: { lat: data.lat || data.pos?.lat || account?.lat, lng: data.lng || data.pos?.lng || account?.lng }, socketId: socket.id, isBusy: false };
     socket.join('global_hospitals');
@@ -2144,6 +2164,18 @@ io.on('connection', (socket) => {
         whatsappService.notifyAmbulanceAssigned(driverMobile, reqId, activeRequests[reqId].userLocation);
         // WhatsApp Notify User
         whatsappService.notifyUserDispatched(userPhone, chosenCandidateId, 5);
+
+        // WhatsApp Notify Next-of-Kin (Family Emergency Alert)
+        const nokPhone = patientDetails?.emergencyContactPhone || patientDetails?.emergency_contact_phone;
+        if (nokPhone) {
+          whatsappService.notifyNextOfKinEmergency(
+            nokPhone,
+            patientDetails?.name || 'Emergency Patient',
+            chosenCandidateId,
+            'En Route to Emergency Site',
+            reqId
+          );
+        }
       }
 
       // FCM Push Notification for user/patient
@@ -2249,6 +2281,22 @@ io.on('connection', (socket) => {
     } else {
       req.status = 'ambulance_rejected';
       io.to(req.userSocket).emit('ambulance-request-response', { ...req, accepted: false });
+    }
+  });
+
+  socket.on('ambulance-telemetry-update', (data) => {
+    const { reqId, oxygenCapacityLiters } = data;
+    if (oxygenCapacityLiters !== undefined && Number(oxygenCapacityLiters) < 50 && Number(oxygenCapacityLiters) > 0) {
+      const warningPayload = {
+        reqId,
+        oxygenCapacityLiters: Number(oxygenCapacityLiters),
+        message: `⚠️ CRITICAL OXYGEN LOW (${oxygenCapacityLiters}L). Request cylinder swap at Hospital Bay!`
+      };
+      socket.emit('ambulance-oxygen-warning', warningPayload);
+      const req = activeRequests[reqId];
+      if (req && req.hospitalId) {
+        io.to(`hospital:${req.hospitalId}`).emit('hospital-oxygen-warning', warningPayload);
+      }
     }
   });
 
@@ -2418,6 +2466,51 @@ io.on('connection', (socket) => {
       const hospContact = hospitals[socket.id]?.contactInfo || '+1234567890';
       const etaMins = req.routePath ? Math.ceil(req.routePath.length / 10) : 10;
       whatsappService.notifyHospitalIncoming(hospContact, reqId, etaMins);
+
+      // Feature 1: Notify Next-of-Kin on Hospital Acceptance
+      const nokPhone = req.patientDetails?.emergencyContactPhone || req.patientDetails?.emergency_contact_phone;
+      if (nokPhone) {
+        whatsappService.notifyNextOfKinEmergency(
+          nokPhone,
+          req.patientDetails?.name || 'Emergency Patient',
+          req.unitId || 'EMS Unit',
+          hospitals[socket.id]?.name || 'Trauma Center',
+          req.id
+        );
+      }
+
+      // Feature 2: Auto-Trigger Instant Insurance Pre-Authorization
+      try {
+        const PMJAYService = require('./utils/pmjay');
+        const preAuthRes = await PMJAYService.requestPreAuth(
+          req.patientDetails?.name || 'Emergency Patient',
+          req.fieldReport?.condition || 'Acute Trauma Emergency',
+          150000,
+          req.hospitalId
+        );
+        req.insurancePreAuth = {
+          status: 'APPROVED',
+          claimId: preAuthRes.claimId || `AUTH-${Date.now()}`,
+          approvedAmount: preAuthRes.coverageAmount || 150000,
+          provider: req.patientDetails?.insuranceProvider || 'PMJAY National Health Scheme'
+        };
+        io.to(`hospital:${req.hospitalId}`).emit('insurance-preauth-updated', { reqId: req.id, preAuth: req.insurancePreAuth });
+      } catch (preAuthErr) {
+        console.warn('[PRE-AUTH] Automatic insurance pre-authorization warning:', preAuthErr.message);
+      }
+
+      // Feature 4: 30-Minute Bed & Ventilator Hold-Lock Reservation Timer
+      req.reservationLock = {
+        icuBedsHeld: 1,
+        ventilatorsHeld: 1,
+        expiresAt: Date.now() + (30 * 60 * 1000),
+        status: 'ACTIVE_HOLD'
+      };
+      io.to(`hospital:${req.hospitalId}`).emit('hospital-inventory-locked', {
+        reqId: req.id,
+        hospitalId: req.hospitalId,
+        reservationLock: req.reservationLock
+      });
 
       // FCM Push Notification for user/patient
       if (req.userSocketId) {

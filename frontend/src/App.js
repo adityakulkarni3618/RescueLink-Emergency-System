@@ -1224,7 +1224,10 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
       } else if (defaultRole === 'user') {
         payload = { email, password };
       } else {
-        payload = { email: `${hospitalName.replace(/\s+/g, '').toLowerCase()}@rescuelink.com`, password };
+        const finalEmail = (adminEmail && adminEmail.trim().includes('@'))
+          ? adminEmail.trim().toLowerCase()
+          : `${hospitalName.replace(/\s+/g, '').toLowerCase()}@rescuelink.com`;
+        payload = { email: finalEmail, password };
       }
       const dummyTokenResponse = await fetch(`${SERVER_URL}/api/auth/login`, {
         method: 'POST',
