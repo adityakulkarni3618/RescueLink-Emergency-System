@@ -372,6 +372,103 @@ router.get('/me', verifyToken(), async (req, res) => {
 });
 
 /**
+ * @route PUT /api/auth/profile
+ * @desc Update authenticated user profile info
+ */
+router.put('/profile', verifyToken(), async (req, res) => {
+  const { name, mobile, bloodGroup, allergies, chronicConditions, dob, gender, emergencyContactName, emergencyContactRelationship, emergencyContactPhone, insuranceProvider, policyNumber, groupNumber, consentToShareData, abhaNumber, abhaAddress } = req.body;
+  try {
+    const user = await User.findByPk(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User profile not found' });
+    }
+
+    if (name !== undefined) user.name = name;
+    if (mobile !== undefined) user.mobile = mobile;
+    if (bloodGroup !== undefined) user.blood_group = bloodGroup;
+    if (allergies !== undefined) user.allergies = allergies;
+    if (chronicConditions !== undefined) user.chronic_conditions = chronicConditions;
+    if (dob !== undefined) user.dob = dob;
+    if (gender !== undefined) user.gender = gender;
+    if (emergencyContactName !== undefined) user.emergency_contact_name = emergencyContactName;
+    if (emergencyContactRelationship !== undefined) user.emergency_contact_relationship = emergencyContactRelationship;
+    if (emergencyContactPhone !== undefined) user.emergency_contact_phone = emergencyContactPhone;
+    if (insuranceProvider !== undefined) user.insurance_provider = insuranceProvider;
+    if (policyNumber !== undefined) user.policy_number = policyNumber;
+    if (groupNumber !== undefined) user.group_number = groupNumber;
+    if (consentToShareData !== undefined) user.consent_to_share_data = consentToShareData;
+    if (abhaNumber !== undefined) user.abha_number = abhaNumber;
+    if (abhaAddress !== undefined) user.abha_address = abhaAddress;
+
+    await user.save();
+
+    console.log(`[AUTH] Profile updated successfully for user ${user.email}`);
+    
+    // Return sanitized updated user profile
+    const updated = user.get({ plain: true });
+    delete updated.password;
+    delete updated.refresh_token;
+    return res.json(updated);
+  } catch (err) {
+    console.error('[AUTH ERROR] Update profile handler error:', err);
+    return res.status(500).json({ error: 'Internal Server Error updating profile details' });
+  }
+});
+
+/**
+ * @route POST /api/auth/guest-emergency
+ * @desc Quick bypass login to request emergency dispatch under a guest token
+ */
+router.post('/guest-emergency', async (req, res) => {
+  const { phone, name } = req.body;
+  const guestId = `guest-${require('crypto').randomBytes(8).toString('hex')}`;
+  const guestName = name || 'Guest SOS Patient';
+  const guestPhone = phone || '9999999999';
+
+  try {
+    const accessToken = jwt.sign(
+      {
+        id: guestId,
+        name: guestName,
+        email: `${guestId}@rescuelink-guest.com`,
+        role: 'patient',
+        hospital_id: null,
+        isAmbulance: false,
+        isGuest: true
+      },
+      JWT_SECRET,
+      { expiresIn: '2h' }
+    );
+
+    await AuditLog.create({
+      user_id: null,
+      action: 'GUEST_EMERGENCY_SOS_ACCESS',
+      resource: 'User',
+      resource_id: null,
+      ip_address: req.ip || req.connection.remoteAddress,
+      details: { guestId, phone: guestPhone }
+    });
+
+    console.log(`[AUTH] Guest emergency token issued: ${guestId}`);
+    return res.json({
+      token: accessToken,
+      user: {
+        id: guestId,
+        name: guestName,
+        email: `${guestId}@rescuelink-guest.com`,
+        role: 'patient',
+        hospital_id: null,
+        mobile: guestPhone,
+        isGuest: true
+      }
+    });
+  } catch (err) {
+    console.error('[AUTH ERROR] Guest emergency login failed:', err);
+    return res.status(500).json({ error: 'Failed to issue guest token' });
+  }
+});
+
+/**
  * @route POST /api/auth/refresh
  * @desc Rotate refresh token and generate new access token
  */
@@ -418,8 +515,12 @@ router.post('/refresh', async (req, res) => {
  * @route POST /api/auth/register-ambulance
  * @desc Register a new paramedic ambulance unit with speakeasy 2FA setup
  */
+/**
+ * @route POST /api/auth/register-ambulance
+ * @desc Register a new paramedic ambulance unit with speakeasy 2FA setup
+ */
 router.post('/register-ambulance', async (req, res) => {
-  const { vehicleNo, driverName, contactInfo, type, password } = req.body;
+  const { vehicleNo, driverName, contactInfo, type, password, hospitalId, equipmentChecklist, crewMembers, licenseNumber, licenseExpiry, isSystemStandard, oxygenCapacityLiters } = req.body;
   if (!vehicleNo || !driverName || !contactInfo || !password) {
     return res.status(400).json({ error: 'vehicleNo, driverName, contactInfo, and password are required' });
   }
@@ -453,7 +554,14 @@ router.post('/register-ambulance', async (req, res) => {
       type: type || 'BLS',
       password: passwordHash,
       totp_secret: setupData.secret,
-      is_active: true
+      is_active: true,
+      hospital_id: hospitalId || null,
+      equipment_checklist: JSON.stringify(equipmentChecklist || []),
+      crew_members: JSON.stringify(crewMembers || []),
+      license_number: licenseNumber || null,
+      license_expiry: licenseExpiry || null,
+      is_system_standard: isSystemStandard !== undefined ? isSystemStandard : true,
+      oxygen_capacity_liters: parseInt(oxygenCapacityLiters) || 0
     });
 
     await User.create({
@@ -479,25 +587,92 @@ router.post('/register-ambulance', async (req, res) => {
 });
 
 /**
+ * @route POST /api/auth/register-patient
+ * @desc Register a new patient profile with speakeasy 2FA setup
+ */
+router.post('/register-patient', async (req, res) => {
+  const { name, email, password, mobile, abhaNumber, abhaAddress, bloodGroup, allergies, chronicConditions, dob, gender, emergencyContactName, emergencyContactRelationship, emergencyContactPhone, insuranceProvider, policyNumber, groupNumber, consentToShareData } = req.body;
+  if (!name || !email || !password) {
+    return res.status(400).json({ error: 'Name, email, and password are required' });
+  }
+
+  try {
+    const { User } = require('../utils/db');
+    const existing = await User.findOne({ where: { email: email.toLowerCase() } });
+    if (existing) {
+      return res.status(400).json({ error: 'Email account already registered' });
+    }
+
+    const bcrypt = require('bcryptjs');
+    const passwordHash = await bcrypt.hash(password, 10);
+    const twoFactor = require('../utils/twoFactor');
+    const setupData = await twoFactor.generateSecret(name.replace(/\s+/g, ''), email.toLowerCase());
+
+    const newPatient = await User.create({
+      name,
+      email: email.toLowerCase(),
+      password: passwordHash,
+      role: 'patient',
+      mobile: mobile || '',
+      totp_secret: setupData.secret,
+      is_active: true,
+      abha_number: abhaNumber || null,
+      abha_address: abhaAddress || null,
+      blood_group: bloodGroup || null,
+      allergies: allergies || null,
+      chronic_conditions: chronicConditions || null,
+      dob: dob || null,
+      gender: gender || null,
+      emergency_contact_name: emergencyContactName || null,
+      emergency_contact_relationship: emergencyContactRelationship || null,
+      emergency_contact_phone: emergencyContactPhone || null,
+      insurance_provider: insuranceProvider || null,
+      policy_number: policyNumber || null,
+      group_number: groupNumber || null,
+      consent_to_share_data: consentToShareData || false
+    });
+
+    return res.json({
+      success: true,
+      qrCode: setupData.qr_code_base64,
+      tempSecret: setupData.secret,
+      message: 'Patient registered successfully. Scan the QR code to set up Two-Factor Authentication.'
+    });
+  } catch (err) {
+    console.error('[AUTH ERROR] register-patient failed:', err);
+    return res.status(500).json({ error: `Internal Server Error during patient registration: ${err.message}` });
+  }
+});
+
+/**
  * @route POST /api/auth/register-hospital
  * @desc Register a new hospital unit with speakeasy 2FA setup
  */
 router.post('/register-hospital', async (req, res) => {
-  const { name, contactInfo, lat, lng, totalBeds, icuBeds, ventilators, password } = req.body;
+  const { name, contactInfo, lat, lng, totalBeds, icuBeds, ventilators, password, licenseNumber, departments, bayCapacity, adminEmail, traumaTier, accreditationId } = req.body;
   if (!name || !contactInfo || !lat || !lng || !password) {
     return res.status(400).json({ error: 'name, contactInfo, lat, lng, and password are required' });
   }
 
   try {
-    const { Hospital } = require('../utils/db');
+    const { Hospital, User } = require('../utils/db');
     const existing = await Hospital.findOne({ where: { name } });
     if (existing) {
       return res.status(400).json({ error: 'Hospital name already registered' });
     }
 
+    const finalAdminEmail = (adminEmail && adminEmail.includes('@')) 
+      ? adminEmail.toLowerCase() 
+      : `${name.replace(/\s+/g, '').toLowerCase()}@rescuelink.com`;
+
+    const existingUser = await User.findOne({ where: { email: finalAdminEmail } });
+    if (existingUser) {
+      return res.status(400).json({ error: 'Admin email account already registered' });
+    }
+
     const passwordHash = await bcrypt.hash(password, 10);
     const twoFactor = require('../utils/twoFactor');
-    const setupData = await twoFactor.generateSecret(name.replace(/\s+/g, ''), `${name.replace(/\s+/g, '')}@rescuelink.com`);
+    const setupData = await twoFactor.generateSecret(name.replace(/\s+/g, ''), finalAdminEmail);
 
     const newHospital = await Hospital.create({
       name,
@@ -507,12 +682,17 @@ router.post('/register-hospital', async (req, res) => {
       total_beds: parseInt(totalBeds) || 50,
       icu_beds: parseInt(icuBeds) || 5,
       ventilators: parseInt(ventilators) || 2,
-      is_active: true
+      is_active: true,
+      license_number: licenseNumber || null,
+      departments: JSON.stringify(departments || []),
+      bay_capacity: parseInt(bayCapacity) || 5,
+      trauma_tier: traumaTier || null,
+      acacreditation_id: accreditationId || null
     });
 
     await User.create({
       name: `${name} Administrator`,
-      email: `${name.replace(/\s+/g, '').toLowerCase()}@rescuelink.com`,
+      email: finalAdminEmail,
       password: passwordHash,
       role: 'hospital_admin',
       mobile: contactInfo,

@@ -5,7 +5,7 @@ let useSqlite = process.env.FORCE_SQLITE === 'true';
 const dbHost = process.env.DB_HOST || 'localhost';
 const dbPort = process.env.DB_PORT || 5432;
 
-if (!useSqlite) {
+if (!useSqlite && !process.env.DATABASE_URL) {
   try {
     // Run a quick synchronous TCP socket check to verify database connectivity
     const checkCmd = `node -e "
@@ -33,22 +33,40 @@ const sequelize = useSqlite
         idle: 10000
       }
     })
-  : new Sequelize(
-      process.env.DB_NAME || 'rescuelink',
-      process.env.DB_USER || 'postgres',
-      process.env.DB_PASSWORD || 'your_password',
-      {
-        host: dbHost,
-        port: dbPort,
-        dialect: 'postgres',
-        logging: process.env.NODE_ENV === 'development' ? (msg) => console.log(`[DB LOG] ${msg}`) : false,
-        pool: {
-          max: 20, // Real-time production pool size
-          min: 2,
-          acquire: 30000,
-          idle: 10000
-        }
-      }
+  : (process.env.DATABASE_URL
+      ? new Sequelize(process.env.DATABASE_URL, {
+          dialect: 'postgres',
+          dialectOptions: {
+            ssl: {
+              require: true,
+              rejectUnauthorized: false
+            }
+          },
+          logging: process.env.NODE_ENV === 'development' ? (msg) => console.log(`[DB LOG] ${msg}`) : false,
+          pool: {
+            max: 20,
+            min: 2,
+            acquire: 30000,
+            idle: 10000
+          }
+        })
+      : new Sequelize(
+          process.env.DB_NAME || 'rescuelink',
+          process.env.DB_USER || 'postgres',
+          process.env.DB_PASSWORD || 'your_password',
+          {
+            host: dbHost,
+            port: dbPort,
+            dialect: 'postgres',
+            logging: process.env.NODE_ENV === 'development' ? (msg) => console.log(`[DB LOG] ${msg}`) : false,
+            pool: {
+              max: 20, // Real-time production pool size
+              min: 2,
+              acquire: 30000,
+              idle: 10000
+            }
+          }
+        )
     );
 
 // Import models
@@ -67,8 +85,18 @@ const Consent = require('../models/Consent')(sequelize);
 const Ambulance = require('../models/Ambulance')(sequelize);
 const DoctorHospital = require('../models/DoctorHospital')(sequelize);
 const ChronicLog = require('../models/ChronicLog')(sequelize);
+const Prescription = require('../models/Prescription')(sequelize);
 
 // Define relations / associations
+Patient.hasMany(Prescription, { foreignKey: 'patient_id', as: 'prescriptions' });
+Prescription.belongsTo(Patient, { foreignKey: 'patient_id', as: 'patient' });
+
+Incident.hasMany(Prescription, { foreignKey: 'incident_id', as: 'prescriptions' });
+Prescription.belongsTo(Incident, { foreignKey: 'incident_id', as: 'incident' });
+
+Hospital.hasMany(Prescription, { foreignKey: 'hospital_id', as: 'prescriptions' });
+Prescription.belongsTo(Hospital, { foreignKey: 'hospital_id', as: 'hospital' });
+
 Hospital.hasMany(User, { foreignKey: 'hospital_id', as: 'users' });
 User.belongsTo(Hospital, { foreignKey: 'hospital_id', as: 'hospital' });
 
@@ -219,6 +247,7 @@ module.exports = {
   Ambulance,
   DoctorHospital,
   ChronicLog,
+  Prescription,
   syncDatabase,
   healthCheck,
   closeDatabase

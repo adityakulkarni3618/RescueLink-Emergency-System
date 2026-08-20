@@ -386,6 +386,7 @@ const erasureRouter = require('./routes/erasure');
 const disasterRouter = require('./routes/disaster');
 const syncRouter = require('./routes/sync');
 const chronicRouter = require('./routes/chronic');
+const prescriptionsRouter = require('./routes/prescriptions');
 app.use('/api/his', hisRouter);
 app.use('/api/tele', telemedicineRouter);
 app.use('/api/mfa', mfaRouter);
@@ -394,6 +395,7 @@ app.use('/api/erasure', erasureRouter);
 app.use('/api/disaster', disasterRouter);
 app.use('/api/sync', syncRouter);
 app.use('/api/chronic', chronicRouter);
+app.use('/api/prescriptions', prescriptionsRouter);
 
 app.get('/health', (req, res) => {
   res.json({
@@ -3100,15 +3102,24 @@ io.on('connection', (newSocket) => {
     activeGreenCorridors[corridorId] = corridor;
     io.to('admin_warroom').emit('green-corridor-request', corridor);
     io.emit('green-corridor-active', corridor); // Broadcast to all clients
+    io.to(`mission_${reqId}`).emit('green-corridor-status', { reqId, active: true });
     console.log(`[GREEN CORRIDOR] Requested for mission ${reqId}`);
+  });
+
+  newSocket.on('green-corridor-status', (data) => {
+    const { reqId, active } = data;
+    io.to(`mission_${reqId}`).emit('green-corridor-status', { reqId, active });
+    console.log(`[GREEN CORRIDOR] Status toggle for mission ${reqId}: ${active}`);
   });
 
   newSocket.on('green-corridor-approve', (data) => {
     const { corridorId } = data;
     if (activeGreenCorridors[corridorId]) {
-      activeGreenCorridors[corridorId].status = 'approved';
-      activeGreenCorridors[corridorId].approvedAt = new Date().toISOString();
-      io.emit('green-corridor-approved', activeGreenCorridors[corridorId]);
+      const gc = activeGreenCorridors[corridorId];
+      gc.status = 'approved';
+      gc.approvedAt = new Date().toISOString();
+      io.emit('green-corridor-approved', gc);
+      io.to(`mission_${gc.reqId}`).emit('green-corridor-status', { reqId: gc.reqId, active: true });
       console.log(`[GREEN CORRIDOR] Approved: ${corridorId}`);
     }
   });

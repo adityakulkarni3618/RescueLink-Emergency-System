@@ -573,6 +573,19 @@ export default function UserDashboard({ socket, connected }) {
     if (!socket || !connected) return;
     socket.emit('register-user', { userId, location: userLocation });
 
+    if (sessionStorage.getItem('guest_auto_sos') === 'true' && userLocation) {
+      sessionStorage.removeItem('guest_auto_sos');
+      const sessionUserStr = sessionStorage.getItem('rescuelink_user');
+      let phone = '9999999999';
+      if (sessionUserStr) {
+        try {
+          const u = JSON.parse(sessionUserStr);
+          phone = u.mobile || phone;
+        } catch (e) {}
+      }
+      requestAmbulance(null, true, phone);
+    }
+
     const onRejoin = (data) => {
       console.log(`[PERSISTENCE] Rejoined mission ${data.id}`);
       setMissions(prev => ({ ...prev, [data.id]: { ...data, status: data.status === 'pending_ambulance' ? 'searching' : 'accepted' } }));
@@ -666,6 +679,12 @@ export default function UserDashboard({ socket, connected }) {
       playAlertBeep();
     });
 
+    socket.on('green-corridor-status', (data) => {
+      if (data && data.reqId === currentReqId) {
+        setGreenCorridorActive(data.active);
+      }
+    });
+
     socket.on('mission-completed', (data) => {
       const compReqId = data?.reqId;
       console.log(`[MISSION] Completion received for ${compReqId}.`);
@@ -713,6 +732,7 @@ export default function UserDashboard({ socket, connected }) {
       socket.off('request-acknowledged');
       socket.off('mission-completed');
       socket.off('hospital-request-response');
+      socket.off('green-corridor-status');
     };
   }, [socket, connected, userId, userLocation, currentReqId, assignedAmbulanceId, ambulances]);
 
