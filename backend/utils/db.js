@@ -5,7 +5,7 @@ let useSqlite = process.env.FORCE_SQLITE === 'true';
 const dbHost = process.env.DB_HOST || 'localhost';
 const dbPort = process.env.DB_PORT || 5432;
 
-if (!useSqlite) {
+if (!useSqlite && !process.env.DATABASE_URL) {
   try {
     // Run a quick synchronous TCP socket check to verify database connectivity
     const checkCmd = `node -e "
@@ -33,22 +33,40 @@ const sequelize = useSqlite
         idle: 10000
       }
     })
-  : new Sequelize(
-      process.env.DB_NAME || 'rescuelink',
-      process.env.DB_USER || 'postgres',
-      process.env.DB_PASSWORD || 'your_password',
-      {
-        host: dbHost,
-        port: dbPort,
-        dialect: 'postgres',
-        logging: process.env.NODE_ENV === 'development' ? (msg) => console.log(`[DB LOG] ${msg}`) : false,
-        pool: {
-          max: 20, // Real-time production pool size
-          min: 2,
-          acquire: 30000,
-          idle: 10000
-        }
-      }
+  : (process.env.DATABASE_URL
+      ? new Sequelize(process.env.DATABASE_URL, {
+          dialect: 'postgres',
+          dialectOptions: {
+            ssl: {
+              require: true,
+              rejectUnauthorized: false
+            }
+          },
+          logging: process.env.NODE_ENV === 'development' ? (msg) => console.log(`[DB LOG] ${msg}`) : false,
+          pool: {
+            max: 20,
+            min: 2,
+            acquire: 30000,
+            idle: 10000
+          }
+        })
+      : new Sequelize(
+          process.env.DB_NAME || 'rescuelink',
+          process.env.DB_USER || 'postgres',
+          process.env.DB_PASSWORD || 'your_password',
+          {
+            host: dbHost,
+            port: dbPort,
+            dialect: 'postgres',
+            logging: process.env.NODE_ENV === 'development' ? (msg) => console.log(`[DB LOG] ${msg}`) : false,
+            pool: {
+              max: 20, // Real-time production pool size
+              min: 2,
+              acquire: 30000,
+              idle: 10000
+            }
+          }
+        )
     );
 
 // Import models
