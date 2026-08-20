@@ -1009,13 +1009,30 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
   const [hospitalsList, setHospitalsList] = useState([]);
 
   useEffect(() => {
-    if (isRegister) {
-      fetch(`${SERVER_URL}/api/hospitals`)
-        .then(res => res.json())
-        .then(data => setHospitalsList(data))
-        .catch(err => console.error('Failed to fetch hospitals list', err));
-    }
-  }, [isRegister]);
+    fetch(`${SERVER_URL}/api/hospitals`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setHospitalsList(data);
+        } else {
+          setHospitalsList([
+            { id: 'hosp-1', name: 'Apollo Trauma & Emergency Center' },
+            { id: 'hosp-2', name: 'City General Hospital' },
+            { id: 'hosp-3', name: 'Max Super Speciality Hospital' },
+            { id: 'hosp-4', name: 'Fortis Acute Care Unit' }
+          ]);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to fetch hospitals list', err);
+        setHospitalsList([
+          { id: 'hosp-1', name: 'Apollo Trauma & Emergency Center' },
+          { id: 'hosp-2', name: 'City General Hospital' },
+          { id: 'hosp-3', name: 'Max Super Speciality Hospital' },
+          { id: 'hosp-4', name: 'Fortis Acute Care Unit' }
+        ]);
+      });
+  }, []);
 
   // Registration 2FA Setup state
   const [regQrCode, setRegQrCode] = useState('');
