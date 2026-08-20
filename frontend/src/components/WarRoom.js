@@ -545,6 +545,7 @@ export default function WarRoom({ socket, connected }) {
                 { id: 'blood_bank', label: '🩸 NATIONAL BLOOD NETWORK' },
                 { id: 'telemedicine', label: '📹 TELEMEDICINE STATUS' },
                 { id: 'privacy', label: '🔐 PRIVACY & ERASURE (DPDP)' },
+                { id: 'approvals', label: '🛡️ REGISTRATION APPROVALS' },
                 { id: 'authority', label: '👥 REGISTER AUTHORITY' },
                 { id: 'ledger', label: '⛓️ CRYPTOGRAPHIC AUDIT LEDGER' }
               ].map(tab => (
@@ -576,6 +577,7 @@ export default function WarRoom({ socket, connected }) {
                     { id: 'blood_bank', label: '🩸 NATIONAL BLOOD NETWORK' },
                     { id: 'telemedicine', label: '📹 TELEMEDICINE STATUS' },
                     { id: 'privacy', label: '🔐 PRIVACY & ERASURE (DPDP)' },
+                    { id: 'approvals', label: '🛡️ REGISTRATION APPROVALS' },
                     { id: 'authority', label: '👥 REGISTER AUTHORITY' },
                     { id: 'ledger', label: '⛓️ CRYPTOGRAPHIC AUDIT LEDGER' }
                   ].map(tab => (
@@ -759,6 +761,10 @@ export default function WarRoom({ socket, connected }) {
 
           {activeTab === 'ledger' && (
             <LedgerExplorer />
+          )}
+
+          {activeTab === 'approvals' && (
+            <RegistrationApprovals />
           )}
 
           {activeTab === 'authority' && (() => {
@@ -1455,6 +1461,189 @@ function LedgerExplorer() {
           })
         )}
       </div>
+    </div>
+  );
+}
+
+function RegistrationApprovals() {
+  const [hospitals, setHospitals] = useState([]);
+  const [ambulances, setAmbulances] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const token = sessionStorage.getItem('rescuelink_token') || '';
+      const headers = { 'Authorization': `Bearer ${token}` };
+      const [hospRes, ambRes] = await Promise.all([
+        fetch('/api/hospitals/all', { headers }),
+        fetch('/api/ambulances', { headers })
+      ]);
+      
+      if (hospRes.ok && ambRes.ok) {
+        const hospData = await hospRes.json();
+        const ambData = await ambRes.json();
+        setHospitals(hospData.filter(h => !h.is_active));
+        setAmbulances(ambData.filter(a => !a.is_active));
+      }
+    } catch (err) {
+      console.error('[APPROVALS] Fetch failed:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleApprove = async (type, id) => {
+    try {
+      const token = sessionStorage.getItem('rescuelink_token') || '';
+      const endpoint = type === 'hospital' ? `/api/hospitals/${id}` : `/api/ambulances/${id}/settings`;
+      const response = await fetch(endpoint, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ is_active: true })
+      });
+      if (response.ok) {
+        alert('Registration approved successfully!');
+        fetchData();
+      } else {
+        const err = await response.json();
+        alert(err.error || 'Failed to approve registration');
+      }
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  };
+
+  const handleReject = async (type, id) => {
+    if (!window.confirm(`Are you sure you want to REJECT and delete this ${type} registration?`)) return;
+    try {
+      const token = sessionStorage.getItem('rescuelink_token') || '';
+      const endpoint = type === 'hospital' ? `/api/hospitals/${id}` : `/api/ambulances/${id}`;
+      const response = await fetch(endpoint, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        alert('Registration rejected and removed from system.');
+        fetchData();
+      } else {
+        const err = await response.json();
+        alert(err.error || 'Failed to reject registration');
+      }
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  };
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', background: 'rgba(5,15,40,0.8)', borderRadius: 10, padding: 24, border: '1px solid rgba(0,255,136,0.15)', display: 'flex', flexDirection: 'column' }}>
+      <h3 style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#00ff88', borderBottom: '1px solid rgba(0,255,136,0.2)', paddingBottom: 10, margin: '0 0 20px', letterSpacing: '0.1em' }}>
+        🛡️ REGISTRATION APPROVAL CENTER
+      </h3>
+      <p style={{ fontSize: 12, color: 'rgba(160,200,255,0.6)', lineHeight: 1.6, marginBottom: 24 }}>
+        Review and authorize pending hospital and emergency ambulance registrations to prevent unauthorized system entries.
+      </p>
+
+      {loading ? (
+        <div style={{ color: 'rgba(160,200,255,0.4)', fontStyle: 'italic', fontSize: 12 }}>Loading pending registrations...</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 30 }}>
+          
+          {/* Pending Hospitals */}
+          <div>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>🏥 PENDING HOSPITALS</span>
+              <span style={{ fontSize: 9, background: 'rgba(0,200,255,0.15)', padding: '2px 6px', borderRadius: 10, color: '#00c8ff', fontFamily: "'Share Tech Mono'" }}>{hospitals.length}</span>
+            </div>
+            {hospitals.length === 0 ? (
+              <div style={{ padding: 16, background: 'rgba(255,255,255,0.02)', borderRadius: 8, color: 'rgba(160,200,255,0.4)', fontSize: 11, fontStyle: 'italic' }}>
+                No pending hospital registrations.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {hospitals.map(h => (
+                  <div key={h.id} style={{ background: 'rgba(0,10,30,0.5)', border: '1px solid rgba(0,200,255,0.15)', borderRadius: 8, padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 'bold', color: '#fff' }}>{h.name}</div>
+                      <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', marginTop: 4, fontFamily: "'Share Tech Mono'" }}>
+                        LIC: {h.license_number || 'N/A'} | Beds: {h.total_beds} (ICU: {h.icu_beds}) | Vents: {h.ventilators}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', marginTop: 4 }}>
+                        📞 Contact: {h.contact_number} | Tier: {h.trauma_tier || 'N/A'}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <button
+                        onClick={() => handleApprove('hospital', h.id)}
+                        style={{ padding: '8px 16px', background: 'rgba(0,255,136,0.15)', border: '1px solid #00ff88', borderRadius: 6, color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 'bold', cursor: 'pointer' }}
+                      >
+                        APPROVE
+                      </button>
+                      <button
+                        onClick={() => handleReject('hospital', h.id)}
+                        style={{ padding: '8px 16px', background: 'rgba(255,68,68,0.1)', border: '1px solid #ff4444', borderRadius: 6, color: '#ff4444', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 'bold', cursor: 'pointer' }}
+                      >
+                        REJECT
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Pending Ambulances */}
+          <div>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#ff8855', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>🚑 PENDING AMBULANCES</span>
+              <span style={{ fontSize: 9, background: 'rgba(255,107,53,0.15)', padding: '2px 6px', borderRadius: 10, color: '#ff6b35', fontFamily: "'Share Tech Mono'" }}>{ambulances.length}</span>
+            </div>
+            {ambulances.length === 0 ? (
+              <div style={{ padding: 16, background: 'rgba(255,255,255,0.02)', borderRadius: 8, color: 'rgba(160,200,255,0.4)', fontSize: 11, fontStyle: 'italic' }}>
+                No pending ambulance registrations.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {ambulances.map(a => (
+                  <div key={a.id} style={{ background: 'rgba(0,10,30,0.5)', border: '1px solid rgba(255,107,53,0.15)', borderRadius: 8, padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 'bold', color: '#fff' }}>{a.vehicleNo} ({a.type})</div>
+                      <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', marginTop: 4, fontFamily: "'Share Tech Mono'" }}>
+                        LIC: {a.license_number || 'N/A'} | O2 Capacity: {a.oxygen_capacity_liters}L
+                      </div>
+                      <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', marginTop: 4 }}>
+                        👤 Driver: {a.driverName} | 📞 Contact: {a.contactInfo}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <button
+                        onClick={() => handleApprove('ambulance', a.id)}
+                        style={{ padding: '8px 16px', background: 'rgba(0,255,136,0.15)', border: '1px solid #00ff88', borderRadius: 6, color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 'bold', cursor: 'pointer' }}
+                      >
+                        APPROVE
+                      </button>
+                      <button
+                        onClick={() => handleReject('ambulance', a.id)}
+                        style={{ padding: '8px 16px', background: 'rgba(255,68,68,0.1)', border: '1px solid #ff4444', borderRadius: 6, color: '#ff4444', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 'bold', cursor: 'pointer' }}
+                      >
+                        REJECT
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+        </div>
+      )}
     </div>
   );
 }
