@@ -19,16 +19,16 @@ jobs:
       with:
         node-version: 18.x
         cache: 'npm'
-        cache-dependency-path: server/package-lock.json
+        cache-dependency-path: backend/package-lock.json
 
     - name: Install Backend Dependencies
       run: |
-        cd server
+        cd backend
         npm ci
 
     - name: Run Backend Tests
       run: |
-        cd server
+        cd backend
         npm test
       env:
         NODE_ENV: test
