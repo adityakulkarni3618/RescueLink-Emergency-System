@@ -252,7 +252,7 @@ export default function UserDashboard({ socket, connected }) {
   const [erasureReason, setErasureReason] = useState('');
   const [consentGranted, setConsentGranted] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const SERVER_URL_CONST = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
+  const SERVER_URL_CONST = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
 
   useEffect(() => {
     const syncUserHash = () => {
@@ -395,7 +395,7 @@ export default function UserDashboard({ socket, connected }) {
     setTempNationalId(nationalId);
     
     try {
-      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
+      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
       const res = await fetch(`${SERVER_URL}/api/auth/lookup-abha/${nationalId}`);
       const data = await res.json();
       

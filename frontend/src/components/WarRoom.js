@@ -154,7 +154,7 @@ export default function WarRoom({ socket, connected }) {
       if (!loc || !loc.lat || !loc.lng) return;
       setAiLoading(true);
       try {
-        const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
+        const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
         const res = await fetch(`${SERVER_URL}/api/ai/predictive-hospital`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -309,7 +309,7 @@ export default function WarRoom({ socket, connected }) {
 
   const handleLogin = async () => {
     try {
-      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
+      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -407,7 +407,7 @@ export default function WarRoom({ socket, connected }) {
 
     const poll = async () => {
       try {
-        const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
+        const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
         const headers = { 'Authorization': `Bearer ${token || ''}` };
         const [statusRes, analyticsRes] = await Promise.all([
           fetch('/api/status', { headers }),
@@ -768,10 +768,10 @@ export default function WarRoom({ socket, connected }) {
               <div style={{ fontFamily: "'Orbitron'", fontSize: 13, color: '#00ff88', marginBottom: 12 }}>🔐 DPDP ACT 2023 - RIGHT TO ERASURE & AUDIT CENTER</div>
               
               {/* Review pending erasures */}
-              <PendingErasureReviews SERVER_URL_CONST={process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin)} />
+              <PendingErasureReviews SERVER_URL_CONST={process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com')} />
               
               {/* General Consent Access Logs */}
-              <ConsentAccessLogs SERVER_URL_CONST={process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin)} />
+              <ConsentAccessLogs SERVER_URL_CONST={process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com')} />
             </div>
           )}
 
@@ -1255,7 +1255,7 @@ function AuthorityRegistrationForm() {
   const [authorities, setAuthorities] = useState([]);
   const [listLoading, setListLoading] = useState(true);
 
-  const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
+  const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
 
   const fetchAuthorities = async () => {
     setListLoading(true);
@@ -1407,7 +1407,7 @@ function LedgerExplorer() {
   const fetchLogs = async () => {
     setLoading(true);
     try {
-      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
+      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
       const res = await fetch(`${SERVER_URL}/api/audit/blockchain-explorer`);
       const data = await res.json();
       if (res.ok) {
@@ -1668,4 +1668,5 @@ function RegistrationApprovals() {
     </div>
   );
 }
+
 

@@ -9,7 +9,7 @@ export function MfaVerifyScreen({ mfaToken, onLoginSuccess, onCancel, ParticleCa
     e.preventDefault();
     setError('');
     setLoading(true);
-    const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
+    const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
     try {
       const response = await fetch(`${SERVER_URL}/api/auth/verify-mfa`, {
         method: 'POST',
@@ -136,3 +136,4 @@ export function MfaVerifyScreen({ mfaToken, onLoginSuccess, onCancel, ParticleCa
     </div>
   );
 }
+
