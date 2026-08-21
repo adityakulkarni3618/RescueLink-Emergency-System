@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
+const getServerUrl = () => process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
 
 const SEVERITY_COLORS = {
   CRITICAL: { bg: 'rgba(255,30,30,0.15)', border: '#ff3333', text: '#ff5555', badge: '#ff2222' },
@@ -91,7 +91,7 @@ export default function AIEmergencyCopilot({ onAnalysisComplete, onClose }) {
     setError('');
     setResult(null);
     try {
-      const res = await fetch(`${SERVER_URL}/api/ai/copilot`, {
+      const res = await fetch(`${getServerUrl()}/api/ai/copilot`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symptoms: text })
