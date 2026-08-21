@@ -16,6 +16,7 @@ import HeartbeatViz from './HeartbeatViz';
 import HospitalAnalytics from './HospitalAnalytics';
 import BloodEmergencyNetwork from './BloodEmergencyNetwork';
 import { MfaVerifyScreen } from './MfaVerifyScreen';
+import OfflineTileLayer from './OfflineTileLayer';
 import * as THREE from 'three';
 
 
@@ -3937,7 +3938,7 @@ export default function HospitalDashboard({ socket, connected }) {
                           style={{ height: '100%', width: '100%', background: '#050d1a' }}
                           zoomControl={false}
                         >
-                          <TileLayer
+                          <OfflineTileLayer
                             url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
                             attribution='&copy; OpenStreetMap &copy; CARTO'
                           />
