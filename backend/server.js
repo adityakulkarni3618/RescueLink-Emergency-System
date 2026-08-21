@@ -2292,6 +2292,31 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('ambulance:obd-telemetry', async (data) => {
+    const { unitId, engineTemp, fuelLevel, batteryVoltage, faultCodes } = data;
+    try {
+      const { Ambulance } = require('./utils/db');
+      const amb = await Ambulance.findOne({ where: { vehicleNo: unitId } });
+      if (amb) {
+        amb.engine_temp = parseFloat(engineTemp) || null;
+        amb.fuel_level = parseFloat(fuelLevel) || null;
+        amb.battery_voltage = parseFloat(batteryVoltage) || null;
+        amb.diagnostic_fault_codes = JSON.stringify(faultCodes || []);
+        await amb.save();
+
+        io.to('admin_warroom').emit('warroom:obd-telemetry-update', {
+          unitId,
+          engineTemp,
+          fuelLevel,
+          batteryVoltage,
+          faultCodes
+        });
+      }
+    } catch (err) {
+      console.error('[OBD-II TELEMETRY DB ERROR]', err.message);
+    }
+  });
+
   socket.on('request-hospital', (data) => {
     console.log(`[SOCKET_LOG] request-hospital received for reqId: ${data.reqId}, broadcast: ${data.broadcast || false}, targetSocket: ${data.hospitalSocketId || 'none'}`);
     let req = activeRequests[data.reqId];
