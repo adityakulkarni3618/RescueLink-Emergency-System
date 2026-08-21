@@ -20,6 +20,17 @@ class WhatsAppService {
   }
 
   async sendSMS(to, message) {
+    try {
+      const smppService = require('./smppService');
+      const response = await smppService.sendSMS(to, message);
+      if (response && !response.mock) {
+        console.log(`[SMS-SMPP] Dispatched successfully via SMPP gateway: ${response.messageId}`);
+        return response;
+      }
+    } catch (smppErr) {
+      console.warn(`[SMS-SMPP WARNING] SMPP dispatcher failed: ${smppErr.message}. Falling back to default SMS client.`);
+    }
+
     if (this.isMock) {
       console.log(`[SMS MOCK] To: ${to} | Message: ${message}`);
       return;

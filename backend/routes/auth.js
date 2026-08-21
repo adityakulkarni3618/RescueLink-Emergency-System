@@ -526,6 +526,12 @@ router.post('/register-ambulance', async (req, res) => {
   }
 
   try {
+    const { validateAmbulanceVehicle } = require('../utils/nationalRegistries');
+    const verification = await validateAmbulanceVehicle(vehicleNo);
+    if (!verification.success) {
+      return res.status(400).json({ error: verification.reason });
+    }
+
     const { Ambulance, User } = require('../utils/db');
     const normalizedEmail = `${vehicleNo.replace(/[\s\-]+/g, '').toLowerCase()}@rescuelink.com`;
     const existingAmb = await Ambulance.findOne({
@@ -655,6 +661,14 @@ router.post('/register-hospital', async (req, res) => {
   }
 
   try {
+    const { validateHospitalFacility } = require('../utils/nationalRegistries');
+    if (licenseNumber) {
+      const verification = await validateHospitalFacility(licenseNumber);
+      if (!verification.success) {
+        return res.status(400).json({ error: verification.reason });
+      }
+    }
+
     const { Hospital, User } = require('../utils/db');
     const existing = await Hospital.findOne({ where: { name } });
     if (existing) {

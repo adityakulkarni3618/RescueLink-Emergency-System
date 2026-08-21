@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import VideoCall from './VideoCall';
 import { showAlert } from '../utils/alert';
+import { offlineQueue } from '../utils/IndexedDBBridge';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import PhysiologicalWaveforms from './PhysiologicalWaveforms';
@@ -1058,6 +1059,11 @@ export default function AmbulanceStreamer({ socket, connected }) {
 
     socket.on('chat-history', onHistory);
     socket.on('chat-message', onMsg);
+    socket.on('vitals-ack', (data) => {
+      if (data && data.msgId) {
+        offlineQueue.dequeue(data.msgId).catch(err => console.error('[IndexedDB] Dequeue failed:', err));
+      }
+    });
     socket.on('resources-update', onResources);
     socket.on('ai-prediction-alert', onAiAlert);
     socket.on('patient-data', onPatientData);
@@ -1142,7 +1148,21 @@ export default function AmbulanceStreamer({ socket, connected }) {
       }
     }
 
+    const syncInterval = setInterval(async () => {
+      if (socket && connected && !isOfflineRef.current) {
+        try {
+          const items = await offlineQueue.getAll();
+          for (const item of items) {
+            socket.emit('vitals-update', item);
+          }
+        } catch (err) {
+          console.warn('[IndexedDB Sync Error]', err);
+        }
+      }
+    }, 4000);
+
     return () => {
+      clearInterval(syncInterval);
       if (!socket) return;
       socket.off('rejoin-mission');
       socket.off('error');
@@ -1165,6 +1185,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
       socket.off('clinical-checklist-update');
       socket.off('vitals-update', onVitalsUpdate);
       socket.off('error-alert');
+      socket.off('vitals-ack');
     };
   }, [socket, connected, authUnit]);
 
@@ -1271,13 +1292,19 @@ export default function AmbulanceStreamer({ socket, connected }) {
         }
 
         // Handle data transmission
+        const msgId = 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        const vitalsPayload = { ...vitalsWithSource, reqId: assignedUserRef.current?.id, msgId, timestamp: Date.now() };
+
+        // Save to persistent local queue
+        offlineQueue.enqueue(vitalsPayload).catch(err => console.error(err));
+
         if (socket && connected) {
           if (isOfflineRef.current) {
             offlineBacklog.current.push({ ...vitalsWithSource, timestamp: Date.now() });
             if (offlineBacklog.current.length > 100) offlineBacklog.current.shift();
             localStorage.setItem('offline_backlog', JSON.stringify(offlineBacklog.current));
           } else {
-            socket.emit('vitals-update', { ...vitalsWithSource, reqId: assignedUserRef.current?.id });
+            socket.emit('vitals-update', vitalsPayload);
           }
         }
 
