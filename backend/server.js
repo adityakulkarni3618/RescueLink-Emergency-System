@@ -36,6 +36,7 @@ const { initVitalsBridge } = require('./utils/vitalsBridge');
 const cache = require('./utils/cache');
 const { acquireLock, releaseLock } = require('./utils/redis');
 const { sendPushNotification, sendTopicNotification } = require('./utils/pushNotifications');
+const { initializeCorridorForRoute, evaluatePreemption, startWatchdog } = require('./utils/emergencyCorridor');
 
 // NOTE: @socket.io/cluster-adapter only works inside a Node.js cluster (PM2/master-worker).
 // It is disabled here for standalone dev. In production with PM2, enable it in a cluster entrypoint.
@@ -1560,6 +1561,7 @@ io.on('connection', (socket) => {
       io.to(`mission_${reqId}`).emit('location-update', enrichedData);
       console.log(`[MAP] Enriched Location update routed to mission_${reqId}`);
       syncMissionToDB(reqId);
+      evaluatePreemption(reqId, data, io).catch(err => console.error('[PREEMPTION ERROR]', err));
     } else {
       if (reqId) {
         io.to(`mission_${reqId}`).emit('location-update', data);
@@ -2267,6 +2269,7 @@ io.on('connection', (socket) => {
         io.to(req.userSocket).emit('route-update', { reqId: req.id, routePath: route });
         io.to(req.ambulanceSocket).emit('route-update', { reqId: req.id, routePath: route });
       }
+      initializeCorridorForRoute(req.id, route || []).catch(err => console.error('[PREEMPTION INIT ERROR]', err));
     } else {
       req.status = 'ambulance_rejected';
       io.to(req.userSocket).emit('ambulance-request-response', { ...req, accepted: false });
@@ -2286,6 +2289,31 @@ io.on('connection', (socket) => {
       if (req && req.hospitalId) {
         io.to(`hospital:${req.hospitalId}`).emit('hospital-oxygen-warning', warningPayload);
       }
+    }
+  });
+
+  socket.on('ambulance:obd-telemetry', async (data) => {
+    const { unitId, engineTemp, fuelLevel, batteryVoltage, faultCodes } = data;
+    try {
+      const { Ambulance } = require('./utils/db');
+      const amb = await Ambulance.findOne({ where: { vehicleNo: unitId } });
+      if (amb) {
+        amb.engine_temp = parseFloat(engineTemp) || null;
+        amb.fuel_level = parseFloat(fuelLevel) || null;
+        amb.battery_voltage = parseFloat(batteryVoltage) || null;
+        amb.diagnostic_fault_codes = JSON.stringify(faultCodes || []);
+        await amb.save();
+
+        io.to('admin_warroom').emit('warroom:obd-telemetry-update', {
+          unitId,
+          engineTemp,
+          fuelLevel,
+          batteryVoltage,
+          faultCodes
+        });
+      }
+    } catch (err) {
+      console.error('[OBD-II TELEMETRY DB ERROR]', err.message);
     }
   });
 
@@ -3290,6 +3318,40 @@ io.on('connection', (newSocket) => {
       }
     }
   });
+
+  // Dynamic Green Wave Manual Preemption Overrides
+  newSocket.on('corridor:manual-override', async (data) => {
+    const { incidentId, junctionId, forceStatus } = data;
+    try {
+      const { EmergencyCorridor, AuditLog } = require('./utils/db');
+      const junc = await EmergencyCorridor.findOne({ where: { incident_id: incidentId, junction_id: junctionId } });
+      if (junc) {
+        junc.status = forceStatus || 'CORRIDOR_ACTIVE';
+        await junc.save();
+
+        await AuditLog.create({
+          action: 'TRAFFIC_SIGNAL_PREEMPTION',
+          details: `MANUAL OVERRIDE: Junction ${junc.name} set to ${junc.status} by City Administrator.`,
+          severity: 'WARNING'
+        }).catch(err => console.error(err));
+
+        io.to(`mission_${incidentId}`).emit('corridor:status_update', {
+          incidentId,
+          junctionId,
+          name: junc.name,
+          status: junc.status
+        });
+        io.to('admin_warroom').emit('corridor:status_update', {
+          incidentId,
+          junctionId,
+          name: junc.name,
+          status: junc.status
+        });
+      }
+    } catch (err) {
+      console.error('[MANUAL OVERRIDE ERROR]', err.message);
+    }
+  });
 });
 
 // FIX H3: Boot sequence — wait for DB to be ready BEFORE accepting socket connections.
@@ -3451,6 +3513,7 @@ async function startServer() {
       setInterval(retentionFlagJob, 24 * 60 * 60 * 1000);
       setInterval(unresponsiveDriverCheck, 30000);
       setInterval(stuckCaseCheck, 15000);
+      startWatchdog(io).catch(err => console.error('[WATCHDOG BOOT ERROR]', err.message));
     }
   } catch (err) {
     console.error('[FATAL] Database initialization failed. Server will not start.', err);

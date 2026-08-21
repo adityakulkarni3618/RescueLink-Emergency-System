@@ -1,7 +1,8 @@
 class IndexedDBBridge {
-  constructor(dbName = 'RescueLinkOffline', storeName = 'telemetry_queue') {
+  constructor(dbName = 'RescueLinkOffline', storeName = 'telemetry_queue', keyPath = 'msgId') {
     this.dbName = dbName;
     this.storeName = storeName;
+    this.keyPath = keyPath;
     this.db = null;
   }
 
@@ -12,7 +13,7 @@ class IndexedDBBridge {
       request.onupgradeneeded = (e) => {
         const db = e.target.result;
         if (!db.objectStoreNames.contains(this.storeName)) {
-          db.createObjectStore(this.storeName, { keyPath: 'msgId' });
+          db.createObjectStore(this.storeName, { keyPath: this.keyPath });
         }
       };
       request.onsuccess = (e) => {
@@ -36,6 +37,17 @@ class IndexedDBBridge {
     });
   }
 
+  async get(key) {
+    const db = await this.init();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([this.storeName], 'readonly');
+      const store = transaction.objectStore(this.storeName);
+      const request = store.get(key);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = (e) => reject(e.target.error);
+    });
+  }
+
   async getAll() {
     const db = await this.init();
     return new Promise((resolve, reject) => {
@@ -47,12 +59,12 @@ class IndexedDBBridge {
     });
   }
 
-  async dequeue(msgId) {
+  async dequeue(key) {
     const db = await this.init();
     return new Promise((resolve, reject) => {
       const transaction = db.transaction([this.storeName], 'readwrite');
       const store = transaction.objectStore(this.storeName);
-      const request = store.delete(msgId);
+      const request = store.delete(key);
       request.onsuccess = () => resolve(true);
       request.onerror = (e) => reject(e.target.error);
     });
@@ -71,3 +83,4 @@ class IndexedDBBridge {
 }
 
 export const offlineQueue = new IndexedDBBridge();
+export const mapTilesCache = new IndexedDBBridge('RescueLinkMapsTiles', 'tile_cache', 'tileKey');

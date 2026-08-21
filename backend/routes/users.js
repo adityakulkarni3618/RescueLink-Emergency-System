@@ -278,6 +278,10 @@ router.post('/consent/revoke', verifyToken(), async (req, res) => {
     patient.consent_timestamp = null;
     await patient.save();
 
+    // Append tamper-proof record to blockchain consent ledger
+    const consentLedger = require('../utils/consentLedger');
+    await consentLedger.appendBlock(patientId, 'CONSENT_REVOKED');
+
     // Mark all active consents as inactive
     if (Consent) {
       await Consent.update(

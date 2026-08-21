@@ -71,6 +71,23 @@ module.exports = (sequelize) => {
     oxygen_capacity_liters: {
       type: DataTypes.INTEGER,
       defaultValue: 0
+    },
+    engine_temp: {
+      type: DataTypes.FLOAT,
+      allowNull: true
+    },
+    fuel_level: {
+      type: DataTypes.FLOAT,
+      allowNull: true
+    },
+    battery_voltage: {
+      type: DataTypes.FLOAT,
+      allowNull: true
+    },
+    diagnostic_fault_codes: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      defaultValue: '[]'
     }
   }, {
     tableName: 'ambulances',
