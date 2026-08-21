@@ -66936,6 +66936,7 @@ graph TD
 - **🏥 Hospital Trauma Tier Routing**: Clinical Trauma Center Ratings (Tier 1 Comprehensive, Tier 2 Major, Tier 3 General ER) combined with JCI/NABH national accreditation tracking for intelligent AI destination routing.
 - **🛡️ DPDP Act 2023 & HIPAA Compliance**: Application-layer AES-256-GCM encryption for PHI/PII, dynamic consent revocation, automated 3-year record purge policies, and immutable cryptographic audit logs.
 - **🛡️ Registration Admin Approvals (Fraud Prevention)**: Workflow to enforce system authorization for hospitals and ambulances. Registrations remain inactive (`is_active: false`) until approved by the City Administrator in the War Room tab dashboard.
+- **🚦 AI Emergency Corridor & Dynamic Signal Preemption**: Dynamic traffic signal override synchronizer with Kalman filter GPS drift smoothing, HMAC-SHA256 telemetry signature checks, and automatic watchdog timeouts to prevent city-wide traffic locks during ambulance network disconnections.
 
 ---
 
