@@ -9,6 +9,7 @@ import { offlineQueue } from '../utils/IndexedDBBridge';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import PhysiologicalWaveforms from './PhysiologicalWaveforms';
+import EmergencyCorridorPanel from './EmergencyCorridorPanel';
 let audioCtx = null;
 
 /* ─── Alert beep using Web Audio API ─────────────────────────────────────── */
@@ -3557,6 +3558,9 @@ export default function AmbulanceStreamer({ socket, connected }) {
               checklist={clinicalChecklist} 
               setChecklist={setClinicalChecklist} 
             />
+
+            {/* AI Emergency Corridor & Signal Preemption Panel */}
+            <EmergencyCorridorPanel socket={socket} incidentId={assignedUser?.id || activeMissionId} isControlPanel={false} />
 
             {/* Paramedic Clinical AI Diagnosis & ACLS Advisor */}
             <ClinicalAIDiagnosticAdvisor vitals={vitals} patient={assignedUser?.patientDetails} />

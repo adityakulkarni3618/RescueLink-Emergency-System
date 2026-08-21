@@ -6,6 +6,7 @@ import 'leaflet/dist/leaflet.css';
 import MassCasualtyPanel from './MassCasualtyPanel';
 import BloodEmergencyNetwork from './BloodEmergencyNetwork';
 import VideoCall from './VideoCall';
+import EmergencyCorridorPanel from './EmergencyCorridorPanel';
 import { generateMonthlyReport } from '../utils/reportGenerator';
 import { exportMetricsToExcel } from '../utils/excelExporter';
 import PhysiologicalWaveforms from './PhysiologicalWaveforms';
@@ -977,6 +978,11 @@ export default function WarRoom({ socket, connected }) {
                 >
                   ⚠️ FORCE CLOSE MISSION (AUDITED)
                 </button>
+              </div>
+
+              {/* AI Emergency Corridor Preemption Control Panel */}
+              <div style={{ marginTop: 15 }}>
+                <EmergencyCorridorPanel socket={socket} incidentId={selectedIncidentDetails.id} isControlPanel={true} />
               </div>
             </div>
           )}
