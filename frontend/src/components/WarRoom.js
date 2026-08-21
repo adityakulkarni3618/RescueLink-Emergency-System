@@ -7,6 +7,7 @@ import MassCasualtyPanel from './MassCasualtyPanel';
 import BloodEmergencyNetwork from './BloodEmergencyNetwork';
 import VideoCall from './VideoCall';
 import EmergencyCorridorPanel from './EmergencyCorridorPanel';
+import OfflineTileLayer from './OfflineTileLayer';
 import { generateMonthlyReport } from '../utils/reportGenerator';
 import { exportMetricsToExcel } from '../utils/excelExporter';
 import PhysiologicalWaveforms from './PhysiologicalWaveforms';
@@ -616,7 +617,7 @@ export default function WarRoom({ socket, connected }) {
                 </div>
             <div style={{ flex: 1, minHeight: 0 }}>
               <MapContainer center={[mapCenter.lat, mapCenter.lng]} zoom={11} style={{ height: '100%', width: '100%' }} zoomControl={false}>
-                <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" attribution="&copy; OpenStreetMap" />
+                <OfflineTileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" attribution="&copy; OpenStreetMap" />
                 <MapCenterer center={mapCenter} />
                 {Object.entries(ambulances).map(([id, amb]) => {
                   if (!amb.location) return null;

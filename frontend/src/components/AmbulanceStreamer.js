@@ -10,6 +10,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import PhysiologicalWaveforms from './PhysiologicalWaveforms';
 import EmergencyCorridorPanel from './EmergencyCorridorPanel';
+import OfflineTileLayer from './OfflineTileLayer';
 let audioCtx = null;
 
 /* ─── Alert beep using Web Audio API ─────────────────────────────────────── */
@@ -3306,7 +3307,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
                   style={{ height: '100%', width: '100%', background: '#050d1a' }}
                   zoomControl={false}
                 >
-                  <TileLayer
+                  <OfflineTileLayer
                     url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
                     attribution='&copy; OpenStreetMap'
                   />
