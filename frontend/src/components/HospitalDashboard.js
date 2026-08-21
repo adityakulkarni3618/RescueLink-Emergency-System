@@ -17,7 +17,7 @@ import HospitalAnalytics from './HospitalAnalytics';
 import BloodEmergencyNetwork from './BloodEmergencyNetwork';
 import { MfaVerifyScreen } from './MfaVerifyScreen';
 import OfflineTileLayer from './OfflineTileLayer';
-import * as THREE from 'three';
+// THREE is dynamically imported inside ThreeDResuscitationMonitor to prevent TDZ crash
 
 
 function CustomAlert({ title, message, onClose }) {
@@ -4913,6 +4913,11 @@ function ThreeDResuscitationMonitor({ vitals }) {
 
   useEffect(() => {
     if (!mountRef.current) return;
+    let animationFrameId;
+    let cleanupFn;
+
+    import('three').then((THREE) => {
+    if (!mountRef.current) return;
 
     // Set up Three.js scene, camera, renderer
     const scene = new THREE.Scene();
@@ -5005,11 +5010,11 @@ function ThreeDResuscitationMonitor({ vitals }) {
     };
     window.addEventListener('resize', handleResize);
 
-    return () => {
+    cleanupFn = () => {
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener('resize', handleResize);
       if (mountRef.current && renderer.domElement) {
-        mountRef.current.removeChild(renderer.domElement);
+        try { mountRef.current.removeChild(renderer.domElement); } catch(e) {}
       }
       torsoGeom.dispose();
       headGeom.dispose();
@@ -5017,6 +5022,9 @@ function ThreeDResuscitationMonitor({ vitals }) {
       bodyMat.dispose();
       heartMat.dispose();
     };
+    }); // end dynamic import
+
+    return () => { if (cleanupFn) cleanupFn(); };
   }, [vitals]);
 
   return (
