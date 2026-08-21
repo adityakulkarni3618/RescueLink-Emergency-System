@@ -16,7 +16,7 @@ const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API
 // Global fetch request interceptor for JWT auth
 const originalFetch = window.fetch;
 window.fetch = async function (url, options = {}) {
-  const token = sessionStorage.getItem('rescuelink_token');
+  const token = sessionStorage.getItem('rescuelink_token') || localStorage.getItem('rescuelink_token');
   if (token && url.toString().includes(SERVER_URL)) {
     options.headers = options.headers || {};
     if (!options.headers['Authorization'] && !options.headers['authorization']) {
@@ -28,7 +28,7 @@ window.fetch = async function (url, options = {}) {
 
 // Global axios request interceptor for JWT auth
 axios.interceptors.request.use((config) => {
-  const token = sessionStorage.getItem('rescuelink_token');
+  const token = sessionStorage.getItem('rescuelink_token') || localStorage.getItem('rescuelink_token');
   if (token && config.url && config.url.includes(SERVER_URL)) {
     config.headers = config.headers || {};
     if (!config.headers['Authorization'] && !config.headers['authorization']) {
@@ -1138,6 +1138,8 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
 
       sessionStorage.setItem('rescuelink_token', data.token);
       sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
+      localStorage.setItem('rescuelink_token', data.token);
+      localStorage.setItem('rescuelink_user', JSON.stringify(data.user));
 
       let viewRole = 'user';
       if (data.user.role === 'doctor' || data.user.role === 'hospital_admin') {
@@ -1279,6 +1281,9 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
       sessionStorage.setItem('rescuelink_token', data.token);
       sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
       sessionStorage.setItem('guest_auto_sos', 'true'); // Flag to auto-trigger dispatch on dashboard load
+      localStorage.setItem('rescuelink_token', data.token);
+      localStorage.setItem('rescuelink_user', JSON.stringify(data.user));
+      localStorage.setItem('guest_auto_sos', 'true');
       onLoginSuccess('user', data.token);
     } catch (err) {
       setError(err.message || 'Failed to establish guest session');
@@ -2534,9 +2539,10 @@ export default function App() {
     const urlToken = urlParams.get('token');
     if (urlToken) {
       sessionStorage.setItem('rescuelink_token', urlToken);
+      localStorage.setItem('rescuelink_token', urlToken);
       return urlToken;
     }
-    return sessionStorage.getItem('rescuelink_token') || null;
+    return sessionStorage.getItem('rescuelink_token') || localStorage.getItem('rescuelink_token') || null;
   });
 
   const [role, setRole] = useState(() => {
@@ -2544,9 +2550,10 @@ export default function App() {
     const urlRole = urlParams.get('role');
     if (urlRole) {
       sessionStorage.setItem('rescueLinkRole', urlRole);
+      localStorage.setItem('rescueLinkRole', urlRole);
       return urlRole;
     }
-    return sessionStorage.getItem('rescueLinkRole') || null;
+    return sessionStorage.getItem('rescueLinkRole') || localStorage.getItem('rescueLinkRole') || null;
   });
 
   const [familyReqId] = useState(() => new URLSearchParams(window.location.search).get('reqId'));
@@ -2643,6 +2650,9 @@ export default function App() {
         sessionStorage.removeItem('rescuelink_token');
         sessionStorage.removeItem('rescuelink_user');
         sessionStorage.removeItem('rescueLinkRole');
+        localStorage.removeItem('rescuelink_token');
+        localStorage.removeItem('rescuelink_user');
+        localStorage.removeItem('rescueLinkRole');
         window.location.reload();
       }
     });
@@ -2654,6 +2664,8 @@ export default function App() {
     setToken(userToken);
     setRole(viewRole);
     sessionStorage.setItem('rescueLinkRole', viewRole);
+    localStorage.setItem('rescueLinkRole', viewRole);
+    localStorage.setItem('rescuelink_token', userToken);
     setMfaVerifyToken(null);
     window.location.hash = viewRole;
   };
@@ -2671,6 +2683,9 @@ export default function App() {
     sessionStorage.removeItem('rescuelink_token');
     sessionStorage.removeItem('rescuelink_user');
     sessionStorage.removeItem('rescueLinkRole');
+    localStorage.removeItem('rescuelink_token');
+    localStorage.removeItem('rescuelink_user');
+    localStorage.removeItem('rescueLinkRole');
     setRole(null);
     setToken(null);
   };
