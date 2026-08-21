@@ -1,12 +1,44 @@
+const crypto = require('crypto');
 const { EmergencyCorridor, AuditLog } = require('./db');
 
-// Predefined city junctions in Vijayawada for simulation overlay
-const VIJAYAWADA_JUNCTIONS = [
-  { id: 'junc_pcr', name: 'PCR Junction', lat: 16.5085, lng: 80.6420 },
-  { id: 'junc_labbipet', name: 'Labbipet Junction', lat: 16.5042, lng: 80.6495 },
-  { id: 'junc_benz_circle', name: 'Benz Circle', lat: 16.5002, lng: 80.6554 },
-  { id: 'junc_rameswaram', name: 'Aster Ramesh Cross', lat: 16.4950, lng: 80.6612 }
-];
+// Secure Key for telemetry validation (loaded from environment)
+const TELEMETRY_SHARED_SECRET = process.env.TELEMETRY_SHARED_SECRET || 'emergency-corridor-secure-token-108';
+
+/**
+ * Standard Kalman Filter state tracker to smooth GPS drift
+ */
+class GPSKalmanFilter {
+  constructor() {
+    this.Q = 0.000001; // Process variance
+    this.R = 0.00001;  // Measurement variance
+    this.lat = null;
+    this.lng = null;
+    this.P = 1.0;      // Estimation error covariance
+  }
+
+  filter(measuredLat, measuredLng) {
+    if (this.lat === null || this.lng === null) {
+      this.lat = measuredLat;
+      this.lng = measuredLng;
+      return { lat: measuredLat, lng: measuredLng };
+    }
+
+    // Time update (prediction)
+    this.P = this.P + this.Q;
+
+    // Measurement update (correction)
+    const K = this.P / (this.P + this.R); // Kalman gain
+    this.lat = this.lat + K * (measuredLat - this.lat);
+    this.lng = this.lng + K * (measuredLng - this.lng);
+    this.P = (1 - K) * this.P;
+
+    return { lat: this.lat, lng: this.lng };
+  }
+}
+
+// Track filters for active incidents in-memory
+const activeKalmanFilters = {};
+const lastIncidentTelemetryUpdate = {};
 
 /**
  * Calculates distance in meters using Haversine formula
@@ -24,52 +56,96 @@ function getDistanceMeters(lat1, lon1, lat2, lon2) {
 }
 
 /**
- * Initializes and seeds the dynamic emergency corridor junctions for an incident
+ * Dynamically extract and register junctions along any OSRM route polyline
  */
-async function initializeCorridor(incidentId) {
+async function initializeCorridorForRoute(incidentId, routeCoordinates) {
   try {
-    // Delete existing corridor nodes for this incident to avoid stale data
     await EmergencyCorridor.destroy({ where: { incident_id: incidentId } });
 
+    if (!routeCoordinates || routeCoordinates.length < 2) return [];
+
     const corridors = [];
-    let etaAccumulator = 60; // Incremental ETAs for junctions
+    let junctionIndex = 1;
 
-    for (const junc of VIJAYAWADA_JUNCTIONS) {
-      const startWindow = new Date(Date.now() + (etaAccumulator - 20) * 1000);
-      const endWindow = new Date(Date.now() + (etaAccumulator + 40) * 1000);
+    // Select nodes along the route path coordinates spaced approximately every 800 to 1200 meters
+    let lastJunctionPoint = routeCoordinates[0];
+    let etaAccumulator = 45; // Start window ETA
 
-      const node = await EmergencyCorridor.create({
-        incident_id: incidentId,
-        junction_id: junc.id,
-        name: junc.name,
-        status: 'SCHEDULED',
-        eta_seconds: etaAccumulator,
-        preempt_window_start: startWindow,
-        preempt_window_end: endWindow,
-        latitude: junc.lat,
-        longitude: junc.lng
-      });
-      corridors.push(node);
-      etaAccumulator += 90; // Next junction is 90 seconds out
+    for (let i = 1; i < routeCoordinates.length - 1; i++) {
+      const coord = routeCoordinates[i];
+      const distFromLast = getDistanceMeters(lastJunctionPoint.lat, lastJunctionPoint.lng, coord.lat, coord.lng);
+
+      if (distFromLast >= 1000) { // Spacing of ~1km
+        const startWindow = new Date(Date.now() + (etaAccumulator - 20) * 1000);
+        const endWindow = new Date(Date.now() + (etaAccumulator + 40) * 1000);
+
+        const nodeName = `Dynamic Junction #${junctionIndex}`;
+        const node = await EmergencyCorridor.create({
+          incident_id: incidentId,
+          junction_id: `junc_${incidentId}_${junctionIndex}`,
+          name: nodeName,
+          status: 'SCHEDULED',
+          eta_seconds: etaAccumulator,
+          preempt_window_start: startWindow,
+          preempt_window_end: endWindow,
+          latitude: coord.lat,
+          longitude: coord.lng
+        });
+
+        corridors.push(node);
+        junctionIndex++;
+        lastJunctionPoint = coord;
+        etaAccumulator += 80;
+      }
     }
-    console.log(`[PREEMPTION] Initialized ${corridors.length} corridor junctions for incident ${incidentId}`);
+
+    console.log(`[REAL-WORLD PREEMPTION] Generated ${corridors.length} dynamic route junctions along polyline for incident ${incidentId}`);
     return corridors;
   } catch (err) {
-    console.error(`[PREEMPTION ERROR] Failed to initialize corridor:`, err.message);
+    console.error(`[PREEMPTION INIT ERROR]`, err.message);
     return [];
   }
 }
 
-// Track the last telemetry update timestamp for each active incident
-const lastIncidentTelemetryUpdate = {};
+/**
+ * Cryptographically validates telemetry payloads using shared HMAC keys
+ */
+function verifyTelemetrySignature(payload, signature) {
+  if (!signature) return false;
+  try {
+    const hash = crypto
+      .createHmac('sha256', TELEMETRY_SHARED_SECRET)
+      .update(JSON.stringify(payload))
+      .digest('hex');
+    return crypto.timingSafeEqual(Buffer.from(hash), Buffer.from(signature));
+  } catch (err) {
+    return false;
+  }
+}
 
 /**
- * Evaluates ambulance telemetry and updates preemption locks
+ * Evaluates ambulance telemetry, applies Kalman filter, and updates preemption state
  */
-async function evaluatePreemption(incidentId, currentLoc, io) {
-  if (!currentLoc || !currentLoc.lat || !currentLoc.lng) return;
+async function evaluatePreemption(incidentId, rawLoc, io, signature = null) {
+  if (!rawLoc || !rawLoc.lat || !rawLoc.lng) return;
 
+  // Real-world security verification
+  if (process.env.NODE_ENV === 'production' && signature) {
+    const isValid = verifyTelemetrySignature({ lat: rawLoc.lat, lng: rawLoc.lng, timestamp: rawLoc.timestamp }, signature);
+    if (!isValid) {
+      console.warn(`[SECURITY WARNING] Telemetry signature verification failed for incident ${incidentId}. Ignoring payload.`);
+      return;
+    }
+  }
+
+  // Update last update timestamp for watchdog release
   lastIncidentTelemetryUpdate[incidentId] = Date.now();
+
+  // Apply Kalman Filter to smooth GPS drift
+  if (!activeKalmanFilters[incidentId]) {
+    activeKalmanFilters[incidentId] = new GPSKalmanFilter();
+  }
+  const currentLoc = activeKalmanFilters[incidentId].filter(rawLoc.lat, rawLoc.lng);
 
   try {
     const junctions = await EmergencyCorridor.findAll({ where: { incident_id: incidentId } });
@@ -82,8 +158,7 @@ async function evaluatePreemption(incidentId, currentLoc, io) {
 
       if (oldStatus === 'SCHEDULED' && distance < 450) {
         newStatus = 'PREEMPTING';
-        
-        // Log to Audit Ledger
+
         await AuditLog.create({
           action: 'TRAFFIC_SIGNAL_PREEMPTION',
           details: `Preempt window active for junction ${junc.name} (Incident: ${incidentId}). Initiating dynamic green wave.`,
@@ -102,18 +177,14 @@ async function evaluatePreemption(incidentId, currentLoc, io) {
       } else if (oldStatus === 'PREEMPTING' && distance < 120) {
         newStatus = 'CORRIDOR_ACTIVE';
 
-        // Log to Audit Ledger
         await AuditLog.create({
           action: 'TRAFFIC_SIGNAL_PREEMPTION',
           details: `CORRIDOR ACTIVE at ${junc.name} (Incident: ${incidentId}). Route fully preempted and cleared.`,
           severity: 'WARNING'
         }).catch(err => console.error(err));
       } else if ((oldStatus === 'PREEMPTING' || oldStatus === 'CORRIDOR_ACTIVE') && distance > 180) {
-        // Simple vector check: check if we are heading away
-        // If distance is increasing after being close, mark as PASSED and release signal
         newStatus = 'PASSED';
 
-        // Log release to Audit Ledger
         await AuditLog.create({
           action: 'TRAFFIC_SIGNAL_PREEMPTION',
           details: `Ambulance cleared junction bounds for ${junc.name}. Restoring standard traffic cycles.`,
@@ -140,7 +211,7 @@ async function evaluatePreemption(incidentId, currentLoc, io) {
             junctionId: junc.junction_id,
             name: junc.name,
             status: newStatus,
-            eta_seconds: Math.max(0, Math.round(distance / 12.5)) // rough estimate at 45km/h
+            eta_seconds: Math.max(0, Math.round(distance / 12.5))
           });
           io.to('admin_warroom').emit('corridor:status_update', {
             incidentId,
@@ -169,7 +240,6 @@ async function startWatchdog(io, intervalMs = 10000) {
 
       for (const junc of activePreemptions) {
         const lastUpdate = lastIncidentTelemetryUpdate[junc.incident_id] || 0;
-        // Release lock if ambulance has halted or disconnected for more than 20 seconds
         if (lastUpdate && (now - lastUpdate > 20000)) {
           junc.status = 'PASSED';
           await junc.save();
@@ -210,8 +280,8 @@ async function startWatchdog(io, intervalMs = 10000) {
 }
 
 module.exports = {
-  initializeCorridor,
+  initializeCorridorForRoute,
   evaluatePreemption,
   startWatchdog,
-  VIJAYAWADA_JUNCTIONS
+  verifyTelemetrySignature
 };

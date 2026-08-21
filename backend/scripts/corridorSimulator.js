@@ -1,7 +1,7 @@
 require('dotenv').config();
 const { io } = require('socket.io-client');
 const { Incident, syncDatabase } = require('../utils/db');
-const { initializeCorridor, evaluatePreemption, VIJAYAWADA_JUNCTIONS } = require('../utils/emergencyCorridor');
+const { initializeCorridorForRoute, evaluatePreemption } = require('../utils/emergencyCorridor');
 
 // Connect client socket to local backend instance
 const SOCKET_URL = process.env.SOCKET_URL || 'http://localhost:5000';
@@ -41,7 +41,7 @@ async function startSimulation() {
   }
 
   // Populate junctions
-  await initializeCorridor(activeIncident.id);
+  await initializeCorridorForRoute(activeIncident.id, ROUTE_PATH);
 
   socket.on('connect', () => {
     console.log(`[SOCKET] Connected to RescueLink backend: ${SOCKET_URL}`);

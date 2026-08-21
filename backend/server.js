@@ -36,7 +36,7 @@ const { initVitalsBridge } = require('./utils/vitalsBridge');
 const cache = require('./utils/cache');
 const { acquireLock, releaseLock } = require('./utils/redis');
 const { sendPushNotification, sendTopicNotification } = require('./utils/pushNotifications');
-const { initializeCorridor, evaluatePreemption, startWatchdog } = require('./utils/emergencyCorridor');
+const { initializeCorridorForRoute, evaluatePreemption, startWatchdog } = require('./utils/emergencyCorridor');
 
 // NOTE: @socket.io/cluster-adapter only works inside a Node.js cluster (PM2/master-worker).
 // It is disabled here for standalone dev. In production with PM2, enable it in a cluster entrypoint.
@@ -2269,7 +2269,7 @@ io.on('connection', (socket) => {
         io.to(req.userSocket).emit('route-update', { reqId: req.id, routePath: route });
         io.to(req.ambulanceSocket).emit('route-update', { reqId: req.id, routePath: route });
       }
-      initializeCorridor(req.id).catch(err => console.error('[PREEMPTION INIT ERROR]', err));
+      initializeCorridorForRoute(req.id, route || []).catch(err => console.error('[PREEMPTION INIT ERROR]', err));
     } else {
       req.status = 'ambulance_rejected';
       io.to(req.userSocket).emit('ambulance-request-response', { ...req, accepted: false });
