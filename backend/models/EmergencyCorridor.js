@@ -1,4 +1,6 @@
-module.exports = (sequelize, DataTypes) => {
+const { DataTypes } = require('sequelize');
+
+module.exports = (sequelize) => {
   const EmergencyCorridor = sequelize.define('EmergencyCorridor', {
     id: {
       type: DataTypes.UUID,
