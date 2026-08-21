@@ -2329,12 +2329,7 @@ export default function HospitalDashboard({ socket, connected }) {
     setAdmissionStep(0);
   };
 
-  const handleResumeMission = () => {
-    if (!pendingResumeMission) {
-      console.warn('[RECOVERY] Attempted resume with no pending mission.');
-      return;
-    }
-    const data = pendingResumeMission;
+  const performMissionRestoration = (data) => {
     ignoredMissionsRef.current.add(data.id);
     console.log(`[RECOVERY] Starting restoration for mission ${data.id}`, data);
 
@@ -2381,6 +2376,14 @@ export default function HospitalDashboard({ socket, connected }) {
       console.error('[RECOVERY] Restoration failed:', err);
       showAlert('Failed to restore mission state. Please check console.');
     }
+  };
+
+  const handleResumeMission = () => {
+    if (!pendingResumeMission) {
+      console.warn('[RECOVERY] Attempted resume with no pending mission.');
+      return;
+    }
+    performMissionRestoration(pendingResumeMission);
   };
 
   const handleAbortResume = () => {
@@ -2519,11 +2522,7 @@ export default function HospitalDashboard({ socket, connected }) {
     socket.on('active-missions-update', (missions) => {
       console.log(`[RECOVERY] Received ${missions.length} active missions`);
       if (missions.length > 0) {
-        const data = missions[0]; // For now, focus on primary active mission
-        if (ignoredMissionsRef.current.has(data.id) || activeMissionId === data.id) {
-          console.log(`[RECOVERY] Mission ${data.id} already active or ignored, skipping prompt.`);
-          return;
-        }
+        const data = missions[0]; // Focus on primary active mission
         updateMissionData(data.id, {
           patient: data.patientDetails,
           vitals: data.fieldReport?.vitals,
@@ -2533,16 +2532,12 @@ export default function HospitalDashboard({ socket, connected }) {
           ambulanceSocket: data.ambulanceSocket,
           checklist: data.checklist || {}
         });
-        setPendingResumeMission(data);
+        performMissionRestoration(data);
       }
     });
 
     socket.on('rejoin-mission', (data) => {
       console.log(`[PERSISTENCE] Single mission recovery: ${data.id}`, data);
-      if (ignoredMissionsRef.current.has(data.id) || activeMissionId === data.id) {
-        console.log(`[RECOVERY] Mission ${data.id} already active or ignored, skipping prompt.`);
-        return;
-      }
       updateMissionData(data.id, {
         patient: data.patientDetails,
         vitals: data.fieldReport?.vitals,
@@ -2552,7 +2547,7 @@ export default function HospitalDashboard({ socket, connected }) {
         ambulanceSocket: data.ambulanceSocket,
         checklist: data.checklist || {}
       });
-      setPendingResumeMission(data);
+      performMissionRestoration(data);
     });
 
     socket.on('vitals-update', (data) => {
