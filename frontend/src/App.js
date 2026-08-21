@@ -2868,14 +2868,7 @@ export default function App() {
       </button>
 
       {role === 'user' && (
-        (() => {
-          const userStr = sessionStorage.getItem('rescuelink_user');
-          const parsedUser = userStr ? JSON.parse(userStr) : null;
-          if (parsedUser && parsedUser.role === 'patient') {
-            return <PatientPortal />;
-          }
-          return <UserDashboard socket={socket} connected={connected} />;
-        })()
+        <UserDashboard socket={socket} connected={connected} />
       )}
       {role === 'ambulance' && <AmbulanceStreamer socket={socket} connected={connected} />}
       {role === 'hospital' && <HospitalDashboard socket={socket} connected={connected} />}

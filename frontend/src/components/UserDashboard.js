@@ -8,6 +8,7 @@ import AIEmergencyCopilot from './AIEmergencyCopilot';
 import CPRGuidance from './CPRGuidance';
 import BloodEmergencyNetwork from './BloodEmergencyNetwork';
 import AmbulanceMarketplace from './AmbulanceMarketplace';
+import PatientPortal from './PatientPortal';
 
 function cypherHash(input) {
   let hash = 0;
@@ -231,6 +232,7 @@ export default function UserDashboard({ socket, connected }) {
   const [showCPRGuide, setShowCPRGuide] = useState(false);
   const [showBloodNetwork, setShowBloodNetwork] = useState(false);
   const [showMarketplace, setShowMarketplace] = useState(false);
+  const [showPatientPortal, setShowPatientPortal] = useState(false);
   const [aiAnalysisResult, setAiAnalysisResult] = useState(null);
   const [familyTrackingLink, setFamilyTrackingLink] = useState(null);
   const [showFamilyLinkModal, setShowFamilyLinkModal] = useState(false);
@@ -260,6 +262,7 @@ export default function UserDashboard({ socket, connected }) {
         setShowMarketplace(parts[1] === 'marketplace');
         setShowAICopilot(parts[1] === 'ai-copilot');
         setShowBloodNetwork(parts[1] === 'blood-network');
+        setShowPatientPortal(parts[1] === 'health-portal');
       }
     };
     window.addEventListener('hashchange', syncUserHash);
@@ -1019,6 +1022,7 @@ export default function UserDashboard({ socket, connected }) {
               { icon: '❤️', label: 'CPR GUIDE', sublabel: 'Life-saving mode', color: '#ff4444', action: () => routeTo('cpr') },
               { icon: '🩸', label: 'BLOOD NET', sublabel: 'Find blood banks', color: '#ff4444', action: () => routeTo('blood-network') },
               { icon: '🚑', label: 'MARKETPLACE', sublabel: 'Book ambulance', color: '#ffb800', action: () => routeTo('marketplace') },
+              { icon: '🧍', label: 'HEALTH PORTAL', sublabel: 'My Medical File', color: '#00c8ff', action: () => routeTo('health-portal') },
               { icon: '🎙️', label: 'VOICE SOS', sublabel: voiceSosActive ? 'Listening...' : 'Say "Help"', color: voiceSosActive ? '#00ff88' : '#8888ff', action: () => setVoiceSosActive(!voiceSosActive) },
               { icon: '🔐', label: 'PRIVACY', sublabel: 'Consent & Erasure', color: '#00ff88', action: () => setShowPrivacyModal(true) },
               { 
@@ -1793,6 +1797,20 @@ export default function UserDashboard({ socket, connected }) {
             <div style={{ flex: 1, overflow: 'hidden' }}>
               <AmbulanceMarketplace socket={socket} userLocation={userLocation}
                 onBookAmbulance={(amb) => { setShowMarketplace(false); requestAmbulance(amb.id); }} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Patient Health Portal */}
+      {showPatientPortal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,5,20,0.95)', backdropFilter: 'blur(10px)', overflowY: 'auto' }}>
+          <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(0,200,255,0.2)', display: 'flex', justifyContent: 'flex-start', background: '#050d1a', position: 'sticky', top: 0, zIndex: 10 }}>
+              <button onClick={() => routeTo('')} style={{ background: 'rgba(255,68,68,0.1)', border: '1px solid rgba(255,68,68,0.3)', borderRadius: 8, padding: '8px 18px', color: '#ff4444', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 'bold' }}>✕ CLOSE PORTAL</button>
+            </div>
+            <div style={{ flex: 1, paddingBottom: 40 }}>
+              <PatientPortal />
             </div>
           </div>
         </div>
