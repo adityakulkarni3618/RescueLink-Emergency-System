@@ -1,6 +1,6 @@
 RescueLink Emergency System - Full Codebase Digest
 Generated from: c:\Users\Aditya Kulkarni\Downloads\Health-care-system
-Total files: 175
+Total files: 182
 
 PROJECT STRUCTURE:
 Health-care-system/
@@ -9,6 +9,10 @@ Health-care-system/
         .env
         .env.example
             audit_log.txt
+            consent_ledger_test.json
+            consent_ledger.json
+                private.pem
+                public.pem
             patients.json
             RescueLink_Postman_Collection.json
         jest.config.js
@@ -68,6 +72,7 @@ Health-care-system/
             verify-deployment.js
         server.js
             auth.test.js
+            consentLedger.test.js
             db.test.js
             dispatch.test.js
             fhirConverter.test.js
@@ -81,6 +86,7 @@ Health-care-system/
             auditLogger.js
             cache.js
             config.js
+            consentLedger.js
             controlRoomBridge.js
             db.js
             emergencyCorridor.js
@@ -131,6 +137,7 @@ Health-care-system/
                 InsurancePanel.js
                 MassCasualtyPanel.js
                 MfaVerifyScreen.js
+                OfflineTileLayer.js
                 PatientPortal.js
                 PhysiologicalWaveforms.js
                 UserDashboard.js
@@ -260,6 +267,7 @@ scratch/
 *.sqlite3
 server/data/*.json
 server/data/*.txt
+backend/data/
 ================================================
 FILE: backend/.env
 ================================================
@@ -469,6 +477,241 @@ FILE: backend/data/audit_log.txt
 [2026-08-14T16:44:04.217Z] [CLINICAL_AI] [INFO] AI_TRIAGE | User: dae182e8-edfa-42bb-bb47-1bc2b3c1e522 | IP: ::1 | Details: {"symptoms":"Severe difficulty breathing, choking","severity":"CRITICAL","resource":"AIModel","resourceId":"gemini-1.5-flash"}
 [2026-08-14T16:44:12.354Z] [CLINICAL_AI] [INFO] AI_TRIAGE | User: dae182e8-edfa-42bb-bb47-1bc2b3c1e522 | IP: ::1 | Details: {"symptoms":"Child burned by hot water","severity":"MEDIUM","resource":"AIModel","resourceId":"gemini-1.5-flash"}
 [2026-08-14T16:44:50.358Z] [CLINICAL_AI] [INFO] AI_TRIAGE | User: dae182e8-edfa-42bb-bb47-1bc2b3c1e522 | IP: ::1 | Details: {"symptoms":"Child burned by hot water","severity":"MEDIUM","resource":"AIModel","resourceId":"gemini-1.5-flash"}
+
+================================================
+FILE: backend/data/consent_ledger_test.json
+================================================
+[
+  {
+    "index": 0,
+    "timestamp": "2026-08-21T05:25:40.361Z",
+    "action": "GENESIS_CHAIN_INITIALIZED",
+    "patientId": "00000000-0000-0000-0000-000000000000",
+    "previousHash": "0",
+    "hash": "a365cafe9ceee14f577d453b997c73011080909115eb5f2a2036df2c18969c8d",
+    "signature": "PgaVJcpDDTcaeIDz4DzCZLEzY48sReq4CebdEeMtyK8gaBHjJCxQ/Ni3xEFsHNFJL/Irhvl+e4BUk+LhITLzAbA7OdiwcSRQz5+hDq0Y0DDfxEuUB9mUQ1EdnUzXrDEqZlXgFiHPGVt23u/wolRbtJfKbZ1Vih7zI4ZuQBtzoBFKhO1ZT260zbTe5/ZPAdesPGf+j0TYFtMRhQmb2JDLTC98TvFq17oUEsf1Rwg2FQ3S9/EHON23BzivqGhKK50W/vff4OfRzMDB9rYvRbkCOJZJQJlvOHwABydGxsKBGR9jBva/3UekFTnaM8UVuFm/8Nnw3ykMychw6rlDeaJlGQ=="
+  },
+  {
+    "index": 1,
+    "timestamp": "2026-08-21T05:25:40.371Z",
+    "action": "CONSENT_GRANTED",
+    "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
+    "previousHash": "a365cafe9ceee14f577d453b997c73011080909115eb5f2a2036df2c18969c8d",
+    "hash": "c317b345dfc0ade43740a10dd2628b706e85eb36725ef46024a5cb22f3eb04bf",
+    "signature": "Dn00Jcrhtdh8eXfc12ddPrMLoBGsC14Lmkhjyp24JGmZxTqj677YO8lIgemITlbYBNd4mFP6Gi9beZI9T+cjU2gvWv9tFvrfA0AYzTcFM5VGEBcVORYnCdHQtX+IVS6u1igBumqbL2Ehjln05zVwzMB9dRyvm2MgkbnOa3xzsEWehkO9pkYppvKODOh+RDYS1yc0GkzFfd3ymtpM1fNfYZ8A2MSKmrpPXf3vlNi8MyuTQ0oSx+vjDLHaDx3jwbZQOjVQGF87f1SW5CIPgUuVI2V9DlE81mNrkN09RvrcvYbnKw5Cow+6iL0CUQKk/Y8WqbJ9f07vAk47m4ciVXcbqQ=="
+  },
+  {
+    "index": 2,
+    "timestamp": "2026-08-21T05:25:40.416Z",
+    "action": "CONSENT_REVOKED",
+    "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
+    "previousHash": "c317b345dfc0ade43740a10dd2628b706e85eb36725ef46024a5cb22f3eb04bf",
+    "hash": "bc66f3aba04802451f84cdb8b4e694ce91ddc512df870c8fb9c227da2eb0b640",
+    "signature": "nPYaWQaSHJ8IPZk07vOyEjMxNWaH/wwKaw6fuZpk9AgZc4Pv5LVMuLTw5hNTyau8pUcVCFPAlJsBxc/2ck+oE0z3v1jv7ztKfOkQu7mqMhISrkBKmUST+VdTyYzAmsDoNUY3+KaRpcuL/IDb34QCDGndKfOdMggsJ5zM6rku+mDnDK2+XB6rmOol2ryNoBCel5nWxCZcKi8q+nKqn/R/8BkitWB2XJpDcgRjpyz8t1dpuIlqiDebBN253CN6WF/zeJIJbB6ugNgreRdhZ5CctA4wvt0aSr+4ffJiqx8aIOMnNtkO1sQwXWLEmEjcHgekL27kJW9FImygPC0gcMHOkg=="
+  },
+  {
+    "index": 3,
+    "timestamp": "2026-08-21T05:25:40.422Z",
+    "action": "CONSENT_REVOKED",
+    "patientId": "8b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
+    "previousHash": "bc66f3aba04802451f84cdb8b4e694ce91ddc512df870c8fb9c227da2eb0b640",
+    "hash": "baf2b7cd44a23fce1a322d976aa684b220a4ce45c831f7216c7e92a897665274",
+    "signature": "mZHuZsK1CvbJEWJh1koDrW/YJVWznuzN5/Xlrs2CixV85+fYGLGLzdE4s86Te0x6YH1QfEEPDKEsXmBHvQzjdxhMT5Nuhr8Iym0heqKm8/fBekEZw4RFqsRLSVZRPgUfqY+RUOTOg94GDRy6bGPcWqQPxoYGCJeop3WyK3p9lO4HSz0QD/RxOQVSVJE6mE1cAidJ20jSspkx4oP/7L0ptTGxSklnXW5NpI16ihtrSM7h09x59sYU3k4cR7BC6snDsWNpOE4JrsGmo9/+JTdRsipwgRQsR24uoXLre/RCFiUOgx+luwbgcH3itv/1X4+wni5CcrtyvHppihF7AM48mQ=="
+  }
+]
+================================================
+FILE: backend/data/consent_ledger.json
+================================================
+[
+  {
+    "index": 0,
+    "timestamp": "2026-08-21T05:24:38.044Z",
+    "action": "GENESIS_CHAIN_INITIALIZED",
+    "patientId": "00000000-0000-0000-0000-000000000000",
+    "previousHash": "0",
+    "hash": "15e50658f9b00fe02c9d969308bb844aa037f0bfd30c1da77d417ca3175c45fd",
+    "signature": "KPkYJqBc/t3gAu29kYx1BtrJ+kCqtl2w+wyiWUnZIpceVPGDOmO1i2SD+c/VMeApln3GnUpn/rI/pSkLeuPhQF1KI4y/7HSFyRK2LlZc9saDY6Ro4Db2lXlVJEapQx4nnCVLIDPaV9+DQEYZGUKktsyI2tNlpuR+F6D/nWeNXkzLXpj4X7GzR4/kJQCfMLRzMVRhE/YgaifHlvGqyUvMPm9ElMxqxwrGWD+DSUdIyPD+x3QLL4kSQQXFWdMrDHSjoUVFk9n1aor+22b6ypb+GYWQaTRFI9OG4ipiO9j5BvlYiJj8SFRMIuxmCIZ8VUuaYjgsY72263cDGvj7hURBgA=="
+  },
+  {
+    "index": 1,
+    "timestamp": "2026-08-21T05:24:38.051Z",
+    "action": "CONSENT_GRANTED",
+    "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
+    "previousHash": "15e50658f9b00fe02c9d969308bb844aa037f0bfd30c1da77d417ca3175c45fd",
+    "hash": "78e8007dcdf6957d98eb20155146cc695da70f551ef5eb9634cd8b8903731c50",
+    "signature": "0DHjFeWeYGDFU90Bs+Ul8uRn/jzqGJgLL8y3hFlO4sRp4R2Pb3nl+7asht5Vjkk7UPV+K8d03fad3971XElnU8x9kYu1XUPRsSF1BvGxy+NBwq8XRpE3XZSFmLqZESjZORfso7CSlD2FuxE084L2e0VN3oLutz1w2twxnHPHadjAovlCX2oDFnWPBBBh7m6/IIyDsWcgQep59bSpY/MX9DOa875EVL9Hvd3Y/1zXYsNuVRu9oDmtjm+ZlhFHFtWqlbhRdqQ9KR4ySiAPhJtDo/taG3FJKiuP9esQpGMutZBKvO4/Hhq3p7RCJBlbQoHl/lXYzWoCzMwskKTbXnFfkA=="
+  },
+  {
+    "index": 2,
+    "timestamp": "2026-08-21T05:24:38.062Z",
+    "action": "CONSENT_REVOKED",
+    "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
+    "previousHash": "78e8007dcdf6957d98eb20155146cc695da70f551ef5eb9634cd8b8903731c50",
+    "hash": "28c8252dcdf4d500ba1e8e802302da1011c4833a2489c95ac5b29cf3f6919d25",
+    "signature": "w6PmQ+7nE83ngY9VzfWI6dezBCD+bPYSns7QRqucY7qKI9E4kfx/e0yELYkKF9Z6LeVvh6Y19thsUNjczpGpT/8V+OOJtNmCeCcrN6g04OuGGdxm6AcJz8RgSvwYy9I0AFckeSXpIpgrBxs0gl3qh0+41YTUX6a8lfrtsuNfPGs1r0AD9MZGY0uK87CTAVYMi9o0975VYDlmmrZe4/4AyT259gDfXtrySnOVf0q0eRP9xHZk+cY5mLRULe4QL9GYbvfADHXYLfohSe+9Ko/F3tD+QtU/jRUDiJk5Yp4MZTx+M4hbzC9ZHVRDumhCke6B5e9bf8nLrVnt/+0wHNVMWw=="
+  },
+  {
+    "index": 3,
+    "timestamp": "2026-08-21T05:24:38.066Z",
+    "action": "CONSENT_REVOKED",
+    "patientId": "8b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
+    "previousHash": "28c8252dcdf4d500ba1e8e802302da1011c4833a2489c95ac5b29cf3f6919d25",
+    "hash": "8ec83bc673585f758013c1426b16bb9bb59f8ac8cf4a46956837ae3d4506d874",
+    "signature": "y6o8BzAX8jHTtXKz7iRuiMOywTobfH3XBA5JVVgcUwO51EYDNTf8cGewWjqqi5NeEpH+PJxS416QgJ4/8w0fsd0yehJ8uUxxjsY87eVPsXeF1w2LjimZbDGZITARYixeeSqn8KHQCx+u/tQljFP2tN9GyXbZokZZUWS2a126P0Op3YJXvd3ybriuNDoxi8XEN7Br9eqbuzk/sWTRaDzzfn3J6V+w6s38yc3D0Je1IEkcv4zHfsohRkBSlCRi5gXV/0CfSsG509CDvfhjsJd9UV40hUGQk7zM4R2uqG6Wggkcm+wP/kJaOyKZNR5Mp1JwZZWEXcg7tm+Gc4Q+r6COVw=="
+  },
+  {
+    "index": 4,
+    "timestamp": "2026-08-21T05:24:43.557Z",
+    "action": "CONSENT_GRANTED",
+    "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
+    "previousHash": "8ec83bc673585f758013c1426b16bb9bb59f8ac8cf4a46956837ae3d4506d874",
+    "hash": "4569052151b1ea6501cd37537db042849e75ea4465702e6065c3525d50334614",
+    "signature": "U4KcvdZksrFRGLg5av8xryZRFuNNm1oMlNLa2/h8BnWouziXXH+35hFQtj6JumVSmJAUQIogyH9UCCIqyCAkJNXhI5e+3i+SLqA3QW/076K5DOS4qbwEX49I/8k8J3hxYfx7SzXiNxikYcdNfMlSaecHH+wE6s1geTkXDNhRt1UCtAEtXYD+77yBmKmuHCmLU/B+XnyqUPDiXQW4h3hdbuSowQ9WYLjCvKT5y7n6d7k+XaQqIpnHh+F6h9YUsb70RA//0KLBkwQX+snAYm6waMRXnj5gsmYPy0uu4IuJmfiWLat53mSkP6z7XqFkhpTBJvBBe+op3RgVAi9EMTSDBQ=="
+  },
+  {
+    "index": 5,
+    "timestamp": "2026-08-21T05:24:43.599Z",
+    "action": "CONSENT_REVOKED",
+    "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
+    "previousHash": "4569052151b1ea6501cd37537db042849e75ea4465702e6065c3525d50334614",
+    "hash": "594e9a0577846facce162babe85d46defbe864b75eee3b4dfab515668eacb367",
+    "signature": "efpoxAkT+gxRcoKHDzxjKoMYa0CqEYK/jhY4I6N9FKv2gFLyMUR2KZxsCx5aS1lAD1y5nkQnf7fjvQT3neLMcaneqku73QQshbX6egc85LcI/HXA0WTBv2+2vhY/JWmd5yYKnFwP6QL9KkCT/6AWcxfZCyC1QJy+/eWfOjXGDGnJfaNYdGkuGsWxGYaJ0fN0lDbOl4tKA/U+7Dq3+AYDnT/DDOLoLKky58eqJjDiTvftENI5tU+MN0Dy3K7z2yY503Z1yh8JKe089UQkZ9fypkLrbKtAO3MZeKfWAoEhjoRtipiy719I/nE5Xz8ZAh+xMKfcbxMphKKgLx8BGAqhwA=="
+  },
+  {
+    "index": 6,
+    "timestamp": "2026-08-21T05:24:43.617Z",
+    "action": "CONSENT_REVOKED",
+    "patientId": "8b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
+    "previousHash": "594e9a0577846facce162babe85d46defbe864b75eee3b4dfab515668eacb367",
+    "hash": "8d7f6531e8c7c39c1db11d9840b9723f8c039adf7a5e1c1aafb5a0bff97eafab",
+    "signature": "F6x6rFg5QHQchruVeB9FnxN38jXnU5TKVyNsQlwA+kXbwGw5XIWC5COjfzXRUD/G0uk4eGgi7ADc06esMP3DwtapXDv8qMbfWBCpfSvKJs0LC7VJN5NZdIcdThm2iKBX0BiKPxG1BDKUCm5dOZE6E2DzrD6d7/sOFlqznd4SqGWWqtSj6tNdrdCHJGT+8rQ0uxDS991phFPtS18L+1zi9kXYnlUw6W90FcMH//Z8QCmH9GEpdQTGYooAaFdhf9liBCeyt7PqBTbHwA5spYY/BTjH/MtrTYV39ZoOUrjDhy8IuYRqPbX9o4NUpPPWuFHhs611Y02vWQZTGx6Nb6q4Jw=="
+  },
+  {
+    "index": 7,
+    "timestamp": "2026-08-21T05:24:57.998Z",
+    "action": "CONSENT_GRANTED",
+    "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
+    "previousHash": "8d7f6531e8c7c39c1db11d9840b9723f8c039adf7a5e1c1aafb5a0bff97eafab",
+    "hash": "7b651abffc2d4958bb33a648c07b6e14776c49bec8500e0eb3c2df24cedd23be",
+    "signature": "e/59Syu8cYT+YfrAdbOgl0JnpvShnyncfIpUomQH3yL21WUWmb4Pn8zXZ8VUTSL5zr1IVw6pUqGQ2fnolxKDupmXHif57rTTL5mJrOhA8yA+5900ofVJtMP8GZld12dh8BkymcK0v1xtvs2HaeiIqPuPf4Cs9kc7gtS41L8IANrJNCOctItHyWjwP7fbdLzFX/uveiNtG5aY1nwJL310WL7HwbZEVjQKzeMQgCbmjZSIKz5ubtuqTE5Tn7CR95iAunM1wtqHoJ8KPhVrV3R5MUPk5dSvHMUYLVIiiL/H4VGL649BHHjHok3tNWUycqkLCx9MPuaAqwkjgeK+WJt7nQ=="
+  },
+  {
+    "index": 8,
+    "timestamp": "2026-08-21T05:24:58.044Z",
+    "action": "CONSENT_REVOKED",
+    "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
+    "previousHash": "7b651abffc2d4958bb33a648c07b6e14776c49bec8500e0eb3c2df24cedd23be",
+    "hash": "192b4b30a1ef11b822ae7f8f85c5d97510cd29be43cefa1f08e35e51702ef04f",
+    "signature": "cp7q8Jeqx+SYkEgMuVLifZSRroWjyFvaOCBEeGvrE21aj5utnM5kiggVsoefLa9VbRHSLvscMalxLz7eeUl0FB6Fm/CXaFeCrjnYaBRvZLFvd9im5eUAC6jEIjBzYlujK2jCtlZ8v6fWW1HZ4UPloZbxBL2RknvajV65ZajPW1AcsMJvWkIT3nfAA9Egw7t1iWFtOAU+TiHQggVjiYd0ZNHKS4YUA8icyFcZPox6b0w+hWFjqR0XUbeOBNkVs1yryHE2kmLrr+Np4+ICd7q9iLGxuYLRrdXkG9wBkBK9gNZMbIF0perboSrz0fMWtGfWff8Lx1CYYEjSbt5enAodCg=="
+  },
+  {
+    "index": 9,
+    "timestamp": "2026-08-21T05:24:58.057Z",
+    "action": "CONSENT_REVOKED",
+    "patientId": "8b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
+    "previousHash": "192b4b30a1ef11b822ae7f8f85c5d97510cd29be43cefa1f08e35e51702ef04f",
+    "hash": "3314bf9a05603b3c4f420a84186202bf7adf51253eaf98a42d6646efbdea4278",
+    "signature": "DwENHeBHb04RS9xp8htbvR8LuIRYj3JkdIJ9Pi+ILYyJUou0exCHQ9BN3+Y0uCm02RcEcdGCQ9WhhCUj4AQl0wYw6er+iOyjcc/mpgsLmhi9QKIYwUq+2/v46asNPa9JHH/YP0cgQCv7QbjbsTt7dmYm5olGqIQn/MixLhH7IIWNq68BBRGWwA290G5UuSek1hfTIJHpxaayMKbvhdvN6Hm4LLXJfHZmKBPdpb3cb78lYDGVyZcOGBKjddiSVy8ii5mpShrAsY+txoCuYmlpYt21/sEGVf6+0QnELRxEUl3/iTl4j28IbHLQ5oG9+qtUFXiaWt4ksiScTk0n+1j0ag=="
+  },
+  {
+    "index": 10,
+    "timestamp": "2026-08-21T05:25:07.411Z",
+    "action": "CONSENT_GRANTED",
+    "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
+    "previousHash": "3314bf9a05603b3c4f420a84186202bf7adf51253eaf98a42d6646efbdea4278",
+    "hash": "90e141f1f55fdbe4233c31d3f349e5148fd78b6b795983523b9c313e2e67bdee",
+    "signature": "AGB5db2akKRMRmz2Mex+PkTzJuWZEhA9DRbrvmR1Cj/BmcvGVNmkuevXjXIqLzbB0iSVBBY12FB9hvXW1K5XcO/fgHB5qcezYJ2/58XGyicOEHSHwO7JoxQ4TfU1/+2SnIXgkmEBnbE+Cher7n2UTcmZby2Y/IqB2tfqtbqYQ5yZZX0BCMInYVg0jXUKYNbYoSKrtuyPofYTV7Hz+MJsds8eKeBSXsKnvhKoprvdeNmzGHfszqcFpeEOkU8xOLYs/s6Ggz6XLeeZz1Fjinki1WrxpJr87DfoKEGfGtxryNl28Jtz7AbCnmEQ9YAVD7KHHyW1U7LfxSJJsgVVmgIu7g=="
+  },
+  {
+    "index": 11,
+    "timestamp": "2026-08-21T05:25:07.450Z",
+    "action": "CONSENT_REVOKED",
+    "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
+    "previousHash": "90e141f1f55fdbe4233c31d3f349e5148fd78b6b795983523b9c313e2e67bdee",
+    "hash": "67814c4308feecc58d6c5a856f1a88a8f79ffde65cf277cc265105d6391d0111",
+    "signature": "MXUZAyck1t9jtvzfBJJgUqOXGzIKFTof5/FkFXEgdg0qdq/2E/42XU1DVSvf+hySA+YKiUkum7bcCHfK2zb2+3yZ2h502KISnINQmQ7Xc8OXTXBvsAETmWBovj//hjAWlkDcfjohSc0A2m2fQXnfdzbmzL1D7cpnmKN5Uoh9v3rOwngHeEoC1XW5vVliZoJeaGbXK8r5YdTomwDYeDmQsixE3FdnEx36s2ZY3yu40KMcJ8u5fEgFUVFQBqxhhwhheYnwuFaMtgUOPxTgld9YQlYD8W4DCZBiopMyH3SqJmBo2FFFTuDf5SeXHJIn3qiA4EMM13GG9ef0p9uthzwT6w=="
+  },
+  {
+    "index": 12,
+    "timestamp": "2026-08-21T05:25:07.462Z",
+    "action": "CONSENT_REVOKED",
+    "patientId": "8b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
+    "previousHash": "67814c4308feecc58d6c5a856f1a88a8f79ffde65cf277cc265105d6391d0111",
+    "hash": "3057017843865cc4fe48649ffe12b2e89e07dda351ec0a526bfaff11d9541e2a",
+    "signature": "AtGnOT1BOWY5Vdob96cy1LDrjSLMH0lVHhv1DcldJl5PdAoX2TTA69hAim5SD5WlnSUwBwrH4Vg3d72RGZa1DRsKa0BGb3IQx2LNW2O+j/eMXsKNwWEKQYE3rUzG0S0eL55rRbc5PTNoX78PU5LJEB9Sxk2f/jBJ0nvHCkVyumEYnJ+3m9DKnjdg3tc/x94cq4xopA0IyGz9t0LrBGdTYHOjHdfIKq6ryCoxzJWdDWdIKnBJ+Tt7nSkwWow0XQi2zen73cfooVCxoLVOu/Fini8hlgMdujzg/3o77GPKNqJvb259N7iR7Fn+MSWnB7syle6P+B9suiqb7ZV6+KXPUg=="
+  },
+  {
+    "index": 13,
+    "timestamp": "2026-08-21T05:25:15.032Z",
+    "action": "CONSENT_GRANTED",
+    "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
+    "previousHash": "3057017843865cc4fe48649ffe12b2e89e07dda351ec0a526bfaff11d9541e2a",
+    "hash": "dfa609a3faaf1117ea7e1738d0850f9128a11b55f09d901b6d43cb79d276d27c",
+    "signature": "djO/9QEgrtNRukjRFTsH3+W6Fy39In5WfoYNpZT3LX7x9FbwitRlA4CBYXRvMMILGwXzKn98H9hqOBnSHWvLbsAgraTAUD51u3b7lB8p9lxxuYAUwX93QLzuSp5+UCTureVEO/Y8OFMzgiuWob4EgIcwihP+T9iVMMrQC7ntB4GMYubhkcnUrFb1VmqCG9grDJ818t7ke+sBM9j0fomIQnXnNHjMgw3sxlqbVPiEO3iMs5uUc53xIzbTsh/sEzOxIVC1xh5BDQRL7XQgsWRoEKYO7j+K2FnuTX7yB6K1G9t9OCJGWqcZNriy0VO6f2/MIOC4RX2zj1Xp/SR0wgFRkg=="
+  },
+  {
+    "index": 14,
+    "timestamp": "2026-08-21T05:25:15.049Z",
+    "action": "CONSENT_REVOKED",
+    "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
+    "previousHash": "dfa609a3faaf1117ea7e1738d0850f9128a11b55f09d901b6d43cb79d276d27c",
+    "hash": "33b206620733fd6f6da3ed2ec04ebba8eb731b9f992592c9ed1882f46c038789",
+    "signature": "PDeUqV7SaEHNPHt70mSjF9VYvVJM+hQFzVvmc5J3Ex/CI3xLPW37pA79dPgQhWHMQSet+z7XInjh9jMeyNgB+rQ/dTLcJan5BXGhi9DF9rfJAy7d/B1WC60XkFdQzYonxf/613h33uyMIAnNhA/Tpzk3VdtuzVm6SGnjF7DbY04Hrc48bXaaRbFxrG8qBrGw+Vxkbq9Gk6tetyQiqVTEY3vCBVG7t+T8s5VeqDsYtxOGsEqDrPK4mKfjIjgBBZNHgAPwGKUV4pJSOuqyhCvdqSnmEbpJZwNTScv011B5hmYZWAkcnFXCUBEsa/49WTM7HNG2thJ3+dV0LRJC+IPbKQ=="
+  },
+  {
+    "index": 15,
+    "timestamp": "2026-08-21T05:25:15.058Z",
+    "action": "CONSENT_REVOKED",
+    "patientId": "8b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
+    "previousHash": "33b206620733fd6f6da3ed2ec04ebba8eb731b9f992592c9ed1882f46c038789",
+    "hash": "6e68df8ff3549ba90bb6dff9fb7f4c426c505fd00ee22f92d85c54dcf6f1e4c1",
+    "signature": "m+HWMDnLSeTNDvyeSs+2KYRFGS5FNHUlCeA2ImbZ2m7fbEyUEU+Bl7wrSL270RV15FyxdOaRHSdoJqAv2lVXeOH19H3aMvpGuVhP80NZABY2IBrFbBbnTj7F6Drj/IRIc8em8aRUHS0E8oYiUNyFoXchQH80owHAoRiuB4IkpwVipmxgyC4BgwOfDxGVwsfFuIZwkHM85nj+NxmUQ6NHGyNOeiIwgV0dBbmEsyQvRxajFiObaegLOJTQ3zMG+xUnkDmeW8xfJjZmhy6JAHK31HHwuLuuJldWyg7KSKnjm6u97tUMv/IqyeEDKmM1Y+gtxWYiVlkIJ+ll9eqcp8hQWA=="
+  }
+]
+================================================
+FILE: backend/data/keys/private.pem
+================================================
+-----BEGIN PRIVATE KEY-----
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQChGcupRKsU9W/R
+Emms6TTQboOBggC4OInMuYKuMW4URof/tYSgD9HfDKyXAK1XoFRtU4enjFkHJysQ
+4kkDIBfUzen3PQ4pGfvtSWOLk6TDWJwJBKUJTfTubJohgaeR/lwgm95k0cl8QDB9
+mVHbzgrcbujwEmOgo/2xfRLoZLd3WZSP4vB5NU4m13hEeYUvvwRePi53fyWytQ/L
+LKgGvS9H2xZmFHwqhI8K7fkySVPk0+CtJ1c/HwztiSSeXZNS2fZBySCFxnnsmRE2
+U1KQB2q/3V9MZEBX1/ZjUAsaZw7svy3rkS62dVhs7Y08dd8CJL3ERBQ/5RRXNVY5
+ZZNX22/vAgMBAAECggEAF2Nh1GSyO7w4LA+yxNYkg0AQGnyvsw8OPmkORlDJzOrC
+csa9BunVC79QzSldgRO3Phn630G6aRXwJCbd97SwkQYF+g1koWXy06usZoacTHnw
+SUTh2tx0+ypMJCIpHEJjyJ4oZtWoHUBKaemY30LmA8OcUMIysY8tVRe154Q7uHlP
+LWFS4Dm9T9MSo4egsmAkTvtTwgwxs0csOSujiHWaY6Kh5kuww6xdTMIRlgmdEpQ3
+2HRdzQBIyB0/KgXXjRZha4JtYi1nam1E2BjFYJF0hrEp7W+px7WKnHeE2Xpirjeo
+GU5fIe02YBk9sRh730AQoz86nzwdG5PKlDB2NCLrkQKBgQDdqGMXLzat8k4bOK9u
++mQngV3FIWRuHBzMvjOL2N4ARobpB0K8zzSYactznJshkcJo0d7pkTlzrDwvQp3O
+8W99qmFq09qCvKKPlBXyN5RxWDYeoaqqs+iXHEfHfhQWpxedvw0Qs01Lshjs6gya
+WmoQ8fGASafaXXHe4nWhoF7znwKBgQC6D4k0jcufuByKuu3FmNhnEE3p5eSWpGoh
+iwhmnOIwD8NyghBskdWidpYI5eVuqBx5ku0aARa/tPhUo8phMT30UrDG1N2DruNv
+nDI5cX1sv40VQDo0S/uvx+jzOmffKm4D+sfUHp5VzIgjJQ5P8xT9NY59BnUTIZnd
+ZU3dEEKhsQKBgQDId+pmpYTGfUa2x+WicULzl8S+7RxvmW1SnxLvgAwII8EQMEjj
+imL/FW+z+Ac1rSYutuDsTTOwsi0ccRtYdnNnLBk/DKurYf+D62KN1kai3CzWN1Cr
+YlsRj7o7aoOwmR56xLeESyW1ODXizyrmzq7u9GJ+rB7rF2hNNHM+4lP98QKBgQC2
+GaqBwx29zqYwqU85i6SRCoYXHCejwHsXJUotk/JUc7kog1+rwvfCMCobv1XT/bkQ
+y9o/Dz3Cl05NGJlkkps+WwglMgUzcqGqhMcrLYZCPx/H4rqUoKFOo2u9UjaDVrWi
+M3oMg4MYGjxLmWLuoMy0Hgy9FOrUtJgw9YtFhzqPoQKBgEgUH1MH4OTOFTq/erZQ
+LfPbM1CCt8orx/XWa88jV/dzYhoa4g7/9fBuvLnpOKqmOTjeulINyRnmHjV6d/8x
+6ZTbNOuwgIPlMTYK+zYoRWbyc0Enq6JNxZC/AXRy9x4dATBEMUz85zDgBK62NJym
+hLgTE5fAEhkp8WhMwMQAVMlm
+-----END PRIVATE KEY-----
+
+================================================
+FILE: backend/data/keys/public.pem
+================================================
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoRnLqUSrFPVv0RJprOk0
+0G6DgYIAuDiJzLmCrjFuFEaH/7WEoA/R3wyslwCtV6BUbVOHp4xZBycrEOJJAyAX
+1M3p9z0OKRn77Ulji5Okw1icCQSlCU307myaIYGnkf5cIJveZNHJfEAwfZlR284K
+3G7o8BJjoKP9sX0S6GS3d1mUj+LweTVOJtd4RHmFL78EXj4ud38lsrUPyyyoBr0v
+R9sWZhR8KoSPCu35MklT5NPgrSdXPx8M7Ykknl2TUtn2QckghcZ57JkRNlNSkAdq
+v91fTGRAV9f2Y1ALGmcO7L8t65EutnVYbO2NPHXfAiS9xEQUP+UUVzVWOWWTV9tv
+7wIDAQAB
+-----END PUBLIC KEY-----
 
 ================================================
 FILE: backend/data/patients.json
@@ -1526,6 +1769,23 @@ module.exports = (sequelize) => {
     oxygen_capacity_liters: {
       type: DataTypes.INTEGER,
       defaultValue: 0
+    },
+    engine_temp: {
+      type: DataTypes.FLOAT,
+      allowNull: true
+    },
+    fuel_level: {
+      type: DataTypes.FLOAT,
+      allowNull: true
+    },
+    battery_voltage: {
+      type: DataTypes.FLOAT,
+      allowNull: true
+    },
+    diagnostic_fault_codes: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      defaultValue: '[]'
     }
   }, {
     tableName: 'ambulances',
@@ -17391,6 +17651,10 @@ router.post('/consent/revoke', verifyToken(), async (req, res) => {
     patient.consent_timestamp = null;
     await patient.save();
 
+    // Append tamper-proof record to blockchain consent ledger
+    const consentLedger = require('../utils/consentLedger');
+    await consentLedger.appendBlock(patientId, 'CONSENT_REVOKED');
+
     // Mark all active consents as inactive
     if (Consent) {
       await Consent.update(
@@ -20364,6 +20628,31 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('ambulance:obd-telemetry', async (data) => {
+    const { unitId, engineTemp, fuelLevel, batteryVoltage, faultCodes } = data;
+    try {
+      const { Ambulance } = require('./utils/db');
+      const amb = await Ambulance.findOne({ where: { vehicleNo: unitId } });
+      if (amb) {
+        amb.engine_temp = parseFloat(engineTemp) || null;
+        amb.fuel_level = parseFloat(fuelLevel) || null;
+        amb.battery_voltage = parseFloat(batteryVoltage) || null;
+        amb.diagnostic_fault_codes = JSON.stringify(faultCodes || []);
+        await amb.save();
+
+        io.to('admin_warroom').emit('warroom:obd-telemetry-update', {
+          unitId,
+          engineTemp,
+          fuelLevel,
+          batteryVoltage,
+          faultCodes
+        });
+      }
+    } catch (err) {
+      console.error('[OBD-II TELEMETRY DB ERROR]', err.message);
+    }
+  });
+
   socket.on('request-hospital', (data) => {
     console.log(`[SOCKET_LOG] request-hospital received for reqId: ${data.reqId}, broadcast: ${data.broadcast || false}, targetSocket: ${data.hospitalSocketId || 'none'}`);
     let req = activeRequests[data.reqId];
@@ -21742,6 +22031,50 @@ describe('Auth Endpoints', () => {
       expect(res.status).toBe(200);
       expect(res.body.message).toContain('Logged out');
     });
+  });
+});
+
+================================================
+FILE: backend/tests/consentLedger.test.js
+================================================
+const consentLedger = require('../utils/consentLedger');
+
+describe('Cryptographic Consent Ledger Tests', () => {
+  beforeAll(() => {
+    consentLedger.createGenesisBlock();
+  });
+
+  it('should successfully initialize the chain with a genesis block', () => {
+    expect(consentLedger.chain.length).toBeGreaterThan(0);
+    expect(consentLedger.chain[0].index).toBe(0);
+    expect(consentLedger.chain[0].action).toBe('GENESIS_CHAIN_INITIALIZED');
+  });
+
+  it('should append new blocks to the ledger and verify integrity successfully', async () => {
+    const patientId = '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d';
+    await consentLedger.appendBlock(patientId, 'CONSENT_GRANTED');
+    await consentLedger.appendBlock(patientId, 'CONSENT_REVOKED');
+
+    const isValid = consentLedger.verifyChainIntegrity();
+    expect(isValid).toBe(true);
+  });
+
+  it('should detect unauthorized data modifications and fail chain verification', async () => {
+    const patientId = '8b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d';
+    await consentLedger.appendBlock(patientId, 'CONSENT_REVOKED');
+
+    // Attempt to tamper with the last block data
+    const lastBlockIndex = consentLedger.chain.length - 1;
+    const originalAction = consentLedger.chain[lastBlockIndex].action;
+    
+    // Maliciously modify block data without recalculating hashes or signatures
+    consentLedger.chain[lastBlockIndex].action = 'CONSENT_GRANTED_FRAUDULENTLY';
+
+    const isValid = consentLedger.verifyChainIntegrity();
+    expect(isValid).toBe(false);
+
+    // Restore original state for cleanliness
+    consentLedger.chain[lastBlockIndex].action = originalAction;
   });
 });
 
@@ -23137,6 +23470,161 @@ module.exports = {
   RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID || 'rzp_test_mockKeyId12345',
   RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET || 'mockKeySecret1234567890'
 };
+
+================================================
+FILE: backend/utils/consentLedger.js
+================================================
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+
+const LEDGER_FILE_PATH = process.env.NODE_ENV === 'test' 
+  ? path.join(__dirname, '../data/consent_ledger_test.json')
+  : path.join(__dirname, '../data/consent_ledger.json');
+
+const KEY_DIR = path.join(__dirname, '../data/keys');
+const PRIVATE_KEY_PATH = path.join(KEY_DIR, 'private.pem');
+const PUBLIC_KEY_PATH = path.join(KEY_DIR, 'public.pem');
+
+// Ensure directories exist
+if (!fs.existsSync(KEY_DIR)) {
+  fs.mkdirSync(KEY_DIR, { recursive: true });
+}
+if (!fs.existsSync(path.dirname(LEDGER_FILE_PATH))) {
+  fs.mkdirSync(path.dirname(LEDGER_FILE_PATH), { recursive: true });
+}
+
+// Load or persist keypair
+let privateKey, publicKey;
+if (fs.existsSync(PRIVATE_KEY_PATH) && fs.existsSync(PUBLIC_KEY_PATH)) {
+  privateKey = fs.readFileSync(PRIVATE_KEY_PATH, 'utf8');
+  publicKey = fs.readFileSync(PUBLIC_KEY_PATH, 'utf8');
+} else {
+  const keys = crypto.generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    publicKeyEncoding: { type: 'spki', format: 'pem' },
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
+  });
+  privateKey = keys.privateKey;
+  publicKey = keys.publicKey;
+  fs.writeFileSync(PRIVATE_KEY_PATH, privateKey, 'utf8');
+  fs.writeFileSync(PUBLIC_KEY_PATH, publicKey, 'utf8');
+}
+
+class ConsentLedger {
+  constructor() {
+    this.chain = [];
+    this.loadLedger();
+  }
+
+  loadLedger() {
+    if (fs.existsSync(LEDGER_FILE_PATH)) {
+      try {
+        const raw = fs.readFileSync(LEDGER_FILE_PATH, 'utf8');
+        this.chain = JSON.parse(raw);
+      } catch (err) {
+        console.error('[LEDGER ERROR] Failed to parse consent ledger json. Re-initializing chain.', err.message);
+        this.chain = [];
+      }
+    }
+
+    if (this.chain.length === 0) {
+      this.createGenesisBlock();
+    }
+  }
+
+  saveLedger() {
+    try {
+      fs.writeFileSync(LEDGER_FILE_PATH, JSON.stringify(this.chain, null, 2), 'utf8');
+    } catch (err) {
+      console.error('[LEDGER WRITE ERROR] Failed to save block to file.', err.message);
+    }
+  }
+
+  createGenesisBlock() {
+    const genesisBlock = {
+      index: 0,
+      timestamp: new Date().toISOString(),
+      action: 'GENESIS_CHAIN_INITIALIZED',
+      patientId: '00000000-0000-0000-0000-000000000000',
+      previousHash: '0',
+      hash: ''
+    };
+    genesisBlock.hash = this.calculateHash(genesisBlock);
+    genesisBlock.signature = this.signBlock(genesisBlock.hash);
+    this.chain = [genesisBlock];
+    this.saveLedger();
+  }
+
+  calculateHash(block) {
+    return crypto
+      .createHash('sha256')
+      .update(block.index + block.timestamp + block.action + block.patientId + block.previousHash)
+      .digest('hex');
+  }
+
+  signBlock(hash) {
+    const sign = crypto.createSign('SHA256');
+    sign.update(hash);
+    return sign.sign(privateKey, 'base64');
+  }
+
+  verifyBlockSignature(hash, signature) {
+    const verify = crypto.createVerify('SHA256');
+    verify.update(hash);
+    return verify.verify(publicKey, signature, 'base64');
+  }
+
+  async appendBlock(patientId, action) {
+    const lastBlock = this.chain[this.chain.length - 1];
+    const newBlock = {
+      index: lastBlock.index + 1,
+      timestamp: new Date().toISOString(),
+      action: action,
+      patientId: patientId,
+      previousHash: lastBlock.hash,
+      hash: ''
+    };
+
+    newBlock.hash = this.calculateHash(newBlock);
+    newBlock.signature = this.signBlock(newBlock.hash);
+    
+    this.chain.push(newBlock);
+    this.saveLedger();
+    console.log(`[LEDGER] Cryptographic Block #${newBlock.index} appended: ${action} for Patient ${patientId}`);
+    return newBlock;
+  }
+
+  verifyChainIntegrity() {
+    for (let i = 1; i < this.chain.length; i++) {
+      const currentBlock = this.chain[i];
+      const previousBlock = this.chain[i - 1];
+
+      // 1. Re-calculate hash and check
+      if (currentBlock.hash !== this.calculateHash(currentBlock)) {
+        console.error(`[LEDGER INTEGRITY FAILURE] Block #${currentBlock.index} has been altered! Hash mismatch.`);
+        return false;
+      }
+
+      // 2. Check previous hash reference
+      if (currentBlock.previousHash !== previousBlock.hash) {
+        console.error(`[LEDGER INTEGRITY FAILURE] Block #${currentBlock.index} previous hash link broken.`);
+        return false;
+      }
+
+      // 3. Verify digital signature
+      const isSignatureValid = this.verifyBlockSignature(currentBlock.hash, currentBlock.signature);
+      if (!isSignatureValid) {
+        console.error(`[LEDGER INTEGRITY FAILURE] Digital signature on Block #${currentBlock.index} is invalid!`);
+        return false;
+      }
+    }
+    console.log(`[LEDGER INTEGRITY OK] Verified ${this.chain.length} blocks. Cryptographic chain is secure and intact.`);
+    return true;
+  }
+}
+
+module.exports = new ConsentLedger();
 
 ================================================
 FILE: backend/utils/controlRoomBridge.js
@@ -24674,6 +25162,18 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
+// In-memory registry of traffic congestion speeds mapped by coordinate keys (rounded to 3 decimals ~110m)
+const trafficGridCongestions = {};
+
+/**
+ * Update dynamic traffic congestion speed factor for a coordinate sector (e.g. 0.2 represents heavy delay)
+ */
+function updateTrafficSpeed(lat, lng, speedFactor = 0.5) {
+  const key = `${parseFloat(lat).toFixed(3)}_${parseFloat(lng).toFixed(3)}`;
+  trafficGridCongestions[key] = parseFloat(speedFactor);
+  console.log(`[OSRM TRAFFIC] Dynamic traffic speed factor updated at ${key} to ${speedFactor}x`);
+}
+
 /**
  * Get route waypoints from self-hosted OSRM routing engine
  */
@@ -24686,7 +25186,6 @@ async function getSmartRoute(origin, dest) {
     if (res.ok) {
       const data = await res.json();
       if (data.routes && data.routes[0]) {
-        // Map geojson coordinates back to Leaflet [lat, lng] format
         const coords = data.routes[0].geometry.coordinates;
         return coords.map(c => [c[1], c[0]]);
       }
@@ -24695,7 +25194,6 @@ async function getSmartRoute(origin, dest) {
     console.warn(`[OSRM FALLBACK] Routing daemon offline. Generating A* mock routing vector:`, err.message);
   }
 
-  // Pure mathematical interpolation fallback for full offline capability
   const steps = 15;
   const path = [];
   for (let i = 0; i <= steps; i++) {
@@ -24712,6 +25210,16 @@ async function getSmartRoute(origin, dest) {
  */
 async function getETA(originLat, originLng, destLat, destLng) {
   const url = `${OSRM_ROUTER_URL}/route/v1/driving/${originLng},${originLat};${destLng},${destLat}?overview=false`;
+  
+  let congestionMultiplier = 1.0;
+  const originKey = `${parseFloat(originLat).toFixed(3)}_${parseFloat(originLng).toFixed(3)}`;
+  const destKey = `${parseFloat(destLat).toFixed(3)}_${parseFloat(destLng).toFixed(3)}`;
+  if (trafficGridCongestions[originKey]) {
+    congestionMultiplier = 1 / trafficGridCongestions[originKey];
+  } else if (trafficGridCongestions[destKey]) {
+    congestionMultiplier = 1 / trafficGridCongestions[destKey];
+  }
+
   try {
     const res = await fetch(url);
     if (res.ok) {
@@ -24719,7 +25227,7 @@ async function getETA(originLat, originLng, destLat, destLng) {
       if (data.routes && data.routes[0]) {
         const route = data.routes[0];
         return {
-          etaMinutes: parseFloat((route.duration / 60).toFixed(1)),
+          etaMinutes: parseFloat(((route.duration / 60) * congestionMultiplier).toFixed(1)),
           distanceKm: parseFloat((route.distance / 1000).toFixed(2))
         };
       }
@@ -24732,7 +25240,7 @@ async function getETA(originLat, originLng, destLat, destLng) {
   const avgSpeed = 45; // km/h
   const timeHours = dist / avgSpeed;
   return {
-    etaMinutes: parseFloat((timeHours * 60 * 1.2).toFixed(1)), // 1.2 traffic multiplier
+    etaMinutes: parseFloat((timeHours * 60 * 1.2 * congestionMultiplier).toFixed(1)),
     distanceKm: parseFloat(dist.toFixed(2))
   };
 }
@@ -24740,7 +25248,9 @@ async function getETA(originLat, originLng, destLat, destLng) {
 module.exports = {
   getSmartRoute,
   getETA,
-  haversineDistance
+  haversineDistance,
+  updateTrafficSpeed,
+  trafficGridCongestions
 };
 
 ================================================
@@ -49022,6 +49532,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import PhysiologicalWaveforms from './PhysiologicalWaveforms';
 import EmergencyCorridorPanel from './EmergencyCorridorPanel';
+import OfflineTileLayer from './OfflineTileLayer';
 let audioCtx = null;
 
 /* ─── Alert beep using Web Audio API ─────────────────────────────────────── */
@@ -52318,7 +52829,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
                   style={{ height: '100%', width: '100%', background: '#050d1a' }}
                   zoomControl={false}
                 >
-                  <TileLayer
+                  <OfflineTileLayer
                     url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
                     attribution='&copy; OpenStreetMap'
                   />
@@ -61048,6 +61559,82 @@ export function MfaVerifyScreen({ mfaToken, onLoginSuccess, onCancel, ParticleCa
 }
 
 ================================================
+FILE: frontend/src/components/OfflineTileLayer.js
+================================================
+import { useEffect } from 'react';
+import { useMap } from 'react-leaflet';
+import L from 'leaflet';
+import { mapTilesCache } from '../utils/IndexedDBBridge';
+
+// Subclass Leaflet L.TileLayer to intercept and cache geographic tile streams
+if (typeof window !== 'undefined' && L) {
+  L.TileLayer.Offline = L.TileLayer.extend({
+    createTile: function (coords, done) {
+      const tile = document.createElement('img');
+      const url = this.getTileUrl(coords);
+      const tileKey = `${coords.z}_${coords.x}_${coords.y}`;
+
+      mapTilesCache.get(tileKey).then(cached => {
+        if (cached && cached.base64) {
+          tile.src = cached.base64;
+          done(null, tile);
+        } else {
+          // Fetch normally and cache to IndexedDB bridge
+          fetch(url)
+            .then(res => {
+              if (!res.ok) throw new Error('Network tile load failed');
+              return res.blob();
+            })
+            .then(blob => {
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                const base64 = reader.result;
+                tile.src = base64;
+                mapTilesCache.enqueue({ tileKey, base64 }).catch(() => {});
+                done(null, tile);
+              };
+              reader.readAsDataURL(blob);
+            })
+            .catch(() => {
+              // Graceful fallback placeholder for uncached dead zones
+              tile.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" style="background:%230a1020;border:1px solid %2300c8ff22"><text x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%2300c8ff66" font-family="monospace" font-size="10">OFFLINE GRID</text></svg>';
+              done(null, tile);
+            });
+        }
+      }).catch(() => {
+        tile.src = url;
+        done(null, tile);
+      });
+
+      return tile;
+    }
+  });
+}
+
+/**
+ * Custom React-Leaflet component replacing default TileLayer to cache tiles for offline dead zones.
+ */
+export default function OfflineTileLayer({ url, attribution }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !L || !L.TileLayer.Offline) return;
+
+    const layer = new L.TileLayer.Offline(url, {
+      attribution: attribution || '&copy; OpenStreetMap contributors',
+      crossOrigin: true
+    });
+    layer.addTo(map);
+
+    return () => {
+      map.removeLayer(layer);
+    };
+  }, [map, url, attribution]);
+
+  return null;
+}
+
+================================================
 FILE: frontend/src/components/PatientPortal.js
 ================================================
 import React, { useState, useEffect } from 'react';
@@ -64734,6 +65321,7 @@ import MassCasualtyPanel from './MassCasualtyPanel';
 import BloodEmergencyNetwork from './BloodEmergencyNetwork';
 import VideoCall from './VideoCall';
 import EmergencyCorridorPanel from './EmergencyCorridorPanel';
+import OfflineTileLayer from './OfflineTileLayer';
 import { generateMonthlyReport } from '../utils/reportGenerator';
 import { exportMetricsToExcel } from '../utils/excelExporter';
 import PhysiologicalWaveforms from './PhysiologicalWaveforms';
@@ -65343,7 +65931,7 @@ export default function WarRoom({ socket, connected }) {
                 </div>
             <div style={{ flex: 1, minHeight: 0 }}>
               <MapContainer center={[mapCenter.lat, mapCenter.lng]} zoom={11} style={{ height: '100%', width: '100%' }} zoomControl={false}>
-                <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" attribution="&copy; OpenStreetMap" />
+                <OfflineTileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" attribution="&copy; OpenStreetMap" />
                 <MapCenterer center={mapCenter} />
                 {Object.entries(ambulances).map(([id, amb]) => {
                   if (!amb.location) return null;
@@ -66474,9 +67062,10 @@ export const exportMetricsToExcel = (data) => {
 FILE: frontend/src/utils/IndexedDBBridge.js
 ================================================
 class IndexedDBBridge {
-  constructor(dbName = 'RescueLinkOffline', storeName = 'telemetry_queue') {
+  constructor(dbName = 'RescueLinkOffline', storeName = 'telemetry_queue', keyPath = 'msgId') {
     this.dbName = dbName;
     this.storeName = storeName;
+    this.keyPath = keyPath;
     this.db = null;
   }
 
@@ -66487,7 +67076,7 @@ class IndexedDBBridge {
       request.onupgradeneeded = (e) => {
         const db = e.target.result;
         if (!db.objectStoreNames.contains(this.storeName)) {
-          db.createObjectStore(this.storeName, { keyPath: 'msgId' });
+          db.createObjectStore(this.storeName, { keyPath: this.keyPath });
         }
       };
       request.onsuccess = (e) => {
@@ -66511,6 +67100,17 @@ class IndexedDBBridge {
     });
   }
 
+  async get(key) {
+    const db = await this.init();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([this.storeName], 'readonly');
+      const store = transaction.objectStore(this.storeName);
+      const request = store.get(key);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = (e) => reject(e.target.error);
+    });
+  }
+
   async getAll() {
     const db = await this.init();
     return new Promise((resolve, reject) => {
@@ -66522,12 +67122,12 @@ class IndexedDBBridge {
     });
   }
 
-  async dequeue(msgId) {
+  async dequeue(key) {
     const db = await this.init();
     return new Promise((resolve, reject) => {
       const transaction = db.transaction([this.storeName], 'readwrite');
       const store = transaction.objectStore(this.storeName);
-      const request = store.delete(msgId);
+      const request = store.delete(key);
       request.onsuccess = () => resolve(true);
       request.onerror = (e) => reject(e.target.error);
     });
@@ -66546,6 +67146,7 @@ class IndexedDBBridge {
 }
 
 export const offlineQueue = new IndexedDBBridge();
+export const mapTilesCache = new IndexedDBBridge('RescueLinkMapsTiles', 'tile_cache', 'tileKey');
 
 ================================================
 FILE: frontend/src/utils/reportGenerator.js
