@@ -883,7 +883,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
     try {
       const cleanId = loginId.trim().toLowerCase();
       // ENTERPRISE AUTH: Request cryptographic JWT from backend
-      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
+      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
       const res = await fetch(`${SERVER_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1548,7 +1548,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
     
     try {
       // 1. Send the scanned ID to the secure backend to query the National Database
-      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
+      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
       const token = sessionStorage.getItem('rescuelink_token') || '';
       const res = await fetch(`${SERVER_URL}/api/patient/lookup/${nationalId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -4260,3 +4260,4 @@ function AIVoiceDispatcher({ vitals, patient }) {
     </div>
   );
 }
+

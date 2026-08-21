@@ -299,7 +299,7 @@ function AbdmConnectModal({ patient, onClose, onLinked }) {
     if (!abhaId) return;
     setLoading(true);
     try {
-      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
+      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
       const res = await fetch(`${SERVER_URL}/api/auth/lookup-abha/${abhaId}`);
       const data = await res.json();
       if (res.ok) {
@@ -318,7 +318,7 @@ function AbdmConnectModal({ patient, onClose, onLinked }) {
     if (!otp) return;
     setLoading(true);
     try {
-      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
+      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
       const res = await fetch(`${SERVER_URL}/api/auth/lookup-abha/${abhaId}`);
       const data = await res.json();
       if (res.ok) {
@@ -832,7 +832,7 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
                       const text = e.target.value;
                       if (!text.trim()) return;
                       try {
-                        const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
+                        const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
                         const res = await fetch(`${SERVER_URL}/api/ocr/parse-report`, {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
@@ -2788,7 +2788,7 @@ export default function HospitalDashboard({ socket, connected }) {
     const targetId = incomingRequest?.id || activeMissionId;
     if (!targetId) return showAlert("No active mission to export.");
     try {
-      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
+      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
       const token = sessionStorage.getItem('rescuelink_token') || '';
       const response = await fetch(`/api/fhir/${targetId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -5043,4 +5043,5 @@ function ThreeDResuscitationMonitor({ vitals }) {
     </div>
   );
 }
+
 

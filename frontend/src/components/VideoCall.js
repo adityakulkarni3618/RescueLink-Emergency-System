@@ -90,7 +90,7 @@ const VideoCall = ({ socket, role, missionId: reqId }) => {
 
     try {
       const token = sessionStorage.getItem('rescuelink_token') || sessionStorage.getItem('rescuelink_token') || '';
-      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
+      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
       const res = await axios.post(`${SERVER_URL}/api/video/create-room`, { reqId }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -371,3 +371,4 @@ const VideoCall = ({ socket, role, missionId: reqId }) => {
 };
 
 export default VideoCall;
+

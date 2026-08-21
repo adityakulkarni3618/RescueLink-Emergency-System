@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const getServerUrl = () => process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
+const getServerUrl = () => process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
 
 export default function InsurancePanel({ hospitalId }) {
   const [patientName, setPatientName] = useState('');
@@ -86,3 +86,4 @@ export default function InsurancePanel({ hospitalId }) {
     </div>
   );
 }
+
