@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
+import { MapContainer, Marker, Popup, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import QRCode from 'qrcode';
+import OfflineTileLayer from './OfflineTileLayer';
 
 const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
 
@@ -184,7 +185,7 @@ export default function BloodEmergencyNetwork({ socket, userLocation, patientDet
             {/* Map */}
             <div style={{ height: 280, borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(220,30,30,0.3)' }}>
               <MapContainer center={[mapCenter.lat, mapCenter.lng]} zoom={13} style={{ width: '100%', height: '100%' }}>
-                <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+                <OfflineTileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
                 {bloodBanks.map(bank => {
                   const hasStock = (bank.inventory[selectedBloodType] || 0) > 0;
                   return (
