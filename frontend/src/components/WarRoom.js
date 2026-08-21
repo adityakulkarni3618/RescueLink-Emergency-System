@@ -64,6 +64,7 @@ function KpiCard({ label, value, unit, color, icon }) {
 
 export default function WarRoom({ socket, connected }) {
   const [ambulances, setAmbulances] = useState({});
+  const [hospitals, setHospitals] = useState({});
   const [analyticsData, setAnalyticsData] = useState([]);
   const [liveIncidents, setLiveIncidents] = useState([]);
   const [hazards, setHazards] = useState([]);
@@ -398,6 +399,7 @@ export default function WarRoom({ socket, connected }) {
     const onAiAlert = (data) => { setAiAlert(data); setTimeout(() => setAiAlert(null), 10000); };
     socket.on('ai-prediction-alert', onAiAlert);
     socket.on('ambulances-update', (data) => setAmbulances(data));
+    socket.on('hospitals-update', (data) => setHospitals(data));
     socket.on('roles-update', (data) => setConnectedRoles(data));
 
     const token = sessionStorage.getItem('rescuelink_token');
@@ -463,6 +465,7 @@ export default function WarRoom({ socket, connected }) {
     return () => {
       clearInterval(interval);
       socket.off('ambulances-update');
+      socket.off('hospitals-update');
       socket.off('ai-prediction-alert');
       socket.off('roles-update');
       socket.off('warroom:stuck-case', onStuckCase);
