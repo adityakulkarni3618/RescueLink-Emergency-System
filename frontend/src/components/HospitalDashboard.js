@@ -1991,6 +1991,7 @@ export default function HospitalDashboard({ socket, connected }) {
 
   const [activeMissions, setActiveMissions] = useState({}); // { [reqId]: { patient, vitals, messages, notes, route, history } }
   const [greenCorridorActive, setGreenCorridorActive] = useState(false);
+  const [standbyAlerts, setStandbyAlerts] = useState([]);
   const ignoredMissionsRef = useRef(new Set());
 
   // High-reliability helper to update a specific mission's data
@@ -2663,6 +2664,16 @@ export default function HospitalDashboard({ socket, connected }) {
 
     socket.on('incoming-hospital-request', onIncomingHospitalRequest);
 
+    socket.on('initial-hospital-facility-check', (data) => {
+      setStandbyAlerts(prev => {
+        if (prev.some(a => a.reqId === data.reqId)) return prev;
+        return [...prev, { ...data, timestamp: Date.now() }];
+      });
+      if (typeof playAlertBeep === 'function') {
+        playAlertBeep();
+      }
+    });
+
     socket.on('reroute-hospital', (data) => {
       const isAlreadyMe = data.newHospitalId === authHospital?.hospitalId || data.newHospitalId === activeHospitalId;
       if (data.newHospitalId && !isAlreadyMe) {
@@ -2758,6 +2769,7 @@ export default function HospitalDashboard({ socket, connected }) {
       socket.off('clinical-checklist-update');
       socket.off('traffic-incidents-update');
       socket.off('green-corridor-status');
+      socket.off('initial-hospital-facility-check');
     };
   }, [socket, activeMissionId, authHospital, activeHospitalId, updateMissionData, incomingRequest, isAuthenticated]);
 
@@ -3843,6 +3855,50 @@ export default function HospitalDashboard({ socket, connected }) {
 
                   {/* LEFT: Charts + Map */}
                   <div style={{ padding: 20, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+                    {/* --- STANDBY ALERTS: Facility Check Standby Alerts --- */}
+                    {standbyAlerts.length > 0 && (
+                      <div style={{ background: 'rgba(0,255,136,0.05)', border: '1px solid rgba(0,255,136,0.3)', borderRadius: 10, padding: 15 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                          <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00ff88', letterSpacing: '0.1em', fontWeight: 700 }}>
+                            📢 INBOUND STANDBY ALERTS ({standbyAlerts.length})
+                          </div>
+                          <button
+                            onClick={() => setStandbyAlerts([])}
+                            style={{
+                              background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.4)',
+                              fontSize: 10, fontFamily: "'Share Tech Mono'", cursor: 'pointer'
+                            }}
+                          >
+                            CLEAR
+                          </button>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {standbyAlerts.map(alert => {
+                            const isAttached = alert.attachedHospitalId === authHospital?.hospitalId || alert.attachedHospitalId === activeHospitalId;
+                            return (
+                              <div key={alert.reqId} style={{
+                                background: 'rgba(0,255,136,0.02)',
+                                border: `1px solid ${isAttached ? '#00ff88' : 'rgba(255,255,255,0.05)'}`,
+                                borderRadius: 6, padding: '10px 15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                              }}>
+                                <div>
+                                  <div style={{ fontSize: 12, fontWeight: 'bold', color: '#fff' }}>
+                                    Standby Alert: {alert.patientDetails?.name || 'Emergency Patient'}
+                                  </div>
+                                  <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>
+                                    Vitals Standby Check • {isAttached ? '🚨 Closest Primary Attached Hospital' : 'Alternative Standby Support'}
+                                  </div>
+                                </div>
+                                <div style={{ fontSize: 10, fontFamily: "'Share Tech Mono'", color: isAttached ? '#00ff88' : 'rgba(255,255,255,0.4)' }}>
+                                  {isAttached ? 'PRIMARY TARGET' : 'STANDBY'}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
 
                     {/* --- HUGE CONNECTIONS SCALING: Request Queue --- */}
                     {requestQueue.length > 0 && (
