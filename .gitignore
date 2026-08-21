@@ -8,3 +8,5 @@ scratch/
 server/data/*.json
 server/data/*.txt
 backend/data/
+firebase-key.json
+backend/firebase-key.json
