@@ -1,6 +1,6 @@
 RescueLink Emergency System - Full Codebase Digest
 Generated from: c:\Users\Aditya Kulkarni\Downloads\Health-care-system
-Total files: 171
+Total files: 175
 
 PROJECT STRUCTURE:
 Health-care-system/
@@ -26,6 +26,7 @@ Health-care-system/
             ChronicLog.js
             Consent.js
             DoctorHospital.js
+            EmergencyCorridor.js
             Hospital.js
             Incident.js
             InsuranceClaim.js
@@ -58,6 +59,7 @@ Health-care-system/
             videoCall.js
             add_patient_user.js
             clear_doctors.js
+            corridorSimulator.js
             delete_hospital.js
             list_hospitals.js
             run-migrations.js
@@ -81,6 +83,7 @@ Health-care-system/
             config.js
             controlRoomBridge.js
             db.js
+            emergencyCorridor.js
             encryption.js
             eraktKosh.js
             fhirConverter.js
@@ -120,6 +123,7 @@ Health-care-system/
                 BloodEmergencyNetwork.js
                 CPRGuidance.js
                 CustomAlert.js
+                EmergencyCorridorPanel.js
                 FamilyDashboard.js
                 HeartbeatViz.js
                 HospitalAnalytics.js
@@ -1768,6 +1772,62 @@ module.exports = (sequelize) => {
   });
 
   return DoctorHospital;
+};
+
+================================================
+FILE: backend/models/EmergencyCorridor.js
+================================================
+const { DataTypes } = require('sequelize');
+
+module.exports = (sequelize) => {
+  const EmergencyCorridor = sequelize.define('EmergencyCorridor', {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true
+    },
+    incident_id: {
+      type: DataTypes.UUID,
+      allowNull: false
+    },
+    junction_id: {
+      type: DataTypes.STRING,
+      allowNull: false
+    },
+    name: {
+      type: DataTypes.STRING,
+      allowNull: false
+    },
+    status: {
+      type: DataTypes.ENUM('SCHEDULED', 'PREEMPTING', 'CORRIDOR_ACTIVE', 'PASSED'),
+      defaultValue: 'SCHEDULED'
+    },
+    eta_seconds: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0
+    },
+    preempt_window_start: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
+    preempt_window_end: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
+    latitude: {
+      type: DataTypes.DOUBLE,
+      allowNull: false
+    },
+    longitude: {
+      type: DataTypes.DOUBLE,
+      allowNull: false
+    }
+  }, {
+    tableName: 'emergency_corridors',
+    timestamps: true
+  });
+
+  return EmergencyCorridor;
 };
 
 ================================================
@@ -17483,6 +17543,97 @@ async function clearData() {
 clearData();
 
 ================================================
+FILE: backend/scripts/corridorSimulator.js
+================================================
+require('dotenv').config();
+const { io } = require('socket.io-client');
+const { Incident, syncDatabase } = require('../utils/db');
+const { initializeCorridor, evaluatePreemption, VIJAYAWADA_JUNCTIONS } = require('../utils/emergencyCorridor');
+
+// Connect client socket to local backend instance
+const SOCKET_URL = process.env.SOCKET_URL || 'http://localhost:5000';
+const socket = io(SOCKET_URL);
+
+// Coordinate route checkpoints interpolating Vijayawada path
+const ROUTE_PATH = [
+  { lat: 16.5120, lng: 80.6385, name: 'Starting Point (Governorpet)' },
+  { lat: 16.5085, lng: 80.6420, name: 'PCR Junction' },
+  { lat: 16.5060, lng: 80.6455, name: 'En Route Labbipet' },
+  { lat: 16.5042, lng: 80.6495, name: 'Labbipet Junction' },
+  { lat: 16.5020, lng: 80.6525, name: 'En Route Benz Circle' },
+  { lat: 16.5002, lng: 80.6554, name: 'Benz Circle' },
+  { lat: 16.4975, lng: 80.6585, name: 'En Route Aster Ramesh' },
+  { lat: 16.4950, lng: 80.6612, name: 'Aster Ramesh Cross' },
+  { lat: 16.4930, lng: 80.6635, name: 'Aster Ramesh Hospital (Destination)' }
+];
+
+async function startSimulation() {
+  console.log('--- STARTING EMERGENCY CORRIDOR SIMULATOR ---');
+  await syncDatabase();
+
+  // Find or create an active incident
+  let activeIncident = await Incident.findOne({ where: { status: 'hospital_accepted' } });
+  if (!activeIncident) {
+    activeIncident = await Incident.create({
+      status: 'hospital_accepted',
+      pickup_lat: ROUTE_PATH[0].lat,
+      pickup_lng: ROUTE_PATH[0].lng,
+      pickup_address: 'Vijayawada Governorpet',
+      news2_score: 8,
+      notes: 'Cardiac Emergency Corridor Run'
+    });
+    console.log(`[SIM] Created new active incident for corridor simulator: ${activeIncident.id}`);
+  } else {
+    console.log(`[SIM] Hooking into existing active incident: ${activeIncident.id}`);
+  }
+
+  // Populate junctions
+  await initializeCorridor(activeIncident.id);
+
+  socket.on('connect', () => {
+    console.log(`[SOCKET] Connected to RescueLink backend: ${SOCKET_URL}`);
+    socket.emit('register-ambulance', {
+      unitId: 'AMB-VIJ-108',
+      driverName: 'Eshwar Rao',
+      vehicleNo: 'AP-16-TJ-1081',
+      token: 'mock-auth-token-bypass' // Sandbox auth bypass configured on mock checks
+    });
+  });
+
+  let index = 0;
+  const interval = setInterval(async () => {
+    if (index >= ROUTE_PATH.length) {
+      console.log('[SIM] Ambulance has reached the destination hospital. Stopping simulation.');
+      clearInterval(interval);
+      socket.disconnect();
+      return;
+    }
+
+    const pos = ROUTE_PATH[index];
+    console.log(`\n========================================`);
+    console.log(`[SIM] STEP ${index + 1}: Ambulance location: ${pos.name} (${pos.lat}, ${pos.lng})`);
+
+    // Emit live location update via socket
+    socket.emit('location-update', {
+      reqId: activeIncident.id,
+      lat: pos.lat,
+      lng: pos.lng,
+      speed: 65, // km/h
+      heading: 120,
+      accuracy: 5,
+      timestamp: Date.now(),
+      arrivedAtUser: true
+    });
+
+    index++;
+  }, 4000);
+}
+
+startSimulation().catch(err => {
+  console.error('Simulation run error:', err);
+});
+
+================================================
 FILE: backend/scripts/delete_hospital.js
 ================================================
 require('dotenv').config();
@@ -17957,6 +18108,7 @@ const { initVitalsBridge } = require('./utils/vitalsBridge');
 const cache = require('./utils/cache');
 const { acquireLock, releaseLock } = require('./utils/redis');
 const { sendPushNotification, sendTopicNotification } = require('./utils/pushNotifications');
+const { initializeCorridor, evaluatePreemption } = require('./utils/emergencyCorridor');
 
 // NOTE: @socket.io/cluster-adapter only works inside a Node.js cluster (PM2/master-worker).
 // It is disabled here for standalone dev. In production with PM2, enable it in a cluster entrypoint.
@@ -19481,6 +19633,7 @@ io.on('connection', (socket) => {
       io.to(`mission_${reqId}`).emit('location-update', enrichedData);
       console.log(`[MAP] Enriched Location update routed to mission_${reqId}`);
       syncMissionToDB(reqId);
+      evaluatePreemption(reqId, data, io).catch(err => console.error('[PREEMPTION ERROR]', err));
     } else {
       if (reqId) {
         io.to(`mission_${reqId}`).emit('location-update', data);
@@ -20188,6 +20341,7 @@ io.on('connection', (socket) => {
         io.to(req.userSocket).emit('route-update', { reqId: req.id, routePath: route });
         io.to(req.ambulanceSocket).emit('route-update', { reqId: req.id, routePath: route });
       }
+      initializeCorridor(req.id).catch(err => console.error('[PREEMPTION INIT ERROR]', err));
     } else {
       req.status = 'ambulance_rejected';
       io.to(req.userSocket).emit('ambulance-request-response', { ...req, accepted: false });
@@ -21211,6 +21365,40 @@ io.on('connection', (newSocket) => {
       }
     }
   });
+
+  // Dynamic Green Wave Manual Preemption Overrides
+  newSocket.on('corridor:manual-override', async (data) => {
+    const { incidentId, junctionId, forceStatus } = data;
+    try {
+      const { EmergencyCorridor, AuditLog } = require('./utils/db');
+      const junc = await EmergencyCorridor.findOne({ where: { incident_id: incidentId, junction_id: junctionId } });
+      if (junc) {
+        junc.status = forceStatus || 'CORRIDOR_ACTIVE';
+        await junc.save();
+
+        await AuditLog.create({
+          action: 'TRAFFIC_SIGNAL_PREEMPTION',
+          details: `MANUAL OVERRIDE: Junction ${junc.name} set to ${junc.status} by City Administrator.`,
+          severity: 'WARNING'
+        }).catch(err => console.error(err));
+
+        io.to(`mission_${incidentId}`).emit('corridor:status_update', {
+          incidentId,
+          junctionId,
+          name: junc.name,
+          status: junc.status
+        });
+        io.to('admin_warroom').emit('corridor:status_update', {
+          incidentId,
+          junctionId,
+          name: junc.name,
+          status: junc.status
+        });
+      }
+    } catch (err) {
+      console.error('[MANUAL OVERRIDE ERROR]', err.message);
+    }
+  });
 });
 
 // FIX H3: Boot sequence — wait for DB to be ready BEFORE accepting socket connections.
@@ -21608,10 +21796,10 @@ const { server, startServer } = require('../server');
 
 // Mock db sync and models
 jest.mock('../utils/db', () => ({
-  User: { findOne: jest.fn(), findByPk: jest.fn() },
+  User: { findOne: jest.fn(), findByPk: jest.fn(), create: jest.fn().mockResolvedValue({}) },
   Hospital: { findOne: jest.fn(), findByPk: jest.fn() },
   Patient: { findOne: jest.fn(), findByPk: jest.fn() },
-  Incident: { findOne: jest.fn(), findByPk: jest.fn(), upsert: jest.fn() },
+  Incident: { findOne: jest.fn(), findByPk: jest.fn(), findAll: jest.fn().mockResolvedValue([]), upsert: jest.fn() },
   AuditLog: { create: jest.fn() },
   sequelize: { authenticate: jest.fn().mockResolvedValue(true) },
   syncDatabase: jest.fn().mockResolvedValue(true)
@@ -23064,6 +23252,7 @@ const Ambulance = require('../models/Ambulance')(sequelize);
 const DoctorHospital = require('../models/DoctorHospital')(sequelize);
 const ChronicLog = require('../models/ChronicLog')(sequelize);
 const Prescription = require('../models/Prescription')(sequelize);
+const EmergencyCorridor = require('../models/EmergencyCorridor')(sequelize);
 
 // Define relations / associations
 Patient.hasMany(Prescription, { foreignKey: 'patient_id', as: 'prescriptions' });
@@ -23127,6 +23316,10 @@ Hospital.belongsToMany(User, { through: DoctorHospital, foreignKey: 'hospitalId'
 // ChronicLog relations
 Patient.hasMany(ChronicLog, { foreignKey: 'patient_id', as: 'chronicLogs' });
 ChronicLog.belongsTo(Patient, { foreignKey: 'patient_id', as: 'patient' });
+
+// EmergencyCorridor relations
+Incident.hasMany(EmergencyCorridor, { foreignKey: 'incident_id', as: 'corridors', onDelete: 'CASCADE' });
+EmergencyCorridor.belongsTo(Incident, { foreignKey: 'incident_id', as: 'incident' });
 
 /**
  * Performs db health-check.
@@ -23226,9 +23419,172 @@ module.exports = {
   DoctorHospital,
   ChronicLog,
   Prescription,
+  EmergencyCorridor,
   syncDatabase,
   healthCheck,
   closeDatabase
+};
+
+================================================
+FILE: backend/utils/emergencyCorridor.js
+================================================
+const { EmergencyCorridor, AuditLog } = require('./db');
+
+// Predefined city junctions in Vijayawada for simulation overlay
+const VIJAYAWADA_JUNCTIONS = [
+  { id: 'junc_pcr', name: 'PCR Junction', lat: 16.5085, lng: 80.6420 },
+  { id: 'junc_labbipet', name: 'Labbipet Junction', lat: 16.5042, lng: 80.6495 },
+  { id: 'junc_benz_circle', name: 'Benz Circle', lat: 16.5002, lng: 80.6554 },
+  { id: 'junc_rameswaram', name: 'Aster Ramesh Cross', lat: 16.4950, lng: 80.6612 }
+];
+
+/**
+ * Calculates distance in meters using Haversine formula
+ */
+function getDistanceMeters(lat1, lon1, lat2, lon2) {
+  const R = 6371e3; // meters
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
+/**
+ * Initializes and seeds the dynamic emergency corridor junctions for an incident
+ */
+async function initializeCorridor(incidentId) {
+  try {
+    // Delete existing corridor nodes for this incident to avoid stale data
+    await EmergencyCorridor.destroy({ where: { incident_id: incidentId } });
+
+    const corridors = [];
+    let etaAccumulator = 60; // Incremental ETAs for junctions
+
+    for (const junc of VIJAYAWADA_JUNCTIONS) {
+      const startWindow = new Date(Date.now() + (etaAccumulator - 20) * 1000);
+      const endWindow = new Date(Date.now() + (etaAccumulator + 40) * 1000);
+
+      const node = await EmergencyCorridor.create({
+        incident_id: incidentId,
+        junction_id: junc.id,
+        name: junc.name,
+        status: 'SCHEDULED',
+        eta_seconds: etaAccumulator,
+        preempt_window_start: startWindow,
+        preempt_window_end: endWindow,
+        latitude: junc.lat,
+        longitude: junc.lng
+      });
+      corridors.push(node);
+      etaAccumulator += 90; // Next junction is 90 seconds out
+    }
+    console.log(`[PREEMPTION] Initialized ${corridors.length} corridor junctions for incident ${incidentId}`);
+    return corridors;
+  } catch (err) {
+    console.error(`[PREEMPTION ERROR] Failed to initialize corridor:`, err.message);
+    return [];
+  }
+}
+
+/**
+ * Evaluates ambulance telemetry and updates preemption locks
+ */
+async function evaluatePreemption(incidentId, currentLoc, io) {
+  if (!currentLoc || !currentLoc.lat || !currentLoc.lng) return;
+
+  try {
+    const junctions = await EmergencyCorridor.findAll({ where: { incident_id: incidentId } });
+    if (junctions.length === 0) return;
+
+    for (const junc of junctions) {
+      const distance = getDistanceMeters(currentLoc.lat, currentLoc.lng, junc.latitude, junc.longitude);
+      const oldStatus = junc.status;
+      let newStatus = oldStatus;
+
+      if (oldStatus === 'SCHEDULED' && distance < 450) {
+        newStatus = 'PREEMPTING';
+        
+        // Log to Audit Ledger
+        await AuditLog.create({
+          action: 'TRAFFIC_SIGNAL_PREEMPTION',
+          details: `Preempt window active for junction ${junc.name} (Incident: ${incidentId}). Initiating dynamic green wave.`,
+          severity: 'INFO'
+        }).catch(err => console.error(err));
+
+        if (io) {
+          io.to(`mission_${incidentId}`).emit('corridor:preempt_junction', {
+            incidentId,
+            junctionId: junc.junction_id,
+            name: junc.name,
+            status: 'PREEMPTING',
+            distance: Math.round(distance)
+          });
+        }
+      } else if (oldStatus === 'PREEMPTING' && distance < 120) {
+        newStatus = 'CORRIDOR_ACTIVE';
+
+        // Log to Audit Ledger
+        await AuditLog.create({
+          action: 'TRAFFIC_SIGNAL_PREEMPTION',
+          details: `CORRIDOR ACTIVE at ${junc.name} (Incident: ${incidentId}). Route fully preempted and cleared.`,
+          severity: 'WARNING'
+        }).catch(err => console.error(err));
+      } else if ((oldStatus === 'PREEMPTING' || oldStatus === 'CORRIDOR_ACTIVE') && distance > 180) {
+        // Simple vector check: check if we are heading away
+        // If distance is increasing after being close, mark as PASSED and release signal
+        newStatus = 'PASSED';
+
+        // Log release to Audit Ledger
+        await AuditLog.create({
+          action: 'TRAFFIC_SIGNAL_PREEMPTION',
+          details: `Ambulance cleared junction bounds for ${junc.name}. Restoring standard traffic cycles.`,
+          severity: 'INFO'
+        }).catch(err => console.error(err));
+
+        if (io) {
+          io.to(`mission_${incidentId}`).emit('corridor:route_cleared', {
+            incidentId,
+            junctionId: junc.junction_id,
+            name: junc.name,
+            status: 'PASSED'
+          });
+        }
+      }
+
+      if (newStatus !== oldStatus) {
+        junc.status = newStatus;
+        await junc.save();
+
+        if (io) {
+          io.to(`mission_${incidentId}`).emit('corridor:status_update', {
+            incidentId,
+            junctionId: junc.junction_id,
+            name: junc.name,
+            status: newStatus,
+            eta_seconds: Math.max(0, Math.round(distance / 12.5)) // rough estimate at 45km/h
+          });
+          io.to('admin_warroom').emit('corridor:status_update', {
+            incidentId,
+            junctionId: junc.junction_id,
+            name: junc.name,
+            status: newStatus
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.error(`[PREEMPTION EVAL ERROR]`, err.message);
+  }
+}
+
+module.exports = {
+  initializeCorridor,
+  evaluatePreemption,
+  VIJAYAWADA_JUNCTIONS
 };
 
 ================================================
@@ -48535,6 +48891,7 @@ import { offlineQueue } from '../utils/IndexedDBBridge';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import PhysiologicalWaveforms from './PhysiologicalWaveforms';
+import EmergencyCorridorPanel from './EmergencyCorridorPanel';
 let audioCtx = null;
 
 /* ─── Alert beep using Web Audio API ─────────────────────────────────────── */
@@ -52084,6 +52441,9 @@ export default function AmbulanceStreamer({ socket, connected }) {
               setChecklist={setClinicalChecklist} 
             />
 
+            {/* AI Emergency Corridor & Signal Preemption Panel */}
+            <EmergencyCorridorPanel socket={socket} incidentId={assignedUser?.id || activeMissionId} isControlPanel={false} />
+
             {/* Paramedic Clinical AI Diagnosis & ACLS Advisor */}
             <ClinicalAIDiagnosticAdvisor vitals={vitals} patient={assignedUser?.patientDetails} />
 
@@ -53693,6 +54053,195 @@ export default function CustomAlert({ title, message, onClose }) {
           background: 'rgba(0,200,255,0.1)', color: '#00c8ff', border: '1px solid rgba(0,200,255,0.3)', padding: '10px 24px', borderRadius: 6,
           fontFamily: "'Orbitron'", fontSize: 12, fontWeight: 700, cursor: 'pointer', width: '100%'
         }}>ACKNOWLEDGE</button>
+      </div>
+    </div>
+  );
+}
+
+================================================
+FILE: frontend/src/components/EmergencyCorridorPanel.js
+================================================
+import React, { useState, useEffect } from 'react';
+
+const PREDEFINED_JUNCTIONS = [
+  { id: 'junc_pcr', name: 'PCR Junction' },
+  { id: 'junc_labbipet', name: 'Labbipet Junction' },
+  { id: 'junc_benz_circle', name: 'Benz Circle' },
+  { id: 'junc_rameswaram', name: 'Aster Ramesh Cross' }
+];
+
+export default function EmergencyCorridorPanel({ socket, incidentId, isControlPanel = false }) {
+  const [junctions, setJunctions] = useState(
+    PREDEFINED_JUNCTIONS.map(j => ({ ...j, status: 'SCHEDULED', eta: 0 }))
+  );
+  const [logs, setLogs] = useState([]);
+  const [speed, setSpeed] = useState(65);
+  const [eta, setEta] = useState(380); // seconds
+
+  const addLog = (text) => {
+    const timestamp = new Date().toLocaleTimeString();
+    setLogs(prev => [`[${timestamp}] ${text}`, ...prev.slice(0, 19)]);
+  };
+
+  useEffect(() => {
+    addLog('AI Emergency Corridor System Initialized in Vijayawada.');
+
+    if (!socket || !incidentId) return;
+
+    const onStatusUpdate = (data) => {
+      if (data.incidentId !== incidentId) return;
+
+      setJunctions(prev => prev.map(j => {
+        if (j.id === data.junctionId) {
+          addLog(`Junction ${data.name} status updated to: ${data.status.replace('_', ' ')}`);
+          return { ...j, status: data.status, eta: data.eta_seconds || j.eta };
+        }
+        return j;
+      }));
+    };
+
+    const onPreemptJunction = (data) => {
+      if (data.incidentId !== incidentId) return;
+      addLog(`🚨 AI preemption active for ${data.name}. Distance: ${data.distance}m. Establishing green wave.`);
+    };
+
+    const onRouteCleared = (data) => {
+      if (data.incidentId !== incidentId) return;
+      addLog(`✓ Ambulance cleared ${data.name}. Releasing green wave lock.`);
+    };
+
+    const onLocationUpdate = (data) => {
+      if (data.reqId !== incidentId) return;
+      if (data.speed) setSpeed(Math.round(data.speed));
+      if (data.etaMinutes) setEta(Math.round(data.etaMinutes * 60));
+    };
+
+    socket.on('corridor:status_update', onStatusUpdate);
+    socket.on('corridor:preempt_junction', onPreemptJunction);
+    socket.on('corridor:route_cleared', onRouteCleared);
+    socket.on('location-update', onLocationUpdate);
+
+    return () => {
+      socket.off('corridor:status_update', onStatusUpdate);
+      socket.off('corridor:preempt_junction', onPreemptJunction);
+      socket.off('corridor:route_cleared', onRouteCleared);
+      socket.off('location-update', onLocationUpdate);
+    };
+  }, [socket, incidentId]);
+
+  const handleManualOverride = (junctionId, name) => {
+    if (!socket || !incidentId) return;
+    if (window.confirm(`Force manual override green signal preemption lock for ${name}?`)) {
+      socket.emit('corridor:manual-override', {
+        incidentId,
+        junctionId,
+        forceStatus: 'CORRIDOR_ACTIVE'
+      });
+      addLog(`[MANUAL COMMAND] Triggered emergency preemption override for ${name}`);
+    }
+  };
+
+  const formatTime = (secs) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}m ${s.toString().padStart(2, '0')}s`;
+  };
+
+  return (
+    <div style={{
+      background: 'rgba(10, 16, 32, 0.75)',
+      border: '1px solid rgba(0, 200, 255, 0.2)',
+      borderRadius: 12,
+      padding: 20,
+      fontFamily: "'Rajdhani', sans-serif",
+      color: '#e0eaff',
+      backdropFilter: 'blur(12px)',
+      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
+    }}>
+      {/* Real-time Status Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(0, 200, 255, 0.15)', paddingBottom: 12, marginBottom: 16 }}>
+        <div>
+          <span style={{ fontSize: 10, fontFamily: "'Orbitron'", color: '#00ff88', letterSpacing: '0.1em' }}>🚨 AI EMERGENCY CORRIDOR ACTIVE</span>
+          <div style={{ fontSize: 16, fontWeight: 700, fontFamily: "'Orbitron'" }}>VIJAYAWADA CORRIDOR #108</div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <span style={{ fontSize: 10, color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'" }}>SPEED / ETA</span>
+          <div style={{ fontSize: 15, fontFamily: "'Orbitron'", fontWeight: 'bold' }}>{speed} km/h | {formatTime(eta)}</div>
+        </div>
+      </div>
+
+      {/* Junction Corridor Stepper */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+        {junctions.map((j, i) => {
+          let badgeColor = 'rgba(255,255,255,0.05)';
+          let textColor = '#aaa';
+          let borderStyle = '1px solid rgba(255,255,255,0.1)';
+          let glow = 'none';
+
+          if (j.status === 'PREEMPTING') {
+            badgeColor = 'rgba(255, 230, 0, 0.15)';
+            textColor = '#ffe600';
+            borderStyle = '1px solid #ffe600';
+            glow = '0 0 10px rgba(255, 230, 0, 0.2)';
+          } else if (j.status === 'CORRIDOR_ACTIVE') {
+            badgeColor = 'rgba(0, 255, 136, 0.15)';
+            textColor = '#00ff88';
+            borderStyle = '1px solid #00ff88';
+            glow = '0 0 12px rgba(0, 255, 136, 0.3)';
+          } else if (j.status === 'PASSED') {
+            badgeColor = 'rgba(160, 200, 255, 0.05)';
+            textColor = 'rgba(160, 200, 255, 0.4)';
+          }
+
+          return (
+            <div key={j.id} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              background: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: 8,
+              border: '1px solid rgba(160,200,255,0.08)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 13, fontFamily: "'Share Tech Mono'", color: 'rgba(160,200,255,0.4)' }}>[J{i+1}]</span>
+                <span style={{ fontSize: 14, fontWeight: 'bold' }}>{j.name}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{
+                  fontSize: 10, fontFamily: "'Orbitron'", fontWeight: 'bold',
+                  padding: '3px 8px', borderRadius: 4, background: badgeColor,
+                  color: textColor, border: borderStyle, boxShadow: glow
+                }}>
+                  {j.status}
+                </span>
+                {isControlPanel && j.status !== 'PASSED' && (
+                  <button
+                    onClick={() => handleManualOverride(j.id, j.name)}
+                    style={{
+                      background: 'rgba(0, 200, 255, 0.1)', border: '1px solid rgba(0, 200, 255, 0.3)',
+                      borderRadius: 4, color: '#00c8ff', padding: '3px 8px', fontSize: 10,
+                      fontFamily: "'Orbitron'", cursor: 'pointer', transition: 'all 0.2s'
+                    }}
+                  >
+                    OVERRIDE
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Operational Monospace Terminal Log */}
+      <div>
+        <span style={{ fontSize: 10, color: 'rgba(160,200,255,0.5)', display: 'block', marginBottom: 6, fontFamily: "'Share Tech Mono'" }}>OPERATIONAL REAL-TIME SYSTEM LOG</span>
+        <div style={{
+          background: 'rgba(0, 0, 0, 0.3)', border: '1px solid rgba(160,200,255,0.1)',
+          borderRadius: 6, padding: 12, height: 110, overflowY: 'auto',
+          fontFamily: "'Share Tech Mono'", fontSize: 11, color: '#7cfc00',
+          lineHeight: '1.5em', display: 'flex', flexDirection: 'column'
+        }}>
+          {logs.map((log, index) => (
+            <div key={index}>{log}</div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -64054,6 +64603,7 @@ import 'leaflet/dist/leaflet.css';
 import MassCasualtyPanel from './MassCasualtyPanel';
 import BloodEmergencyNetwork from './BloodEmergencyNetwork';
 import VideoCall from './VideoCall';
+import EmergencyCorridorPanel from './EmergencyCorridorPanel';
 import { generateMonthlyReport } from '../utils/reportGenerator';
 import { exportMetricsToExcel } from '../utils/excelExporter';
 import PhysiologicalWaveforms from './PhysiologicalWaveforms';
@@ -65025,6 +65575,11 @@ export default function WarRoom({ socket, connected }) {
                 >
                   ⚠️ FORCE CLOSE MISSION (AUDITED)
                 </button>
+              </div>
+
+              {/* AI Emergency Corridor Preemption Control Panel */}
+              <div style={{ marginTop: 15 }}>
+                <EmergencyCorridorPanel socket={socket} incidentId={selectedIncidentDetails.id} isControlPanel={true} />
               </div>
             </div>
           )}
