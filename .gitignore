@@ -7,3 +7,4 @@ scratch/
 *.sqlite3
 server/data/*.json
 server/data/*.txt
+backend/data/
