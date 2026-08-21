@@ -52,35 +52,46 @@ const generateBlockchain = (consentStatus, userId) => {
 };
 
 
-// Fix leaflet icon issue
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
-  iconUrl: require('leaflet/dist/images/marker-icon.png'),
-  shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
-});
+try {
+  if (typeof window !== 'undefined' && L && L.Icon && L.Icon.Default) {
+    delete L.Icon.Default.prototype._getIconUrl;
+    L.Icon.Default.mergeOptions({
+      iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
+      iconUrl: require('leaflet/dist/images/marker-icon.png'),
+      shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
+    });
+  }
+} catch (e) {
+  console.warn('[LEAFLET ICON PATCH ERROR]', e);
+}
 
-// Custom Icons
-const userIcon = new L.DivIcon({
-  html: `<div style="font-size: 24px;">🧍</div>`,
-  className: 'custom-div-icon',
-  iconSize: [24, 24],
-  iconAnchor: [12, 24],
-});
+let userIcon = null;
+let ambulanceIcon = null;
+let hospitalIcon = null;
+try {
+  if (typeof window !== 'undefined' && L && L.DivIcon) {
+    userIcon = new L.DivIcon({
+      html: `<div style="font-size: 24px;">🧍</div>`,
+      className: 'custom-div-icon',
+      iconSize: [24, 24],
+      iconAnchor: [12, 24],
+    });
 
-const ambulanceIcon = new L.DivIcon({
-  html: `<div style="font-size: 24px;">🚑</div>`,
-  className: 'custom-div-icon',
-  iconSize: [24, 24],
-  iconAnchor: [12, 24],
-});
+    ambulanceIcon = new L.DivIcon({
+      html: `<div style="font-size: 24px;">🚑</div>`,
+      className: 'custom-div-icon',
+      iconSize: [24, 24],
+      iconAnchor: [12, 24],
+    });
 
-const hospitalIcon = new L.DivIcon({
-  html: `<div style="font-size: 24px;">🏥</div>`,
-  className: 'custom-div-icon',
-  iconSize: [24, 24],
-  iconAnchor: [12, 24],
-});
+    hospitalIcon = new L.DivIcon({
+      html: `<div style="font-size: 24px;">🏥</div>`,
+      className: 'custom-div-icon',
+      iconSize: [24, 24],
+      iconAnchor: [12, 24],
+    });
+  }
+} catch (e) {}
 
 // Helper component to center map on user
 function SmartMapController({ userLoc, ambulanceLoc, manualCenter }) {

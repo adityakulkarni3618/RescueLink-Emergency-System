@@ -5,18 +5,29 @@ import 'leaflet/dist/leaflet.css';
 
 const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
 
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-});
+try {
+  if (typeof window !== 'undefined' && L && L.Icon && L.Icon.Default) {
+    delete L.Icon.Default.prototype._getIconUrl;
+    L.Icon.Default.mergeOptions({
+      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    });
+  }
+} catch (e) {
+  console.warn('[LEAFLET ICON PATCH ERROR]', e);
+}
 
-const ambulanceIcon = L.divIcon({
-  className: '',
-  html: `<div style="width:40px;height:40px;background:rgba(255,100,50,0.95);border:2px solid #ff6b35;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 25px rgba(255,100,50,0.8);animation:pulse 1s ease infinite">🚑</div><style>@keyframes pulse{0%,100%{box-shadow:0 0 15px rgba(255,100,50,0.5)}50%{box-shadow:0 0 30px rgba(255,100,50,1)}}</style>`,
-  iconSize: [40, 40], iconAnchor: [20, 20],
-});
+let ambulanceIcon = null;
+try {
+  if (typeof window !== 'undefined' && L && L.divIcon) {
+    ambulanceIcon = L.divIcon({
+      className: '',
+      html: `<div style="width:40px;height:40px;background:rgba(255,100,50,0.95);border:2px solid #ff6b35;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 25px rgba(255,100,50,0.8);animation:pulse 1s ease infinite">🚑</div><style>@keyframes pulse{0%,100%{box-shadow:0 0 15px rgba(255,100,50,0.5)}50%{box-shadow:0 0 30px rgba(255,100,50,1)}}</style>`,
+      iconSize: [40, 40], iconAnchor: [20, 20],
+    });
+  }
+} catch (e) {}
 
 export default function AmbulanceMarketplace({ socket, userLocation, onBookAmbulance }) {
   const [ambulances, setAmbulances] = useState([]);
