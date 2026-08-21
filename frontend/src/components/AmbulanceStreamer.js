@@ -825,6 +825,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
   const [ambulances, setAmbulances] = useState({}); // Fleet overview
   const [routePath, setRoutePath] = useState(null);
   const [previousReports, setPreviousReports] = useState([]);
+  const [hospitalRecommendations, setHospitalRecommendations] = useState([]);
 
   const [requestAccepted, setRequestAccepted] = useState(false);
   const [arrivedAtUser, setArrivedAtUser] = useState(false);
@@ -1084,6 +1085,11 @@ export default function AmbulanceStreamer({ socket, connected }) {
     socket.on('ambulance-request-response', onAmbulanceResponse);
     socket.on('hospital-request-response', onHospitalResponse);
     socket.on('hospitals-update', onHospitalsUpdate);
+    socket.on('hospital-facility-recommendations', (data) => {
+      if (data && data.recommendations) {
+        setHospitalRecommendations(data.recommendations);
+      }
+    });
     socket.on('ambulances-update', (data) => setAmbulances(data));
     socket.on('route-update', (data) => {
       if (data.routePath) setRoutePath(data.routePath.map(pos => [pos.lat, pos.lng]));
@@ -1192,6 +1198,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
       socket.off('route-update');
       socket.off('mission-completed');
       socket.off('patient-onboard');
+      socket.off('hospital-facility-recommendations');
       socket.off('patient-data', onPatientData);
       socket.off('hospital-resources-locked', onResourcesLocked);
       socket.off('traffic-incidents-update');
@@ -3429,6 +3436,52 @@ export default function AmbulanceStreamer({ socket, connected }) {
                 </MapContainer>
               </div>
             </div>
+
+            {/* Real-time Hospital Facility Analysis & Triage Recommendations */}
+            {patientLoaded && hospitalRecommendations.length > 0 && (
+              <div style={{
+                background: 'rgba(10,35,70,0.85)', border: '1px solid rgba(0,255,136,0.3)',
+                borderRadius: 10, padding: 20, marginBottom: 20, boxShadow: '0 0 15px rgba(0,255,136,0.15)'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <div style={{ fontFamily: "'Orbitron'", fontSize: 12, color: '#00ff88', letterSpacing: '0.1em', fontWeight: 700 }}>
+                    🧬 CLINICAL FACILITY TRIAGE RECOMMENDATION
+                  </div>
+                  <div style={{ fontFamily: "'Share Tech Mono'", fontSize: 9, color: '#00ff88', background: 'rgba(0,255,136,0.1)', padding: '2px 6px', borderRadius: 4 }}>
+                    LIVE MATCHING
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {hospitalRecommendations.map((rec, idx) => {
+                    const isTop = idx === 0;
+                    return (
+                      <div key={rec.id} style={{
+                        padding: '12px', borderRadius: 8,
+                        background: isTop ? 'rgba(0,255,136,0.08)' : 'rgba(0,0,0,0.3)',
+                        border: `1px solid ${isTop ? '#00ff88' : 'rgba(160,200,255,0.1)'}`,
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                          <div style={{ fontWeight: 800, fontSize: 13, color: isTop ? '#00ff88' : '#fff' }}>
+                            {idx + 1}. {rec.name}
+                          </div>
+                          <div style={{ fontFamily: "'Share Tech Mono'", fontSize: 12, color: isTop ? '#00ff88' : '#88ccee', fontWeight: 700 }}>
+                            {rec.score}% MATCH
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 12, fontSize: 11, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'", marginBottom: 6 }}>
+                          <span>📍 {rec.distanceKm} km away</span>
+                          <span>🛏️ ICU Beds: {rec.icuBeds}</span>
+                          <span>🫁 Vent: {rec.ventilators}</span>
+                        </div>
+                        <div style={{ fontSize: 11, color: isTop ? 'rgba(0,255,136,0.85)' : 'rgba(255,255,255,0.5)', fontFamily: "'Share Tech Mono'", fontStyle: 'italic', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 6 }}>
+                          📋 {rec.rationale}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Multi-Hospital Network Directory */}
             <div style={{

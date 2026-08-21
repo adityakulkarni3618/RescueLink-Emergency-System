@@ -1270,6 +1270,63 @@ io.on('connection', (socket) => {
     return score;
   }
 
+  async function getHospitalRecommendations(req) {
+    try {
+      const { Hospital } = require('./utils/db');
+      const registeredHospitals = await Hospital.findAll({ where: { is_active: true } });
+      const userLocation = req.userLocation;
+      const scoreNum = req.news2Score || 0;
+
+      const recommendations = registeredHospitals.map(h => {
+        const distance = calcDist(userLocation, { lat: h.lat, lng: h.lng });
+        const totalBeds = h.total_beds || 50;
+        const icuBeds = h.icu_beds || 10;
+        const ventilators = h.ventilators || 5;
+        
+        let score = 100;
+        score -= (distance * 10);
+        score += (icuBeds * 5);
+        score += (ventilators * 8);
+
+        let rationale = '';
+        if (scoreNum >= 7) {
+          if (icuBeds > 12) {
+            score += 40;
+            rationale = 'Recommended: High-tier ICU unit equipped for critical trauma lifecycle support.';
+          } else if (ventilators > 8) {
+            score += 25;
+            rationale = 'Recommended: Available advanced ventilator bays standby.';
+          } else {
+            rationale = 'Nearest available ER ward, but resource levels are restricted.';
+          }
+        } else {
+          if (distance < 3) {
+            score += 30;
+            rationale = `Primary Match: Proximity route (${distance.toFixed(1)} km) is optimal for stable triage.`;
+          } else {
+            rationale = `Alternative Match: Clean transit route (${distance.toFixed(1)} km) with stable bed availability.`;
+          }
+        }
+
+        return {
+          id: h.id,
+          name: h.name,
+          distanceKm: Number(distance.toFixed(2)),
+          icuBeds,
+          ventilators,
+          score: Math.max(0, Math.round(score)),
+          rationale
+        };
+      });
+
+      recommendations.sort((a, b) => b.score - a.score);
+      return recommendations;
+    } catch (err) {
+      console.error('[RECOMMENDATIONS ERROR]', err);
+      return [];
+    }
+  }
+
   // Global processed message IDs set for server-side deduplication
   if (!global.processedMessageIds) {
     global.processedMessageIds = new Set();
@@ -1429,6 +1486,14 @@ io.on('connection', (socket) => {
     if (reqId) {
       io.to(`mission_${reqId}`).emit('vitals-update', update);
       io.emit('vitals-update', update);
+
+      // Dynamic hospital facility recommendations if patient is onboard
+      if (activeRequests[reqId] && activeRequests[reqId].status === 'patient_onboard') {
+        activeRequests[reqId].news2Score = news2Score; // Sync news2 score
+        getHospitalRecommendations(activeRequests[reqId]).then(recommendations => {
+          io.to(`mission_${reqId}`).emit('hospital-facility-recommendations', { recommendations });
+        });
+      }
     }
   });
 
@@ -1979,7 +2044,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('request-ambulance', (data) => {
+  socket.on('request-ambulance', async (data) => {
     if (!data || !data.userLocation || !data.patientDetails) {
       return socket.emit('error-alert', { message: 'Malformed Request: Missing GPS or Medical Data' });
     }
@@ -2126,6 +2191,24 @@ io.on('connection', (socket) => {
     }
 
     const reqId = require('crypto').randomUUID();
+    
+    // Auto-attach the closest registered hospital to the incident
+    let closestHospital = null;
+    let minDistance = Infinity;
+    try {
+      const { Hospital } = require('./utils/db');
+      const dbHospitals = await Hospital.findAll({ where: { is_active: true } });
+      dbHospitals.forEach(h => {
+        const dist = calcDist(userLocation, { lat: h.lat, lng: h.lng });
+        if (dist < minDistance) {
+          minDistance = dist;
+          closestHospital = h;
+        }
+      });
+    } catch (err) {
+      console.error('[AUTO-ATTACH HOSPITAL ERROR]', err);
+    }
+
     activeRequests[reqId] = {
       id: reqId,
       userSocket: socket.id,
@@ -2135,26 +2218,56 @@ io.on('connection', (socket) => {
       userLocation,
       fallbackBLS,
       checklist: {},
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      hospitalId: closestHospital ? closestHospital.id : null,
+      assignedHospital: closestHospital ? {
+        id: closestHospital.id,
+        name: closestHospital.name,
+        lat: closestHospital.lat,
+        lng: closestHospital.lng,
+        contactInfo: closestHospital.contact_number,
+        isOnline: true
+      } : null
     };
 
     socket.emit('request-acknowledged', { id: reqId, status: 'searching' });
 
-    if (chosenCandidateId) {
-      const isVirtual = chosenCandidateId.startsWith('VIRTUAL-AMB-') || combinedAmbulances[chosenCandidateId].isSimulated;
+    // Broadcast initial standby facility check alert to all hospitals
+    const standbyPayload = {
+      reqId: reqId,
+      userLocation,
+      patientDetails,
+      attachedHospitalId: closestHospital ? closestHospital.id : null
+    };
+    io.emit('initial-hospital-facility-check', standbyPayload);
+    // Also notify individual registered hospital rooms
+    Object.keys(hospitals).forEach(sid => {
+      const hospId = hospitals[sid]?.id;
+      if (hospId) {
+        io.to(`hospital:${hospId}`).emit('initial-hospital-facility-check', standbyPayload);
+      }
+    });
+
+    // Broadcast incoming request to multiple candidate ambulances
+    const targetAmbulances = candidateAmbulances.length > 0 ? candidateAmbulances : (chosenCandidateId ? [chosenCandidateId] : []);
+    
+    targetAmbulances.forEach(ambId => {
+      const isVirtual = ambId.startsWith('VIRTUAL-AMB-') || (combinedAmbulances[ambId] && combinedAmbulances[ambId].isSimulated);
       const userPhone = data.userPhone || patientDetails?.mobile || (patientDetails?.emergencyContact && patientDetails.emergencyContact.includes('–') ? patientDetails.emergencyContact.split('–')[1].trim() : '') || '+1234567890';
       if (isVirtual) {
-        console.log(`[Sim Dispatch] Auto-routing request ${reqId} to virtual unit ${chosenCandidateId}`);
-        startVirtualAmbulanceSimulation(reqId, chosenCandidateId);
-        // WhatsApp Notify User (Simulated)
-        whatsappService.notifyUserDispatched(userPhone, chosenCandidateId, 5);
+        // To preserve simulation logic: only start simulation for the primary chosen candidate
+        if (ambId === chosenCandidateId) {
+          console.log(`[Sim Dispatch] Auto-routing request ${reqId} to virtual unit ${ambId}`);
+          startVirtualAmbulanceSimulation(reqId, ambId);
+          whatsappService.notifyUserDispatched(userPhone, ambId, 5);
+        }
       } else {
-        io.to(chosenCandidateId).emit('incoming-ambulance-request', activeRequests[reqId]);
-        // WhatsApp Notify Ambulance Driver
-        const driverMobile = combinedAmbulances[chosenCandidateId]?.contactInfo || '+1234567890';
+        io.to(ambId).emit('incoming-ambulance-request', activeRequests[reqId]);
+        
+        // WhatsApp Notifications
+        const driverMobile = combinedAmbulances[ambId]?.contactInfo || '+1234567890';
         whatsappService.notifyAmbulanceAssigned(driverMobile, reqId, activeRequests[reqId].userLocation);
-        // WhatsApp Notify User
-        whatsappService.notifyUserDispatched(userPhone, chosenCandidateId, 5);
+        whatsappService.notifyUserDispatched(userPhone, ambId, 5);
 
         // WhatsApp Notify Next-of-Kin (Family Emergency Alert)
         const nokPhone = patientDetails?.emergencyContactPhone || patientDetails?.emergency_contact_phone;
@@ -2162,14 +2275,15 @@ io.on('connection', (socket) => {
           whatsappService.notifyNextOfKinEmergency(
             nokPhone,
             patientDetails?.name || 'Emergency Patient',
-            chosenCandidateId,
+            ambId,
             'En Route to Emergency Site',
             reqId
           );
         }
       }
+    });
 
-      // FCM Push Notification for user/patient
+    // FCM Push Notification for user/patient
       if (data.userId) {
         User.findByPk(data.userId).then(user => {
           if (user && user.fcm_token) {
@@ -2179,7 +2293,6 @@ io.on('connection', (socket) => {
       }
       // Also notify topic for other paramedics
       sendTopicNotification('paramedics', 'New Emergency Mission', `Emergency case ${reqId} near your location.`, { reqId });
-    }
   });
 
 
@@ -2220,6 +2333,11 @@ io.on('connection', (socket) => {
       req.status = 'patient_onboard';
       io.to(`mission_${reqId}`).emit('patient-onboard', data);
       console.log(`[DISPATCH] Patient onboard for request ${reqId}`);
+
+      // Emit initial hospital facility recommendations
+      getHospitalRecommendations(req).then(recommendations => {
+        io.to(`mission_${reqId}`).emit('hospital-facility-recommendations', { recommendations });
+      });
     }
   });
 
