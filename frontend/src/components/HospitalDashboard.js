@@ -99,39 +99,50 @@ if (typeof window !== 'undefined') {
 }
 
 // Fix leaflet default icon
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-});
+try {
+  if (typeof window !== 'undefined' && L && L.Icon && L.Icon.Default) {
+    delete L.Icon.Default.prototype._getIconUrl;
+    L.Icon.Default.mergeOptions({
+      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    });
+  }
+} catch (e) {
+  console.warn('[LEAFLET ICON PATCH ERROR]', e);
+}
 
-// Custom ambulance marker
-const ambulanceIcon = L.divIcon({
-  className: '',
-  html: `<div style="
-    width:36px; height:36px; background:rgba(255,100,50,0.9);
-    border:2px solid rgba(255,150,100,0.8); border-radius:50%;
-    display:flex; align-items:center; justify-content:center;
-    font-size:18px; box-shadow:0 0 20px rgba(255,100,50,0.6);
-    animation:pulse 1.5s ease infinite;
-  ">🚑</div>
-  <style>@keyframes pulse{0%,100%{box-shadow:0 0 10px rgba(255,100,50,0.4)}50%{box-shadow:0 0 30px rgba(255,100,50,0.8)}}</style>`,
-  iconSize: [36, 36],
-  iconAnchor: [18, 18],
-});
+let ambulanceIcon = null;
+let hospitalIcon = null;
+try {
+  if (typeof window !== 'undefined' && L && L.divIcon) {
+    ambulanceIcon = L.divIcon({
+      className: '',
+      html: `<div style="
+        width:36px; height:36px; background:rgba(255,100,50,0.9);
+        border:2px solid rgba(255,150,100,0.8); border-radius:50%;
+        display:flex; align-items:center; justify-content:center;
+        font-size:18px; box-shadow:0 0 20px rgba(255,100,50,0.6);
+        animation:pulse 1.5s ease infinite;
+      ">🚑</div>
+      <style>@keyframes pulse{0%,100%{box-shadow:0 0 10px rgba(255,100,50,0.4)}50%{box-shadow:0 0 30px rgba(255,100,50,0.8)}}</style>`,
+      iconSize: [36, 36],
+      iconAnchor: [18, 18],
+    });
 
-const hospitalIcon = L.divIcon({
-  className: '',
-  html: `<div style="
-    width:32px; height:32px; background:rgba(0,200,255,0.9);
-    border:2px solid rgba(100,220,255,0.8); border-radius:6px;
-    display:flex; align-items:center; justify-content:center;
-    font-size:16px; box-shadow:0 0 15px rgba(0,200,255,0.4);
-  ">🏥</div>`,
-  iconSize: [32, 32],
-  iconAnchor: [16, 16],
-});
+    hospitalIcon = L.divIcon({
+      className: '',
+      html: `<div style="
+        width:32px; height:32px; background:rgba(0,200,255,0.9);
+        border:2px solid rgba(100,220,255,0.8); border-radius:6px;
+        display:flex; align-items:center; justify-content:center;
+        font-size:16px; box-shadow:0 0 15px rgba(0,200,255,0.4);
+      ">🏥</div>`,
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+    });
+  }
+} catch (e) {}
 
 const CLINICAL_PROTOCOLS = {
   'CARDIAC ARREST': [

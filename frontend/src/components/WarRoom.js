@@ -12,18 +12,29 @@ import { generateMonthlyReport } from '../utils/reportGenerator';
 import { exportMetricsToExcel } from '../utils/excelExporter';
 import PhysiologicalWaveforms from './PhysiologicalWaveforms';
 
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-});
+try {
+  if (typeof window !== 'undefined' && L && L.Icon && L.Icon.Default) {
+    delete L.Icon.Default.prototype._getIconUrl;
+    L.Icon.Default.mergeOptions({
+      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    });
+  }
+} catch (e) {
+  console.warn('[LEAFLET ICON PATCH ERROR]', e);
+}
 
-const ambulanceIcon = L.divIcon({
-  className: '',
-  html: `<div style="width:26px;height:26px;background:rgba(0,255,136,0.9);border:2px solid #00ff88;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 0 12px #00ff88;">🚑</div>`,
-  iconSize: [26, 26], iconAnchor: [13, 13]
-});
+let ambulanceIcon = null;
+try {
+  if (typeof window !== 'undefined' && L && L.divIcon) {
+    ambulanceIcon = L.divIcon({
+      className: '',
+      html: `<div style="width:26px;height:26px;background:rgba(0,255,136,0.9);border:2px solid #00ff88;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 0 12px #00ff88;">🚑</div>`,
+      iconSize: [26, 26], iconAnchor: [13, 13]
+    });
+  }
+} catch (e) {}
 
 function MapCenterer({ center }) {
   const map = useMap();

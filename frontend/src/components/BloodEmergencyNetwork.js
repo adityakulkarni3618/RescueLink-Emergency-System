@@ -7,17 +7,28 @@ import OfflineTileLayer from './OfflineTileLayer';
 
 const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
 
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-});
+try {
+  if (typeof window !== 'undefined' && L && L.Icon && L.Icon.Default) {
+    delete L.Icon.Default.prototype._getIconUrl;
+    L.Icon.Default.mergeOptions({
+      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    });
+  }
+} catch (e) {
+  console.warn('[LEAFLET ICON PATCH ERROR]', e);
+}
 
-const bloodBankIcon = L.divIcon({
-  className: '', html: `<div style="width:32px;height:32px;background:rgba(220,30,30,0.9);border:2px solid rgba(255,100,100,0.8);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 0 15px rgba(220,30,30,0.5);">🩸</div>`,
-  iconSize: [32, 32], iconAnchor: [16, 16],
-});
+let bloodBankIcon = null;
+try {
+  if (typeof window !== 'undefined' && L && L.divIcon) {
+    bloodBankIcon = L.divIcon({
+      className: '', html: `<div style="width:32px;height:32px;background:rgba(220,30,30,0.9);border:2px solid rgba(255,100,100,0.8);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 0 15px rgba(220,30,30,0.5);">🩸</div>`,
+      iconSize: [32, 32], iconAnchor: [16, 16],
+    });
+  }
+} catch (e) {}
 
 const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
 const BLOOD_COMPATIBILITY = {
