@@ -12,14 +12,25 @@ class NotificationQueue {
    * @param {string} message - Message body
    * @param {string} type - 'whatsapp' or 'sms'
    */
-  enqueue(to, message, type = 'whatsapp') {
-    this.queue.push({
-      to,
-      message,
-      type,
-      attempts: 0,
-      nextAttemptTime: Date.now()
-    });
+  enqueue(to, message, type = 'both') {
+    if (type === 'both' || type === 'sms') {
+      this.queue.push({
+        to,
+        message: message.replace(/\*/g, ''), // Strip bold markdown for standard SMS
+        type: 'sms',
+        attempts: 0,
+        nextAttemptTime: Date.now()
+      });
+    }
+    if (type === 'both' || type === 'whatsapp') {
+      this.queue.push({
+        to,
+        message,
+        type: 'whatsapp',
+        attempts: 0,
+        nextAttemptTime: Date.now()
+      });
+    }
     
     // Start processing in background if not already processing
     if (!this.isProcessing) {
