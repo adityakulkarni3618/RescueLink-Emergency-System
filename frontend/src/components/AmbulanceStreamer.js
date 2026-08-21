@@ -997,12 +997,8 @@ export default function AmbulanceStreamer({ socket, connected }) {
     }
 
     socket.on('rejoin-mission', (data) => {
-      console.log(`[PERSISTENCE] Mission available for resume: ${data.id}`, data);
-      if (ignoredMissionsRef.current.has(data.id) || (assignedUser && assignedUser.id === data.id)) {
-        console.log(`[RECOVERY] Mission ${data.id} already active or ignored, skipping prompt.`);
-        return;
-      }
-      setPendingResumeMission(data);
+      console.log(`[PERSISTENCE] Rejoined mission automatically: ${data.id}`, data);
+      performMissionRestoration(data);
     });
 
     socket.on('error', (err) => {
@@ -1221,12 +1217,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
     setResourceLocks({ traumaBay: false, bloodUnits: false, ventilatorStandby: false });
   };
 
-  const handleResumeMission = () => {
-    if (!pendingResumeMission) {
-      console.warn('[RECOVERY] Attempted resume with no pending mission.');
-      return;
-    }
-    const data = pendingResumeMission;
+  const performMissionRestoration = (data) => {
     ignoredMissionsRef.current.add(data.id);
     console.log(`[RECOVERY] Starting restoration for mission ${data.id}`, data);
 
@@ -1264,9 +1255,6 @@ export default function AmbulanceStreamer({ socket, connected }) {
       
       if (data.chatMessages) setMessages(data.chatMessages);
       if (data.checklist) setClinicalChecklist(data.checklist);
-      if (data.incidentNotes && Array.isArray(data.incidentNotes)) {
-        // HospitalDashboard uses incidentNotes state differently, but let's sync what we can
-      }
       
       if (data.resourceLocks) {
         setResourceLocks(data.resourceLocks);
@@ -1280,6 +1268,14 @@ export default function AmbulanceStreamer({ socket, connected }) {
       console.error('[RECOVERY] Restoration failed:', err);
       showAlert('Failed to restore mission state. Please check console.');
     }
+  };
+
+  const handleResumeMission = () => {
+    if (!pendingResumeMission) {
+      console.warn('[RECOVERY] Attempted resume with no pending mission.');
+      return;
+    }
+    performMissionRestoration(pendingResumeMission);
   };
 
   const handleManualRecover = () => {
