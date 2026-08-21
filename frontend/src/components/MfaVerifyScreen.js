@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 
-const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
-
 export function MfaVerifyScreen({ mfaToken, onLoginSuccess, onCancel, ParticleCanvas }) {
   const [totpCode, setTotpCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -11,6 +9,7 @@ export function MfaVerifyScreen({ mfaToken, onLoginSuccess, onCancel, ParticleCa
     e.preventDefault();
     setError('');
     setLoading(true);
+    const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
     try {
       const response = await fetch(`${SERVER_URL}/api/auth/verify-mfa`, {
         method: 'POST',

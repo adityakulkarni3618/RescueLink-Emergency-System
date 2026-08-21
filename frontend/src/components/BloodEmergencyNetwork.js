@@ -5,7 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import QRCode from 'qrcode';
 import OfflineTileLayer from './OfflineTileLayer';
 
-const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
+const getServerUrl = () => process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
 
 try {
   if (typeof window !== 'undefined' && L && L.Icon && L.Icon.Default) {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
+const getServerUrl = () => process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : window.location.origin);
 
 export default function PatientPortal() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -38,7 +38,7 @@ export default function PatientPortal() {
       const token = sessionStorage.getItem('rescuelink_token');
       try {
         // Fetch Profile Info
-        const profileRes = await fetch(`${SERVER_URL}/api/auth/me`, {
+        const profileRes = await fetch(`${getServerUrl()}/api/auth/me`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const profileData = await profileRes.json();
@@ -62,14 +62,14 @@ export default function PatientPortal() {
         setAbhaAddress(profileData.abha_address || '');
 
         // Fetch Incident History
-        const incidentsRes = await fetch(`${SERVER_URL}/api/users/me/incidents`, {
+        const incidentsRes = await fetch(`${getServerUrl()}/api/users/me/incidents`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const incidentsData = await incidentsRes.json();
         if (Array.isArray(incidentsData)) setIncidents(incidentsData);
 
         // Fetch Vitals History
-        const vitalsRes = await fetch(`${SERVER_URL}/api/users/me/vitals-history`, {
+        const vitalsRes = await fetch(`${getServerUrl()}/api/users/me/vitals-history`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const vitalsData = await vitalsRes.json();
@@ -83,7 +83,7 @@ export default function PatientPortal() {
         }
 
         // Fetch Prescriptions
-        const prescriptionsRes = await fetch(`${SERVER_URL}/api/prescriptions/patient/${profileData.id || 'me'}`, {
+        const prescriptionsRes = await fetch(`${getServerUrl()}/api/prescriptions/patient/${profileData.id || 'me'}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const prescriptionsData = await prescriptionsRes.json();
@@ -102,7 +102,7 @@ export default function PatientPortal() {
   const handleDownloadFHIR = async (incidentId) => {
     const token = sessionStorage.getItem('rescuelink_token');
     try {
-      const res = await fetch(`${SERVER_URL}/api/fhir/${incidentId}`, {
+      const res = await fetch(`${getServerUrl()}/api/fhir/${incidentId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -127,7 +127,7 @@ export default function PatientPortal() {
     setSaveMessage('');
     const token = sessionStorage.getItem('rescuelink_token');
     try {
-      const res = await fetch(`${SERVER_URL}/api/auth/profile`, {
+      const res = await fetch(`${getServerUrl()}/api/auth/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
