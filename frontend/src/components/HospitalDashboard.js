@@ -2032,6 +2032,7 @@ export default function HospitalDashboard({ socket, connected }) {
   const [showManualLogin, setShowManualLogin] = useState(false);
 
   // Doctors and Beds management states
+  const [activeHospitalId, setActiveHospitalId] = useState(null); // FIX C6: No longer relies on hardcoded HOSPITALS array - moved before useEffect that depends on it
   const [bedsList, setBedsList] = useState([]);
   const [doctorsList, setDoctorsList] = useState([]);
   const [newDoctorName, setNewDoctorName] = useState('');
@@ -2067,7 +2068,7 @@ export default function HospitalDashboard({ socket, connected }) {
   const [pendingResumeMission, setPendingResumeMission] = useState(null);
   const [aiAlert, setAiAlert] = useState(null);
   const [showHandover, setShowHandover] = useState(false);
-  const [activeHospitalId, setActiveHospitalId] = useState(null); // FIX C6: No longer relies on hardcoded HOSPITALS array
+  // activeHospitalId moved above to fix TDZ — was causing 'Cannot access Pt before initialization'
   const [isHandoverSyncing, setIsHandoverSyncing] = useState(false);
   const [requestQueue, setRequestQueue] = useState([]); // High-density scaling for city-wide infrastructure
   const [incomingRequest, setIncomingRequest] = useState(null); // The one currently being viewed in modal
