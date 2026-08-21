@@ -86,6 +86,7 @@ const Ambulance = require('../models/Ambulance')(sequelize);
 const DoctorHospital = require('../models/DoctorHospital')(sequelize);
 const ChronicLog = require('../models/ChronicLog')(sequelize);
 const Prescription = require('../models/Prescription')(sequelize);
+const EmergencyCorridor = require('../models/EmergencyCorridor')(sequelize);
 
 // Define relations / associations
 Patient.hasMany(Prescription, { foreignKey: 'patient_id', as: 'prescriptions' });
@@ -149,6 +150,10 @@ Hospital.belongsToMany(User, { through: DoctorHospital, foreignKey: 'hospitalId'
 // ChronicLog relations
 Patient.hasMany(ChronicLog, { foreignKey: 'patient_id', as: 'chronicLogs' });
 ChronicLog.belongsTo(Patient, { foreignKey: 'patient_id', as: 'patient' });
+
+// EmergencyCorridor relations
+Incident.hasMany(EmergencyCorridor, { foreignKey: 'incident_id', as: 'corridors', onDelete: 'CASCADE' });
+EmergencyCorridor.belongsTo(Incident, { foreignKey: 'incident_id', as: 'incident' });
 
 /**
  * Performs db health-check.
@@ -248,6 +253,7 @@ module.exports = {
   DoctorHospital,
   ChronicLog,
   Prescription,
+  EmergencyCorridor,
   syncDatabase,
   healthCheck,
   closeDatabase
