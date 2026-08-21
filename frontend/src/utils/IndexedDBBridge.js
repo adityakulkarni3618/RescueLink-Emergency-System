@@ -82,5 +82,24 @@ class IndexedDBBridge {
   }
 }
 
-export const offlineQueue = new IndexedDBBridge();
-export const mapTilesCache = new IndexedDBBridge('RescueLinkMapsTiles', 'tile_cache', 'tileKey');
+// Lazy singletons — instantiated on first use, never at module evaluation time
+// This prevents Webpack TDZ crash when this module is part of a circular import chain
+let _offlineQueue = null;
+let _mapTilesCache = null;
+
+export const offlineQueue = {
+  enqueue: (...args) => { if (!_offlineQueue) _offlineQueue = new IndexedDBBridge(); return _offlineQueue.enqueue(...args); },
+  get: (...args) => { if (!_offlineQueue) _offlineQueue = new IndexedDBBridge(); return _offlineQueue.get(...args); },
+  getAll: (...args) => { if (!_offlineQueue) _offlineQueue = new IndexedDBBridge(); return _offlineQueue.getAll(...args); },
+  dequeue: (...args) => { if (!_offlineQueue) _offlineQueue = new IndexedDBBridge(); return _offlineQueue.dequeue(...args); },
+  clear: (...args) => { if (!_offlineQueue) _offlineQueue = new IndexedDBBridge(); return _offlineQueue.clear(...args); },
+};
+
+export const mapTilesCache = {
+  enqueue: (...args) => { if (!_mapTilesCache) _mapTilesCache = new IndexedDBBridge('RescueLinkMapsTiles', 'tile_cache', 'tileKey'); return _mapTilesCache.enqueue(...args); },
+  get: (...args) => { if (!_mapTilesCache) _mapTilesCache = new IndexedDBBridge('RescueLinkMapsTiles', 'tile_cache', 'tileKey'); return _mapTilesCache.get(...args); },
+  getAll: (...args) => { if (!_mapTilesCache) _mapTilesCache = new IndexedDBBridge('RescueLinkMapsTiles', 'tile_cache', 'tileKey'); return _mapTilesCache.getAll(...args); },
+  dequeue: (...args) => { if (!_mapTilesCache) _mapTilesCache = new IndexedDBBridge('RescueLinkMapsTiles', 'tile_cache', 'tileKey'); return _mapTilesCache.dequeue(...args); },
+  clear: (...args) => { if (!_mapTilesCache) _mapTilesCache = new IndexedDBBridge('RescueLinkMapsTiles', 'tile_cache', 'tileKey'); return _mapTilesCache.clear(...args); },
+};
+
