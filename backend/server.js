@@ -36,6 +36,7 @@ const { initVitalsBridge } = require('./utils/vitalsBridge');
 const cache = require('./utils/cache');
 const { acquireLock, releaseLock } = require('./utils/redis');
 const { sendPushNotification, sendTopicNotification } = require('./utils/pushNotifications');
+const { initializeCorridor, evaluatePreemption } = require('./utils/emergencyCorridor');
 
 // NOTE: @socket.io/cluster-adapter only works inside a Node.js cluster (PM2/master-worker).
 // It is disabled here for standalone dev. In production with PM2, enable it in a cluster entrypoint.
@@ -1560,6 +1561,7 @@ io.on('connection', (socket) => {
       io.to(`mission_${reqId}`).emit('location-update', enrichedData);
       console.log(`[MAP] Enriched Location update routed to mission_${reqId}`);
       syncMissionToDB(reqId);
+      evaluatePreemption(reqId, data, io).catch(err => console.error('[PREEMPTION ERROR]', err));
     } else {
       if (reqId) {
         io.to(`mission_${reqId}`).emit('location-update', data);
@@ -2267,6 +2269,7 @@ io.on('connection', (socket) => {
         io.to(req.userSocket).emit('route-update', { reqId: req.id, routePath: route });
         io.to(req.ambulanceSocket).emit('route-update', { reqId: req.id, routePath: route });
       }
+      initializeCorridor(req.id).catch(err => console.error('[PREEMPTION INIT ERROR]', err));
     } else {
       req.status = 'ambulance_rejected';
       io.to(req.userSocket).emit('ambulance-request-response', { ...req, accepted: false });
@@ -3288,6 +3291,40 @@ io.on('connection', (newSocket) => {
       if (requestorSocket) {
         io.to(requestorSocket).emit('blood-donor-found', { requestId, hospitalName, unitsAvailable, responderSocket: newSocket.id });
       }
+    }
+  });
+
+  // Dynamic Green Wave Manual Preemption Overrides
+  newSocket.on('corridor:manual-override', async (data) => {
+    const { incidentId, junctionId, forceStatus } = data;
+    try {
+      const { EmergencyCorridor, AuditLog } = require('./utils/db');
+      const junc = await EmergencyCorridor.findOne({ where: { incident_id: incidentId, junction_id: junctionId } });
+      if (junc) {
+        junc.status = forceStatus || 'CORRIDOR_ACTIVE';
+        await junc.save();
+
+        await AuditLog.create({
+          action: 'TRAFFIC_SIGNAL_PREEMPTION',
+          details: `MANUAL OVERRIDE: Junction ${junc.name} set to ${junc.status} by City Administrator.`,
+          severity: 'WARNING'
+        }).catch(err => console.error(err));
+
+        io.to(`mission_${incidentId}`).emit('corridor:status_update', {
+          incidentId,
+          junctionId,
+          name: junc.name,
+          status: junc.status
+        });
+        io.to('admin_warroom').emit('corridor:status_update', {
+          incidentId,
+          junctionId,
+          name: junc.name,
+          status: junc.status
+        });
+      }
+    } catch (err) {
+      console.error('[MANUAL OVERRIDE ERROR]', err.message);
     }
   });
 });
