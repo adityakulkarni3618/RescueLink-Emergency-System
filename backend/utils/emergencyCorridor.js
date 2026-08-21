@@ -60,11 +60,16 @@ async function initializeCorridor(incidentId) {
   }
 }
 
+// Track the last telemetry update timestamp for each active incident
+const lastIncidentTelemetryUpdate = {};
+
 /**
  * Evaluates ambulance telemetry and updates preemption locks
  */
 async function evaluatePreemption(incidentId, currentLoc, io) {
   if (!currentLoc || !currentLoc.lat || !currentLoc.lng) return;
+
+  lastIncidentTelemetryUpdate[incidentId] = Date.now();
 
   try {
     const junctions = await EmergencyCorridor.findAll({ where: { incident_id: incidentId } });
@@ -151,8 +156,62 @@ async function evaluatePreemption(incidentId, currentLoc, io) {
   }
 }
 
+// Clean inactive preemptions (watchdog)
+async function startWatchdog(io, intervalMs = 10000) {
+  setInterval(async () => {
+    const now = Date.now();
+    try {
+      const activePreemptions = await EmergencyCorridor.findAll({
+        where: {
+          status: ['PREEMPTING', 'CORRIDOR_ACTIVE']
+        }
+      });
+
+      for (const junc of activePreemptions) {
+        const lastUpdate = lastIncidentTelemetryUpdate[junc.incident_id] || 0;
+        // Release lock if ambulance has halted or disconnected for more than 20 seconds
+        if (lastUpdate && (now - lastUpdate > 20000)) {
+          junc.status = 'PASSED';
+          await junc.save();
+
+          await AuditLog.create({
+            action: 'TRAFFIC_SIGNAL_PREEMPTION',
+            details: `WATCHDOG FAILSAFE: Released preemption at ${junc.name} due to telemetry timeout.`,
+            severity: 'WARNING'
+          }).catch(err => console.error(err));
+
+          if (io) {
+            io.to(`mission_${junc.incident_id}`).emit('corridor:status_update', {
+              incidentId: junc.incident_id,
+              junctionId: junc.junction_id,
+              name: junc.name,
+              status: 'PASSED'
+            });
+            io.to(`mission_${junc.incident_id}`).emit('corridor:route_cleared', {
+              incidentId: junc.incident_id,
+              junctionId: junc.junction_id,
+              name: junc.name,
+              status: 'PASSED'
+            });
+            io.to('admin_warroom').emit('corridor:status_update', {
+              incidentId: junc.incident_id,
+              junctionId: junc.junction_id,
+              name: junc.name,
+              status: 'PASSED'
+            });
+          }
+          console.log(`[WATCHDOG FAILSAFE] Released junction ${junc.name} for incident ${junc.incident_id}`);
+        }
+      }
+    } catch (err) {
+      console.error('[WATCHDOG ERROR]', err.message);
+    }
+  }, intervalMs);
+}
+
 module.exports = {
   initializeCorridor,
   evaluatePreemption,
+  startWatchdog,
   VIJAYAWADA_JUNCTIONS
 };

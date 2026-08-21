@@ -36,7 +36,7 @@ const { initVitalsBridge } = require('./utils/vitalsBridge');
 const cache = require('./utils/cache');
 const { acquireLock, releaseLock } = require('./utils/redis');
 const { sendPushNotification, sendTopicNotification } = require('./utils/pushNotifications');
-const { initializeCorridor, evaluatePreemption } = require('./utils/emergencyCorridor');
+const { initializeCorridor, evaluatePreemption, startWatchdog } = require('./utils/emergencyCorridor');
 
 // NOTE: @socket.io/cluster-adapter only works inside a Node.js cluster (PM2/master-worker).
 // It is disabled here for standalone dev. In production with PM2, enable it in a cluster entrypoint.
@@ -3488,6 +3488,7 @@ async function startServer() {
       setInterval(retentionFlagJob, 24 * 60 * 60 * 1000);
       setInterval(unresponsiveDriverCheck, 30000);
       setInterval(stuckCaseCheck, 15000);
+      startWatchdog(io).catch(err => console.error('[WATCHDOG BOOT ERROR]', err.message));
     }
   } catch (err) {
     console.error('[FATAL] Database initialization failed. Server will not start.', err);
