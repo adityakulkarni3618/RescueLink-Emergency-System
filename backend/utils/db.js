@@ -198,12 +198,12 @@ async function syncDatabase() {
       console.log('[DB] Connected to PostgreSQL');
     }
 
+    // First, sync model structures to ensure all tables exist
+    await sequelize.sync();
+
     // Run SQL DDL Migrations
     const runMigrations = require('../scripts/run-migrations');
     await runMigrations();
-
-    // Secondary sync to align any Sequelize hooks or updates
-    await sequelize.sync();
     console.log('[DB] Database synchronized.');
 
 
