@@ -3142,6 +3142,56 @@ export default function HospitalDashboard({ socket, connected }) {
             </div>
           )}
 
+          {/* Connection & Sync Status Panel */}
+          <div style={{ borderTop: '1px solid rgba(0,200,255,0.1)', padding: '15px 10px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Orbitron'", letterSpacing: 1, marginBottom: 4 }}>NODE TELEMETRY</div>
+            
+            {/* Live Connection & Auto-Sync in one row */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+              {/* LIVE Connection Badge */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4, flex: 1 }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: connected ? '#00ff88' : '#ff4444' }} />
+                <span style={{ fontSize: 9, color: connected ? '#00ff88' : '#ff4444', fontFamily: "'Share Tech Mono'", fontWeight: 700 }}>{connected ? 'LIVE' : 'OFFLINE'}</span>
+              </div>
+ 
+              {/* Auto-Sync Toggle */}
+              <div
+                onClick={() => setAutoSync(!autoSync)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px',
+                  background: autoSync ? 'rgba(0,255,136,0.1)' : 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${autoSync ? 'rgba(0,255,136,0.3)' : 'rgba(255,255,255,0.1)'}`,
+                  borderRadius: 4, cursor: 'pointer', flex: 1
+                }}
+              >
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: autoSync ? '#00ff88' : '#888' }} />
+                <span style={{ fontSize: 9, fontFamily: "'Orbitron'", color: autoSync ? '#00ff88' : '#aaa', fontWeight: 700 }}>SYNC: {autoSync ? 'ON' : 'OFF'}</span>
+              </div>
+            </div>
+ 
+            {/* Connection counts (Ambulance, Doctors) */}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 4, fontSize: 9, fontFamily: "'Share Tech Mono'", color: 'rgba(160,200,255,0.7)' }}>
+                <span>🚑</span> AMB: <strong style={{ color: '#ff8855' }}>{connectedRoles.ambulance}</strong>
+              </div>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 4, fontSize: 9, fontFamily: "'Share Tech Mono'", color: 'rgba(160,200,255,0.7)' }}>
+                <span>🏥</span> DOC: <strong style={{ color: '#00c8ff' }}>{connectedRoles.hospital}</strong>
+              </div>
+            </div>
+ 
+            {/* Archives button */}
+            <button
+              onClick={() => setShowArchives(true)}
+              style={{
+                width: '100%', height: '30px', background: 'rgba(0,200,255,0.05)', border: '1px solid rgba(0,200,255,0.2)',
+                borderRadius: 4, color: 'rgba(160,200,255,0.8)', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 700,
+                cursor: 'pointer', transition: 'all 0.2s', marginTop: 4
+              }}
+            >
+              📜 VIEW EMR ARCHIVES {savedReports.length > 0 && `(${savedReports.length})`}
+            </button>
+          </div>
+ 
           {/* Manual Recovery at the bottom of the sidebar */}
           <div style={{ marginTop: 'auto', borderTop: '1px solid rgba(0,200,255,0.1)', padding: '15px 10px' }}>
             <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Orbitron'", marginBottom: 6, textAlign: 'center' }}>MANUAL RECOVERY</div>
@@ -3757,11 +3807,12 @@ export default function HospitalDashboard({ socket, connected }) {
             )}
 
             {/* Header */}
+            {/* Slim, Clean Header */}
             <div style={{
               background: 'rgba(3,8,22,0.95)',
               borderBottom: `1px solid ${isCritical ? 'rgba(255,80,80,0.4)' : 'rgba(0,200,255,0.15)'}`,
               padding: '10px 24px',
-              display: 'flex', alignItems: 'center', gap: 15, minHeight: 60, height: 'auto', flexWrap: 'wrap',
+              display: 'flex', alignItems: 'center', gap: 15, minHeight: 50, height: 'auto', flexWrap: 'wrap',
               backdropFilter: 'blur(15px)', transition: 'border-color 0.3s',
             }}>
               {/* Sidebar toggle button (Hamburger) */}
@@ -3786,13 +3837,8 @@ export default function HospitalDashboard({ socket, connected }) {
               </button>
               <div style={{ fontSize: 22, flexShrink: 0 }}>🏥</div>
               <div style={{ flexShrink: 0, minWidth: 'fit-content' }}>
-                <div style={{ fontFamily: "'Orbitron'", fontSize: 14, fontWeight: 700, color: '#00c8ff', letterSpacing: '0.1em' }}>
-                  {authHospital?.hospitalId && authHospital.hospitalId.length > 15
-                    ? `HOSP-${authHospital.hospitalId.slice(0, 8).toUpperCase()}`
-                    : authHospital?.hospitalId || 'HOSPITAL'} — {authHospital?.adminName || 'DR. DASHBOARD'}
-                </div>
-                <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>
-                  {authHospital?.name?.toUpperCase() || activeHospital?.name?.toUpperCase() || 'EMERGENCY WING'} · EMERGENCY WING
+                <div style={{ fontFamily: "'Orbitron'", fontSize: 13, fontWeight: 700, color: '#00c8ff', letterSpacing: '0.05em' }}>
+                  {authHospital?.name || 'EMERGENCY WING'}
                 </div>
               </div>
  
@@ -3807,21 +3853,18 @@ export default function HospitalDashboard({ socket, connected }) {
                   style={{ width: 100, cursor: 'pointer', accentColor: icuBeds > 0 ? '#00ff88' : '#ff4444' }}
                 />
               </div>
- 
-              {/* Responsive Header Button Controls */}
-              <div className="desktop-nav-group" style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'nowrap' }}>
-                {headerActions(false)}
-              </div>
-              <div style={{ marginLeft: 'auto', position: 'relative', display: 'inline-block' }}>
-                <button className="mobile-nav-trigger" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-                  ☰ MENU
-                </button>
-                {mobileMenuOpen && (
-                  <div className="mobile-nav-dropdown">
-                    {headerActions(true)}
-                  </div>
-                )}
-              </div>
+
+              {/* Patient report actions aligned on the right */}
+              {patient && (
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+                  <button onClick={downloadFHIR} style={{ background: 'rgba(0,255,136,0.1)', border: '1px solid rgba(0,255,136,0.3)', padding: '6px 12px', borderRadius: 4, color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>
+                    📥 FHIR HL7
+                  </button>
+                  <button onClick={() => setShowHandover(true)} style={{ background: 'rgba(0,200,255,0.1)', border: '1px solid rgba(0,200,255,0.3)', padding: '6px 12px', borderRadius: 4, color: '#00c8ff', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>
+                    📄 REPORT
+                  </button>
+                </div>
+              )}
             </div>
  
             {/* Connection Banner */}
