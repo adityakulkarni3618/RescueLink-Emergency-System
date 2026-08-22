@@ -838,14 +838,31 @@ export default function AmbulanceStreamer({ socket, connected }) {
   const lastFieldReportRef = useRef(null);
   const [commTab, setCommTab] = useState('hospital');
 
+  const safeSetItem = (key, value) => {
+    try {
+      localStorage.setItem(key, value);
+    } catch (e) {
+      console.warn(`[LocalStorage Error] Failed to write key "${key}":`, e);
+      if (e.name === 'QuotaExceededError') {
+        try {
+          // Clear non-critical offline backlog to free space
+          localStorage.removeItem('offline_backlog');
+          localStorage.setItem(key, value);
+        } catch (innerErr) {
+          console.warn('[LocalStorage Error] Fallback cleanup failed:', innerErr);
+        }
+      }
+    }
+  };
+
   // --- STATE RECOVERY SYNC ---
-  useEffect(() => { localStorage.setItem('amb_streaming', streaming); }, [streaming]);
-  useEffect(() => { localStorage.setItem('amb_selectedPatient', selectedPatient); }, [selectedPatient]);
-  useEffect(() => { localStorage.setItem('amb_incomingRequest', JSON.stringify(incomingRequest)); }, [incomingRequest]);
-  useEffect(() => { localStorage.setItem('amb_assignedUser', JSON.stringify(assignedUser)); }, [assignedUser]);
-  useEffect(() => { localStorage.setItem('amb_assignedHospital', JSON.stringify(assignedHospital)); }, [assignedHospital]);
-  useEffect(() => { localStorage.setItem('amb_requestAccepted', requestAccepted); }, [requestAccepted]);
-  useEffect(() => { localStorage.setItem('amb_arrivedAtUser', arrivedAtUser); }, [arrivedAtUser]);
+  useEffect(() => { safeSetItem('amb_streaming', streaming); }, [streaming]);
+  useEffect(() => { safeSetItem('amb_selectedPatient', selectedPatient); }, [selectedPatient]);
+  useEffect(() => { safeSetItem('amb_incomingRequest', JSON.stringify(incomingRequest)); }, [incomingRequest]);
+  useEffect(() => { safeSetItem('amb_assignedUser', JSON.stringify(assignedUser)); }, [assignedUser]);
+  useEffect(() => { safeSetItem('amb_assignedHospital', JSON.stringify(assignedHospital)); }, [assignedHospital]);
+  useEffect(() => { safeSetItem('amb_requestAccepted', requestAccepted); }, [requestAccepted]);
+  useEffect(() => { safeSetItem('amb_arrivedAtUser', arrivedAtUser); }, [arrivedAtUser]);
 
 
   const vitalsRef = useRef(vitals);
@@ -1318,7 +1335,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
           if (isOfflineRef.current) {
             offlineBacklog.current.push({ ...vitalsWithSource, timestamp: Date.now() });
             if (offlineBacklog.current.length > 100) offlineBacklog.current.shift();
-            localStorage.setItem('offline_backlog', JSON.stringify(offlineBacklog.current));
+            safeSetItem('offline_backlog', JSON.stringify(offlineBacklog.current));
           } else {
             socket.emit('vitals-update', vitalsPayload);
           }
