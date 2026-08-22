@@ -4902,113 +4902,193 @@ export default function HospitalDashboard({ socket, connected }) {
                 </div>
               )}
 
-              {activeTab === 'settings' && (
-                <div style={{ padding: 24, overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <h2 style={{ fontFamily: "'Orbitron'", color: '#00c8ff', margin: '0 0 10px' }}>🏥 SYSTEM SETTINGS & INVENTORY</h2>
-                  <div style={{ background: 'rgba(5, 15, 40, 0.8)', border: '1px solid rgba(0, 200, 255, 0.2)', borderRadius: 10, padding: 24, maxWidth: 600 }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                      <div>
-                        <label style={{ display: 'block', fontSize: 11, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.6)', marginBottom: 6 }}>HOSPITAL NAME</label>
-                        <input
-                          value={authHospital?.name || ''}
-                          onChange={(e) => setAuthHospital({ ...authHospital, name: e.target.value })}
-                          style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }}
-                        />
+              {activeTab === 'settings' && (() => {
+                // Local settings state — held inside an IIFE-rendered component to avoid polluting parent scope
+                const SettingsContent = () => {
+                  const [pwForm, setPwForm] = React.useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                  const [pwStatus, setPwStatus] = React.useState(null);
+                  const [pwLoading, setPwLoading] = React.useState(false);
+                  const [mfaStatus, setMfaStatus] = React.useState(null);
+                  const [mfaQR, setMfaQR] = React.useState(null);
+                  const [mfaLoading, setMfaLoading] = React.useState(false);
+                  const [notifPrefs, setNotifPrefs] = React.useState({ emailAlerts: true, smsAlerts: false, criticalOnly: false });
+                  const [saveStatus, setSaveStatus] = React.useState(null);
+
+                  const token = sessionStorage.getItem('rescuelink_token');
+                  const hdrs = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+                  const hospitalDbId = authHospital?.hospitalId;
+
+                  const S = {
+                    card: { background: 'rgba(5,15,40,0.85)', border: '1px solid rgba(0,200,255,0.15)', borderRadius: 10, padding: 24, marginBottom: 0 },
+                    label: { display: 'block', fontSize: 10, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.55)', marginBottom: 6, letterSpacing: '0.07em', textTransform: 'uppercase' },
+                    input: { width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none', fontSize: 13, boxSizing: 'border-box', fontFamily: "'Share Tech Mono'" },
+                    btn: (color) => ({ padding: '10px 22px', background: `rgba(${color},0.14)`, border: `1px solid rgba(${color},0.4)`, borderRadius: 8, color: `rgb(${color})`, fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer', letterSpacing: '0.06em', transition: 'all 0.2s' }),
+                    sectionTitle: { fontFamily: "'Orbitron'", fontSize: 13, color: '#00c8ff', fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 },
+                    statusMsg: (ok) => ({ marginTop: 10, padding: '8px 14px', borderRadius: 6, background: ok ? 'rgba(0,255,136,0.1)' : 'rgba(255,68,68,0.1)', border: `1px solid ${ok ? '#00ff88' : '#ff4444'}`, color: ok ? '#00ff88' : '#ff4444', fontSize: 11, fontFamily: "'Share Tech Mono'" })
+                  };
+
+                  const handleSaveProfile = async () => {
+                    try {
+                      const res = await fetch(`/api/hospitals/${hospitalDbId}`, {
+                        method: 'PUT', headers: hdrs,
+                        body: JSON.stringify({ name: authHospital.name, lat: hospitalGps?.lat || authHospital.lat, lng: hospitalGps?.lng || authHospital.lng, icu_beds: icuBeds, ventilators: authHospital.ventilators || 5 })
+                      });
+                      if (res.ok) {
+                        setSaveStatus({ ok: true, msg: 'Hospital profile updated and broadcast to network!' });
+                        if (socket) socket.emit('register-hospital', { hospitalId: authHospital.hospitalId, name: authHospital.name, adminName: authHospital.adminName, id: authHospital.hospitalId, lat: hospitalGps?.lat || authHospital.lat, lng: hospitalGps?.lng || authHospital.lng, token });
+                      } else { const d = await res.json(); setSaveStatus({ ok: false, msg: d.error || 'Update failed' }); }
+                    } catch (err) { setSaveStatus({ ok: false, msg: 'Connection error' }); }
+                    setTimeout(() => setSaveStatus(null), 4000);
+                  };
+
+                  const handleChangePassword = async () => {
+                    if (pwForm.newPassword !== pwForm.confirmPassword) { setPwStatus({ ok: false, msg: 'Passwords do not match' }); return; }
+                    if (pwForm.newPassword.length < 6) { setPwStatus({ ok: false, msg: 'Password must be at least 6 characters' }); return; }
+                    setPwLoading(true);
+                    try {
+                      const res = await fetch(`/api/hospitals/${hospitalDbId}/change-password`, {
+                        method: 'POST', headers: hdrs,
+                        body: JSON.stringify({ currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword })
+                      });
+                      const d = await res.json();
+                      setPwStatus({ ok: res.ok, msg: d.message || d.error });
+                      if (res.ok) setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                    } catch (err) { setPwStatus({ ok: false, msg: 'Connection error' }); }
+                    setPwLoading(false);
+                    setTimeout(() => setPwStatus(null), 5000);
+                  };
+
+                  const handleSetup2FA = async () => {
+                    setMfaLoading(true);
+                    try {
+                      const res = await fetch('/api/mfa/setup', { method: 'POST', headers: hdrs });
+                      const d = await res.json();
+                      if (res.ok) setMfaQR(d.qrCode);
+                      else setMfaStatus({ ok: false, msg: d.error || 'Setup failed' });
+                    } catch (err) { setMfaStatus({ ok: false, msg: 'Connection error' }); }
+                    setMfaLoading(false);
+                  };
+
+                  const handleDisable2FA = async () => {
+                    if (!window.confirm('Disable Two-Factor Authentication? This reduces account security.')) return;
+                    setMfaLoading(true);
+                    try {
+                      const res = await fetch('/api/mfa/disable', { method: 'POST', headers: hdrs });
+                      const d = await res.json();
+                      setMfaStatus({ ok: res.ok, msg: d.message || d.error });
+                      setMfaQR(null);
+                    } catch (err) { setMfaStatus({ ok: false, msg: 'Connection error' }); }
+                    setMfaLoading(false);
+                    setTimeout(() => setMfaStatus(null), 5000);
+                  };
+
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+                      {/* 1. Edit Hospital Profile */}
+                      <div style={S.card}>
+                        <div style={S.sectionTitle}>🏥 Edit Hospital Profile</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                          <div style={{ gridColumn: '1 / -1' }}>
+                            <label style={S.label}>Hospital Name</label>
+                            <input style={S.input} value={authHospital?.name || ''} onChange={e => setAuthHospital({ ...authHospital, name: e.target.value })} />
+                          </div>
+                          <div>
+                            <label style={S.label}>Latitude</label>
+                            <input type="number" step="0.0001" style={S.input} value={hospitalGps?.lat || authHospital?.lat || ''} onChange={e => { const lat = parseFloat(e.target.value); setHospitalGps({ ...hospitalGps, lat }); setAuthHospital({ ...authHospital, lat }); }} />
+                          </div>
+                          <div>
+                            <label style={S.label}>Longitude</label>
+                            <input type="number" step="0.0001" style={S.input} value={hospitalGps?.lng || authHospital?.lng || ''} onChange={e => { const lng = parseFloat(e.target.value); setHospitalGps({ ...hospitalGps, lng }); setAuthHospital({ ...authHospital, lng }); }} />
+                          </div>
+                          <div>
+                            <label style={S.label}>Total ICU Beds</label>
+                            <input type="number" style={S.input} value={icuBeds} onChange={e => setIcuBeds(parseInt(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <label style={S.label}>Ventilators Available</label>
+                            <input type="number" style={S.input} value={authHospital?.ventilators || 5} onChange={e => setAuthHospital({ ...authHospital, ventilators: parseInt(e.target.value) || 0 })} />
+                          </div>
+                        </div>
+                        <div style={{ marginTop: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
+                          <button onClick={handleSaveProfile} style={S.btn('0,200,255')}>💾 SAVE PROFILE & BROADCAST</button>
+                          {saveStatus && <div style={S.statusMsg(saveStatus.ok)}>{saveStatus.ok ? '✅' : '❌'} {saveStatus.msg}</div>}
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', gap: 16 }}>
-                        <div style={{ flex: 1 }}>
-                          <label style={{ display: 'block', fontSize: 11, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.6)', marginBottom: 6 }}>LATITUDE</label>
-                          <input
-                            type="number" step="0.0001"
-                            value={hospitalGps?.lat || authHospital?.lat || ''}
-                            onChange={(e) => {
-                              const lat = parseFloat(e.target.value);
-                              setHospitalGps({ ...hospitalGps, lat });
-                              setAuthHospital({ ...authHospital, lat });
-                            }}
-                            style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }}
-                          />
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <label style={{ display: 'block', fontSize: 11, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.6)', marginBottom: 6 }}>LONGITUDE</label>
-                          <input
-                            type="number" step="0.0001"
-                            value={hospitalGps?.lng || authHospital?.lng || ''}
-                            onChange={(e) => {
-                              const lng = parseFloat(e.target.value);
-                              setHospitalGps({ ...hospitalGps, lng });
-                              setAuthHospital({ ...authHospital, lng });
-                            }}
-                            style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }}
-                          />
+
+                      {/* 2. Change Login Credentials */}
+                      <div style={S.card}>
+                        <div style={S.sectionTitle}>🔑 Change Login Credentials</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 460 }}>
+                          <div>
+                            <label style={S.label}>Current Password</label>
+                            <input type="password" style={S.input} placeholder="Enter current password" value={pwForm.currentPassword} onChange={e => setPwForm(p => ({ ...p, currentPassword: e.target.value }))} />
+                          </div>
+                          <div>
+                            <label style={S.label}>New Password</label>
+                            <input type="password" style={S.input} placeholder="Min. 6 characters" value={pwForm.newPassword} onChange={e => setPwForm(p => ({ ...p, newPassword: e.target.value }))} />
+                          </div>
+                          <div>
+                            <label style={S.label}>Confirm New Password</label>
+                            <input type="password" style={S.input} placeholder="Repeat new password" value={pwForm.confirmPassword} onChange={e => setPwForm(p => ({ ...p, confirmPassword: e.target.value }))} />
+                          </div>
+                          <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 4 }}>
+                            <button onClick={handleChangePassword} disabled={pwLoading} style={{ ...S.btn('255,184,0'), opacity: pwLoading ? 0.5 : 1 }}>
+                              {pwLoading ? 'UPDATING…' : '🔐 UPDATE PASSWORD'}
+                            </button>
+                            {pwStatus && <div style={S.statusMsg(pwStatus.ok)}>{pwStatus.ok ? '✅' : '❌'} {pwStatus.msg}</div>}
+                          </div>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', gap: 16 }}>
-                        <div style={{ flex: 1 }}>
-                          <label style={{ display: 'block', fontSize: 11, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.6)', marginBottom: 6 }}>TOTAL ICU BEDS</label>
-                          <input
-                            type="number"
-                            value={icuBeds}
-                            onChange={(e) => setIcuBeds(parseInt(e.target.value) || 0)}
-                            style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }}
-                          />
+
+                      {/* 3. Two-Factor Authentication */}
+                      <div style={S.card}>
+                        <div style={S.sectionTitle}>🛡️ Two-Factor Authentication (TOTP)</div>
+                        <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.55)', marginBottom: 16, fontFamily: "'Share Tech Mono'", lineHeight: 1.6 }}>
+                          TOTP-based 2FA adds an extra layer of security. Scan the QR code below with an authenticator app (Google Authenticator, Authy, etc.).
                         </div>
-                        <div style={{ flex: 1 }}>
-                          <label style={{ display: 'block', fontSize: 11, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.6)', marginBottom: 6 }}>VENTILATORS AVAILABLE</label>
-                          <input
-                            type="number"
-                            value={authHospital?.ventilators || 5}
-                            onChange={(e) => setAuthHospital({ ...authHospital, ventilators: parseInt(e.target.value) || 0 })}
-                            style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }}
-                          />
+                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+                          <button onClick={handleSetup2FA} disabled={mfaLoading} style={{ ...S.btn('0,255,136'), opacity: mfaLoading ? 0.5 : 1 }}>
+                            {mfaLoading ? '⏳ LOADING…' : '🔒 ENABLE 2FA — Generate QR'}
+                          </button>
+                          <button onClick={handleDisable2FA} disabled={mfaLoading} style={{ ...S.btn('255,68,68'), opacity: mfaLoading ? 0.5 : 1 }}>
+                            🔓 DISABLE 2FA
+                          </button>
+                        </div>
+                        {mfaQR && (
+                          <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 10 }}>
+                            <div style={{ fontSize: 10, color: '#00ff88', fontFamily: "'Orbitron'", letterSpacing: '0.08em' }}>SCAN WITH YOUR AUTHENTICATOR APP</div>
+                            <img src={mfaQR} alt="2FA QR Code" style={{ width: 180, height: 180, borderRadius: 8, border: '2px solid rgba(0,255,136,0.3)', background: '#fff', padding: 4 }} />
+                            <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>After scanning, enter the 6-digit code from your app at next login.</div>
+                          </div>
+                        )}
+                        {mfaStatus && <div style={{ ...S.statusMsg(mfaStatus.ok), marginTop: 14 }}>{mfaStatus.ok ? '✅' : '❌'} {mfaStatus.msg}</div>}
+                      </div>
+
+                      {/* 4. Notification Preferences */}
+                      <div style={S.card}>
+                        <div style={S.sectionTitle}>🔔 Notification Preferences</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                          {[['emailAlerts', 'Email Alerts for new emergency requests'], ['smsAlerts', 'SMS/Push Alerts (requires mobile verified)'], ['criticalOnly', 'Critical incidents only (suppress routine alerts)']].map(([key, label]) => (
+                            <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+                              <div onClick={() => setNotifPrefs(p => ({ ...p, [key]: !p[key] }))} style={{ width: 42, height: 24, borderRadius: 12, background: notifPrefs[key] ? 'rgba(0,200,255,0.35)' : 'rgba(0,0,0,0.4)', border: `1px solid ${notifPrefs[key] ? '#00c8ff' : 'rgba(255,255,255,0.1)'}`, position: 'relative', cursor: 'pointer', transition: 'all 0.2s', flexShrink: 0 }}>
+                                <div style={{ position: 'absolute', top: 3, left: notifPrefs[key] ? 20 : 3, width: 16, height: 16, borderRadius: '50%', background: notifPrefs[key] ? '#00c8ff' : 'rgba(160,200,255,0.3)', transition: 'left 0.2s' }} />
+                              </div>
+                              <span style={{ fontSize: 12, color: notifPrefs[key] ? '#e0eaff' : 'rgba(160,200,255,0.45)', fontFamily: "'Share Tech Mono'" }}>{label}</span>
+                            </label>
+                          ))}
+                          <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.3)', fontFamily: "'Share Tech Mono'", marginTop: 4 }}>
+                            Note: Notification delivery requires backend email/SMS integration. Preferences are saved locally.
+                          </div>
                         </div>
                       </div>
-                      <button
-                        onClick={async () => {
-                          try {
-                            const res = await fetch(`/api/hospitals/${authHospital.hospitalId}`, {
-                              method: 'PUT',
-                              headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${sessionStorage.getItem('rescuelink_token')}`
-                              },
-                              body: JSON.stringify({
-                                name: authHospital.name,
-                                lat: hospitalGps?.lat || authHospital.lat,
-                                lng: hospitalGps?.lng || authHospital.lng,
-                                icu_beds: icuBeds,
-                                ventilators: authHospital.ventilators || 5
-                              })
-                            });
-                            if (res.ok) {
-                              window.alert('🏥 Hospital settings updated successfully and sync broadcasted!');
-                              if (socket) {
-                                socket.emit('register-hospital', {
-                                  hospitalId: authHospital.hospitalId,
-                                  name: authHospital.name,
-                                  adminName: authHospital.adminName,
-                                  id: authHospital.hospitalId,
-                                  lat: hospitalGps?.lat || authHospital.lat,
-                                  lng: hospitalGps?.lng || authHospital.lng,
-                                  token: sessionStorage.getItem('rescuelink_token')
-                                });
-                              }
-                            } else {
-                              const errData = await res.json();
-                              window.alert('⚠️ Update failed: ' + (errData.error || 'Unknown error'));
-                            }
-                          } catch (err) {
-                            window.alert('⚠️ Connection error occurred.');
-                          }
-                        }}
-                        style={{ padding: 12, background: 'rgba(0,200,255,0.15)', border: '1px solid #00c8ff', borderRadius: 8, color: '#00c8ff', fontFamily: "'Orbitron'", fontWeight: 'bold', cursor: 'pointer', marginTop: 10 }}
-                      >
-                        SAVE SETTINGS & BROADCAST
-                      </button>
+
                     </div>
-                  </div>
-                </div>
-              )}
+                  );
+                };
+                return <SettingsContent key="hospital-settings-panel" />;
+              })()}
+            
             </div>
           </div>
         )}

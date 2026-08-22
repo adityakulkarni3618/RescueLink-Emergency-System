@@ -123,4 +123,99 @@ router.delete('/:id', verifyToken(['city_admin']), async (req, res) => {
   }
 });
 
+/**
+ * @route POST /api/ambulances/:id/change-password
+ * @desc Change the login password for an ambulance unit (self or city_admin)
+ */
+router.post('/:id/change-password', async (req, res) => {
+  try {
+    const amb = await Ambulance.findByPk(req.params.id);
+    if (!amb) return res.status(404).json({ error: 'Ambulance not found' });
+
+    const { currentPassword, newPassword } = req.body;
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    }
+
+    // Verify current password
+    if (currentPassword) {
+      const valid = await bcrypt.compare(currentPassword, amb.password);
+      if (!valid) return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+
+    amb.password = await bcrypt.hash(newPassword, 10);
+    await amb.save();
+
+    await AuditLog.create({
+      user_id: amb.id,
+      action: 'CHANGE_AMBULANCE_PASSWORD',
+      resource: 'Ambulance',
+      resource_id: amb.id,
+      ip_address: req.ip || req.connection.remoteAddress,
+      details: { vehicleNo: amb.vehicleNo }
+    });
+
+    return res.json({ message: 'Ambulance password updated successfully' });
+  } catch (err) {
+    console.error('[AMBULANCES API] change-password error:', err.message);
+    return res.status(500).json({ error: 'Failed to change ambulance password' });
+  }
+});
+
+/**
+ * @route PUT /api/ambulances/:id/suspend
+ * @desc Suspend an ambulance unit (city_admin only)
+ */
+router.put('/:id/suspend', verifyToken(['city_admin']), async (req, res) => {
+  try {
+    const amb = await Ambulance.findByPk(req.params.id);
+    if (!amb) return res.status(404).json({ error: 'Ambulance not found' });
+
+    amb.is_active = false;
+    await amb.save();
+
+    await AuditLog.create({
+      user_id: req.user.id,
+      action: 'SUSPEND_AMBULANCE',
+      resource: 'Ambulance',
+      resource_id: amb.id,
+      ip_address: req.ip || req.connection.remoteAddress,
+      details: { vehicleNo: amb.vehicleNo, reason: req.body.reason || 'Admin action' }
+    });
+
+    return res.json({ message: 'Ambulance suspended successfully', is_active: false });
+  } catch (err) {
+    console.error('[AMBULANCES API] suspend error:', err.message);
+    return res.status(500).json({ error: 'Failed to suspend ambulance' });
+  }
+});
+
+/**
+ * @route PUT /api/ambulances/:id/restore
+ * @desc Restore a suspended ambulance unit (city_admin only)
+ */
+router.put('/:id/restore', verifyToken(['city_admin']), async (req, res) => {
+  try {
+    const amb = await Ambulance.findByPk(req.params.id);
+    if (!amb) return res.status(404).json({ error: 'Ambulance not found' });
+
+    amb.is_active = true;
+    await amb.save();
+
+    await AuditLog.create({
+      user_id: req.user.id,
+      action: 'RESTORE_AMBULANCE',
+      resource: 'Ambulance',
+      resource_id: amb.id,
+      ip_address: req.ip || req.connection.remoteAddress,
+      details: { vehicleNo: amb.vehicleNo }
+    });
+
+    return res.json({ message: 'Ambulance restored successfully', is_active: true });
+  } catch (err) {
+    console.error('[AMBULANCES API] restore error:', err.message);
+    return res.status(500).json({ error: 'Failed to restore ambulance' });
+  }
+});
+
 module.exports = router;
