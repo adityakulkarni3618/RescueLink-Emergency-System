@@ -151,6 +151,54 @@ const styles = `
     --theme-danger: #ff5555;
   }
 
+  body[data-theme='light-sky-breeze'] {
+    --theme-accent: #0284c7;
+    --theme-accent-rgb: 2, 132, 199;
+    --theme-accent-glow: rgba(2, 132, 199, 0.25);
+    --theme-accent-hover: #0369a1;
+    --theme-bg: #f0f9ff;
+    --theme-card-bg: #ffffff;
+    --theme-text-primary: #0f172a;
+    --theme-text-secondary: #475569;
+    --theme-border: #bae6fd;
+    --theme-border-hover: #7dd3fc;
+    --theme-success: #16a34a;
+    --theme-warning: #ea580c;
+    --theme-danger: #dc2626;
+  }
+
+  body[data-theme='light-sage-green'] {
+    --theme-accent: #15803d;
+    --theme-accent-rgb: 21, 128, 61;
+    --theme-accent-glow: rgba(21, 128, 61, 0.25);
+    --theme-accent-hover: #166534;
+    --theme-bg: #f0fdf4;
+    --theme-card-bg: #ffffff;
+    --theme-text-primary: #0f172a;
+    --theme-text-secondary: #475569;
+    --theme-border: #bbf7d0;
+    --theme-border-hover: #86efac;
+    --theme-success: #16a34a;
+    --theme-warning: #d97706;
+    --theme-danger: #dc2626;
+  }
+
+  body[data-theme='light-steel-blue'] {
+    --theme-accent: #1d4ed8;
+    --theme-accent-rgb: 29, 78, 216;
+    --theme-accent-glow: rgba(29, 78, 216, 0.25);
+    --theme-accent-hover: #1e40af;
+    --theme-bg: #f8fafc;
+    --theme-card-bg: #ffffff;
+    --theme-text-primary: #0f172a;
+    --theme-text-secondary: #475569;
+    --theme-border: #cbd5e1;
+    --theme-border-hover: #94a3b8;
+    --theme-success: #16a34a;
+    --theme-warning: #dd6b20;
+    --theme-danger: #e53e3e;
+  }
+
   body[data-theme='light'] {
     --theme-accent: #1b4f72;
     --theme-accent-rgb: 27, 79, 114;
@@ -185,37 +233,37 @@ const styles = `
   }
 
   /* Target headers / top bars in light mode nicely */
-  [data-theme='light'] div[style*="min-height: 70" i], 
-  [data-theme='light'] div[style*="min-height: 60" i],
-  [data-theme='light'] div[style*="min-height: 64" i],
-  [data-theme='light'] div[style*="rgba(5, 20, 10" i],
-  [data-theme='light'] div[style*="rgba(5,20,10" i],
-  [data-theme='light'] header,
-  [data-theme='light'] header[style*="rgba(5,15,35" i] {
+  [data-theme^='light'] div[style*="min-height: 70" i], 
+  [data-theme^='light'] div[style*="min-height: 60" i],
+  [data-theme^='light'] div[style*="min-height: 64" i],
+  [data-theme^='light'] div[style*="rgba(5, 20, 10" i],
+  [data-theme^='light'] div[style*="rgba(5,20,10" i],
+  [data-theme^='light'] header,
+  [data-theme^='light'] header[style*="rgba(5,15,35" i] {
     background: #1b4f72 !important;
     border-bottom: 2px solid #154360 !important;
     color: #ffffff !important;
   }
 
   /* Remove blurry text-shadows in light mode to make text clean and readable */
-  [data-theme='light'] div,
-  [data-theme='light'] h1,
-  [data-theme='light'] h2,
-  [data-theme='light'] h3,
-  [data-theme='light'] h4,
-  [data-theme='light'] h5,
-  [data-theme='light'] h6,
-  [data-theme='light'] p,
-  [data-theme='light'] span,
-  [data-theme='light'] label {
+  [data-theme^='light'] div,
+  [data-theme^='light'] h1,
+  [data-theme^='light'] h2,
+  [data-theme^='light'] h3,
+  [data-theme^='light'] h4,
+  [data-theme^='light'] h5,
+  [data-theme^='light'] h6,
+  [data-theme^='light'] p,
+  [data-theme^='light'] span,
+  [data-theme^='light'] label {
     text-shadow: none !important;
   }
-  [data-theme='light'] div[style*="min-height: 70" i] *, 
-  [data-theme='light'] div[style*="min-height: 60" i] *,
-  [data-theme='light'] div[style*="rgba(5, 20, 10" i] *,
-  [data-theme='light'] div[style*="rgba(5,20,10" i] *,
-  [data-theme='light'] header *,
-  [data-theme='light'] header[style*="rgba(5,15,35" i] * {
+  [data-theme^='light'] div[style*="min-height: 70" i] *, 
+  [data-theme^='light'] div[style*="min-height: 60" i] *,
+  [data-theme^='light'] div[style*="rgba(5, 20, 10" i] *,
+  [data-theme^='light'] div[style*="rgba(5,20,10" i] *,
+  [data-theme^='light'] header *,
+  [data-theme^='light'] header[style*="rgba(5,15,35" i] * {
     color: #ffffff !important;
   }
 
@@ -2682,11 +2730,11 @@ export default function App() {
       style={{
         position: 'fixed', bottom: 25, left: 25, zIndex: 11000,
         display: 'flex', alignItems: 'center', gap: 10,
-        background: theme === 'light' ? '#ffffff' : 'rgba(10, 20, 45, 0.85)',
-        border: `1px solid ${theme === 'light' ? '#cbd5e0' : 'rgba(0, 200, 255, 0.3)'}`,
+        background: theme.startsWith('light') ? '#ffffff' : 'rgba(10, 20, 45, 0.85)',
+        border: `1px solid ${theme.startsWith('light') ? '#cbd5e0' : 'rgba(0, 200, 255, 0.3)'}`,
         padding: '6px 12px',
         borderRadius: '30px',
-        boxShadow: theme === 'light' ? '0 4px 12px rgba(0,0,0,0.1)' : '0 8px 24px rgba(0,0,0,0.5)',
+        boxShadow: theme.startsWith('light') ? '0 4px 12px rgba(0,0,0,0.1)' : '0 8px 24px rgba(0,0,0,0.5)',
         backdropFilter: 'blur(8px)',
         transition: 'all 0.3s ease',
         height: '38px',
@@ -2702,9 +2750,9 @@ export default function App() {
           width: 32, height: 32, borderRadius: '50%',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           cursor: 'pointer', transition: 'all 0.2s',
-          background: showPalette ? (theme === 'light' ? 'rgba(27, 79, 114, 0.1)' : 'rgba(0, 200, 255, 0.15)') : 'transparent',
+          background: showPalette ? (theme.startsWith('light') ? 'rgba(27, 79, 114, 0.1)' : 'rgba(0, 200, 255, 0.15)') : 'transparent',
           border: 'none',
-          color: theme === 'light' ? '#1b4f72' : 'var(--theme-accent)',
+          color: theme.startsWith('light') ? '#1b4f72' : 'var(--theme-accent)',
           padding: 0,
           outline: 'none',
           minWidth: 'auto',
@@ -2731,10 +2779,15 @@ export default function App() {
         className="theme-switcher-btn"
         onClick={() => {
           if (theme.startsWith('dark')) {
-            setTheme('light');
+            if (theme === 'dark-sky-breeze') setTheme('light-sky-breeze');
+            else if (theme === 'dark-sage-green') setTheme('light-sage-green');
+            else if (theme === 'dark-steel-blue') setTheme('light-steel-blue');
+            else setTheme('light-sky-breeze');
           } else {
-            const lastDark = localStorage.getItem('rescue_dark_accent') || 'dark-sky-breeze';
-            setTheme(lastDark);
+            if (theme === 'light-sky-breeze') setTheme('dark-sky-breeze');
+            else if (theme === 'light-sage-green') setTheme('dark-sage-green');
+            else if (theme === 'light-steel-blue' || theme === 'light') setTheme('dark-steel-blue');
+            else setTheme('dark-sky-breeze');
           }
         }}
         title={`Switch to ${theme.startsWith('dark') ? 'Light' : 'Dark'} Mode`}
@@ -2744,7 +2797,7 @@ export default function App() {
           cursor: 'pointer', transition: 'all 0.2s',
           background: 'transparent',
           border: 'none',
-          color: theme === 'light' ? '#1b4f72' : 'var(--theme-accent)',
+          color: theme.startsWith('light') ? 'var(--theme-accent)' : '#00c8ff',
           padding: 0,
           outline: 'none',
           minWidth: 'auto',
@@ -2776,44 +2829,76 @@ export default function App() {
         )}
       </button>
 
-      {/* Dark Mode Accent bubbles (visible when palette is toggled open) */}
+      {/* Accent bubbles (visible when palette is toggled open) */}
       {showPalette && (
         <div style={{
           display: 'flex', gap: 8,
-          borderLeft: `1px solid ${theme === 'light' ? '#cbd5e0' : 'rgba(255,255,255,0.2)'}`,
+          borderLeft: `1px solid ${theme.startsWith('light') ? '#cbd5e0' : 'rgba(255,255,255,0.2)'}`,
           paddingLeft: 8,
           alignItems: 'center',
           animation: 'fadeSlideUp 0.2s ease forwards'
         }}>
-          {[
-            { id: 'dark-sky-breeze', color: '#00c8ff', name: 'Sky Breeze' },
-            { id: 'dark-sage-green', color: '#3cd070', name: 'Sage Green' },
-            { id: 'dark-steel-blue', color: '#5294e2', name: 'Steel Blue' }
-          ].map(accent => (
-            <div
-              key={accent.id}
-              onClick={() => {
-                setTheme(accent.id);
-                localStorage.setItem('rescue_dark_accent', accent.id);
-              }}
-              title={accent.name}
-              style={{
-                width: 14, height: 14, borderRadius: '50%',
-                backgroundColor: accent.color,
-                cursor: 'pointer',
-                border: theme === accent.id ? '2px solid #ffffff' : '1px solid rgba(255,255,255,0.4)',
-                boxShadow: theme === accent.id ? `0 0 10px ${accent.color}` : 'none',
-                transition: 'all 0.2s',
-                boxSizing: 'border-box'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'scale(1.2)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'scale(1)';
-              }}
-            />
-          ))}
+          {theme.startsWith('light') ? (
+            [
+              { id: 'light-sky-breeze', color: '#0284c7', name: 'Sky Breeze' },
+              { id: 'light-sage-green', color: '#15803d', name: 'Sage Green' },
+              { id: 'light-steel-blue', color: '#1d4ed8', name: 'Steel Blue' }
+            ].map(accent => (
+              <div
+                key={accent.id}
+                onClick={() => {
+                  setTheme(accent.id);
+                  localStorage.setItem('rescue_light_accent', accent.id);
+                }}
+                title={accent.name}
+                style={{
+                  width: 14, height: 14, borderRadius: '50%',
+                  backgroundColor: accent.color,
+                  cursor: 'pointer',
+                  border: theme === accent.id ? '2px solid #1a202c' : '1px solid rgba(0,0,0,0.2)',
+                  boxShadow: theme === accent.id ? `0 0 8px ${accent.color}` : 'none',
+                  transition: 'all 0.2s',
+                  boxSizing: 'border-box'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
+              />
+            ))
+          ) : (
+            [
+              { id: 'dark-sky-breeze', color: '#00c8ff', name: 'Sky Breeze' },
+              { id: 'dark-sage-green', color: '#3cd070', name: 'Sage Green' },
+              { id: 'dark-steel-blue', color: '#5294e2', name: 'Steel Blue' }
+            ].map(accent => (
+              <div
+                key={accent.id}
+                onClick={() => {
+                  setTheme(accent.id);
+                  localStorage.setItem('rescue_dark_accent', accent.id);
+                }}
+                title={accent.name}
+                style={{
+                  width: 14, height: 14, borderRadius: '50%',
+                  backgroundColor: accent.color,
+                  cursor: 'pointer',
+                  border: theme === accent.id ? '2px solid #ffffff' : '1px solid rgba(255,255,255,0.4)',
+                  boxShadow: theme === accent.id ? `0 0 10px ${accent.color}` : 'none',
+                  transition: 'all 0.2s',
+                  boxSizing: 'border-box'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
+              />
+            ))
+          )}
         </div>
       )}
     </div>
@@ -2985,107 +3070,7 @@ export default function App() {
         </button>
       </div>
 
-      {/* Floating Theme Controller - Bottom Left */}
-      <div style={{
-        position: 'fixed', bottom: 25, left: 25, zIndex: 11000,
-        display: 'flex', alignItems: 'center', gap: 10,
-        background: theme === 'light' ? '#ffffff' : 'rgba(10, 20, 45, 0.85)',
-        border: `1px solid ${theme === 'light' ? '#cbd5e0' : 'rgba(0, 200, 255, 0.3)'}`,
-        padding: '6px 12px',
-        borderRadius: '30px',
-        boxShadow: theme === 'light' ? '0 4px 12px rgba(0,0,0,0.1)' : '0 8px 24px rgba(0,0,0,0.5)',
-        backdropFilter: 'blur(8px)',
-        transition: 'all 0.3s ease'
-      }}>
-        {/* Main Sun/Moon Toggle */}
-        <button
-          onClick={() => {
-            if (theme.startsWith('dark')) {
-              setTheme('light');
-            } else {
-              const lastDark = localStorage.getItem('rescue_dark_accent') || 'dark-sky-breeze';
-              setTheme(lastDark);
-            }
-          }}
-          title={`Switch to ${theme.startsWith('dark') ? 'Light' : 'Dark'} Mode`}
-          style={{
-            width: 36, height: 36, borderRadius: '50%',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', transition: 'all 0.2s',
-            background: 'transparent',
-            border: 'none',
-            color: theme === 'light' ? '#1b4f72' : 'var(--theme-accent)',
-            padding: 0,
-            outline: 'none',
-            minWidth: 'auto',
-            height: '36px'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'scale(1.1)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'scale(1)';
-          }}
-        >
-          {theme.startsWith('dark') ? (
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-            </svg>
-          ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="5"></circle>
-              <line x1="12" y1="1" x2="12" y2="3"></line>
-              <line x1="12" y1="21" x2="12" y2="23"></line>
-              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-              <line x1="1" y1="12" x2="3" y2="12"></line>
-              <line x1="21" y1="12" x2="23" y2="12"></line>
-              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-            </svg>
-          )}
-        </button>
-
-        {/* Dark Mode Accent bubbles */}
-        {theme.startsWith('dark') && (
-          <div style={{
-            display: 'flex', gap: 8,
-            borderLeft: '1px solid rgba(255,255,255,0.2)',
-            paddingLeft: 8,
-            alignItems: 'center'
-          }}>
-            {[
-              { id: 'dark-sky-breeze', color: '#00c8ff', name: 'Sky Breeze' },
-              { id: 'dark-sage-green', color: '#3cd070', name: 'Sage Green' },
-              { id: 'dark-steel-blue', color: '#5294e2', name: 'Steel Blue' }
-            ].map(accent => (
-              <div
-                key={accent.id}
-                onClick={() => {
-                  setTheme(accent.id);
-                  localStorage.setItem('rescue_dark_accent', accent.id);
-                }}
-                title={accent.name}
-                style={{
-                  width: 14, height: 14, borderRadius: '50%',
-                  backgroundColor: accent.color,
-                  cursor: 'pointer',
-                  border: theme === accent.id ? '2px solid #ffffff' : '1px solid rgba(255,255,255,0.4)',
-                  boxShadow: theme === accent.id ? `0 0 10px ${accent.color}` : 'none',
-                  transition: 'all 0.2s',
-                  boxSizing: 'border-box'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'scale(1.2)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'scale(1)';
-                }}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      <ThemeSwitcher />
 
       {role === 'user' && (
         <UserDashboard socket={socket} connected={connected} />
