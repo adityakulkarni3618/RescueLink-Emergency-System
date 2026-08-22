@@ -60,6 +60,7 @@ async function runMigrations() {
       // SQLite compatibility transformations
       if (dialect === 'sqlite') {
         sql = sql
+          .replace(/ADD COLUMN IF NOT EXISTS/gi, 'ADD COLUMN')
           .replace(/TIMESTAMP WITH TIME ZONE/gi, 'DATETIME')
           .replace(/DOUBLE PRECISION/gi, 'REAL')
           .replace(/JSONB/gi, 'TEXT')
@@ -79,8 +80,13 @@ async function runMigrations() {
         try {
           await sequelize.query(command);
         } catch (queryErr) {
-          // If we fail on duplicate index in SQLite/Postgres we can ignore, otherwise fail
-          if (!queryErr.message.includes('already exists')) {
+          const errMsg = queryErr.message.toLowerCase();
+          // Ignore if the column/table/index already exists
+          if (
+            !errMsg.includes('already exists') &&
+            !errMsg.includes('duplicate column') &&
+            !errMsg.includes('duplicate key')
+          ) {
             throw queryErr;
           }
         }
