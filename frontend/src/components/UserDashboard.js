@@ -166,7 +166,7 @@ function calcDist(pos1, pos2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-export default function UserDashboard({ socket, connected }) {
+export default function UserDashboard({ socket, connected, onLogout, onSwitchRole, onShowSecurity }) {
   const [userLocation, setUserLocation] = useState(null);
   const [ambulances, setAmbulances] = useState({});
   const [hospitals, setHospitals] = useState({});
@@ -925,8 +925,7 @@ export default function UserDashboard({ socket, connected }) {
         }
       `}</style>
 
-      {/* ══ HEADER ══ */}
-      <div className="header-container" style={{ position: 'relative', background: 'rgba(5,15,40,0.97)', padding: '10px 450px 10px 20px', borderBottom: '1px solid rgba(0,200,255,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, zIndex: 200 }}>
+      <div className="header-container" style={{ position: 'relative', background: 'rgba(5,15,40,0.97)', padding: '10px 20px', borderBottom: '1px solid rgba(0,200,255,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, zIndex: 200, flexWrap: 'wrap' }}>
 
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
@@ -957,6 +956,19 @@ export default function UserDashboard({ socket, connected }) {
           )}
         </div>
 
+        {/* Action buttons embedded natively in the flex layout */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button onClick={onSwitchRole} className="rl-btn-secondary" style={{ height: 32, padding: '0 12px', fontSize: 10 }}>
+            ROLE 🔄
+          </button>
+          <button onClick={onShowSecurity} className="rl-btn-secondary" style={{ height: 32, padding: '0 12px', fontSize: 10 }}>
+            SECURITY 🛡️
+          </button>
+          <button onClick={onLogout} className="rl-btn-primary" style={{ height: 32, padding: '0 12px', fontSize: 10, background: 'linear-gradient(135deg, #ff4444 0%, #cc0000 100%)', border: 'none', color: '#fff' }}>
+            LOGOUT ⏻
+          </button>
+        </div>
+
         {/* Mobile: Hamburger ☰ button */}
         <button
           className="ud-mobile-menu-btn"
@@ -985,9 +997,6 @@ export default function UserDashboard({ socket, connected }) {
             )}
           </div>
         )}
-
-        {/* Desktop spacer */}
-        <div style={{ width: 100 }} className="desktop-header-spacer" />
       </div>
 
       <div className="main-content-layout" style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>

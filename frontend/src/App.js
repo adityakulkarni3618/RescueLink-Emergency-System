@@ -3023,62 +3023,74 @@ export default function App() {
       <style>{styles}</style>
       <div className="scanline" />
 
+      <ThemeSwitcher />
 
-
-      {/* Global Actions Bar (Top Right) */}
-      <div className="global-buttons-container" style={{ position: 'fixed', top: 14, right: 25, zIndex: 11000, display: 'flex', gap: 12, alignItems: 'center' }}>
-        {/* Switch role settings button */}
-        <button
-          className="rl-btn-secondary"
-          onClick={() => {
+      {role === 'user' && (
+        <UserDashboard 
+          socket={socket} 
+          connected={connected} 
+          onLogout={handleLogout}
+          onSwitchRole={() => {
             sessionStorage.removeItem('rescueLinkRole');
             setRole(null);
             window.location.hash = '';
           }}
-          style={{
-            padding: '8px 16px',
-            fontSize: 11
-          }}
-        >
-          <span className="global-btn-label">SWITCH ROLE </span>🔄
-        </button>
-
-        {/* Security settings button */}
-        <button
-          className="rl-btn-secondary"
-          onClick={() => setShowSecurityModal(true)}
-          style={{
-            padding: '8px 16px',
-            fontSize: 11
-          }}
-        >
-          <span className="global-btn-label">SECURITY </span>🛡️
-        </button>
-
-        {/* Logout button */}
-        <button
-          className="rl-btn-primary"
-          onClick={handleLogout}
-          style={{
-            padding: '8px 16px',
-            fontSize: 11,
-            background: 'linear-gradient(135deg, #ff4444 0%, #cc0000 100%)',
-            boxShadow: '0 4px 15px rgba(255, 68, 68, 0.2)'
-          }}
-        >
-          <span className="global-btn-label">LOGOUT </span>⏻
-        </button>
-      </div>
-
-      <ThemeSwitcher />
-
-      {role === 'user' && (
-        <UserDashboard socket={socket} connected={connected} />
+          onShowSecurity={() => setShowSecurityModal(true)}
+        />
       )}
-      {role === 'ambulance' && <AmbulanceStreamer socket={socket} connected={connected} />}
-      {role === 'hospital' && <HospitalDashboard socket={socket} connected={connected} />}
-      {role === 'admin' && <WarRoom socket={socket} connected={connected} />}
-      {role === 'family' && <FamilyDashboard socket={socket} connected={connected} reqId={familyReqId} />}
+      {role === 'ambulance' && (
+        <AmbulanceStreamer 
+          socket={socket} 
+          connected={connected} 
+          onLogout={handleLogout}
+          onSwitchRole={() => {
+            sessionStorage.removeItem('rescueLinkRole');
+            setRole(null);
+            window.location.hash = '';
+          }}
+          onShowSecurity={() => setShowSecurityModal(true)}
+        />
+      )}
+      {role === 'hospital' && (
+        <HospitalDashboard 
+          socket={socket} 
+          connected={connected} 
+          onLogout={handleLogout}
+          onSwitchRole={() => {
+            sessionStorage.removeItem('rescueLinkRole');
+            setRole(null);
+            window.location.hash = '';
+          }}
+          onShowSecurity={() => setShowSecurityModal(true)}
+        />
+      )}
+      {role === 'admin' && (
+        <WarRoom 
+          socket={socket} 
+          connected={connected} 
+          onLogout={handleLogout}
+          onSwitchRole={() => {
+            sessionStorage.removeItem('rescueLinkRole');
+            setRole(null);
+            window.location.hash = '';
+          }}
+          onShowSecurity={() => setShowSecurityModal(true)}
+        />
+      )}
+      {role === 'family' && (
+        <FamilyDashboard 
+          socket={socket} 
+          connected={connected} 
+          reqId={familyReqId} 
+          onLogout={handleLogout}
+          onSwitchRole={() => {
+            sessionStorage.removeItem('rescueLinkRole');
+            setRole(null);
+            window.location.hash = '';
+          }}
+          onShowSecurity={() => setShowSecurityModal(true)}
+        />
+      )}
 
       {emergencyBroadcast && (
         <div style={{

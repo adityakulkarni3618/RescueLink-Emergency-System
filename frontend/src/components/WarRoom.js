@@ -62,7 +62,7 @@ function KpiCard({ label, value, unit, color, icon }) {
   );
 }
 
-export default function WarRoom({ socket, connected }) {
+export default function WarRoom({ socket, connected, onLogout, onSwitchRole, onShowSecurity }) {
   const [ambulances, setAmbulances] = useState({});
   const [hospitals, setHospitals] = useState({});
   const [analyticsData, setAnalyticsData] = useState([]);
@@ -520,19 +520,32 @@ export default function WarRoom({ socket, connected }) {
       `}</style>
 
       {/* ── Header ── */}
-      <div style={{ background: 'rgba(5,20,10,0.98)', borderBottom: '1px solid rgba(0,255,136,0.2)', padding: '10px 450px 10px 24px', display: 'flex', alignItems: 'center', gap: 16, minHeight: 62, height: 'auto', flexWrap: 'wrap', flexShrink: 0 }}>
+      <div style={{ background: 'rgba(5,20,10,0.98)', borderBottom: '1px solid rgba(0,255,136,0.2)', padding: '10px 24px', display: 'flex', alignItems: 'center', gap: 16, minHeight: 62, height: 'auto', flexWrap: 'wrap', flexShrink: 0 }}>
         <div style={{ fontSize: 24 }}>🏛️</div>
         <div>
           <div style={{ fontFamily: "'Orbitron'", fontSize: 13, fontWeight: 700, color: '#88ff88', letterSpacing: '0.1em' }}>GOVERNMENT WAR ROOM — CITY ADMINISTRATION</div>
           <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>RESCUELINK ENTERPRISE v2.0 — FLEET COMMAND & ANALYTICS</div>
         </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, alignItems: 'center' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           {[['USERS', connectedRoles.user, '0,255,136'], ['AMBULANCES', connectedRoles.ambulance, '255,107,53'], ['HOSPITALS', connectedRoles.hospital, '0,200,255']].map(([label, val, c]) => (
             <div key={label} style={{ textAlign: 'center', padding: '5px 12px', background: `rgba(${c},0.07)`, border: `1px solid rgba(${c},0.2)`, borderRadius: 6 }}>
               <div style={{ fontSize: 8, color: `rgba(${c},0.6)`, fontFamily: "'Orbitron'", letterSpacing: '0.08em' }}>{label}</div>
               <div style={{ fontSize: 18, fontWeight: 900, color: `rgb(${c})`, fontFamily: "'Orbitron'" }}>{val}</div>
             </div>
           ))}
+          
+          {/* Action buttons embedded natively in the flex layout */}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 15 }}>
+            <button onClick={onSwitchRole} className="rl-btn-secondary" style={{ height: 32, padding: '0 12px', fontSize: 10, borderColor: 'rgba(0,255,136,0.3)', color: '#00ff88' }}>
+              ROLE 🔄
+            </button>
+            <button onClick={onShowSecurity} className="rl-btn-secondary" style={{ height: 32, padding: '0 12px', fontSize: 10, borderColor: 'rgba(0,255,136,0.3)', color: '#00ff88' }}>
+              SECURITY 🛡️
+            </button>
+            <button onClick={onLogout} className="rl-btn-primary" style={{ height: 32, padding: '0 12px', fontSize: 10, background: 'linear-gradient(135deg, #ff4444 0%, #cc0000 100%)', border: 'none', color: '#fff' }}>
+              LOGOUT ⏻
+            </button>
+          </div>
         </div>
       </div>
 
