@@ -2542,7 +2542,8 @@ export default function App() {
   const [familyReqId] = useState(() => new URLSearchParams(window.location.search).get('reqId'));
   const [socket, setSocket] = useState(null);
   const [connected, setConnected] = useState(false);
-  const [theme, setTheme] = useState('dark');
+  const [theme, setTheme] = useState(() => localStorage.getItem('rescue_theme') || 'dark-sky-breeze');
+  const [showPalette, setShowPalette] = useState(false);
   const [globalAlertData, setGlobalAlertData] = useState(null);
   const [emergencyBroadcast, setEmergencyBroadcast] = useState(null);
   const [showSecurityModal, setShowSecurityModal] = useState(false);
@@ -2581,6 +2582,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    localStorage.setItem('rescue_theme', theme);
     document.body.setAttribute('data-theme', theme);
   }, [theme]);
 
@@ -2673,31 +2675,184 @@ export default function App() {
     setToken(null);
   };
 
+  const ThemeSwitcher = () => (
+    <div 
+      onMouseEnter={() => setShowPalette(true)}
+      onMouseLeave={() => setShowPalette(false)}
+      style={{
+        position: 'fixed', bottom: 25, left: 25, zIndex: 11000,
+        display: 'flex', alignItems: 'center', gap: 10,
+        background: theme === 'light' ? '#ffffff' : 'rgba(10, 20, 45, 0.85)',
+        border: `1px solid ${theme === 'light' ? '#cbd5e0' : 'rgba(0, 200, 255, 0.3)'}`,
+        padding: '6px 12px',
+        borderRadius: '30px',
+        boxShadow: theme === 'light' ? '0 4px 12px rgba(0,0,0,0.1)' : '0 8px 24px rgba(0,0,0,0.5)',
+        backdropFilter: 'blur(8px)',
+        transition: 'all 0.3s ease',
+        height: '38px',
+        boxSizing: 'border-box'
+      }}
+    >
+      {/* Paint Palette Button */}
+      <button
+        className="theme-switcher-btn"
+        onClick={() => setShowPalette(!showPalette)}
+        title="Toggle Theme Palette"
+        style={{
+          width: 32, height: 32, borderRadius: '50%',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer', transition: 'all 0.2s',
+          background: showPalette ? (theme === 'light' ? 'rgba(27, 79, 114, 0.1)' : 'rgba(0, 200, 255, 0.15)') : 'transparent',
+          border: 'none',
+          color: theme === 'light' ? '#1b4f72' : 'var(--theme-accent)',
+          padding: 0,
+          outline: 'none',
+          minWidth: 'auto',
+          height: '32px'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'scale(1.1)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1)';
+        }}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 22C17.5228 22 22 17.5228 22 12C22 9.53762 21.05 7.19943 19.5 5.5C18.5 4.5 17 3.5 15 3.5C14.4477 3.5 14 3.94772 14 4.5C14 5.5 13 6.5 12 6.5C11 6.5 10 5.5 10 4.5C10 3.94772 9.55228 3.5 9 3.5C5.13401 3.5 2 6.63401 2 10.5C2 16.8519 7.14806 22 12 22Z"></path>
+          <circle cx="7.5" cy="10.5" r="1" fill="currentColor"></circle>
+          <circle cx="11.5" cy="7.5" r="1" fill="currentColor"></circle>
+          <circle cx="16.5" cy="9.5" r="1" fill="currentColor"></circle>
+          <circle cx="15.5" cy="14.5" r="1" fill="currentColor"></circle>
+        </svg>
+      </button>
+
+      {/* Main Sun/Moon Toggle */}
+      <button
+        className="theme-switcher-btn"
+        onClick={() => {
+          if (theme.startsWith('dark')) {
+            setTheme('light');
+          } else {
+            const lastDark = localStorage.getItem('rescue_dark_accent') || 'dark-sky-breeze';
+            setTheme(lastDark);
+          }
+        }}
+        title={`Switch to ${theme.startsWith('dark') ? 'Light' : 'Dark'} Mode`}
+        style={{
+          width: 32, height: 32, borderRadius: '50%',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer', transition: 'all 0.2s',
+          background: 'transparent',
+          border: 'none',
+          color: theme === 'light' ? '#1b4f72' : 'var(--theme-accent)',
+          padding: 0,
+          outline: 'none',
+          minWidth: 'auto',
+          height: '32px'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'scale(1.1)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1)';
+        }}
+      >
+        {theme.startsWith('dark') ? (
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+        ) : (
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        )}
+      </button>
+
+      {/* Dark Mode Accent bubbles (visible when palette is toggled open) */}
+      {showPalette && (
+        <div style={{
+          display: 'flex', gap: 8,
+          borderLeft: `1px solid ${theme === 'light' ? '#cbd5e0' : 'rgba(255,255,255,0.2)'}`,
+          paddingLeft: 8,
+          alignItems: 'center',
+          animation: 'fadeSlideUp 0.2s ease forwards'
+        }}>
+          {[
+            { id: 'dark-sky-breeze', color: '#00c8ff', name: 'Sky Breeze' },
+            { id: 'dark-sage-green', color: '#3cd070', name: 'Sage Green' },
+            { id: 'dark-steel-blue', color: '#5294e2', name: 'Steel Blue' }
+          ].map(accent => (
+            <div
+              key={accent.id}
+              onClick={() => {
+                setTheme(accent.id);
+                localStorage.setItem('rescue_dark_accent', accent.id);
+              }}
+              title={accent.name}
+              style={{
+                width: 14, height: 14, borderRadius: '50%',
+                backgroundColor: accent.color,
+                cursor: 'pointer',
+                border: theme === accent.id ? '2px solid #ffffff' : '1px solid rgba(255,255,255,0.4)',
+                boxShadow: theme === accent.id ? `0 0 10px ${accent.color}` : 'none',
+                transition: 'all 0.2s',
+                boxSizing: 'border-box'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'scale(1.2)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   if (mfaSetupToken) {
     return (
-      <MfaSetupScreen
-        setupToken={mfaSetupToken}
-        onComplete={() => setMfaSetupToken(null)}
-        onCancel={() => setMfaSetupToken(null)}
-      />
+      <div className="app-root">
+        <style>{styles}</style>
+        <MfaSetupScreen
+          setupToken={mfaSetupToken}
+          onComplete={() => setMfaSetupToken(null)}
+          onCancel={() => setMfaSetupToken(null)}
+        />
+        <ThemeSwitcher />
+      </div>
     );
   }
 
   if (mfaVerifyToken) {
     return (
-      <MfaVerifyScreen
-        mfaToken={mfaVerifyToken}
-        onLoginSuccess={handleLoginSuccess}
-        onCancel={() => setMfaVerifyToken(null)}
-        ParticleCanvas={ParticleCanvas}
-      />
+      <div className="app-root">
+        <style>{styles}</style>
+        <MfaVerifyScreen
+          mfaToken={mfaVerifyToken}
+          onLoginSuccess={handleLoginSuccess}
+          onCancel={() => setMfaVerifyToken(null)}
+          ParticleCanvas={ParticleCanvas}
+        />
+        <ThemeSwitcher />
+      </div>
     );
   }
 
   if (!token) {
     if (currentHash === '#ambulance' || loginTargetRole === 'ambulance') {
       return (
-        <>
+        <div className="app-root">
+          <style>{styles}</style>
           <AmbulanceLandingHomepage
             onLogin={() => { setIsRegisterMode(false); setLoginTargetRole('ambulance'); }}
             onRegister={() => { setIsRegisterMode(true); setLoginTargetRole('ambulance'); }}
@@ -2713,13 +2868,15 @@ export default function App() {
               defaultIsRegister={isRegisterMode}
             />
           )}
-        </>
+          <ThemeSwitcher />
+        </div>
       );
     }
 
     if (currentHash === '#hospital' || loginTargetRole === 'hospital') {
       return (
-        <>
+        <div className="app-root">
+          <style>{styles}</style>
           <HospitalLandingHomepage
             onLogin={() => { setIsRegisterMode(false); setLoginTargetRole('hospital'); }}
             onRegister={() => { setIsRegisterMode(true); setLoginTargetRole('hospital'); }}
@@ -2735,12 +2892,14 @@ export default function App() {
               defaultIsRegister={isRegisterMode}
             />
           )}
-        </>
+          <ThemeSwitcher />
+        </div>
       );
     }
 
     return (
-      <>
+      <div className="app-root">
+        <style>{styles}</style>
         <LandingHomepage onSelectRole={(selRole) => {
           setLoginTargetRole(selRole);
           window.location.hash = selRole;
@@ -2755,16 +2914,23 @@ export default function App() {
             defaultIsRegister={isRegisterMode}
           />
         )}
-      </>
+        <ThemeSwitcher />
+      </div>
     );
   }
 
   if (!role) {
-    return <RoleSelector onSelect={(selRole) => {
-      sessionStorage.setItem('rescueLinkRole', selRole);
-      setRole(selRole);
-      window.location.hash = selRole;
-    }} />;
+    return (
+      <div className="app-root">
+        <style>{styles}</style>
+        <RoleSelector onSelect={(selRole) => {
+          sessionStorage.setItem('rescueLinkRole', selRole);
+          setRole(selRole);
+          window.location.hash = selRole;
+        }} />
+        <ThemeSwitcher />
+      </div>
+    );
   }
 
   return (
@@ -2819,51 +2985,107 @@ export default function App() {
         </button>
       </div>
 
-      {/* Premium Theme Switcher - Bottom Left */}
-      <button
-        onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
-        title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
-        style={{
-          position: 'fixed', bottom: 25, left: 25, zIndex: 11000,
-          width: 46, height: 46, borderRadius: '50%',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          background: theme === 'dark' ? 'rgba(0, 200, 255, 0.08)' : '#ffffff',
-          border: `1px solid ${theme === 'dark' ? 'rgba(0, 200, 255, 0.4)' : '#1b4f72'}`,
-          color: theme === 'dark' ? '#00c8ff' : '#1b4f72',
-          boxShadow: theme === 'dark' ? '0 8px 24px rgba(0,0,0,0.6)' : '0 4px 12px rgba(0,0,0,0.1)',
-          outline: 'none',
-          padding: 0
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'scale(1.1)';
-          e.currentTarget.style.background = theme === 'dark' ? 'rgba(0, 200, 255, 0.18)' : 'rgba(27, 79, 114, 0.08)';
-          e.currentTarget.style.boxShadow = theme === 'dark' ? '0 0 20px rgba(0, 200, 255, 0.5)' : '0 0 15px rgba(27, 79, 114, 0.3)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'scale(1)';
-          e.currentTarget.style.background = theme === 'dark' ? 'rgba(0, 200, 255, 0.08)' : '#ffffff';
-          e.currentTarget.style.boxShadow = theme === 'dark' ? '0 8px 24px rgba(0,0,0,0.6)' : '0 4px 12px rgba(0,0,0,0.1)';
-        }}
-      >
-        {theme === 'dark' ? (
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-          </svg>
-        ) : (
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="5"></circle>
-            <line x1="12" y1="1" x2="12" y2="3"></line>
-            <line x1="12" y1="21" x2="12" y2="23"></line>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-            <line x1="1" y1="12" x2="3" y2="12"></line>
-            <line x1="21" y1="12" x2="23" y2="12"></line>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-          </svg>
+      {/* Floating Theme Controller - Bottom Left */}
+      <div style={{
+        position: 'fixed', bottom: 25, left: 25, zIndex: 11000,
+        display: 'flex', alignItems: 'center', gap: 10,
+        background: theme === 'light' ? '#ffffff' : 'rgba(10, 20, 45, 0.85)',
+        border: `1px solid ${theme === 'light' ? '#cbd5e0' : 'rgba(0, 200, 255, 0.3)'}`,
+        padding: '6px 12px',
+        borderRadius: '30px',
+        boxShadow: theme === 'light' ? '0 4px 12px rgba(0,0,0,0.1)' : '0 8px 24px rgba(0,0,0,0.5)',
+        backdropFilter: 'blur(8px)',
+        transition: 'all 0.3s ease'
+      }}>
+        {/* Main Sun/Moon Toggle */}
+        <button
+          onClick={() => {
+            if (theme.startsWith('dark')) {
+              setTheme('light');
+            } else {
+              const lastDark = localStorage.getItem('rescue_dark_accent') || 'dark-sky-breeze';
+              setTheme(lastDark);
+            }
+          }}
+          title={`Switch to ${theme.startsWith('dark') ? 'Light' : 'Dark'} Mode`}
+          style={{
+            width: 36, height: 36, borderRadius: '50%',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', transition: 'all 0.2s',
+            background: 'transparent',
+            border: 'none',
+            color: theme === 'light' ? '#1b4f72' : 'var(--theme-accent)',
+            padding: 0,
+            outline: 'none',
+            minWidth: 'auto',
+            height: '36px'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'scale(1.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+        >
+          {theme.startsWith('dark') ? (
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="5"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+          )}
+        </button>
+
+        {/* Dark Mode Accent bubbles */}
+        {theme.startsWith('dark') && (
+          <div style={{
+            display: 'flex', gap: 8,
+            borderLeft: '1px solid rgba(255,255,255,0.2)',
+            paddingLeft: 8,
+            alignItems: 'center'
+          }}>
+            {[
+              { id: 'dark-sky-breeze', color: '#00c8ff', name: 'Sky Breeze' },
+              { id: 'dark-sage-green', color: '#3cd070', name: 'Sage Green' },
+              { id: 'dark-steel-blue', color: '#5294e2', name: 'Steel Blue' }
+            ].map(accent => (
+              <div
+                key={accent.id}
+                onClick={() => {
+                  setTheme(accent.id);
+                  localStorage.setItem('rescue_dark_accent', accent.id);
+                }}
+                title={accent.name}
+                style={{
+                  width: 14, height: 14, borderRadius: '50%',
+                  backgroundColor: accent.color,
+                  cursor: 'pointer',
+                  border: theme === accent.id ? '2px solid #ffffff' : '1px solid rgba(255,255,255,0.4)',
+                  boxShadow: theme === accent.id ? `0 0 10px ${accent.color}` : 'none',
+                  transition: 'all 0.2s',
+                  boxSizing: 'border-box'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
+              />
+            ))}
+          </div>
         )}
-      </button>
+      </div>
 
       {role === 'user' && (
         <UserDashboard socket={socket} connected={connected} />
