@@ -1934,7 +1934,19 @@ io.on('connection', (socket) => {
   });
 
   socket.on('register-hospital', async (data) => {
-    const { id, token } = data;
+    let { id, token } = data;
+    const legacyMap = {
+      'HOSP-001': 'd3b07384-d113-4956-a5d2-000000000001',
+      'HOSP-002': 'd3b07384-d113-4956-a5d2-000000000002',
+      'HOSP-003': 'd3b07384-d113-4956-a5d2-000000000003',
+      'HOSP-004': 'd3b07384-d113-4956-a5d2-000000000004',
+      'HOSP-005': 'd3b07384-d113-4956-a5d2-000000000005'
+    };
+    if (legacyMap[id]) {
+      id = legacyMap[id];
+      data.id = id;
+      data.hospitalId = id;
+    }
     console.log(`[SOCKET_LOG] register-hospital event received for hospitalId/id: ${id}`);
 
     if (!token) {
@@ -1946,7 +1958,7 @@ io.on('connection', (socket) => {
       console.log(`[SOCKET_LOG] decoded token payload: ${JSON.stringify(decoded)}`);
       const isAuthorized =
         (decoded.role === 'hospital' && decoded.id === id) ||
-        ((decoded.role === 'hospital' || decoded.role === 'doctor') && decoded.hospital_id === id);
+        ((decoded.role === 'hospital' || decoded.role === 'doctor' || decoded.role === 'hospital_admin') && decoded.hospital_id === id);
       if (!isAuthorized) {
         console.log(`[SOCKET_LOG] registration rejected: Identity mismatch. expected matches for id: ${id}`);
         return socket.emit('error-alert', { message: 'UNAUTHORIZED: Identity mismatch.' });
