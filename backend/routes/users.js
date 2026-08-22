@@ -254,6 +254,114 @@ router.delete('/:id', verifyToken(['city_admin']), async (req, res) => {
 });
 
 /**
+ * @route POST /api/users/:id/change-password
+ * @desc Change a user's login password (self or city_admin)
+ */
+router.post('/:id/change-password', verifyToken(), async (req, res) => {
+  try {
+    const isSelf = req.user.id === req.params.id;
+    const isAdmin = req.user.role === 'city_admin';
+    if (!isSelf && !isAdmin) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const user = await User.findByPk(req.params.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const { currentPassword, newPassword } = req.body;
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    }
+
+    const bcrypt = require('bcryptjs');
+
+    // Self-change requires current password verification; admin can skip
+    if (isSelf && !isAdmin) {
+      if (!currentPassword) {
+        return res.status(400).json({ error: 'Current password is required' });
+      }
+      const valid = await bcrypt.compare(currentPassword, user.password);
+      if (!valid) {
+        return res.status(401).json({ error: 'Current password is incorrect' });
+      }
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+
+    await AuditLog.create({
+      user_id: req.user.id,
+      action: 'CHANGE_PASSWORD',
+      resource: 'User',
+      resource_id: user.id,
+      ip_address: req.ip || req.connection.remoteAddress,
+      details: { changedBy: isAdmin ? 'admin' : 'self' }
+    });
+
+    return res.json({ message: 'Password updated successfully' });
+  } catch (err) {
+    console.error('[USERS API] change-password error:', err.message);
+    return res.status(500).json({ error: 'Failed to change password' });
+  }
+});
+
+/**
+ * @route PUT /api/users/:id/suspend
+ * @desc Suspend (deactivate) a user account (city_admin only)
+ */
+router.put('/:id/suspend', verifyToken(['city_admin']), async (req, res) => {
+  try {
+    const user = await User.findByPk(req.params.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    user.is_active = false;
+    await user.save();
+
+    await AuditLog.create({
+      user_id: req.user.id,
+      action: 'SUSPEND_USER',
+      resource: 'User',
+      resource_id: user.id,
+      ip_address: req.ip || req.connection.remoteAddress,
+      details: { email: user.email, reason: req.body.reason || 'Admin action' }
+    });
+
+    return res.json({ message: 'User suspended successfully', is_active: false });
+  } catch (err) {
+    console.error('[USERS API] suspend error:', err.message);
+    return res.status(500).json({ error: 'Failed to suspend user' });
+  }
+});
+
+/**
+ * @route PUT /api/users/:id/restore
+ * @desc Restore a suspended user account (city_admin only)
+ */
+router.put('/:id/restore', verifyToken(['city_admin']), async (req, res) => {
+  try {
+    const user = await User.findByPk(req.params.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    user.is_active = true;
+    await user.save();
+
+    await AuditLog.create({
+      user_id: req.user.id,
+      action: 'RESTORE_USER',
+      resource: 'User',
+      resource_id: user.id,
+      ip_address: req.ip || req.connection.remoteAddress,
+      details: { email: user.email }
+    });
+
+    return res.json({ message: 'User restored successfully', is_active: true });
+  } catch (err) {
+    console.error('[USERS API] restore error:', err.message);
+    return res.status(500).json({ error: 'Failed to restore user' });
+  }
+});
+
+/**
  * @route POST /api/users/consent/revoke
  * @desc Revoke patient consent dynamically (DPDP Act 2023 Compliance)
  */
