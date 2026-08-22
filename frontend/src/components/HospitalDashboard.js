@@ -3843,7 +3843,7 @@ export default function HospitalDashboard({ socket, connected }) {
               </div>
  
               {/* ICU BEDS INVENTORY */}
-              <div style={{ marginLeft: 20, display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(0,0,0,0.3)', padding: '5px 15px', borderRadius: 20, border: `1px solid ${icuBeds > 0 ? 'rgba(0,255,136,0.3)' : 'rgba(255,68,68,0.5)'}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(0,0,0,0.3)', padding: '5px 15px', borderRadius: 20, border: `1px solid ${icuBeds > 0 ? 'rgba(0,255,136,0.3)' : 'rgba(255,68,68,0.5)'}` }}>
                 <div style={{ fontSize: 10, color: icuBeds > 0 ? '#00ff88' : '#ff4444', fontFamily: "'Orbitron'", fontWeight: 'bold' }}>
                   ICU BEDS: {icuBeds} {icuBeds === 0 && '(DIVERTING)'}
                 </div>
@@ -3854,17 +3854,29 @@ export default function HospitalDashboard({ socket, connected }) {
                 />
               </div>
 
-              {/* Patient report actions aligned on the right */}
-              {patient && (
-                <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-                  <button onClick={downloadFHIR} style={{ background: 'rgba(0,255,136,0.1)', border: '1px solid rgba(0,255,136,0.3)', padding: '6px 12px', borderRadius: 4, color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>
-                    📥 FHIR HL7
-                  </button>
-                  <button onClick={() => setShowHandover(true)} style={{ background: 'rgba(0,200,255,0.1)', border: '1px solid rgba(0,200,255,0.3)', padding: '6px 12px', borderRadius: 4, color: '#00c8ff', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>
-                    📄 REPORT
-                  </button>
-                </div>
-              )}
+              {/* Action buttons embedded natively in the flex layout */}
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                {patient && (
+                  <>
+                    <button onClick={downloadFHIR} style={{ background: 'rgba(0,255,136,0.1)', border: '1px solid rgba(0,255,136,0.3)', padding: '6px 12px', borderRadius: 4, color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>
+                      📥 FHIR HL7
+                    </button>
+                    <button onClick={() => setShowHandover(true)} style={{ background: 'rgba(0,200,255,0.1)', border: '1px solid rgba(0,200,255,0.3)', padding: '6px 12px', borderRadius: 4, color: '#00c8ff', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>
+                      📄 REPORT
+                    </button>
+                  </>
+                )}
+                
+                <button onClick={onSwitchRole} className="rl-btn-secondary" style={{ height: 32, padding: '0 12px', fontSize: 10 }}>
+                  ROLE 🔄
+                </button>
+                <button onClick={onShowSecurity} className="rl-btn-secondary" style={{ height: 32, padding: '0 12px', fontSize: 10 }}>
+                  SECURITY 🛡️
+                </button>
+                <button onClick={onLogout} className="rl-btn-primary" style={{ height: 32, padding: '0 12px', fontSize: 10, background: 'linear-gradient(135deg, #ff4444 0%, #cc0000 100%)', border: 'none', color: '#fff' }}>
+                  LOGOUT ⏻
+                </button>
+              </div>
             </div>
  
             {/* Connection Banner */}

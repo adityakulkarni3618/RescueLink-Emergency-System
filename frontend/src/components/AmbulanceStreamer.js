@@ -569,7 +569,7 @@ function MapUpdater({ center }) {
 }
 
 
-export default function AmbulanceStreamer({ socket, connected }) {
+export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitchRole, onShowSecurity }) {
   // ── Auth State ──
   const [isAuthenticated, setIsAuthenticated] = useState(() => !!sessionStorage.getItem('rescuelink_token'));
   const [authUnit, setAuthUnit] = useState(() => {
@@ -2446,7 +2446,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
 
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 15, alignItems: 'center' }}>
             {/* Connection status badge */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginRight: 8 }}>
               <div style={{
                 width: 8, height: 8, borderRadius: '50%',
                 background: connected ? '#00ff88' : '#ff4444',
@@ -2456,6 +2456,16 @@ export default function AmbulanceStreamer({ socket, connected }) {
                 {connected ? 'CONNECTED' : 'OFFLINE'}
               </span>
             </div>
+
+            <button onClick={onSwitchRole} className="rl-btn-secondary" style={{ height: 32, padding: '0 12px', fontSize: 10, borderColor: '#00ff88', color: '#00ff88' }}>
+              ROLE 🔄
+            </button>
+            <button onClick={onShowSecurity} className="rl-btn-secondary" style={{ height: 32, padding: '0 12px', fontSize: 10, borderColor: '#00ff88', color: '#00ff88' }}>
+              SECURITY 🛡️
+            </button>
+            <button onClick={onLogout} className="rl-btn-primary" style={{ height: 32, padding: '0 12px', fontSize: 10, background: 'linear-gradient(135deg, #ff4444 0%, #cc0000 100%)', border: 'none', color: '#fff' }}>
+              LOGOUT ⏻
+            </button>
           </div>
         </div>
 

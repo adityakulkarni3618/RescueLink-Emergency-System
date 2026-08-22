@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 // Family Dashboard — Read-only real-time tracking view for patient's family members
 // Accessible via shareable link: /?role=family&reqId=XXX
 
-export default function FamilyDashboard({ socket, connected, reqId: propReqId }) {
+export default function FamilyDashboard({ socket, connected, reqId: propReqId, onLogout, onSwitchRole, onShowSecurity }) {
   const [reqId, setReqId] = useState(propReqId || new URLSearchParams(window.location.search).get('reqId'));
   const [manualInput, setManualInput] = useState('');
   const [status, setStatus] = useState('connecting');
@@ -160,7 +160,7 @@ export default function FamilyDashboard({ socket, connected, reqId: propReqId })
       {/* Header */}
       <div style={{
         background: 'rgba(0,200,255,0.05)', borderBottom: '1px solid rgba(0,200,255,0.15)',
-        padding: '16px 450px 16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12
+        padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <div style={{ fontSize: 32 }}>💗</div>
@@ -173,16 +173,29 @@ export default function FamilyDashboard({ socket, connected, reqId: propReqId })
             </div>
           </div>
         </div>
-        <div style={{
-          padding: '8px 16px', borderRadius: 20,
-          background: `${current.color}22`, border: `1px solid ${current.color}66`,
-          display: 'flex', alignItems: 'center', gap: 8,
-          animation: status === 'ambulance_accepted' || status === 'patient_onboard' ? 'statusPulse 2s ease-in-out infinite' : 'none'
-        }}>
-          <span style={{ fontSize: 16 }}>{current.icon}</span>
-          <span style={{ fontFamily: "'Orbitron'", fontSize: 10, color: current.color, fontWeight: 700, letterSpacing: '0.05em' }}>
-            {current.label}
-          </span>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{
+            padding: '8px 16px', borderRadius: 20,
+            background: `${current.color}22`, border: `1px solid ${current.color}66`,
+            display: 'flex', alignItems: 'center', gap: 8,
+            animation: status === 'ambulance_accepted' || status === 'patient_onboard' ? 'statusPulse 2s ease-in-out infinite' : 'none'
+          }}>
+            <span style={{ fontSize: 16 }}>{current.icon}</span>
+            <span style={{ fontFamily: "'Orbitron'", fontSize: 10, color: current.color, fontWeight: 700, letterSpacing: '0.05em' }}>
+              {current.label}
+            </span>
+          </div>
+
+          {/* Action buttons embedded natively in the flex layout */}
+          <button onClick={onSwitchRole} className="rl-btn-secondary" style={{ height: 32, padding: '0 12px', fontSize: 10, borderColor: 'rgba(0,200,255,0.3)', color: '#00c8ff' }}>
+            ROLE 🔄
+          </button>
+          <button onClick={onShowSecurity} className="rl-btn-secondary" style={{ height: 32, padding: '0 12px', fontSize: 10, borderColor: 'rgba(0,200,255,0.3)', color: '#00c8ff' }}>
+            SECURITY 🛡️
+          </button>
+          <button onClick={onLogout} className="rl-btn-primary" style={{ height: 32, padding: '0 12px', fontSize: 10, background: 'linear-gradient(135deg, #ff4444 0%, #cc0000 100%)', border: 'none', color: '#fff' }}>
+            LOGOUT ⏻
+          </button>
         </div>
       </div>
 
