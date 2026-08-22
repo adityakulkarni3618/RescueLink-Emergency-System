@@ -506,10 +506,118 @@ export default function PatientPortal() {
                 {saving ? 'SAVING PROFILE CONFIG...' : '💾 SAVE PROFILE CHANGES'}
               </button>
             </form>
+
+            {/* Change Password Section */}
+            {(() => {
+              const PwSection = () => {
+                const [pwForm, setPwForm] = React.useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                const [pwStatus, setPwStatus] = React.useState(null);
+                const [pwLoading, setPwLoading] = React.useState(false);
+                const [mfaQR, setMfaQR] = React.useState(null);
+                const [mfaStatus, setMfaStatus] = React.useState(null);
+                const [mfaLoading, setMfaLoading] = React.useState(false);
+                const token = sessionStorage.getItem('rescuelink_token');
+                const userId = profile?.id;
+                const hdrs = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+
+                const S = {
+                  card: { marginTop: 24, padding: 20, border: '1px solid rgba(0,200,255,0.15)', borderRadius: 10, background: 'rgba(0,0,0,0.2)' },
+                  label: { fontSize: 11, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'", display: 'block', marginBottom: 6 },
+                  input: { padding: 10, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 6, color: '#fff', width: '100%', boxSizing: 'border-box', fontSize: 13, outline: 'none' },
+                  btn: (color) => ({ padding: '10px 22px', background: `rgba(${color},0.14)`, border: `1px solid rgba(${color},0.4)`, borderRadius: 8, color: `rgb(${color})`, fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer' }),
+                  statusMsg: (ok) => ({ marginTop: 8, padding: '8px 12px', borderRadius: 6, background: ok ? 'rgba(0,255,136,0.1)' : 'rgba(255,68,68,0.1)', border: `1px solid ${ok ? '#00ff88' : '#ff4444'}`, color: ok ? '#00ff88' : '#ff4444', fontSize: 11, fontFamily: "'Share Tech Mono'" })
+                };
+
+                const handleChangePw = async () => {
+                  if (pwForm.newPassword !== pwForm.confirmPassword) { setPwStatus({ ok: false, msg: 'Passwords do not match' }); return; }
+                  if (pwForm.newPassword.length < 6) { setPwStatus({ ok: false, msg: 'Min. 6 characters required' }); return; }
+                  setPwLoading(true);
+                  try {
+                    const res = await fetch(`${getServerUrl()}/api/users/${userId}/change-password`, { method: 'POST', headers: hdrs, body: JSON.stringify({ currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword }) });
+                    const d = await res.json();
+                    setPwStatus({ ok: res.ok, msg: d.message || d.error });
+                    if (res.ok) setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                  } catch (err) { setPwStatus({ ok: false, msg: 'Connection error' }); }
+                  setPwLoading(false);
+                  setTimeout(() => setPwStatus(null), 5000);
+                };
+
+                const handleSetup2FA = async () => {
+                  setMfaLoading(true);
+                  try {
+                    const res = await fetch(`${getServerUrl()}/api/mfa/setup`, { method: 'POST', headers: hdrs });
+                    const d = await res.json();
+                    if (res.ok) setMfaQR(d.qrCode);
+                    else setMfaStatus({ ok: false, msg: d.error || 'Setup failed' });
+                  } catch { setMfaStatus({ ok: false, msg: 'Connection error' }); }
+                  setMfaLoading(false);
+                };
+
+                const handleDisable2FA = async () => {
+                  if (!window.confirm('Disable 2FA? This reduces your account security.')) return;
+                  setMfaLoading(true);
+                  try {
+                    const res = await fetch(`${getServerUrl()}/api/mfa/disable`, { method: 'POST', headers: hdrs });
+                    const d = await res.json();
+                    setMfaStatus({ ok: res.ok, msg: d.message || d.error });
+                    setMfaQR(null);
+                  } catch { setMfaStatus({ ok: false, msg: 'Connection error' }); }
+                  setMfaLoading(false);
+                  setTimeout(() => setMfaStatus(null), 5000);
+                };
+
+                return (
+                  <>
+                    {/* Change Password */}
+                    <div style={S.card}>
+                      <h4 style={{ fontFamily: "'Orbitron'", color: '#ffb800', margin: '0 0 16px 0', fontSize: 12 }}>🔑 CHANGE LOGIN PASSWORD</h4>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+                        {[['currentPassword', 'CURRENT PASSWORD'], ['newPassword', 'NEW PASSWORD'], ['confirmPassword', 'CONFIRM NEW PASSWORD']].map(([key, lbl]) => (
+                          <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <label style={S.label}>{lbl}</label>
+                            <input type="password" style={S.input} value={pwForm[key]} onChange={e => setPwForm(p => ({ ...p, [key]: e.target.value }))} placeholder="••••••••" />
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ marginTop: 14, display: 'flex', gap: 12, alignItems: 'center' }}>
+                        <button onClick={handleChangePw} disabled={pwLoading} style={{ ...S.btn('255,184,0'), opacity: pwLoading ? 0.5 : 1 }}>
+                          {pwLoading ? 'UPDATING…' : '🔐 UPDATE PASSWORD'}
+                        </button>
+                        {pwStatus && <div style={S.statusMsg(pwStatus.ok)}>{pwStatus.ok ? '✅' : '❌'} {pwStatus.msg}</div>}
+                      </div>
+                    </div>
+
+                    {/* 2FA */}
+                    <div style={S.card}>
+                      <h4 style={{ fontFamily: "'Orbitron'", color: '#00ff88', margin: '0 0 12px 0', fontSize: 12 }}>🛡️ TWO-FACTOR AUTHENTICATION (TOTP)</h4>
+                      <p style={{ fontSize: 12, color: 'rgba(160,200,255,0.5)', marginBottom: 14, fontFamily: "'Share Tech Mono'", lineHeight: 1.6 }}>
+                        Add a second layer of security using an authenticator app (Google Authenticator, Authy, etc.)
+                      </p>
+                      <div style={{ display: 'flex', gap: 12 }}>
+                        <button onClick={handleSetup2FA} disabled={mfaLoading} style={{ ...S.btn('0,255,136'), opacity: mfaLoading ? 0.5 : 1 }}>
+                          {mfaLoading ? '⏳ LOADING…' : '🔒 ENABLE 2FA — Get QR Code'}
+                        </button>
+                        <button onClick={handleDisable2FA} disabled={mfaLoading} style={{ ...S.btn('255,68,68'), opacity: mfaLoading ? 0.5 : 1 }}>
+                          🔓 DISABLE 2FA
+                        </button>
+                      </div>
+                      {mfaQR && (
+                        <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          <div style={{ fontSize: 10, color: '#00ff88', fontFamily: "'Orbitron'" }}>SCAN WITH YOUR AUTHENTICATOR APP</div>
+                          <img src={mfaQR} alt="2FA QR Code" style={{ width: 160, height: 160, background: '#fff', borderRadius: 6, padding: 4, border: '2px solid rgba(0,255,136,0.25)' }} />
+                          <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>Enter the 6-digit code at next login.</div>
+                        </div>
+                      )}
+                      {mfaStatus && <div style={{ ...S.statusMsg(mfaStatus.ok), marginTop: 12 }}>{mfaStatus.ok ? '✅' : '❌'} {mfaStatus.msg}</div>}
+                    </div>
+                  </>
+                );
+              };
+              return <PwSection key="patient-pw-2fa" />;
+            })()}
           </div>
         )}
       </div>
     </div>
   );
 }
-

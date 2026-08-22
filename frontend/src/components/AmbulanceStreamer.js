@@ -3245,7 +3245,160 @@ export default function AmbulanceStreamer({ socket, connected }) {
               {/* TAB 4: CONSOLE SETTINGS (God Mode, Traffic, Breaks, identity switch) */}
               {activeTab === 'settings' && (
                 <div style={{ padding: 24, overflowY: 'auto', background: 'rgba(0,0,0,0.1)', flex: 1, display: 'flex', flexDirection: 'column', gap: 20 }}>
-                  
+
+                  {/* PROFILE SETTINGS SECTION */}
+                  {(() => {
+                    const AmbProfileSettings = () => {
+                      const [unitForm, setUnitForm] = React.useState({ driverName: authAmb?.driverName || '', type: authAmb?.type || 'BLS', contactInfo: authAmb?.contactInfo || '' });
+                      const [unitStatus, setUnitStatus] = React.useState(null);
+                      const [unitLoading, setUnitLoading] = React.useState(false);
+                      const [pwForm, setPwForm] = React.useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                      const [pwStatus, setPwStatus] = React.useState(null);
+                      const [pwLoading, setPwLoading] = React.useState(false);
+                      const [mfaQR, setMfaQR] = React.useState(null);
+                      const [mfaStatus, setMfaStatus] = React.useState(null);
+                      const [mfaLoading, setMfaLoading] = React.useState(false);
+
+                      const token = sessionStorage.getItem('rescuelink_token') || '';
+                      const ambId = authAmb?.id;
+                      const hdrs = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+
+                      const S = {
+                        card: { background: 'rgba(5,15,40,0.85)', border: '1px solid rgba(0,200,255,0.15)', borderRadius: 10, padding: 20 },
+                        label: { display: 'block', fontSize: 10, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.55)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em' },
+                        input: { width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: '10px 12px', color: '#fff', outline: 'none', fontSize: 12, boxSizing: 'border-box', fontFamily: "'Share Tech Mono'" },
+                        btn: (color) => ({ padding: '9px 20px', background: `rgba(${color},0.14)`, border: `1px solid rgba(${color},0.4)`, borderRadius: 8, color: `rgb(${color})`, fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer' }),
+                        sectionTitle: { fontFamily: "'Orbitron'", fontSize: 12, color: '#00c8ff', fontWeight: 700, marginBottom: 14 },
+                        statusMsg: (ok) => ({ marginTop: 8, padding: '7px 12px', borderRadius: 6, background: ok ? 'rgba(0,255,136,0.1)' : 'rgba(255,68,68,0.1)', border: `1px solid ${ok ? '#00ff88' : '#ff4444'}`, color: ok ? '#00ff88' : '#ff4444', fontSize: 11, fontFamily: "'Share Tech Mono'" })
+                      };
+
+                      const handleSaveUnit = async () => {
+                        if (!ambId) { setUnitStatus({ ok: false, msg: 'Unit ID not found in session' }); return; }
+                        setUnitLoading(true);
+                        try {
+                          const res = await fetch(`/api/ambulances/${ambId}/settings`, { method: 'PUT', headers: hdrs, body: JSON.stringify(unitForm) });
+                          const d = await res.json();
+                          setUnitStatus({ ok: res.ok, msg: d.message || d.error || (res.ok ? 'Unit profile updated!' : 'Update failed') });
+                        } catch (err) { setUnitStatus({ ok: false, msg: 'Connection error' }); }
+                        setUnitLoading(false);
+                        setTimeout(() => setUnitStatus(null), 4000);
+                      };
+
+                      const handleChangePw = async () => {
+                        if (pwForm.newPassword !== pwForm.confirmPassword) { setPwStatus({ ok: false, msg: 'Passwords do not match' }); return; }
+                        if (pwForm.newPassword.length < 6) { setPwStatus({ ok: false, msg: 'Min. 6 characters required' }); return; }
+                        setPwLoading(true);
+                        try {
+                          const res = await fetch(`/api/ambulances/${ambId}/change-password`, { method: 'POST', headers: hdrs, body: JSON.stringify({ currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword }) });
+                          const d = await res.json();
+                          setPwStatus({ ok: res.ok, msg: d.message || d.error });
+                          if (res.ok) setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                        } catch (err) { setPwStatus({ ok: false, msg: 'Connection error' }); }
+                        setPwLoading(false);
+                        setTimeout(() => setPwStatus(null), 5000);
+                      };
+
+                      const handleSetup2FA = async () => {
+                        setMfaLoading(true);
+                        try {
+                          const res = await fetch('/api/mfa/setup', { method: 'POST', headers: hdrs });
+                          const d = await res.json();
+                          if (res.ok) setMfaQR(d.qrCode);
+                          else setMfaStatus({ ok: false, msg: d.error || 'Setup failed' });
+                        } catch { setMfaStatus({ ok: false, msg: 'Connection error' }); }
+                        setMfaLoading(false);
+                      };
+
+                      const handleDisable2FA = async () => {
+                        if (!window.confirm('Disable 2FA? This reduces account security.')) return;
+                        setMfaLoading(true);
+                        try {
+                          const res = await fetch('/api/mfa/disable', { method: 'POST', headers: hdrs });
+                          const d = await res.json();
+                          setMfaStatus({ ok: res.ok, msg: d.message || d.error });
+                          setMfaQR(null);
+                        } catch { setMfaStatus({ ok: false, msg: 'Connection error' }); }
+                        setMfaLoading(false);
+                        setTimeout(() => setMfaStatus(null), 5000);
+                      };
+
+                      return (
+                        <>
+                          {/* 1. Edit Unit Profile */}
+                          <div style={S.card}>
+                            <div style={S.sectionTitle}>🚑 UNIT PROFILE SETTINGS</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                              <div style={{ gridColumn: '1 / -1' }}>
+                                <label style={S.label}>Driver / Paramedic Name</label>
+                                <input style={S.input} value={unitForm.driverName} onChange={e => setUnitForm(p => ({ ...p, driverName: e.target.value }))} />
+                              </div>
+                              <div>
+                                <label style={S.label}>Unit Type</label>
+                                <select value={unitForm.type} onChange={e => setUnitForm(p => ({ ...p, type: e.target.value }))} style={{ ...S.input, appearance: 'none' }}>
+                                  <option value="BLS">BLS — Basic Life Support</option>
+                                  <option value="ALS">ALS — Advanced Life Support</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label style={S.label}>Contact Number</label>
+                                <input style={S.input} value={unitForm.contactInfo} onChange={e => setUnitForm(p => ({ ...p, contactInfo: e.target.value }))} placeholder="+91 XXXXXXXXXX" />
+                              </div>
+                            </div>
+                            <div style={{ marginTop: 14, display: 'flex', gap: 12, alignItems: 'center' }}>
+                              <button onClick={handleSaveUnit} disabled={unitLoading} style={{ ...S.btn('0,200,255'), opacity: unitLoading ? 0.5 : 1 }}>
+                                {unitLoading ? 'SAVING…' : '💾 SAVE UNIT PROFILE'}
+                              </button>
+                              {unitStatus && <div style={S.statusMsg(unitStatus.ok)}>{unitStatus.ok ? '✅' : '❌'} {unitStatus.msg}</div>}
+                            </div>
+                          </div>
+
+                          {/* 2. Change Password */}
+                          <div style={S.card}>
+                            <div style={S.sectionTitle}>🔑 CHANGE LOGIN PASSWORD</div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 420 }}>
+                              {[['currentPassword', 'Current Password'], ['newPassword', 'New Password (min. 6 chars)'], ['confirmPassword', 'Confirm New Password']].map(([key, lbl]) => (
+                                <div key={key}>
+                                  <label style={S.label}>{lbl}</label>
+                                  <input type="password" style={S.input} value={pwForm[key]} onChange={e => setPwForm(p => ({ ...p, [key]: e.target.value }))} placeholder="••••••••" />
+                                </div>
+                              ))}
+                              <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 4 }}>
+                                <button onClick={handleChangePw} disabled={pwLoading} style={{ ...S.btn('255,184,0'), opacity: pwLoading ? 0.5 : 1 }}>
+                                  {pwLoading ? 'UPDATING…' : '🔐 UPDATE PASSWORD'}
+                                </button>
+                                {pwStatus && <div style={S.statusMsg(pwStatus.ok)}>{pwStatus.ok ? '✅' : '❌'} {pwStatus.msg}</div>}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 3. Two-Factor Authentication */}
+                          <div style={S.card}>
+                            <div style={S.sectionTitle}>🛡️ TWO-FACTOR AUTHENTICATION</div>
+                            <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.5)', marginBottom: 14, fontFamily: "'Share Tech Mono'", lineHeight: 1.6 }}>
+                              Secure your unit login with TOTP. Use Google Authenticator or Authy to scan the QR code.
+                            </div>
+                            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                              <button onClick={handleSetup2FA} disabled={mfaLoading} style={{ ...S.btn('0,255,136'), opacity: mfaLoading ? 0.5 : 1 }}>
+                                {mfaLoading ? '⏳ LOADING…' : '🔒 ENABLE 2FA'}
+                              </button>
+                              <button onClick={handleDisable2FA} disabled={mfaLoading} style={{ ...S.btn('255,68,68'), opacity: mfaLoading ? 0.5 : 1 }}>
+                                🔓 DISABLE 2FA
+                              </button>
+                            </div>
+                            {mfaQR && (
+                              <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                <div style={{ fontSize: 9, color: '#00ff88', fontFamily: "'Orbitron'", letterSpacing: '0.1em' }}>SCAN QR CODE WITH AUTHENTICATOR APP</div>
+                                <img src={mfaQR} alt="MFA QR" style={{ width: 160, height: 160, background: '#fff', borderRadius: 6, padding: 4, border: '2px solid rgba(0,255,136,0.3)' }} />
+                              </div>
+                            )}
+                            {mfaStatus && <div style={{ ...S.statusMsg(mfaStatus.ok), marginTop: 12 }}>{mfaStatus.ok ? '✅' : '❌'} {mfaStatus.msg}</div>}
+                          </div>
+                        </>
+                      );
+                    };
+                    return <AmbProfileSettings key="amb-profile-settings" />;
+                  })()}
+
                   {/* Simulation / God Mode panel */}
                   <div style={{ background: 'rgba(10, 0, 20, 0.4)', border: '1px solid rgba(204,0,255,0.2)', borderRadius: 10, padding: 20 }}>
                     <div style={{ fontFamily: "'Orbitron'", fontSize: 13, color: '#cc00ff', fontWeight: 700, letterSpacing: '0.1em', marginBottom: 15 }}>
