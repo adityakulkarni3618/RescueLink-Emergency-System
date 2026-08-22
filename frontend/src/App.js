@@ -102,392 +102,375 @@ const styles = `
     animation: blink 1s step-end infinite;
   }
 
-  /* Premium Dark Theme (Default) */
-  body {
-    background: radial-gradient(ellipse at 50% 30%, #020813 0%, #000205 100%) !important;
-    color: #e0eaff !important;
+  /* --- Theme Variables --- */
+  body[data-theme='dark-sky-breeze'] {
+    --theme-accent: #00c8ff;
+    --theme-accent-rgb: 0, 200, 255;
+    --theme-accent-glow: rgba(0, 200, 255, 0.4);
+    --theme-accent-hover: #33d6ff;
+    --theme-bg: radial-gradient(ellipse at 50% 30%, #020813 0%, #000205 100%);
+    --theme-card-bg: rgba(4, 12, 28, 0.85);
+    --theme-text-primary: #e0eaff;
+    --theme-text-secondary: rgba(160, 200, 255, 0.6);
+    --theme-border: rgba(0, 200, 255, 0.25);
+    --theme-border-hover: rgba(0, 200, 255, 0.55);
+    --theme-success: #00ff88;
+    --theme-warning: #ffb800;
+    --theme-danger: #ff4444;
   }
 
-  /* Light Theme Overrides - MSME Blue & White Official Portal Style */
-  [data-theme='light'] body { 
-    background: #eef2f6 !important; 
-    color: #212529 !important; 
-  }
-  [data-theme='light'] .scanline { 
-    background: linear-gradient(90deg, transparent, rgba(15, 76, 129, 0.02), transparent); 
-  }
-  [data-theme='light'] .app-root { 
-    background: #eef2f6 !important; 
-  }
-
-  /* Target all radial-gradient layouts and outer container backgrounds to clear them in light mode */
-  [data-theme='light'] div[style*="radial-gradient" i] {
-    background: #eef2f6 !important;
-  }
-  [data-theme='light'] div[style*="height: 100vh" i],
-  [data-theme='light'] div[style*="height: '100vh'" i],
-  [data-theme='light'] div[style*="min-height: 100vh" i] {
-    background: #eef2f6 !important;
+  body[data-theme='dark-sage-green'] {
+    --theme-accent: #3cd070;
+    --theme-accent-rgb: 60, 208, 112;
+    --theme-accent-glow: rgba(60, 208, 112, 0.4);
+    --theme-accent-hover: #5be08c;
+    --theme-bg: radial-gradient(ellipse at 50% 30%, #021208 0%, #000402 100%);
+    --theme-card-bg: rgba(5, 30, 15, 0.85);
+    --theme-text-primary: #e0f2e5;
+    --theme-text-secondary: rgba(160, 255, 200, 0.6);
+    --theme-border: rgba(60, 208, 112, 0.25);
+    --theme-border-hover: rgba(60, 208, 112, 0.55);
+    --theme-success: #3cd070;
+    --theme-warning: #ffd000;
+    --theme-danger: #ff5555;
   }
 
-  /* Clean MSME Header Bar styling in Light Mode */
+  body[data-theme='dark-steel-blue'] {
+    --theme-accent: #5294e2;
+    --theme-accent-rgb: 82, 148, 226;
+    --theme-accent-glow: rgba(82, 148, 226, 0.4);
+    --theme-accent-hover: #74a9eb;
+    --theme-bg: radial-gradient(ellipse at 50% 30%, #081220 0%, #02050a 100%);
+    --theme-card-bg: rgba(10, 20, 45, 0.85);
+    --theme-text-primary: #e6f0fa;
+    --theme-text-secondary: rgba(175, 200, 240, 0.6);
+    --theme-border: rgba(82, 148, 226, 0.25);
+    --theme-border-hover: rgba(82, 148, 226, 0.55);
+    --theme-success: #00ffaa;
+    --theme-warning: #ffc800;
+    --theme-danger: #ff5555;
+  }
+
+  body[data-theme='light'] {
+    --theme-accent: #1b4f72;
+    --theme-accent-rgb: 27, 79, 114;
+    --theme-accent-glow: rgba(27, 79, 114, 0.2);
+    --theme-accent-hover: #154360;
+    --theme-bg: #eef2f6;
+    --theme-card-bg: #ffffff;
+    --theme-text-primary: #1a202c;
+    --theme-text-secondary: #4a5568;
+    --theme-border: #cbd5e0;
+    --theme-border-hover: #a0aec0;
+    --theme-success: #2f855a;
+    --theme-warning: #dd6b20;
+    --theme-danger: #e53e3e;
+  }
+
+  /* --- Global Reset & Overrides --- */
+  body, .app-root {
+    background: var(--theme-bg) !important;
+    color: var(--theme-text-primary) !important;
+    transition: background 0.3s ease, color 0.3s ease;
+  }
+
+  /* Target all radial-gradient layouts and outer container backgrounds */
+  div[style*="radial-gradient" i] {
+    background: var(--theme-bg) !important;
+  }
+  div[style*="height: 100vh" i],
+  div[style*="height: '100vh'" i],
+  div[style*="min-height: 100vh" i] {
+    background: var(--theme-bg) !important;
+  }
+
+  /* Target headers / top bars in light mode nicely */
   [data-theme='light'] div[style*="min-height: 70" i], 
   [data-theme='light'] div[style*="min-height: 60" i],
   [data-theme='light'] div[style*="min-height: 64" i],
   [data-theme='light'] div[style*="rgba(5, 20, 10" i],
-  [data-theme='light'] div[style*="rgba(5,20,10" i] {
-    background: #1b4f72 !important; /* MSME Top Bar color */
+  [data-theme='light'] div[style*="rgba(5,20,10" i],
+  [data-theme='light'] header,
+  [data-theme='light'] header[style*="rgba(5,15,35" i] {
+    background: #1b4f72 !important;
     border-bottom: 2px solid #154360 !important;
     color: #ffffff !important;
+  }
+
+  /* Remove blurry text-shadows in light mode to make text clean and readable */
+  [data-theme='light'] div,
+  [data-theme='light'] h1,
+  [data-theme='light'] h2,
+  [data-theme='light'] h3,
+  [data-theme='light'] h4,
+  [data-theme='light'] h5,
+  [data-theme='light'] h6,
+  [data-theme='light'] p,
+  [data-theme='light'] span,
+  [data-theme='light'] label {
+    text-shadow: none !important;
   }
   [data-theme='light'] div[style*="min-height: 70" i] *, 
   [data-theme='light'] div[style*="min-height: 60" i] *,
   [data-theme='light'] div[style*="rgba(5, 20, 10" i] *,
-  [data-theme='light'] div[style*="rgba(5,20,10" i] * {
+  [data-theme='light'] div[style*="rgba(5,20,10" i] *,
+  [data-theme='light'] header *,
+  [data-theme='light'] header[style*="rgba(5,15,35" i] * {
     color: #ffffff !important;
   }
 
-  /* Pattern match and convert ALL inline dark containers/cards to clean MSME White Cards */
-  [data-theme='light'] div[style*="rgba(5, 15, 40" i],
-  [data-theme='light'] div[style*="rgba(5,15,40" i],
-  [data-theme='light'] div[style*="rgba(5, 20, 45" i],
-  [data-theme='light'] div[style*="rgba(5,20,45" i],
-  [data-theme='light'] div[style*="rgba(10, 22, 48" i],
-  [data-theme='light'] div[style*="rgba(10,22,48" i],
-  [data-theme='light'] div[style*="rgba(5, 20, 10" i],
-  [data-theme='light'] div[style*="rgba(5,20,10" i],
-  [data-theme='light'] div[style*="rgba(3, 10, 28" i],
-  [data-theme='light'] div[style*="rgba(3,10,28" i],
-  [data-theme='light'] div[style*="rgba(3, 8, 22" i],
-  [data-theme='light'] div[style*="rgba(3,8,22" i],
-  [data-theme='light'] div[style*="rgba(0, 0, 0, 0." i],
-  [data-theme='light'] div[style*="background: 'rgba(5,20,45,0.6)'" i],
-  [data-theme='light'] div[style*="rgba(255, 255, 255, 0.03)" i],
-  [data-theme='light'] div[style*="rgba(255,255,255,0.03)" i],
-  [data-theme='light'] div[style*="rgba(255, 255, 255, 0.05)" i],
-  [data-theme='light'] div[style*="rgba(255,255,255,0.05)" i],
-  [data-theme='light'] div[style*="rgba(5, 10, 30" i],
-  [data-theme='light'] div[style*="rgba(5,10,30" i],
-  [data-theme='light'] div[style*="rgba(7, 22, 44" i],
-  [data-theme='light'] div[style*="rgba(7,22,44" i],
-  [data-theme='light'] div[style*="rgba(0, 5, 15" i],
-  [data-theme='light'] div[style*="rgba(0,5,15" i],
-  [data-theme='light'] div[style*="#050a1e" i],
-  [data-theme='light'] div[style*="#020611" i],
-  [data-theme='light'] div[style*="#010512" i],
-  [data-theme='light'] div[style*="#0a1526" i] {
-    background: #ffffff !important;
-    border: 1px solid #cbd5e0 !important;
-    color: #212529 !important;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.04) !important;
-    border-radius: 8px !important;
-  }
-
-  /* Structured Light Theme Classes (MSME White Card Style) */
-  [data-theme='light'] .rl-card {
-    background: #ffffff !important;
-    border: 1px solid #cbd5e0 !important;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05) !important;
-    color: #212529 !important;
-    border-radius: 8px !important;
-  }
-  [data-theme='light'] .rl-input {
-    background: #ffffff !important;
-    border: 1px solid #a0aec0 !important;
-    color: #212529 !important;
-  }
-  [data-theme='light'] .rl-btn-primary {
-    background: linear-gradient(135deg, #1b4f72 0%, #154360 100%) !important;
-    color: #ffffff !important;
-    box-shadow: 0 4px 12px rgba(27, 79, 114, 0.2) !important;
-    border: none !important;
-  }
-  [data-theme='light'] .rl-btn-secondary {
-    background: #ffffff !important;
-    color: #1b4f72 !important;
-    border: 1px solid rgba(27, 79, 114, 0.5) !important;
-  }
-  [data-theme='light'] .rl-btn-secondary:hover {
-    background: rgba(27, 79, 114, 0.08) !important;
-  }
-
-  /* Auto-convert generic inputs, textareas, and select menus in Light Mode */
-  [data-theme='light'] input,
-  [data-theme='light'] textarea,
-  [data-theme='light'] select {
-    background: #ffffff !important;
-    border: 1px solid #cbd5e0 !important;
-    color: #212529 !important;
-  }
-
-  /* Auto-convert inline styled action buttons in Light Mode to readable colors */
-  [data-theme='light'] button {
-    background: #ffffff !important;
-    color: #1b4f72 !important;
-    border: 1px solid #cbd5e0 !important;
-  }
-  [data-theme='light'] button[style*="rgba(0, 200, 255" i],
-  [data-theme='light'] button[style*="rgba(0,200,255" i],
-  [data-theme='light'] button[style*="rgba(0, 255, 136" i],
-  [data-theme='light'] button[style*="rgba(0,255,136" i],
-  [data-theme='light'] button[style*="rgba(255, 255, 255" i],
-  [data-theme='light'] button[style*="rgba(255,255,255" i],
-  [data-theme='light'] button[style*="#00c8ff" i],
-  [data-theme='light'] button[style*="#00ff88" i],
-  [data-theme='light'] button[style*="#0072ff" i] {
-    background: linear-gradient(135deg, #1b4f72 0%, #154360 100%) !important;
-    color: #ffffff !important;
-    border: none !important;
-    box-shadow: 0 4px 10px rgba(27, 79, 114, 0.2) !important;
-  }
-  [data-theme='light'] button[style*="rgba(255, 68, 68" i],
-  [data-theme='light'] button[style*="rgba(255,68,68" i],
-  [data-theme='light'] button[style*="rgba(255, 60, 60" i],
-  [data-theme='light'] button[style*="rgba(255,60,60" i],
-  [data-theme='light'] button[style*="#ff4444" i],
-  [data-theme='light'] button[style*="red" i] {
-    background: #dc2626 !important;
-    color: #ffffff !important;
-    border: none !important;
-  }
-
-  /* Universal Text Color Overrides for MSME Light Mode */
-  [data-theme='light'] h1, [data-theme='light'] h2, [data-theme='light'] h3, [data-theme='light'] h4, [data-theme='light'] h5, [data-theme='light'] h6 {
-    color: #1b4f72 !important;
-  }
-  [data-theme='light'] label {
-    color: #2c3e50 !important;
-  }
-  [data-theme='light'] div, [data-theme='light'] span, [data-theme='light'] p {
-    color: inherit;
-  }
-  [data-theme='light'] [style*="orbitron" i] {
-    color: #1b4f72 !important;
-  }
-
-  /* High contrast redirects for light-mode text readability */
-  [data-theme='light'] [style*="color: #fff" i], 
-  [data-theme='light'] [style*="color: rgb(255, 255, 255)" i],
-  [data-theme='light'] [style*="color:#fff" i] {
-    color: #212529 !important;
-  }
-  [data-theme='light'] [style*="color: #e0eaff" i],
-  [data-theme='light'] [style*="color:#e0eaff" i] {
-    color: #2c3e50 !important;
-  }
-  [data-theme='light'] [style*="rgba(160, 200, 255" i],
-  [data-theme='light'] [style*="rgba(160,200,255" i],
-  [data-theme='light'] [style*="rgb(160, 200, 255)" i] {
-    color: #5d6d7e !important;
-  }
-  [data-theme='light'] [style*="color: rgb(0, 200, 255)" i],
-  [data-theme='light'] [style*="color: #00c8ff" i],
-  [data-theme='light'] [style*="color:#00c8ff" i],
-  [data-theme='light'] [style*="color: #0072ff" i] {
-    color: #0c4a6e !important; /* Deep Sky Blue/Teal */
-  }
-  [data-theme='light'] [style*="color: rgb(0, 255, 136)" i],
-  [data-theme='light'] [style*="color: #00ff88" i],
-  [data-theme='light'] [style*="color:#00ff88" i],
-  [data-theme='light'] [style*="color: #88ff88" i] {
-    color: #166534 !important; /* Deep Green */
-  }
-  [data-theme='light'] [style*="color: #ffb800" i] {
-    color: #a16207 !important; /* Dark Amber */
-  }
-  [data-theme='light'] [style*="color: #ff4444" i],
-  [data-theme='light'] [style*="color: #ff3333" i] {
-    color: #991b1b !important; /* Dark Red */
-  }
-
-  [data-theme='light'] [style*="background: rgba(0,0,0,0.3)" i] {
-    background: #f2f4f4 !important;
-    border: 1px solid #cbd5e0 !important;
-  }
-
-  /* Pattern match and standardize ALL dark containers in Dark Mode */
-  [data-theme='dark'] div[style*="rgba(5, 15, 40" i],
-  [data-theme='dark'] div[style*="rgba(5, 20, 45" i],
-  [data-theme='dark'] div[style*="rgba(10, 22, 48" i],
-  [data-theme='dark'] div[style*="rgba(5, 20, 10" i],
-  [data-theme='dark'] div[style*="rgba(3, 10, 28" i],
-  [data-theme='dark'] div[style*="rgba(3, 8, 22" i] {
-    background: rgba(4, 12, 28, 0.85) !important;
-    border: 1px solid rgba(0, 200, 255, 0.25) !important;
-    color: #e0eaff !important;
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5) !important;
-  }
-
-  /* Global Premium Button Aesthetics */
-  button {
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  button:not(:disabled):hover {
-    transform: scale(1.05);
-    filter: brightness(1.2);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-  }
-  button:not(:disabled):active {
-    transform: scale(0.95);
-  }
-  button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed !important;
-  }
-  @media (max-width: 768px) {
-    .global-buttons-container {
-      top: 12px !important;
-      right: 12px !important;
-      gap: 6px !important;
-    }
-    .global-switch-btn, .global-security-btn, .global-logout-btn {
-      padding: 6px 10px !important;
-      font-size: 9px !important;
-    }
-  }
-
-  /* Premium Design System Components */
+  /* Card Background & Border Overrides */
+  *[style*="rgba(5, 15, 40" i],
+  *[style*="rgba(5,15,40" i],
+  *[style*="rgba(5, 20, 45" i],
+  *[style*="rgba(5,20,45" i],
+  *[style*="rgba(10, 22, 48" i],
+  *[style*="rgba(10,22,48" i],
+  *[style*="rgba(3, 10, 28" i],
+  *[style*="rgba(3,10,28" i],
+  *[style*="rgba(3, 8, 22" i],
+  *[style*="rgba(3,8,22" i],
+  *[style*="#050a1e" i],
+  *[style*="#020611" i],
+  *[style*="#010512" i],
+  *[style*="#0a1526" i],
+  *[style*="rgba(10, 20, 45" i],
+  *[style*="rgba(10,20,45" i],
+  *[style*="#0a1e3a" i],
+  *[style*="#050d1a" i],
   .rl-card {
-    background: rgba(4, 12, 28, 0.85) !important;
-    border: 1px solid rgba(0, 200, 255, 0.2) !important;
-    border-radius: 14px !important;
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6) !important;
+    background: var(--theme-card-bg) !important;
+    border: 1px solid var(--theme-border) !important;
+    color: var(--theme-text-primary) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15) !important;
+    border-radius: 12px !important;
     backdrop-filter: blur(12px) !important;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    transition: all 0.3s ease !important;
   }
-  .rl-modal-card {
-    max-height: 85vh !important;
-    overflow-y: auto !important;
-    scrollbar-width: thin !important;
-    scrollbar-color: #00c8ff rgba(0, 200, 255, 0.1) !important;
-  }
-  .rl-modal-card::-webkit-scrollbar {
-    width: 6px !important;
-  }
-  .rl-modal-card::-webkit-scrollbar-track {
-    background: rgba(0, 200, 255, 0.05) !important;
-    border-radius: 4px !important;
-  }
-  .rl-modal-card::-webkit-scrollbar-thumb {
-    background: #00c8ff !important;
-    border-radius: 4px !important;
-    box-shadow: 0 0 10px rgba(0, 200, 255, 0.5) !important;
-  }
+
   .rl-card:hover {
-    border-color: rgba(0, 200, 255, 0.5) !important;
-    box-shadow: 0 15px 40px rgba(0, 200, 255, 0.15) !important;
-    transform: translateY(-4px) !important;
+    border-color: var(--theme-accent) !important;
+    box-shadow: 0 10px 30px var(--theme-accent-glow) !important;
   }
-  .rl-btn-primary {
-    background: linear-gradient(135deg, #00c8ff 0%, #0072ff 100%) !important;
-    color: #ffffff !important;
-    border: none !important;
-    border-radius: 8px !important;
-    font-family: 'Orbitron', sans-serif !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.05em !important;
-    padding: 12px 24px !important;
-    cursor: pointer !important;
-    box-shadow: 0 4px 15px rgba(0, 200, 255, 0.2) !important;
-  }
-  .rl-btn-primary:hover {
-    box-shadow: 0 6px 20px rgba(0, 200, 255, 0.4) !important;
-    transform: translateY(-2px) !important;
-  }
-  .rl-btn-secondary {
-    background: rgba(0, 200, 255, 0.05) !important;
-    color: #00c8ff !important;
-    border: 1px solid rgba(0, 200, 255, 0.3) !important;
-    border-radius: 8px !important;
-    font-family: 'Orbitron', sans-serif !important;
-    font-weight: 600 !important;
-    padding: 12px 24px !important;
-    cursor: pointer !important;
-    transition: all 0.2s ease !important;
-  }
-  .rl-btn-secondary:hover {
-    background: rgba(0, 200, 255, 0.15) !important;
-    border-color: #00c8ff !important;
-  }
-  .rl-input {
-    background: rgba(0, 0, 0, 0.4) !important;
-    border: 1px solid rgba(0, 200, 255, 0.2) !important;
-    border-radius: 8px !important;
-    color: #ffffff !important;
-    padding: 12px 16px !important;
+
+  /* Inputs, Textareas, Selects */
+  input, textarea, select, .rl-input {
+    background: var(--theme-card-bg) !important;
+    border: 1.5px solid var(--theme-border) !important;
+    color: var(--theme-text-primary) !important;
+    border-radius: 6px !important;
+    padding: 10px 14px !important;
     font-size: 14px !important;
     outline: none !important;
+    box-sizing: border-box !important;
     transition: all 0.2s ease !important;
   }
-   .rl-input:focus {
-    border-color: #00c8ff !important;
-    box-shadow: 0 0 12px rgba(0, 200, 255, 0.25) !important;
-    background: rgba(0, 0, 0, 0.5) !important;
+  input:focus, textarea:focus, select:focus, .rl-input:focus {
+    border-color: var(--theme-accent) !important;
+    box-shadow: 0 0 0 3px var(--theme-accent-glow) !important;
   }
 
-  /* Hamburger dropdown stylesheet */
-  .mobile-nav-trigger {
-    display: none !important;
-  }
-  .mobile-nav-dropdown {
-    display: none !important;
+  /* Heading Elements */
+  h1, h2, h3, h4, h5, h6 {
+    color: var(--theme-text-primary) !important;
+    font-family: 'Orbitron', 'Rajdhani', sans-serif !important;
   }
 
-  @media (max-width: 768px) {
-    .desktop-nav-group {
-      display: none !important;
-    }
-    .mobile-nav-trigger {
-      display: flex !important;
-      align-items: center;
-      justify-content: center;
-      background: rgba(0, 200, 255, 0.1) !important;
-      border: 1px solid rgba(0, 200, 255, 0.3) !important;
-      color: #00c8ff !important;
-      border-radius: 6px;
-      padding: 8px 12px;
-      font-size: 14px;
-      cursor: pointer;
-      font-family: 'Orbitron', sans-serif;
-    }
-    .mobile-nav-dropdown {
-      position: absolute;
-      top: 100%;
-      right: 20px;
-      background: rgba(10, 20, 45, 0.95);
-      border: 1px solid rgba(0, 200, 255, 0.3);
-      border-radius: 8px;
-      padding: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      z-index: 10000;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.8);
-      backdrop-filter: blur(10px);
-    }
-    .mobile-nav-dropdown button {
-      width: 100%;
-      justify-content: flex-start;
-      padding: 10px 16px !important;
-    }
+  /* Generic Accent Text Redirection */
+  [style*="0, 200, 255" i],
+  [style*="0,200,255" i],
+  [style*="color: #00c8ff" i],
+  [style*="color:#00c8ff" i],
+  [style*="color: #0072ff" i] {
+    color: var(--theme-accent) !important;
   }
 
-  /* Global action bar: compact icon-only on mobile */
+  /* Generic White Text Redirection */
+  [style*="255, 255, 255" i],
+  [style*="255,255,255" i],
+  [style*="224, 234, 255" i],
+  [style*="224,234,255" i],
+  [style*="color: #fff" i],
+  [style*="color:#fff" i],
+  [style*="color: #ffffff" i],
+  [style*="color:#ffffff" i],
+  [style*="color: white" i] {
+    color: var(--theme-text-primary) !important;
+  }
+
+  /* Generic Muted Text Redirection */
+  [style*="160, 200, 255" i],
+  [style*="160,200,255" i] {
+    color: var(--theme-text-secondary) !important;
+  }
+
+  /* Status Colors */
+  [style*="0, 255, 136" i],
+  [style*="0,255,136" i],
+  [style*="color: #00ff88" i],
+  [style*="color:#00ff88" i] {
+    color: var(--theme-success) !important;
+  }
+  [style*="255, 184, 0" i],
+  [style*="255,184,0" i],
+  [style*="color: #ffb800" i],
+  [style*="color:#ffb800" i] {
+    color: var(--theme-warning) !important;
+  }
+  [style*="255, 68, 68" i],
+  [style*="255,68,68" i],
+  [style*="255, 51, 51" i],
+  [style*="255,51,51" i],
+  [style*="255, 30, 30" i],
+  [style*="255,30,30" i],
+  [style*="color: #ff4444" i],
+  [style*="color:#ff4444" i],
+  [style*="color: #ff3333" i],
+  [style*="color:#ff3333" i] {
+    color: var(--theme-danger) !important;
+  }
+
+  /* --- Premium & Official Buttons --- */
+  button, .rl-btn-primary, .rl-btn-secondary {
+    font-family: 'Orbitron', 'Rajdhani', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    border-radius: 6px !important;
+    padding: 10px 20px !important;
+    font-size: 11px !important;
+    cursor: pointer !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    box-sizing: border-box !important;
+    height: 38px !important;
+    vertical-align: middle !important;
+  }
+
+  /* Primary Button (Gradient background using active Accent theme color) */
+  .rl-btn-primary,
+  button[style*="linear-gradient" i],
+  button[style*="#00c8ff" i],
+  button[style*="#00ff88" i],
+  button[style*="#0072ff" i],
+  button[style*="rgba(0, 200, 255" i] {
+    background: linear-gradient(135deg, var(--theme-accent) 0%, var(--theme-accent-hover) 100%) !important;
+    color: #ffffff !important;
+    border: none !important;
+    box-shadow: 0 4px 12px var(--theme-accent-glow) !important;
+  }
+  .rl-btn-primary:hover,
+  button[style*="linear-gradient" i]:hover,
+  button[style*="#00c8ff" i]:hover,
+  button[style*="#00ff88" i]:hover,
+  button[style*="#0072ff" i]:hover:not(:disabled) {
+    transform: translateY(-1px) scale(1.02) !important;
+    box-shadow: 0 6px 18px var(--theme-accent-glow) !important;
+    filter: brightness(1.1) !important;
+  }
+
+  /* Secondary Button (Bordered theme accent) */
+  .rl-btn-secondary,
+  button:not([style*="linear-gradient" i]):not([style*="red" i]):not([style*="#ff4444" i]):not([style*="#ff3333" i]):not([style*="#dc2626" i]):not([style*="rgba(255, 68, 68" i]) {
+    background: var(--theme-card-bg) !important;
+    color: var(--theme-accent) !important;
+    border: 1.5px solid var(--theme-accent) !important;
+    box-shadow: none !important;
+  }
+  .rl-btn-secondary:hover,
+  button:not([style*="linear-gradient" i]):not([style*="red" i]):not([style*="#ff4444" i]):not([style*="#ff3333" i]):not([style*="#dc2626" i]):not([style*="rgba(255, 68, 68" i]):hover:not(:disabled) {
+    background: var(--theme-accent) !important;
+    color: #ffffff !important;
+    transform: translateY(-1px) scale(1.02) !important;
+    box-shadow: 0 4px 12px var(--theme-accent-glow) !important;
+  }
+
+  /* Danger Buttons */
+  button[style*="red" i],
+  button[style*="#ff4444" i],
+  button[style*="#ff3333" i],
+  button[style*="#dc2626" i],
+  button[style*="rgba(255, 68, 68" i] {
+    background: linear-gradient(135deg, var(--theme-danger) 0%, #bd2130 100%) !important;
+    color: #ffffff !important;
+    border: none !important;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2) !important;
+  }
+  button[style*="red" i]:hover,
+  button[style*="#ff4444" i]:hover,
+  button[style*="#ff3333" i]:hover:not(:disabled),
+  button[style*="#dc2626" i]:hover:not(:disabled) {
+    transform: translateY(-1px) scale(1.02) !important;
+    box-shadow: 0 6px 18px rgba(239, 68, 68, 0.4) !important;
+    filter: brightness(1.1) !important;
+  }
+
+  button:active {
+    transform: translateY(1px) scale(0.98) !important;
+  }
+  button:disabled {
+    opacity: 0.55 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    box-shadow: none !important;
+  }
+
+  /* --- Global Action Bar UI Alignments & Fit --- */
+  .global-buttons-container {
+    position: fixed;
+    top: 14px;
+    right: 25px;
+    z-index: 11000;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    background: var(--theme-card-bg);
+    padding: 6px 14px;
+    border-radius: 30px;
+    border: 1px solid var(--theme-border);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  }
+
   @media (max-width: 768px) {
     .global-buttons-container {
-      top: 8px !important;
+      top: 10px !important;
       right: 10px !important;
+      padding: 4px 8px !important;
       gap: 6px !important;
     }
-    .global-buttons-container .rl-btn-secondary,
-    .global-buttons-container .rl-btn-primary {
+    .global-buttons-container button {
       padding: 6px 10px !important;
-      font-size: 14px !important;
-      min-width: 0 !important;
+      font-size: 10px !important;
+      height: 30px !important;
     }
-    /* Hide text labels, show only emoji icons */
     .global-btn-label { display: none !important; }
   }
+
+  .theme-switcher-btn {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    width: 32px !important;
+    height: 32px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    color: var(--theme-accent) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+  }
+  .theme-switcher-btn:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+    transform: scale(1.1) !important;
+  }
+  [data-theme='light'] .theme-switcher-btn:hover {
+    background: rgba(0, 0, 0, 0.05) !important;
+  }
+
 `;
 
 // Three.js-style Particle Field using Canvas API
@@ -2559,7 +2542,8 @@ export default function App() {
   const [familyReqId] = useState(() => new URLSearchParams(window.location.search).get('reqId'));
   const [socket, setSocket] = useState(null);
   const [connected, setConnected] = useState(false);
-  const [theme, setTheme] = useState('dark');
+  const [theme, setTheme] = useState(() => localStorage.getItem('rescue_theme') || 'dark-sky-breeze');
+  const [showPalette, setShowPalette] = useState(false);
   const [globalAlertData, setGlobalAlertData] = useState(null);
   const [emergencyBroadcast, setEmergencyBroadcast] = useState(null);
   const [showSecurityModal, setShowSecurityModal] = useState(false);
@@ -2598,6 +2582,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    localStorage.setItem('rescue_theme', theme);
     document.body.setAttribute('data-theme', theme);
   }, [theme]);
 
@@ -2690,31 +2675,184 @@ export default function App() {
     setToken(null);
   };
 
+  const ThemeSwitcher = () => (
+    <div 
+      onMouseEnter={() => setShowPalette(true)}
+      onMouseLeave={() => setShowPalette(false)}
+      style={{
+        position: 'fixed', bottom: 25, left: 25, zIndex: 11000,
+        display: 'flex', alignItems: 'center', gap: 10,
+        background: theme === 'light' ? '#ffffff' : 'rgba(10, 20, 45, 0.85)',
+        border: `1px solid ${theme === 'light' ? '#cbd5e0' : 'rgba(0, 200, 255, 0.3)'}`,
+        padding: '6px 12px',
+        borderRadius: '30px',
+        boxShadow: theme === 'light' ? '0 4px 12px rgba(0,0,0,0.1)' : '0 8px 24px rgba(0,0,0,0.5)',
+        backdropFilter: 'blur(8px)',
+        transition: 'all 0.3s ease',
+        height: '38px',
+        boxSizing: 'border-box'
+      }}
+    >
+      {/* Paint Palette Button */}
+      <button
+        className="theme-switcher-btn"
+        onClick={() => setShowPalette(!showPalette)}
+        title="Toggle Theme Palette"
+        style={{
+          width: 32, height: 32, borderRadius: '50%',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer', transition: 'all 0.2s',
+          background: showPalette ? (theme === 'light' ? 'rgba(27, 79, 114, 0.1)' : 'rgba(0, 200, 255, 0.15)') : 'transparent',
+          border: 'none',
+          color: theme === 'light' ? '#1b4f72' : 'var(--theme-accent)',
+          padding: 0,
+          outline: 'none',
+          minWidth: 'auto',
+          height: '32px'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'scale(1.1)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1)';
+        }}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 22C17.5228 22 22 17.5228 22 12C22 9.53762 21.05 7.19943 19.5 5.5C18.5 4.5 17 3.5 15 3.5C14.4477 3.5 14 3.94772 14 4.5C14 5.5 13 6.5 12 6.5C11 6.5 10 5.5 10 4.5C10 3.94772 9.55228 3.5 9 3.5C5.13401 3.5 2 6.63401 2 10.5C2 16.8519 7.14806 22 12 22Z"></path>
+          <circle cx="7.5" cy="10.5" r="1" fill="currentColor"></circle>
+          <circle cx="11.5" cy="7.5" r="1" fill="currentColor"></circle>
+          <circle cx="16.5" cy="9.5" r="1" fill="currentColor"></circle>
+          <circle cx="15.5" cy="14.5" r="1" fill="currentColor"></circle>
+        </svg>
+      </button>
+
+      {/* Main Sun/Moon Toggle */}
+      <button
+        className="theme-switcher-btn"
+        onClick={() => {
+          if (theme.startsWith('dark')) {
+            setTheme('light');
+          } else {
+            const lastDark = localStorage.getItem('rescue_dark_accent') || 'dark-sky-breeze';
+            setTheme(lastDark);
+          }
+        }}
+        title={`Switch to ${theme.startsWith('dark') ? 'Light' : 'Dark'} Mode`}
+        style={{
+          width: 32, height: 32, borderRadius: '50%',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer', transition: 'all 0.2s',
+          background: 'transparent',
+          border: 'none',
+          color: theme === 'light' ? '#1b4f72' : 'var(--theme-accent)',
+          padding: 0,
+          outline: 'none',
+          minWidth: 'auto',
+          height: '32px'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'scale(1.1)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1)';
+        }}
+      >
+        {theme.startsWith('dark') ? (
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+        ) : (
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        )}
+      </button>
+
+      {/* Dark Mode Accent bubbles (visible when palette is toggled open) */}
+      {showPalette && (
+        <div style={{
+          display: 'flex', gap: 8,
+          borderLeft: `1px solid ${theme === 'light' ? '#cbd5e0' : 'rgba(255,255,255,0.2)'}`,
+          paddingLeft: 8,
+          alignItems: 'center',
+          animation: 'fadeSlideUp 0.2s ease forwards'
+        }}>
+          {[
+            { id: 'dark-sky-breeze', color: '#00c8ff', name: 'Sky Breeze' },
+            { id: 'dark-sage-green', color: '#3cd070', name: 'Sage Green' },
+            { id: 'dark-steel-blue', color: '#5294e2', name: 'Steel Blue' }
+          ].map(accent => (
+            <div
+              key={accent.id}
+              onClick={() => {
+                setTheme(accent.id);
+                localStorage.setItem('rescue_dark_accent', accent.id);
+              }}
+              title={accent.name}
+              style={{
+                width: 14, height: 14, borderRadius: '50%',
+                backgroundColor: accent.color,
+                cursor: 'pointer',
+                border: theme === accent.id ? '2px solid #ffffff' : '1px solid rgba(255,255,255,0.4)',
+                boxShadow: theme === accent.id ? `0 0 10px ${accent.color}` : 'none',
+                transition: 'all 0.2s',
+                boxSizing: 'border-box'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'scale(1.2)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   if (mfaSetupToken) {
     return (
-      <MfaSetupScreen
-        setupToken={mfaSetupToken}
-        onComplete={() => setMfaSetupToken(null)}
-        onCancel={() => setMfaSetupToken(null)}
-      />
+      <div className="app-root">
+        <style>{styles}</style>
+        <MfaSetupScreen
+          setupToken={mfaSetupToken}
+          onComplete={() => setMfaSetupToken(null)}
+          onCancel={() => setMfaSetupToken(null)}
+        />
+        <ThemeSwitcher />
+      </div>
     );
   }
 
   if (mfaVerifyToken) {
     return (
-      <MfaVerifyScreen
-        mfaToken={mfaVerifyToken}
-        onLoginSuccess={handleLoginSuccess}
-        onCancel={() => setMfaVerifyToken(null)}
-        ParticleCanvas={ParticleCanvas}
-      />
+      <div className="app-root">
+        <style>{styles}</style>
+        <MfaVerifyScreen
+          mfaToken={mfaVerifyToken}
+          onLoginSuccess={handleLoginSuccess}
+          onCancel={() => setMfaVerifyToken(null)}
+          ParticleCanvas={ParticleCanvas}
+        />
+        <ThemeSwitcher />
+      </div>
     );
   }
 
   if (!token) {
     if (currentHash === '#ambulance' || loginTargetRole === 'ambulance') {
       return (
-        <>
+        <div className="app-root">
+          <style>{styles}</style>
           <AmbulanceLandingHomepage
             onLogin={() => { setIsRegisterMode(false); setLoginTargetRole('ambulance'); }}
             onRegister={() => { setIsRegisterMode(true); setLoginTargetRole('ambulance'); }}
@@ -2730,13 +2868,15 @@ export default function App() {
               defaultIsRegister={isRegisterMode}
             />
           )}
-        </>
+          <ThemeSwitcher />
+        </div>
       );
     }
 
     if (currentHash === '#hospital' || loginTargetRole === 'hospital') {
       return (
-        <>
+        <div className="app-root">
+          <style>{styles}</style>
           <HospitalLandingHomepage
             onLogin={() => { setIsRegisterMode(false); setLoginTargetRole('hospital'); }}
             onRegister={() => { setIsRegisterMode(true); setLoginTargetRole('hospital'); }}
@@ -2752,12 +2892,14 @@ export default function App() {
               defaultIsRegister={isRegisterMode}
             />
           )}
-        </>
+          <ThemeSwitcher />
+        </div>
       );
     }
 
     return (
-      <>
+      <div className="app-root">
+        <style>{styles}</style>
         <LandingHomepage onSelectRole={(selRole) => {
           setLoginTargetRole(selRole);
           window.location.hash = selRole;
@@ -2772,16 +2914,23 @@ export default function App() {
             defaultIsRegister={isRegisterMode}
           />
         )}
-      </>
+        <ThemeSwitcher />
+      </div>
     );
   }
 
   if (!role) {
-    return <RoleSelector onSelect={(selRole) => {
-      sessionStorage.setItem('rescueLinkRole', selRole);
-      setRole(selRole);
-      window.location.hash = selRole;
-    }} />;
+    return (
+      <div className="app-root">
+        <style>{styles}</style>
+        <RoleSelector onSelect={(selRole) => {
+          sessionStorage.setItem('rescueLinkRole', selRole);
+          setRole(selRole);
+          window.location.hash = selRole;
+        }} />
+        <ThemeSwitcher />
+      </div>
+    );
   }
 
   return (
@@ -2836,51 +2985,107 @@ export default function App() {
         </button>
       </div>
 
-      {/* Premium Theme Switcher - Bottom Left */}
-      <button
-        onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
-        title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
-        style={{
-          position: 'fixed', bottom: 25, left: 25, zIndex: 11000,
-          width: 46, height: 46, borderRadius: '50%',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          background: theme === 'dark' ? 'rgba(0, 200, 255, 0.08)' : '#ffffff',
-          border: `1px solid ${theme === 'dark' ? 'rgba(0, 200, 255, 0.4)' : '#1b4f72'}`,
-          color: theme === 'dark' ? '#00c8ff' : '#1b4f72',
-          boxShadow: theme === 'dark' ? '0 8px 24px rgba(0,0,0,0.6)' : '0 4px 12px rgba(0,0,0,0.1)',
-          outline: 'none',
-          padding: 0
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'scale(1.1)';
-          e.currentTarget.style.background = theme === 'dark' ? 'rgba(0, 200, 255, 0.18)' : 'rgba(27, 79, 114, 0.08)';
-          e.currentTarget.style.boxShadow = theme === 'dark' ? '0 0 20px rgba(0, 200, 255, 0.5)' : '0 0 15px rgba(27, 79, 114, 0.3)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'scale(1)';
-          e.currentTarget.style.background = theme === 'dark' ? 'rgba(0, 200, 255, 0.08)' : '#ffffff';
-          e.currentTarget.style.boxShadow = theme === 'dark' ? '0 8px 24px rgba(0,0,0,0.6)' : '0 4px 12px rgba(0,0,0,0.1)';
-        }}
-      >
-        {theme === 'dark' ? (
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-          </svg>
-        ) : (
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="5"></circle>
-            <line x1="12" y1="1" x2="12" y2="3"></line>
-            <line x1="12" y1="21" x2="12" y2="23"></line>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-            <line x1="1" y1="12" x2="3" y2="12"></line>
-            <line x1="21" y1="12" x2="23" y2="12"></line>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-          </svg>
+      {/* Floating Theme Controller - Bottom Left */}
+      <div style={{
+        position: 'fixed', bottom: 25, left: 25, zIndex: 11000,
+        display: 'flex', alignItems: 'center', gap: 10,
+        background: theme === 'light' ? '#ffffff' : 'rgba(10, 20, 45, 0.85)',
+        border: `1px solid ${theme === 'light' ? '#cbd5e0' : 'rgba(0, 200, 255, 0.3)'}`,
+        padding: '6px 12px',
+        borderRadius: '30px',
+        boxShadow: theme === 'light' ? '0 4px 12px rgba(0,0,0,0.1)' : '0 8px 24px rgba(0,0,0,0.5)',
+        backdropFilter: 'blur(8px)',
+        transition: 'all 0.3s ease'
+      }}>
+        {/* Main Sun/Moon Toggle */}
+        <button
+          onClick={() => {
+            if (theme.startsWith('dark')) {
+              setTheme('light');
+            } else {
+              const lastDark = localStorage.getItem('rescue_dark_accent') || 'dark-sky-breeze';
+              setTheme(lastDark);
+            }
+          }}
+          title={`Switch to ${theme.startsWith('dark') ? 'Light' : 'Dark'} Mode`}
+          style={{
+            width: 36, height: 36, borderRadius: '50%',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', transition: 'all 0.2s',
+            background: 'transparent',
+            border: 'none',
+            color: theme === 'light' ? '#1b4f72' : 'var(--theme-accent)',
+            padding: 0,
+            outline: 'none',
+            minWidth: 'auto',
+            height: '36px'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'scale(1.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+        >
+          {theme.startsWith('dark') ? (
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="5"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+          )}
+        </button>
+
+        {/* Dark Mode Accent bubbles */}
+        {theme.startsWith('dark') && (
+          <div style={{
+            display: 'flex', gap: 8,
+            borderLeft: '1px solid rgba(255,255,255,0.2)',
+            paddingLeft: 8,
+            alignItems: 'center'
+          }}>
+            {[
+              { id: 'dark-sky-breeze', color: '#00c8ff', name: 'Sky Breeze' },
+              { id: 'dark-sage-green', color: '#3cd070', name: 'Sage Green' },
+              { id: 'dark-steel-blue', color: '#5294e2', name: 'Steel Blue' }
+            ].map(accent => (
+              <div
+                key={accent.id}
+                onClick={() => {
+                  setTheme(accent.id);
+                  localStorage.setItem('rescue_dark_accent', accent.id);
+                }}
+                title={accent.name}
+                style={{
+                  width: 14, height: 14, borderRadius: '50%',
+                  backgroundColor: accent.color,
+                  cursor: 'pointer',
+                  border: theme === accent.id ? '2px solid #ffffff' : '1px solid rgba(255,255,255,0.4)',
+                  boxShadow: theme === accent.id ? `0 0 10px ${accent.color}` : 'none',
+                  transition: 'all 0.2s',
+                  boxSizing: 'border-box'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
+              />
+            ))}
+          </div>
         )}
-      </button>
+      </div>
 
       {role === 'user' && (
         <UserDashboard socket={socket} connected={connected} />
