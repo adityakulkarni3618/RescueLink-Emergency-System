@@ -1250,35 +1250,46 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
         }
       }
 
-      setAssignedUser({ id: data.id, ...data });
-      setRequestAccepted(true); 
-      
-      const isArrived = data.status === 'ambulance_arrived' || data.status === 'patient_onboard' || data.status === 'hospital_accepted' || !!data.arrivedAtUser;
-      setArrivedAtUser(isArrived);
-      
-      if (data.status === 'patient_onboard' || data.status === 'hospital_accepted' || data.patientDetails) {
-        setPatientLoaded(true);
-        setSelectedPatient(data.patientDetails?.id || 'EMERGENCY');
-      }
-      
-      if (data.assignedHospital) setAssignedHospital(data.assignedHospital);
-      
-      if (data.routePath && Array.isArray(data.routePath)) {
-        setRoutePath(data.routePath.map(pos => (Array.isArray(pos) ? pos : [pos.lat, pos.lng])));
-      }
-      
-      if (data.status === 'patient_onboard' || data.status === 'hospital_accepted' || data.patientDetails || data.fieldReport) {
-        setPatientLoaded(true);
-        setStreaming(true);
-      }
-      
-      if (data.chatMessages) setMessages(data.chatMessages);
-      if (data.checklist) setClinicalChecklist(data.checklist);
-      
-      if (data.resourceLocks) {
-        setResourceLocks(data.resourceLocks);
+      if (data.status === 'pending_ambulance') {
+        // If it is pending, set it as the active incoming request so the driver can Accept or Decline.
+        setIncomingRequest(data);
+        setAssignedUser(null);
+        setRequestAccepted(false);
+        setArrivedAtUser(false);
+        setPatientLoaded(false);
+        setStreaming(false);
+        setRoutePath(null);
       } else {
-        setResourceLocks({ traumaBay: false, bloodUnits: false, ventilatorStandby: false });
+        setAssignedUser({ id: data.id, ...data });
+        setRequestAccepted(true); 
+        
+        const isArrived = data.status === 'ambulance_arrived' || data.status === 'patient_onboard' || data.status === 'hospital_accepted' || !!data.arrivedAtUser;
+        setArrivedAtUser(isArrived);
+        
+        if (data.status === 'patient_onboard' || data.status === 'hospital_accepted' || data.patientDetails) {
+          setPatientLoaded(true);
+          setSelectedPatient(data.patientDetails?.id || 'EMERGENCY');
+        }
+        
+        if (data.assignedHospital) setAssignedHospital(data.assignedHospital);
+        
+        if (data.routePath && Array.isArray(data.routePath)) {
+          setRoutePath(data.routePath.map(pos => (Array.isArray(pos) ? pos : [pos.lat, pos.lng])));
+        }
+        
+        if (data.status === 'patient_onboard' || data.status === 'hospital_accepted' || data.patientDetails || data.fieldReport) {
+          setPatientLoaded(true);
+          setStreaming(true);
+        }
+        
+        if (data.chatMessages) setMessages(data.chatMessages);
+        if (data.checklist) setClinicalChecklist(data.checklist);
+        
+        if (data.resourceLocks) {
+          setResourceLocks(data.resourceLocks);
+        } else {
+          setResourceLocks({ traumaBay: false, bloodUnits: false, ventilatorStandby: false });
+        }
       }
       
       setPendingResumeMission(null);
@@ -3525,6 +3536,81 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
                     }}
                     style={{ padding: '8px 16px', background: '#ff4444', border: 'none', borderRadius: 6, color: '#fff', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 'bold' }}
                   >CONFIRM REROUTE</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Incoming Dispatch Request Alert Modal */}
+          {incomingRequest && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(15px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 11000, padding: 20 }}>
+              <div style={{ width: '100%', maxWidth: 500, background: 'linear-gradient(135deg, #07152e 0%, #030a1c 100%)', border: '1px solid #ffb800', borderRadius: 12, padding: 30, boxShadow: '0 0 50px rgba(255,184,0,0.15)', display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid rgba(255,184,0,0.2)', paddingBottom: 15 }}>
+                  <span style={{ fontSize: 32, animation: 'pulse 1s infinite' }}>🚨</span>
+                  <div>
+                    <div style={{ fontFamily: "'Orbitron'", color: '#ffb800', fontSize: 18, fontWeight: 'bold', letterSpacing: '0.1em' }}>INCOMING EMERGENCY DISPATCH</div>
+                    <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'", marginTop: 2 }}>MISSION ID: {incomingRequest.id}</div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
+                  {/* Patient Info Card */}
+                  <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: 16 }}>
+                    <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Orbitron'", marginBottom: 10 }}>PATIENT EMERGENCY DETAILS</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>NAME</div>
+                        <div style={{ fontSize: 13, color: '#fff', fontWeight: 'bold' }}>{incomingRequest.patientDetails?.name || 'Emergency Patient'}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>CONDITION / CHIEF COMPLAINT</div>
+                        <div style={{ fontSize: 13, color: '#ff4444', fontWeight: 'bold' }}>{incomingRequest.patientDetails?.condition || 'Unknown / SOS'}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>AGE / GENDER</div>
+                        <div style={{ fontSize: 13, color: '#fff' }}>{incomingRequest.patientDetails?.age || 'N/A'} yrs / {incomingRequest.patientDetails?.gender || 'N/A'}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>TRIAGE LEVEL</div>
+                        <div style={{ 
+                          display: 'inline-block', fontSize: 11, padding: '2px 8px', borderRadius: 4, fontWeight: 'bold', marginTop: 4,
+                          background: incomingRequest.patientDetails?.riskLevel === 'HIGH' || incomingRequest.fallbackBLS ? 'rgba(255,68,68,0.15)' : 'rgba(0,255,136,0.15)',
+                          color: incomingRequest.patientDetails?.riskLevel === 'HIGH' || incomingRequest.fallbackBLS ? '#ff4444' : '#00ff88',
+                          border: `1px solid ${incomingRequest.patientDetails?.riskLevel === 'HIGH' || incomingRequest.fallbackBLS ? '#ff4444' : '#00ff88'}`
+                        }}>
+                          {incomingRequest.patientDetails?.riskLevel || (incomingRequest.fallbackBLS ? 'HIGH' : 'STANDARD')}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Location Card */}
+                  <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: 16 }}>
+                    <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Orbitron'", marginBottom: 6 }}>PICKUP ADDRESS / LOCATION</div>
+                    <div style={{ fontSize: 12, color: '#fff', lineHeight: 1.4 }}>{incomingRequest.patientDetails?.address || 'GPS Location Coordinates'}</div>
+                    <div style={{ fontSize: 10, color: '#00c8ff', fontFamily: "'Share Tech Mono'", marginTop: 6 }}>
+                      Coords: {incomingRequest.userLocation?.lat?.toFixed(4)}, {incomingRequest.userLocation?.lng?.toFixed(4)}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 15, marginTop: 10 }}>
+                  <button 
+                    onClick={rejectRequest} 
+                    style={{ flex: 1, padding: '12px', background: 'rgba(255,68,68,0.1)', border: '1px solid #ff4444', borderRadius: 6, color: '#ff4444', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 'bold', transition: 'background 0.2s' }}
+                    onMouseEnter={e => e.target.style.background = 'rgba(255,68,68,0.2)'}
+                    onMouseLeave={e => e.target.style.background = 'rgba(255,68,68,0.1)'}
+                  >
+                    DECLINE REQUEST
+                  </button>
+                  <button 
+                    onClick={acceptRequest} 
+                    style={{ flex: 1, padding: '12px', background: 'linear-gradient(135deg, #00ff88 0%, #00b359 100%)', border: 'none', borderRadius: 6, color: '#000', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 'bold', boxShadow: '0 0 20px rgba(0,255,136,0.3)', transition: 'transform 0.2s' }}
+                    onMouseEnter={e => e.target.style.transform = 'scale(1.02)'}
+                    onMouseLeave={e => e.target.style.transform = 'scale(1)'}
+                  >
+                    ACCEPT DISPATCH
+                  </button>
                 </div>
               </div>
             </div>
