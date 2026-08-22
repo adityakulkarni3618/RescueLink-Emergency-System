@@ -1914,6 +1914,7 @@ export default function HospitalDashboard({ socket, connected }) {
   const [hospitalGps, setHospitalGps] = useState(null);
   const [incidentLocation, setIncidentLocation] = useState(null); // Where the SOS was triggered
   const [activeTab, setActiveTab] = useState('triage'); // triage, er_queue, blood_bank, insurance, mass_casualty
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [fhirPreviewData, setFhirPreviewData] = useState(null);
   useEffect(() => {
     const fetchIpLocation = async () => {
@@ -3086,50 +3087,80 @@ export default function HospitalDashboard({ socket, connected }) {
       transition: 'background 0.5s ease',
     }}>
 
-      {/* LEFT SIDEBAR - MISSION SELECTOR */}
-      {isAuthenticated && Object.keys(activeMissions).length > 0 && (
-        <div style={{
-          width: 200, background: 'rgba(5, 15, 40, 0.95)', borderRight: '1px solid rgba(0,200,255,0.2)',
-          display: 'flex', flexDirection: 'column', gap: 10, padding: '20px 10px 70px 10px'
-        }}>
-          <div style={{ fontSize: 10, color: '#00c8ff', fontFamily: "'Orbitron'", letterSpacing: 1.5, marginBottom: 10, textAlign: 'center' }}>ACTIVE MISSIONS</div>
-          {Object.values(activeMissions).map(m => (
-            <div
-              key={m.id}
-              onClick={() => switchMission(m.id)}
-              style={{
-                padding: '12px 10px', borderRadius: 8, cursor: 'pointer',
-                background: activeMissionId === m.id ? 'rgba(0,200,255,0.15)' : 'rgba(255,255,255,0.03)',
-                border: `1px solid ${activeMissionId === m.id ? '#00c8ff' : 'rgba(255,255,255,0.1)'}`,
-                transition: 'all 0.2s ease',
-                position: 'relative'
-              }}
-            >
-              <div style={{ fontSize: 11, fontFamily: "'Share Tech Mono'", color: activeMissionId === m.id ? '#fff' : 'rgba(160,200,255,0.6)' }}>{m.id}</div>
-              <div style={{ fontSize: 10, color: activeMissionId === m.id ? '#00ff88' : 'rgba(255,255,255,0.3)', marginTop: 4 }}>{m.patient?.name || 'Inbound Patient'}</div>
-              {m.vitals?.heartRate > 110 && (
-                <div style={{ position: 'absolute', top: 5, right: 5, fontSize: 10, animation: 'blink 0.5s infinite' }}>⚠️</div>
-              )}
+      {/* SIDEBAR NAVIGATION & MISSION SELECTOR */}
+      {isAuthenticated && (
+        <div className={`sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
+          <div style={{ padding: '20px 10px 10px 10px', borderBottom: '1px solid rgba(0,200,255,0.1)', textAlign: 'center' }}>
+            <div style={{ fontSize: 18, color: '#00c8ff', fontFamily: "'Orbitron'", fontWeight: 'bold' }}>RESCUELINK</div>
+            <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'", marginTop: 4 }}>CLINICAL PORTAL</div>
+          </div>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '15px 0' }}>
+            {[
+              { id: 'triage', label: 'LIVE TRIAGE', icon: '🚑' },
+              { id: 'er_queue', label: 'ER QUEUE & BEDS', icon: '⏳' },
+              { id: 'blood_bank', label: 'BLOOD BANK', icon: '🩸' },
+              { id: 'insurance', label: 'INSURANCE CLAIM', icon: '🛡️' },
+              { id: 'mass_casualty', label: 'MASS CASUALTY', icon: '⚠️' },
+              { id: 'analytics', label: 'ANALYTICS', icon: '📊' },
+              { id: 'settings', label: 'SETTINGS', icon: '⚙️' },
+            ].map(tab => (
+              <div
+                key={tab.id}
+                onClick={() => {
+                  handleTabChange(tab.id);
+                  if (window.innerWidth <= 768) setSidebarOpen(false); // Auto-close on mobile
+                }}
+                className={`sidebar-item ${activeTab === tab.id ? 'active' : ''}`}
+              >
+                <span>{tab.icon}</span>
+                <span>{tab.label}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Active Missions block in the same sidebar */}
+          {Object.keys(activeMissions).length > 0 && (
+            <div style={{ borderTop: '1px solid rgba(0,200,255,0.1)', padding: '15px 10px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ fontSize: 10, color: '#00c8ff', fontFamily: "'Orbitron'", letterSpacing: 1.5, marginBottom: 5, textAlign: 'center' }}>ACTIVE MISSIONS</div>
+              {Object.values(activeMissions).map(m => (
+                <div
+                  key={m.id}
+                  onClick={() => switchMission(m.id)}
+                  style={{
+                    padding: '10px', borderRadius: 6, cursor: 'pointer',
+                    background: activeMissionId === m.id ? 'rgba(0,200,255,0.15)' : 'rgba(255,255,255,0.03)',
+                    border: `1px solid ${activeMissionId === m.id ? '#00c8ff' : 'rgba(255,255,255,0.1)'}`,
+                    transition: 'all 0.2s ease',
+                    position: 'relative'
+                  }}
+                >
+                  <div style={{ fontSize: 10, fontFamily: "'Share Tech Mono'", color: activeMissionId === m.id ? '#fff' : 'rgba(160,200,255,0.6)' }}>{m.id.slice(0, 8)}...</div>
+                  <div style={{ fontSize: 9, color: activeMissionId === m.id ? '#00ff88' : 'rgba(255,255,255,0.3)', marginTop: 2 }}>{m.patient?.name || 'Inbound Patient'}</div>
+                </div>
+              ))}
             </div>
-          ))}
-          <div style={{ marginTop: 'auto', borderTop: '1px solid rgba(0,200,255,0.1)', paddingTop: 20 }}>
-            <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Orbitron'", marginBottom: 8, textAlign: 'center', letterSpacing: '0.05em' }}>MANUAL RECOVERY</div>
-            <div style={{ display: 'flex', gap: 6, height: 32 }}>
+          )}
+
+          {/* Manual Recovery at the bottom of the sidebar */}
+          <div style={{ marginTop: 'auto', borderTop: '1px solid rgba(0,200,255,0.1)', padding: '15px 10px' }}>
+            <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Orbitron'", marginBottom: 6, textAlign: 'center' }}>MANUAL RECOVERY</div>
+            <div style={{ display: 'flex', gap: 4, height: 28 }}>
               <input
                 value={manualRecoveryId}
                 onChange={e => setManualRecoveryId(e.target.value)}
                 onKeyDown={handleManualSearch}
                 placeholder="REQ ID"
-                style={{ flex: 1, background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 4, padding: '0 10px', color: '#fff', fontSize: 12, outline: 'none', height: '100%', boxSizing: 'border-box' }}
+                style={{ flex: 1, background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 4, padding: '0 8px', color: '#fff', fontSize: 10, outline: 'none' }}
               />
-              <button onClick={handleManualRecover} style={{ height: '100%', background: 'rgba(0,200,255,0.15)', border: '1px solid #00c8ff', color: '#00c8ff', borderRadius: 4, padding: '0 12px', cursor: 'pointer', fontSize: 12, fontFamily: "'Orbitron'", fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' }}>GO</button>
+              <button onClick={handleManualRecover} style={{ background: 'rgba(0,200,255,0.15)', border: '1px solid #00c8ff', color: '#00c8ff', borderRadius: 4, padding: '0 8px', cursor: 'pointer', fontSize: 10, fontFamily: "'Orbitron'", fontWeight: 'bold' }}>GO</button>
             </div>
           </div>
         </div>
       )}
 
       {/* MAIN CONTENT AREA */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
         <style>{`
         @keyframes critBg {
           0%,100% { opacity: 0; }
@@ -3140,6 +3171,100 @@ export default function HospitalDashboard({ socket, connected }) {
           to { opacity: 1; transform: translateY(0); }
         }
         @keyframes blink { 0%,49%{opacity:1}50%,100%{opacity:0} }
+
+        /* Sidebar styles */
+        .sidebar {
+          width: 260px;
+          background: rgba(5, 15, 40, 0.95);
+          border-right: 1px solid rgba(0, 200, 255, 0.2);
+          display: flex;
+          flex-direction: column;
+          transition: all 0.3s ease;
+          overflow-y: auto;
+          z-index: 999;
+          flex-shrink: 0;
+        }
+        .sidebar.closed {
+          width: 0px;
+          overflow: hidden;
+          border-right: none;
+        }
+        
+        .sidebar-item {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 14px 20px;
+          color: rgba(160, 200, 255, 0.7);
+          text-decoration: none;
+          font-family: 'Orbitron', sans-serif;
+          font-size: 12px;
+          border-left: 3px solid transparent;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          letter-spacing: 0.05em;
+        }
+        .sidebar-item:hover {
+          background: rgba(0, 200, 255, 0.05);
+          color: #00c8ff;
+        }
+        .sidebar-item.active {
+          background: rgba(0, 200, 255, 0.1);
+          color: #00c8ff;
+          border-left-color: #00c8ff;
+        }
+
+        /* Mobile controls */
+        .mobile-nav-trigger {
+          display: none;
+        }
+
+        /* Responsive styles */
+        @media (max-width: 1024px) {
+          .hospital-triage-grid {
+            grid-template-columns: 1fr 1fr !important;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .sidebar {
+            position: absolute;
+            left: 0;
+            top: 60px;
+            height: calc(100vh - 60px);
+            transform: translateX(-100%);
+            width: 260px;
+          }
+          .sidebar.open {
+            transform: translateX(0);
+          }
+          .sidebar.closed {
+            transform: translateX(-100%);
+            width: 260px;
+          }
+          
+          /* Stacking grids for mobile compatibility */
+          .hospital-triage-grid {
+            grid-template-columns: 1fr !important;
+            overflow-y: auto !important;
+          }
+          
+          .desktop-nav-group {
+            display: none !important;
+          }
+          .mobile-nav-trigger {
+            display: inline-flex !important;
+            background: rgba(0, 200, 255, 0.1);
+            border: 1px solid rgba(0, 200, 255, 0.3);
+            border-radius: 4px;
+            color: #00c8ff;
+            padding: 6px 12px;
+            font-family: 'Orbitron';
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+          }
+        }
       `}</style>
 
         {fhirPreviewData && (
@@ -3635,10 +3760,30 @@ export default function HospitalDashboard({ socket, connected }) {
             <div style={{
               background: 'rgba(3,8,22,0.95)',
               borderBottom: `1px solid ${isCritical ? 'rgba(255,80,80,0.4)' : 'rgba(0,200,255,0.15)'}`,
-              padding: '10px 450px 10px 24px',
+              padding: '10px 24px',
               display: 'flex', alignItems: 'center', gap: 15, minHeight: 60, height: 'auto', flexWrap: 'wrap',
               backdropFilter: 'blur(15px)', transition: 'border-color 0.3s',
             }}>
+              {/* Sidebar toggle button (Hamburger) */}
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                style={{
+                  background: 'rgba(0, 200, 255, 0.05)',
+                  border: '1px solid rgba(0, 200, 255, 0.2)',
+                  borderRadius: 6,
+                  color: '#00c8ff',
+                  padding: '6px 12px',
+                  fontFamily: "'Orbitron'",
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6
+                }}
+              >
+                ☰ {sidebarOpen ? 'CLOSE' : 'MENU'}
+              </button>
               <div style={{ fontSize: 22, flexShrink: 0 }}>🏥</div>
               <div style={{ flexShrink: 0, minWidth: 'fit-content' }}>
                 <div style={{ fontFamily: "'Orbitron'", fontSize: 14, fontWeight: 700, color: '#00c8ff', letterSpacing: '0.1em' }}>
@@ -3650,7 +3795,7 @@ export default function HospitalDashboard({ socket, connected }) {
                   {authHospital?.name?.toUpperCase() || activeHospital?.name?.toUpperCase() || 'EMERGENCY WING'} · EMERGENCY WING
                 </div>
               </div>
-
+ 
               {/* ICU BEDS INVENTORY */}
               <div style={{ marginLeft: 20, display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(0,0,0,0.3)', padding: '5px 15px', borderRadius: 20, border: `1px solid ${icuBeds > 0 ? 'rgba(0,255,136,0.3)' : 'rgba(255,68,68,0.5)'}` }}>
                 <div style={{ fontSize: 10, color: icuBeds > 0 ? '#00ff88' : '#ff4444', fontFamily: "'Orbitron'", fontWeight: 'bold' }}>
@@ -3662,7 +3807,7 @@ export default function HospitalDashboard({ socket, connected }) {
                   style={{ width: 100, cursor: 'pointer', accentColor: icuBeds > 0 ? '#00ff88' : '#ff4444' }}
                 />
               </div>
-
+ 
               {/* Responsive Header Button Controls */}
               <div className="desktop-nav-group" style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'nowrap' }}>
                 {headerActions(false)}
@@ -3678,7 +3823,7 @@ export default function HospitalDashboard({ socket, connected }) {
                 )}
               </div>
             </div>
-
+ 
             {/* Connection Banner */}
             {patient && (
               <div style={{
@@ -3708,7 +3853,7 @@ export default function HospitalDashboard({ socket, connected }) {
                 </div>
               </div>
             )}
-
+ 
             {/* Critical alert banner */}
             <div style={{ position: 'relative', zIndex: 50 }}>
               {/* Green Corridor Active Banner */}
@@ -3728,7 +3873,7 @@ export default function HospitalDashboard({ socket, connected }) {
                  </div>
                </div>
              )}
-
+ 
              {icuBeds === 0 && (
                 <div style={{
                   background: 'linear-gradient(90deg, rgba(255,0,0,0.35) 0%, rgba(255,0,0,0.1) 100%)',
@@ -3745,7 +3890,7 @@ export default function HospitalDashboard({ socket, connected }) {
                   </div>
                 </div>
               )}
-
+ 
               {aiAlert && (
                 <div style={{
                   background: 'linear-gradient(90deg, rgba(255,180,0,0.2) 0%, rgba(255,180,0,0.05) 100%)',
@@ -3772,7 +3917,7 @@ export default function HospitalDashboard({ socket, connected }) {
                   }}>ACKNOWLEDGE</button>
                 </div>
               )}
-
+ 
               {rerouteAlert && (
                 <div style={{
                   background: 'linear-gradient(90deg, rgba(255,180,0,0.3) 0%, rgba(255,180,0,0.1) 100%)',
@@ -3787,8 +3932,8 @@ export default function HospitalDashboard({ socket, connected }) {
                   </div>
                 </div>
               )}
-
-
+ 
+ 
               {isCritical && !aiAlert && (
                 <div style={{
                   background: 'rgba(255,30,30,0.2)', borderBottom: '2px solid rgba(255,80,80,0.5)',
@@ -3815,34 +3960,7 @@ export default function HospitalDashboard({ socket, connected }) {
                 </div>
               )}
             </div>
-
-            {/* TABS NAVIGATION */}
-            <div style={{ display: 'flex', gap: 10, padding: '0 24px 10px 24px', borderBottom: '1px solid rgba(0,200,255,0.1)' }}>
-              {[
-                { id: 'triage', label: '🚑 LIVE TRIAGE' },
-                { id: 'er_queue', label: '⏳ ER QUEUE & BEDS' },
-                { id: 'blood_bank', label: '🩸 BLOOD BANK' },
-                { id: 'insurance', label: '🛡️ INSURANCE AUTO-PAY' },
-                { id: 'mass_casualty', label: '⚠️ MASS CASUALTY' },
-                { id: 'analytics', label: '📊 ANALYTICS' },
-                { id: 'settings', label: '⚙️ SETTINGS' },
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => handleTabChange(tab.id)}
-                  style={{
-                    padding: '8px 16px', background: activeTab === tab.id ? 'rgba(0,200,255,0.15)' : 'transparent',
-                    border: `1px solid ${activeTab === tab.id ? '#00c8ff' : 'rgba(255,255,255,0.1)'}`,
-                    borderRadius: 8, color: activeTab === tab.id ? '#00c8ff' : 'rgba(160,200,255,0.6)',
-                    fontFamily: "'Orbitron'", fontSize: 11, fontWeight: activeTab === tab.id ? 700 : 400,
-                    cursor: 'pointer', transition: 'all 0.2s'
-                  }}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-
+ 
             {/* Main Content Area Based on Active Tab */}
             <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
               {activeTab === 'triage' && (
