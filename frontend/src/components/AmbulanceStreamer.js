@@ -811,6 +811,7 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
   const [incomingRequest, setIncomingRequest] = useState(null);
   const [assignedUser, setAssignedUser] = useState(null);
   const [assignedHospital, setAssignedHospital] = useState(null);
+  const [waitingList, setWaitingList] = useState([]);
 
   const assignedUserRef = useRef(assignedUser);
   useEffect(() => {
@@ -1150,6 +1151,7 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
       setArrivedAtUser(false);
       setAssignedUser(null);
       setAssignedHospital(null);
+      setWaitingList([]);
       setIncomingRequest(null);
       setRequestAccepted(false);
       setSelectedPatient(null);
@@ -1161,6 +1163,10 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
     });
 
     socket.on('patient-onboard', () => setPatientLoaded(true));
+    socket.on('mission-coordination-update', (data) => {
+      if (data.assignedHospital) setAssignedHospital(data.assignedHospital);
+      if (data.waitingList) setWaitingList(data.waitingList);
+    });
 
     // --- SMART AUTO-SYNC LOGIC ---
     if (connected) {
@@ -1207,6 +1213,7 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
       socket.off('route-update');
       socket.off('mission-completed');
       socket.off('patient-onboard');
+    socket.off('mission-coordination-update');
       socket.off('hospital-facility-recommendations');
       socket.off('patient-data', onPatientData);
       socket.off('hospital-resources-locked', onResourcesLocked);
@@ -1940,6 +1947,7 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
     setRequestAccepted(false);
     setAssignedUser(null);
     setAssignedHospital(null);
+    setWaitingList([]);
     setRoutePath(null);
     setSelectedPatient(null);
     setArrivedAtUser(false);
@@ -2222,6 +2230,7 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
                   setRequestAccepted(false);
                   setAssignedUser(null);
                   setAssignedHospital(null);
+                  setWaitingList([]);
                   setRoutePath(null);
                   setSelectedPatient(null);
                   setArrivedAtUser(false);
@@ -2857,6 +2866,57 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
                               <div style={{ fontSize: 12, color: '#ff4444', fontFamily: "'Orbitron'", fontWeight: 'bold' }}>{assignedUser.patientDetails.riskLevel || 'HIGH'}</div>
                             </div>
                           </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Dispatch Coordination Agent Card */}
+                    <div style={{ background: 'rgba(5,20,45,0.85)', border: '1px solid rgba(0,200,255,0.25)', borderRadius: 10, padding: 20, marginBottom: 20 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', letterSpacing: '0.1em', fontWeight: 900 }}>
+                          🤖 DISPATCH COORDINATION AGENT
+                        </div>
+                        <span style={{ fontSize: 10, padding: '2px 6px', background: 'rgba(0,255,136,0.1)', color: '#00ff88', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 4, fontFamily: "'Share Tech Mono'" }}>ACTIVE</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.65)', lineHeight: 1.5, marginBottom: 14 }}>
+                        Optimal trauma centers are ranked dynamically. You can redirect routing to backup nodes in the waiting list if traffic or conditions degrade.
+                      </div>
+                      
+                      <div style={{ padding: 12, background: 'rgba(0,255,136,0.06)', border: '1px solid rgba(0,255,136,0.25)', borderRadius: 6, marginBottom: 14 }}>
+                        <div style={{ fontSize: 9, color: '#00ff88', fontFamily: "'Share Tech Mono'", fontWeight: 'bold' }}>CONNECTED PRIMARY HOSPITAL</div>
+                        <div style={{ fontSize: 13, color: '#fff', fontFamily: "'Orbitron'", fontWeight: 'bold', marginTop: 3 }}>{assignedHospital?.name || 'Searching...'}</div>
+                      </div>
+
+                      {waitingList && waitingList.length > 0 ? (
+                        <div>
+                          <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.45)', fontFamily: "'Share Tech Mono'", marginBottom: 8, letterSpacing: '0.05em' }}>BACKUP WAITING LIST NODES</div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            {waitingList.map(hosp => (
+                              <div key={hosp.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 8, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 6 }}>
+                                <div>
+                                  <div style={{ fontSize: 11, color: '#fff', fontWeight: 600 }}>{hosp.name}</div>
+                                  <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', marginTop: 2 }}>Ready for transfer</div>
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    if (socket && assignedUser) {
+                                      socket.emit('ambulance-manual-redirect', { reqId: assignedUser.id, targetHospitalId: hosp.id });
+                                    }
+                                  }}
+                                  style={{
+                                    background: 'rgba(0,200,255,0.15)', color: '#00c8ff', border: '1px solid rgba(0,200,255,0.3)',
+                                    padding: '5px 10px', borderRadius: 4, fontSize: 9, fontFamily: "'Orbitron'", cursor: 'pointer', fontWeight: 700
+                                  }}
+                                >
+                                  🔀 REDIRECT
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.3)', fontStyle: 'italic', textAlign: 'center', marginTop: 10 }}>
+                          No backup hospitals in waiting list.
                         </div>
                       )}
                     </div>
