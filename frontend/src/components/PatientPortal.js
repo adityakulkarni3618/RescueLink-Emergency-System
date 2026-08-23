@@ -507,7 +507,7 @@ export default function PatientPortal() {
               </button>
             </form>
 
-            {/* Change Password Section */}
+            {/* Change Password & 2FA Section */}
             {(() => {
               const PwSection = () => {
                 const [pwForm, setPwForm] = React.useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
@@ -516,6 +516,7 @@ export default function PatientPortal() {
                 const [mfaQR, setMfaQR] = React.useState(null);
                 const [mfaStatus, setMfaStatus] = React.useState(null);
                 const [mfaLoading, setMfaLoading] = React.useState(false);
+                const [disable2FAConfirm, setDisable2FAConfirm] = React.useState(false);
                 const token = sessionStorage.getItem('rescuelink_token');
                 const userId = profile?.id;
                 const hdrs = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
@@ -554,7 +555,7 @@ export default function PatientPortal() {
                 };
 
                 const handleDisable2FA = async () => {
-                  if (!window.confirm('Disable 2FA? This reduces your account security.')) return;
+                  setDisable2FAConfirm(false);
                   setMfaLoading(true);
                   try {
                     const res = await fetch(`${getServerUrl()}/api/mfa/disable`, { method: 'POST', headers: hdrs });
@@ -587,6 +588,27 @@ export default function PatientPortal() {
                       </div>
                     </div>
 
+                    {/* 2FA Disable Confirm Modal */}
+                    {disable2FAConfirm && (
+                      <div style={{ position: 'fixed', inset: 0, zIndex: 999999, background: 'rgba(0,5,20,0.88)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setDisable2FAConfirm(false)}>
+                        <div style={{ background: 'rgba(8,18,42,0.98)', border: '1px solid rgba(255,68,68,0.3)', borderRadius: 14, padding: 30, maxWidth: 420, width: '90%', boxShadow: '0 0 40px rgba(255,40,40,0.1)' }} onClick={e => e.stopPropagation()}>
+                          <div style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#ff4444', fontWeight: 900, marginBottom: 8 }}>🔓 DISABLE TWO-FACTOR AUTH</div>
+                          <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'", marginBottom: 20, lineHeight: 1.65 }}>
+                            Disabling 2FA will remove your second security layer. Your account will be protected only by your password.<br /><br />
+                            <strong style={{ color: '#ffb800' }}>This significantly reduces your account security.</strong>
+                          </div>
+                          <div style={{ display: 'flex', gap: 12 }}>
+                            <button onClick={handleDisable2FA} style={{ flex: 1, padding: '10px 16px', background: 'rgba(255,40,40,0.14)', border: '1px solid rgba(255,40,40,0.5)', borderRadius: 8, color: '#ff4444', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>
+                              🔓 YES, DISABLE 2FA
+                            </button>
+                            <button onClick={() => setDisable2FAConfirm(false)} style={{ flex: 1, padding: '10px 16px', background: 'transparent', border: '1px solid rgba(160,200,255,0.15)', borderRadius: 8, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer' }}>
+                              CANCEL
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* 2FA */}
                     <div style={S.card}>
                       <h4 style={{ fontFamily: "'Orbitron'", color: '#00ff88', margin: '0 0 12px 0', fontSize: 12 }}>🛡️ TWO-FACTOR AUTHENTICATION (TOTP)</h4>
@@ -597,7 +619,7 @@ export default function PatientPortal() {
                         <button onClick={handleSetup2FA} disabled={mfaLoading} style={{ ...S.btn('0,255,136'), opacity: mfaLoading ? 0.5 : 1 }}>
                           {mfaLoading ? '⏳ LOADING…' : '🔒 ENABLE 2FA — Get QR Code'}
                         </button>
-                        <button onClick={handleDisable2FA} disabled={mfaLoading} style={{ ...S.btn('255,68,68'), opacity: mfaLoading ? 0.5 : 1 }}>
+                        <button onClick={() => setDisable2FAConfirm(true)} disabled={mfaLoading} style={{ ...S.btn('255,68,68'), opacity: mfaLoading ? 0.5 : 1 }}>
                           🔓 DISABLE 2FA
                         </button>
                       </div>
