@@ -208,21 +208,17 @@ async function syncDatabase() {
 
 
 
-    // Auto-seeding enabled to support seeding default credentials.
-    if (useSqlite && !isSeeding) {
-      try {
-        const userCount = await User.count();
-        if (userCount === 0) {
-          console.log('[DB] SQLite database is empty. Auto-seeding default credentials...');
-          isSeeding = true;
-          const seed = require('../scripts/seed_db');
-          await seed();
-          isSeeding = false;
-        }
-      } catch (seedErr) {
-        isSeeding = false;
-        console.error('[DB WARNING] Auto-seeding failed:', seedErr.message);
-      }
+    // Auto-seeding disabled. Purge all pre-seeded mock records to keep only manual registrations.
+    try {
+      const { Ambulance } = require('./db');
+      const { Op } = require('sequelize');
+      await User.destroy({ where: { email: { [Op.like]: 'hosp-%@rescuelink.com' } } });
+      await User.destroy({ where: { email: { [Op.like]: 'amb-%@rescuelink.com' } } });
+      await Hospital.destroy({ where: { contact_number: '+91-9988776655' } });
+      await Ambulance.destroy({ where: { vehicleNo: { [Op.like]: 'AMB-10%' } } });
+      console.log('[DB CLEANUP] All seeded mock data cleared. Ready for custom registrations.');
+    } catch (cleanErr) {
+      console.error('[DB CLEANUP WARNING] Failed to clear mock records:', cleanErr.message);
     }
   } catch (err) {
     const { triggerCriticalAlert } = require('./alerting');
