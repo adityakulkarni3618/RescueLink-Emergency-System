@@ -64,7 +64,7 @@ function verifyTOTP(encryptedSecret, token) {
     secret: decrypted,
     encoding: 'base32',
     token,
-    window: 1 // Allow 1 step grace period before/after
+    window: 4
   });
 }
 
