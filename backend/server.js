@@ -2069,164 +2069,21 @@ io.on('connection', (socket) => {
     }
 
     const { patientDetails, userLocation } = data;
-
-    console.log(`[DISPATCH DEBUG] New request-ambulance received:`);
-    console.log(`  - Caller coordinates: ${JSON.stringify(userLocation)}`);
-    console.log(`  - Caller S2 Cell Level 12: ${S2.latLngToKey(userLocation.lat, userLocation.lng, 12)}`);
-
-    // 1. S2 Geometry Grid Mapping (Level 12 ~ 3.3km to 6km radius)
-    const LEVEL = 12;
-    const userCellId = S2.latLngToKey(userLocation.lat, userLocation.lng, LEVEL);
-    const userCellId64 = S2.keyToId(userCellId);
-    console.log(`[S2 Routing] User requesting from Cell: ${userCellId} (64-bit ID: ${userCellId64})`);
-
-    // 2. Identify candidates in the user's cell or the 4 adjacent neighbor cells (Level 12)
-    const neighbors = S2.latLngToNeighborKeys(userLocation.lat, userLocation.lng, LEVEL);
-    const allowedCells = [userCellId, ...neighbors];
-
-    const combinedAmbulances = getCombinedAmbulances();
-    const availableAmbulances = Object.keys(combinedAmbulances).filter(id => combinedAmbulances[id].available && combinedAmbulances[id].is_active !== false);
-
-    // Clinical Capability Triage (ALS vs. BLS)
-    const highAcuity = isHighAcuity(patientDetails);
-    let fallbackBLS = false;
-    let filteredAvailable = availableAmbulances;
-
-    if (highAcuity) {
-      const alsUnits = availableAmbulances.filter(id => {
-        const amb = combinedAmbulances[id];
-        return (amb.type || '').toUpperCase().includes('ALS') || (amb.type || '').toUpperCase().includes('ADVANCED');
-      });
-      if (alsUnits.length > 0) {
-        filteredAvailable = alsUnits;
-        console.log(`[Clinical Triage] High-Acuity request! Restricted to ALS units (Found ${alsUnits.length}).`);
-      } else {
-        fallbackBLS = true;
-        console.log(`[Clinical Triage] High-Acuity request! No ALS units online/available. Falling back to BLS units.`);
-      }
-    }
-
-    let candidateAmbulances = filteredAvailable.filter(id => {
-      const ambLocation = combinedAmbulances[id].location;
-      if (!ambLocation) return false;
-      const ambCellId = S2.latLngToKey(ambLocation.lat, ambLocation.lng, LEVEL);
-      return allowedCells.includes(ambCellId) || !combinedAmbulances[id].isSimulated;
-    });
-
-    if (candidateAmbulances.length === 0) {
-      console.log(`[S2 Routing] No ambulances in S2 cell neighbors, expanding to global radius fallback.`);
-      candidateAmbulances = filteredAvailable.filter(id => {
-        const ambLocation = combinedAmbulances[id].location;
-        return ambLocation && calcDist(userLocation, ambLocation) <= 5000;
-      });
-    }
-
-    if (candidateAmbulances.length === 0) {
-      socket.emit('ambulance-request-response', { status: 'ambulance_rejected', id: 'N/A', message: 'No ambulances available.' });
-      return;
-    }
-
-    // 3. A* Simulated ETA and Scoring
-    const calculateAStarETA = (uLoc, aLoc) => {
-      const latDist = Math.abs(uLoc.lat - aLoc.lat) * 111;
-      const lngDist = Math.abs(uLoc.lng - aLoc.lng) * 111 * Math.cos(uLoc.lat * (Math.PI / 180));
-      const manhattanDist = latDist + lngDist;
-      const trafficPenalty = 1.0 + (Math.random() * 0.4);
-      const avgSpeed = 45; // km/h
-      return ((manhattanDist / avgSpeed) * 60 * trafficPenalty) + (Math.random() * 2); // returns ETA in minutes
-    };
-
-    // Evaluate candidates
-    const scoredCandidates = candidateAmbulances.map(id => {
-      const amb = combinedAmbulances[id];
-      const etaMin = calculateAStarETA(userLocation, amb.location);
-      const driverRate = amb.driverRate || (4.0 + Math.random()); // Mock 4.0-5.0
-      const acceptanceRate = amb.acceptanceRate || (0.7 + Math.random() * 0.3); // Mock 70-100%
-
-      // Score formulation: Lower ETA is better, higher rates are better
-      let score = (acceptanceRate * 50) + (driverRate * 10) - (etaMin * 2);
-      if (!amb.isSimulated) score += 10000; // ALWAYS prioritize real connected ambulances for testing!
-
-      return { id, score, etaMin, driverRate, acceptanceRate };
-    });
-
-    scoredCandidates.sort((a, b) => b.score - a.score); // Highest score first
-    console.log(`[Smart Routing] Ranked Candidates:`, scoredCandidates.map(c => `${c.id} (Score: ${c.score.toFixed(1)}, ETA: ${c.etaMin.toFixed(1)}m)`));
-
-    console.log(`[DISPATCH DEBUG] High Acuity Triage: ${highAcuity}`);
-    console.log(`[DISPATCH DEBUG] Registered Real (Non-simulated) Ambulances:`);
-    Object.keys(ambulances).forEach(sid => {
-      const amb = ambulances[sid];
-      const ambLocation = amb.location;
-      const cellKey = ambLocation ? S2.latLngToKey(ambLocation.lat, ambLocation.lng, 12) : "NO COORDINATES REPORTED";
-      const scoreObj = scoredCandidates.find(sc => sc.id === sid);
-      const scoreVal = scoreObj ? scoreObj.score.toFixed(1) : "N/A (Filtered Out)";
-      console.log(`  - Socket ID: ${sid}`);
-      console.log(`    - Name: ${amb.name}`);
-      console.log(`    - Type: ${amb.type || 'BLS'}`);
-      console.log(`    - Available: ${amb.available}`);
-      console.log(`    - Reported Coordinates: ${ambLocation ? JSON.stringify(ambLocation) : "NO COORDINATES REPORTED"}`);
-      console.log(`    - S2 Cell Key: ${cellKey}`);
-      console.log(`    - Calculated Score: ${scoreVal}`);
-    });
-
-    // Determine the target candidate (priority to requested ID, then best candidate)
-    let chosenCandidateId = null;
-    if (data.ambulanceId) {
-      if (combinedAmbulances[data.ambulanceId] && combinedAmbulances[data.ambulanceId].available) {
-        chosenCandidateId = data.ambulanceId;
-      } else {
-        // Resolve stable unitId to active socket key
-        const found = Object.entries(combinedAmbulances).find(([key, val]) => val.unitId === data.ambulanceId && val.available);
-        if (found) {
-          chosenCandidateId = found[0];
-        }
-      }
-    }
-
-    if (!chosenCandidateId) {
-      if (data.ambulanceId && candidateAmbulances.includes(data.ambulanceId)) {
-        chosenCandidateId = data.ambulanceId;
-      } else if (scoredCandidates.length > 0) {
-        chosenCandidateId = scoredCandidates[0].id;
-      }
-    }
-
-    console.log(`[DISPATCH DEBUG] Final chosen candidate ID: ${chosenCandidateId}`);
-    if (chosenCandidateId) {
-      const isVirtual = chosenCandidateId.startsWith('VIRTUAL-AMB-') || (combinedAmbulances[chosenCandidateId] && combinedAmbulances[chosenCandidateId].isSimulated);
-      console.log(`  - Type: ${isVirtual ? 'Virtual/Simulated' : 'Real connected unit'}`);
-      console.log(`  - Reason for selection: Score rank or targeted dispatch request`);
-    } else {
-      console.log(`  - Reason for selection: No available candidate found matching cell/distance constraints.`);
-    }
-
-    if (chosenCandidateId && highAcuity) {
-      const amb = combinedAmbulances[chosenCandidateId];
-      const isALS = amb && ((amb.type || '').toUpperCase().includes('ALS') || (amb.type || '').toUpperCase().includes('ADVANCED'));
-      if (!isALS) {
-        fallbackBLS = true;
-      }
-    }
-
     const reqId = require('crypto').randomUUID();
-    
-    // Auto-attach the closest registered hospital to the incident
-    let closestHospital = null;
-    let minDistance = Infinity;
-    try {
-      const { Hospital } = require('./utils/db');
-      const dbHospitals = await Hospital.findAll({ where: { is_active: true } });
-      dbHospitals.forEach(h => {
-        const dist = calcDist(userLocation, { lat: h.lat, lng: h.lng });
-        if (dist < minDistance) {
-          minDistance = dist;
-          closestHospital = h;
-        }
-      });
-    } catch (err) {
-      console.error('[AUTO-ATTACH HOSPITAL ERROR]', err);
-    }
+
+    // 15 km range check helper (15000 meters)
+    const combinedAmbulances = getCombinedAmbulances();
+    const candidateAmbulances = Object.keys(combinedAmbulances).filter(id => {
+      const amb = combinedAmbulances[id];
+      if (!amb.available || amb.is_active === false || !amb.location) return false;
+      return calcDist(userLocation, amb.location) <= 15000;
+    });
+
+    const candidateHospitals = Object.keys(hospitals).filter(sid => {
+      const hosp = hospitals[sid];
+      if (!hosp.pos) return false;
+      return calcDist(userLocation, { lat: hosp.pos.lat, lng: hosp.pos.lng }) <= 15000;
+    });
 
     activeRequests[reqId] = {
       id: reqId,
@@ -2235,83 +2092,44 @@ io.on('connection', (socket) => {
       status: 'pending_ambulance',
       patientDetails,
       userLocation,
-      fallbackBLS,
+      fallbackBLS: false,
       checklist: {},
       createdAt: Date.now(),
-      hospitalId: closestHospital ? closestHospital.id : null,
-      assignedHospital: closestHospital ? {
-        id: closestHospital.id,
-        name: closestHospital.name,
-        lat: closestHospital.lat,
-        lng: closestHospital.lng,
-        contactInfo: closestHospital.contact_number,
-        isOnline: true
-      } : null
+      acceptingHospitals: [],
+      acceptingAmbulances: [],
+      waitingList: [],
+      hospitalId: null,
+      assignedHospital: null
     };
 
     socket.emit('request-acknowledged', { id: reqId, status: 'searching' });
 
-    // Broadcast initial standby facility check alert to all hospitals
-    const standbyPayload = {
-      reqId: reqId,
-      userLocation,
-      patientDetails,
-      attachedHospitalId: closestHospital ? closestHospital.id : null
-    };
-    io.emit('initial-hospital-facility-check', standbyPayload);
-    // Also notify individual registered hospital rooms
-    Object.keys(hospitals).forEach(sid => {
-      const hospId = hospitals[sid]?.id;
-      if (hospId) {
-        io.to(`hospital:${hospId}`).emit('initial-hospital-facility-check', standbyPayload);
-      }
+    // Broadcast incoming request to all candidate hospitals in range
+    candidateHospitals.forEach(sid => {
+      io.to(sid).emit('incoming-hospital-request', activeRequests[reqId]);
     });
 
-    // Broadcast incoming request to multiple candidate ambulances
-    const targetAmbulances = candidateAmbulances.length > 0 ? candidateAmbulances : (chosenCandidateId ? [chosenCandidateId] : []);
-    
-    targetAmbulances.forEach(ambId => {
+    // Broadcast incoming request to all candidate ambulances in range
+    candidateAmbulances.forEach(ambId => {
       const isVirtual = ambId.startsWith('VIRTUAL-AMB-') || (combinedAmbulances[ambId] && combinedAmbulances[ambId].isSimulated);
-      const userPhone = data.userPhone || patientDetails?.mobile || (patientDetails?.emergencyContact && patientDetails.emergencyContact.includes('–') ? patientDetails.emergencyContact.split('–')[1].trim() : '') || '+1234567890';
       if (isVirtual) {
-        // To preserve simulation logic: only start simulation for the primary chosen candidate
-        if (ambId === chosenCandidateId) {
-          console.log(`[Sim Dispatch] Auto-routing request ${reqId} to virtual unit ${ambId}`);
-          startVirtualAmbulanceSimulation(reqId, ambId);
-          whatsappService.notifyUserDispatched(userPhone, ambId, 5);
-        }
+        // Auto-accept for simulation compatibility
+        startVirtualAmbulanceSimulation(reqId, ambId);
       } else {
         io.to(ambId).emit('incoming-ambulance-request', activeRequests[reqId]);
-        
-        // WhatsApp Notifications
-        const driverMobile = combinedAmbulances[ambId]?.contactInfo || '+1234567890';
-        whatsappService.notifyAmbulanceAssigned(driverMobile, reqId, activeRequests[reqId].userLocation);
-        whatsappService.notifyUserDispatched(userPhone, ambId, 5);
-
-        // WhatsApp Notify Next-of-Kin (Family Emergency Alert)
-        const nokPhone = patientDetails?.emergencyContactPhone || patientDetails?.emergency_contact_phone;
-        if (nokPhone) {
-          whatsappService.notifyNextOfKinEmergency(
-            nokPhone,
-            patientDetails?.name || 'Emergency Patient',
-            ambId,
-            'En Route to Emergency Site',
-            reqId
-          );
-        }
       }
     });
 
-    // FCM Push Notification for user/patient
-      if (data.userId) {
-        User.findByPk(data.userId).then(user => {
-          if (user && user.fcm_token) {
-            sendPushNotification(user.fcm_token, 'Ambulance Dispatched', `Ambulance ${chosenCandidateId} has been dispatched. ETA: ~5 mins.`, { reqId });
-          }
-        }).catch(err => console.error('[PUSH ERROR] User fetch failed:', err.message));
-      }
-      // Also notify topic for other paramedics
-      sendTopicNotification('paramedics', 'New Emergency Mission', `Emergency case ${reqId} near your location.`, { reqId });
+    // FCM Push Notifications & Topic notifications
+    if (data.userId) {
+      const { User } = require('./utils/db');
+      User.findByPk(data.userId).then(user => {
+        if (user && user.fcm_token) {
+          sendPushNotification(user.fcm_token, 'Ambulance Request Sent', `Searching for nearest units within 15km range.`, { reqId });
+        }
+      }).catch(err => console.error('[PUSH ERROR]', err.message));
+    }
+    sendTopicNotification('paramedics', 'New Emergency Mission', `Emergency case ${reqId} near your location.`, { reqId });
   });
 
 
@@ -2511,189 +2329,125 @@ io.on('connection', (socket) => {
     if (!req) return;
 
     const isAccepted = data.status === 'hospital_accepted';
-    const oldStatus = req.status;
-
-    // FIX C2: Atomic in-memory lock using a dedicated flag.
-    // This prevents the race condition where two hospitals accept at the same millisecond.
-    // In multi-node (Redis) production, this would be a Redlock distributed lock.
-    if (isAccepted) {
-      const lockAcquired = await acquireLock(`hospital:${reqId}`, socket.id, 15);
-      const hasMemoryLock = req._acceptLock;
-      const { redis } = require('./utils/redis');
-      const isRedisConnected = redis && redis.status === 'ready';
-
-      if ((isRedisConnected && !lockAcquired) || (!isRedisConnected && hasMemoryLock)) {
-        // Another hospital beat this one by milliseconds
-        console.warn(`[RACE CONDITION BLOCKED] Hospital ${socket.id} lost race for ${reqId}`);
-        return socket.emit('error-alert', { message: 'REQUEST_ALREADY_TAKEN: Another hospital accepted this patient 0.01 seconds before you.' });
-      }
-      req._acceptLock = true; // Immediately lock — synchronous, atomic in single-node
-    } else {
-      req.status = 'hospital_rejected';
-    }
 
     if (isAccepted && hospitals[socket.id]) {
-      req.hospitalSocket = socket.id;
-      req.hospitalId = hospitals[socket.id].id; // STASH PERSISTENT ID
-      req.readyServices = data.readyServices;
-      
-      // Save attending medical team information
-      req.attendingDoctorName = data.attendingDoctorName || '';
-      req.attendingDoctorSpecialty = data.attendingDoctorSpecialty || '';
-      req.attendingTeamDetails = data.attendingTeamDetails || null;
+      if (!req.acceptingHospitals) req.acceptingHospitals = [];
+      const hospObj = hospitals[socket.id];
+      if (hospObj && !req.acceptingHospitals.find(h => h.id === hospObj.id)) {
+        req.acceptingHospitals.push({
+          id: hospObj.id,
+          name: hospObj.name,
+          pos: hospObj.pos || { lat: hospObj.lat, lng: hospObj.lng },
+          contactInfo: hospObj.contactInfo,
+          socketId: socket.id,
+          readyServices: data.readyServices,
+          attendingDoctorName: data.attendingDoctorName || '',
+          attendingDoctorSpecialty: data.attendingDoctorSpecialty || '',
+          attendingTeamDetails: data.attendingTeamDetails || null
+        });
+      }
 
-      // Atomic bed count reservation and care team persistence
+      // Sort accepting hospitals by distance (Coordination Agent logic)
+      req.acceptingHospitals.sort((a, b) => {
+        const distA = calcDist(req.userLocation, { lat: a.pos.lat, lng: a.pos.lng });
+        const distB = calcDist(req.userLocation, { lat: b.pos.lat, lng: b.pos.lng });
+        return distA - distB;
+      });
+
+      const primaryHosp = req.acceptingHospitals[0];
+      req.hospitalId = primaryHosp.id;
+      req.hospitalSocket = primaryHosp.socketId;
+      req.readyServices = primaryHosp.readyServices;
+      req.attendingDoctorName = primaryHosp.attendingDoctorName;
+      req.attendingDoctorSpecialty = primaryHosp.attendingDoctorSpecialty;
+      req.attendingTeamDetails = primaryHosp.attendingTeamDetails;
+      
+      req.assignedHospital = {
+        id: primaryHosp.id,
+        name: primaryHosp.name,
+        lat: primaryHosp.pos.lat,
+        lng: primaryHosp.pos.lng,
+        contactInfo: primaryHosp.contactInfo,
+        isOnline: true
+      };
+
+      // ICU beds hold logic on closest accepting hospital
       try {
         const { Hospital, Incident } = require('./utils/db');
         const sequelize = Hospital.sequelize;
         await sequelize.transaction(async (t) => {
-          const dbHosp = await Hospital.findByPk(hospitals[socket.id].id, { transaction: t, lock: t.LOCK.UPDATE });
-          if (!dbHosp || dbHosp.icu_beds <= 0) {
-            throw new Error('NO_BEDS_AVAILABLE');
+          const dbHosp = await Hospital.findByPk(primaryHosp.id, { transaction: t, lock: t.LOCK.UPDATE });
+          if (dbHosp && dbHosp.icu_beds > 0) {
+            await dbHosp.decrement('icu_beds', { by: 1, transaction: t });
+            if (hospitals[primaryHosp.socketId] && hospitals[primaryHosp.socketId].inventory) {
+              hospitals[primaryHosp.socketId].inventory.beds = dbHosp.icu_beds - 1;
+            }
           }
-          await dbHosp.decrement('icu_beds', { by: 1, transaction: t });
-          // Sync memory inventory
-          if (hospitals[socket.id].inventory) {
-            hospitals[socket.id].inventory.beds = dbHosp.icu_beds - 1;
-          }
-          // Persist care team to database in the same transaction
           await Incident.update({
-            hospital_id: hospitals[socket.id].id,
+            hospital_id: primaryHosp.id,
             status: 'hospital_accepted',
-            attending_doctor_name: data.attendingDoctorName || null,
-            attending_doctor_specialty: data.attendingDoctorSpecialty || null,
-            attending_team_details: data.attendingTeamDetails || null
+            attending_doctor_name: primaryHosp.attendingDoctorName || null,
+            attending_doctor_specialty: primaryHosp.attendingDoctorSpecialty || null,
+            attending_team_details: primaryHosp.attendingTeamDetails || null
           }, {
             where: { id: req.id },
             transaction: t
           });
         });
       } catch (err) {
-        // Rollback memory states on failure
-        req._acceptLock = false;
-        req.status = oldStatus;
-        console.error('[DB ERROR] Hospital acceptance failed:', err.message);
-        if (err.message === 'NO_BEDS_AVAILABLE') {
-          return socket.emit('error-alert', { message: 'NO_BEDS_AVAILABLE: No ICU beds available at this hospital.' });
-        }
-        return socket.emit('error-alert', { message: `CONFIRMATION_FAILED: ${err.message}` });
+        console.error('[DB COORDINATION ERROR]', err.message);
       }
 
       req.status = 'hospital_accepted';
-
-      // Hospital joins the stable mission room
       socket.join(`mission_${req.id}`);
-      console.log(`[HANDSHAKE] Hospital ${hospitals[socket.id].name} joined mission_${req.id}`);
 
-      // REROUTING DYNAMIC FIX: Route must go FROM the ambulance's current location (if en route/rerouted)
-      // or fall back to the incident site (req.userLocation / req.incidentLocation) to the hospital.
+      // Calculate path to primary hospital
       const amb = virtualAmbulances[req.unitId] || ambulances[req.ambulanceSocket];
       const startLoc = (amb && amb.location) || req.userLocation || req.incidentLocation;
-      const hospLoc = hospitals[socket.id]?.location || hospitals[socket.id]?.pos;
+      const hospLoc = primaryHosp.pos;
 
       if (startLoc && hospLoc) {
         try {
           const route = await getSmartRoute(startLoc, hospLoc);
           if (route) {
             req.routePath = route;
-            // Broadcast the corrected route to ambulance, hospital, and user
             io.to(`mission_${req.id}`).emit('route-update', { reqId: req.id, routePath: route, from: 'incident', to: 'hospital' });
-            console.log(`[ROUTE] Route calculated starting from ${amb && amb.location ? 'current en route position' : 'incident site'}: ${route.length} waypoints`);
           }
         } catch (err) {
-          console.warn(`[SERVER] Failed to fetch OSRM route: ${err.message}`);
+          console.warn(`[ROUTE ERROR] Failed to fetch OSRM route: ${err.message}`);
         }
       }
 
-      req.assignedHospital = hospitals[socket.id];
-      hospitals[socket.id].activeMissionsCount = (hospitals[socket.id].activeMissionsCount || 0) + 1;
-      hospitals[socket.id].isBusy = true;
-      io.emit('hospitals-update', hospitals); // Hospitals don't have simulated versions yet, so this is fine, but good to check.
-      io.emit('ambulances-update', getCombinedAmbulances());
+      // Populate next 2 nearest as waitingList
+      req.waitingList = req.acceptingHospitals.slice(1, 3).map(h => ({
+        id: h.id,
+        name: h.name,
+        lat: h.pos.lat,
+        lng: h.pos.lng,
+        contactInfo: h.contactInfo
+      }));
 
-      logAudit('RESOURCE_LOCK', `Hospital ${hospitals[socket.id].name} locked resources for mission ${req.id}`, { resources: data.readyServices });
-
-      if (req.unitId && req.unitId.startsWith('VIRTUAL-AMB-')) {
-        startVirtualAmbulanceToHospitalSimulation(reqId, socket.id);
-      }
-
-      const hospContact = hospitals[socket.id]?.contactInfo || '+1234567890';
-      const etaMins = req.routePath ? Math.ceil(req.routePath.length / 10) : 10;
-      whatsappService.notifyHospitalIncoming(hospContact, reqId, etaMins);
-
-      // Feature 1: Notify Next-of-Kin on Hospital Acceptance
-      const nokPhone = req.patientDetails?.emergencyContactPhone || req.patientDetails?.emergency_contact_phone;
-      if (nokPhone) {
-        whatsappService.notifyNextOfKinEmergency(
-          nokPhone,
-          req.patientDetails?.name || 'Emergency Patient',
-          req.unitId || 'EMS Unit',
-          hospitals[socket.id]?.name || 'Trauma Center',
-          req.id
-        );
-      }
-
-      // Feature 2: Auto-Trigger Instant Insurance Pre-Authorization
-      try {
-        const PMJAYService = require('./utils/pmjay');
-        const preAuthRes = await PMJAYService.requestPreAuth(
-          req.patientDetails?.name || 'Emergency Patient',
-          req.fieldReport?.condition || 'Acute Trauma Emergency',
-          150000,
-          req.hospitalId
-        );
-        req.insurancePreAuth = {
-          status: 'APPROVED',
-          claimId: preAuthRes.claimId || `AUTH-${Date.now()}`,
-          approvedAmount: preAuthRes.coverageAmount || 150000,
-          provider: req.patientDetails?.insuranceProvider || 'PMJAY National Health Scheme'
-        };
-        io.to(`hospital:${req.hospitalId}`).emit('insurance-preauth-updated', { reqId: req.id, preAuth: req.insurancePreAuth });
-      } catch (preAuthErr) {
-        console.warn('[PRE-AUTH] Automatic insurance pre-authorization warning:', preAuthErr.message);
-      }
-
-      // Feature 4: 30-Minute Bed & Ventilator Hold-Lock Reservation Timer
-      req.reservationLock = {
-        icuBedsHeld: 1,
-        ventilatorsHeld: 1,
-        expiresAt: Date.now() + (30 * 60 * 1000),
-        status: 'ACTIVE_HOLD'
-      };
-      io.to(`hospital:${req.hospitalId}`).emit('hospital-inventory-locked', {
-        reqId: req.id,
-        hospitalId: req.hospitalId,
-        reservationLock: req.reservationLock
+      io.to(`mission_${req.id}`).emit('mission-coordination-update', {
+        assignedHospital: req.assignedHospital,
+        waitingList: req.waitingList
       });
 
-      // FCM Push Notification for user/patient
+      hospitals[socket.id].isBusy = true;
+      io.emit('hospitals-update', hospitals);
+      io.emit('ambulances-update', getCombinedAmbulances());
+
+      // FCM notifications
       if (req.userSocketId) {
+        const { User } = require('./utils/db');
         User.findByPk(req.userSocketId).then(user => {
           if (user && user.fcm_token) {
-            sendPushNotification(user.fcm_token, 'Hospital Admission Confirmed', `Hospital ${hospitals[socket.id]?.name || 'Partner Hospital'} has accepted your emergency admission.`, { reqId });
+            sendPushNotification(user.fcm_token, 'Hospital Assigned', `Assigned nearest hospital: ${primaryHosp.name}`, { reqId });
           }
-        }).catch(err => console.error('[PUSH ERROR] User fetch failed:', err.message));
+        }).catch(err => console.error('[PUSH ERROR]', err.message));
       }
 
-      // FCM Push Notification for paramedic
-      if (req.unitId && !req.unitId.startsWith('VIRTUAL-AMB-')) {
-        User.findOne({ where: { role: 'paramedic', mobile: combinedAmbulances[req.unitId]?.contactInfo || '' } }).then(paramedic => {
-          if (paramedic && paramedic.fcm_token) {
-            sendPushNotification(paramedic.fcm_token, 'Admission Accepted', `Hospital ${hospitals[socket.id]?.name} accepted patient. Proceed to ER.`, { reqId });
-          }
-        }).catch(err => console.error('[PUSH ERROR] Paramedic fetch failed:', err.message));
-      }
-    }
-
-    if (req.userSocket) io.to(req.userSocket).emit('hospital-request-response', { ...req, hospitalSocket: req.hospitalSocket });
-    if (req.ambulanceSocket) io.to(req.ambulanceSocket).emit('hospital-request-response', { ...req, hospitalSocket: req.hospitalSocket });
-    io.to(socket.id).emit('hospital-request-response', { ...req, hospitalSocket: req.hospitalSocket });
-    if (req.hospitalId) {
-      io.to(`hospital:${req.hospitalId}`).emit('hospital-request-response', { ...req, hospitalSocket: req.hospitalSocket });
-    }
-
-    // If it was a broadcasted request, notify all other hospitals to "withdraw" the alert
-    if (isAccepted) {
+      io.to(req.userSocket).emit('hospital-request-response', { ...req, hospitalSocket: req.hospitalSocket });
+      if (req.ambulanceSocket) io.to(req.ambulanceSocket).emit('hospital-request-response', { ...req, hospitalSocket: req.hospitalSocket });
       io.emit('hospital-request-taken', { reqId: req.id, acceptedBy: socket.id });
     }
   });
@@ -2752,6 +2506,65 @@ io.on('connection', (socket) => {
 
     io.emit('hospitals-update', hospitals);
     routeToMission(socket, 'reroute-hospital', data);
+  });
+
+  socket.on('ambulance-manual-redirect', async (data) => {
+    const { reqId, targetHospitalId } = data;
+    const req = activeRequests[reqId];
+    if (req && req.waitingList) {
+      const chosen = req.waitingList.find(h => h.id === targetHospitalId);
+      if (chosen) {
+        const oldPrimary = {
+          id: req.assignedHospital.id,
+          name: req.assignedHospital.name,
+          lat: req.assignedHospital.lat,
+          lng: req.assignedHospital.lng,
+          contactInfo: req.assignedHospital.contactInfo
+        };
+        const newPrimaryObj = req.acceptingHospitals.find(h => h.id === targetHospitalId);
+
+        req.hospitalId = chosen.id;
+        req.hospitalSocket = newPrimaryObj ? newPrimaryObj.socketId : null;
+        req.assignedHospital = {
+          id: chosen.id,
+          name: chosen.name,
+          lat: chosen.lat,
+          lng: chosen.lng,
+          contactInfo: chosen.contactInfo,
+          isOnline: true
+        };
+
+        req.waitingList = req.waitingList.filter(h => h.id !== targetHospitalId);
+        req.waitingList.push(oldPrimary);
+
+        const amb = virtualAmbulances[req.unitId] || ambulances[req.ambulanceSocket];
+        const startLoc = (amb && amb.location) || req.userLocation || req.incidentLocation;
+        if (startLoc) {
+          try {
+            const route = await getSmartRoute(startLoc, { lat: chosen.lat, lng: chosen.lng });
+            if (route) {
+              req.routePath = route;
+              io.to(`mission_${req.id}`).emit('route-update', { reqId: req.id, routePath: route, from: 'incident', to: 'hospital' });
+            }
+          } catch (err) {
+            console.warn('[ROUTE ERROR]', err.message);
+          }
+        }
+
+        io.to(`mission_${req.id}`).emit('mission-coordination-update', {
+          assignedHospital: req.assignedHospital,
+          waitingList: req.waitingList
+        });
+
+        // Also save to database if persistent
+        try {
+          const { Incident } = require('./utils/db');
+          await Incident.update({ hospital_id: chosen.id }, { where: { id: req.id } });
+        } catch (dbErr) {
+          console.error('[DB REDIRECT UPDATE ERROR]', dbErr.message);
+        }
+      }
+    }
   });
 
   socket.on('reassign-ambulance', async (data) => {
