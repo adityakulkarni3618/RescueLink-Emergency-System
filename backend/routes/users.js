@@ -234,19 +234,18 @@ router.delete('/:id', verifyToken(['city_admin']), async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    user.is_active = false;
-    await user.save();
+    await user.destroy();
 
     await AuditLog.create({
       user_id: req.user.id,
-      action: 'DEACTIVATE_USER',
+      action: 'DELETE_USER',
       resource: 'User',
-      resource_id: user.id,
+      resource_id: req.params.id,
       ip_address: req.ip || req.connection.remoteAddress,
       details: { email: user.email }
     });
 
-    return res.json({ message: 'User deactivated successfully' });
+    return res.json({ success: true, message: 'User deleted successfully' });
   } catch (err) {
     console.error('[USERS API] Error deleting user:', err.message);
     return res.status(500).json({ error: 'Failed to delete user' });

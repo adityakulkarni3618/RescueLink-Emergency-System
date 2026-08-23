@@ -168,40 +168,6 @@ router.put('/:id', verifyToken(['hospital_admin', 'city_admin']), async (req, re
   }
 });
 
-/**
- * @route DELETE /api/hospitals/:id
- * @desc Deactivate hospital tenant (City Admin only)
- */
-router.delete('/:id', verifyToken(['city_admin']), async (req, res) => {
-  try {
-    const hospital = await Hospital.findByPk(req.params.id);
-    if (!hospital) {
-      return res.status(404).json({ error: 'Hospital not found' });
-    }
-
-    hospital.is_active = false;
-    await hospital.save();
-
-    // Invalidate caches
-    await cache.del(ALL_HOSPITALS_CACHE_KEY);
-    await cache.del(`hospitals:${req.params.id}`);
-
-    await AuditLog.create({
-      user_id: req.user.id,
-      action: 'DEACTIVATE_HOSPITAL',
-      resource: 'Hospital',
-      resource_id: hospital.id,
-      ip_address: req.ip || req.connection.remoteAddress,
-      details: { name: hospital.name }
-    });
-
-    console.log(`[TENANT] Deactivated hospital tenant: ${hospital.name} (${hospital.id})`);
-    return res.json({ message: 'Hospital tenant deactivated successfully' });
-  } catch (err) {
-    console.error('[HOSPITALS API] Error deactivating hospital:', err.message);
-    return res.status(500).json({ error: 'Failed to deactivate hospital tenant' });
-  }
-});
 
 /**
  * @route PUT /api/hospitals/:id/suspend
