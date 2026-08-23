@@ -406,6 +406,20 @@ const styles = `
     vertical-align: middle !important;
   }
 
+  /* SOS Button override — must grow to fit content */
+  button.sos-emergency-btn {
+    height: auto !important;
+    min-height: 70px !important;
+    padding: 18px 20px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-transform: none !important;
+    background: linear-gradient(135deg, rgba(255,30,30,0.25), rgba(220,0,0,0.15)) !important;
+    border: 2px solid #ff2222 !important;
+    box-shadow: 0 0 20px rgba(255,30,30,0.3) !important;
+  }
+
   /* Primary Button (Gradient background using active Accent theme color) */
   .rl-btn-primary,
   button[style*="linear-gradient" i],
