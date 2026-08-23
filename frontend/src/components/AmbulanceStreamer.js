@@ -597,7 +597,7 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [activeMissionId, setActiveMissionId] = useState(null);
+  const [activeMissionId, setActiveMissionId] = useState(() => localStorage.getItem('activeMissionId') || null);
   const [activeTab, setActiveTab] = useState('mission'); // mission, vitals, comms, settings
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isPendingApproval, setIsPendingApproval] = useState(false);
@@ -727,7 +727,7 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
     
     return { score, breakdown, eta, icuBeds, traumaReady, queue };
   };
-  const [streaming, setStreaming] = useState(false);
+  const [streaming, setStreaming] = useState(() => localStorage.getItem('amb_streaming') === 'true');
   const [hardwareMode, setHardwareMode] = useState(true); // Enable simulation by default for vitals generation
   const [selectedPatient, setSelectedPatient] = useState(() => localStorage.getItem('amb_selectedPatient') || '');
   const [isScanning, setIsScanning] = useState(false);
@@ -809,8 +809,14 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
   const [hospitalRequestSent, setHospitalRequestSent] = useState(false);
 
   const [incomingRequest, setIncomingRequest] = useState(null);
-  const [assignedUser, setAssignedUser] = useState(null);
-  const [assignedHospital, setAssignedHospital] = useState(null);
+  const [assignedUser, setAssignedUser] = useState(() => {
+    const saved = localStorage.getItem('amb_assignedUser');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [assignedHospital, setAssignedHospital] = useState(() => {
+    const saved = localStorage.getItem('amb_assignedHospital');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [waitingList, setWaitingList] = useState([]);
 
   const assignedUserRef = useRef(assignedUser);
@@ -820,17 +826,69 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
 
 
   const [ambulances, setAmbulances] = useState({}); // Fleet overview
-  const [routePath, setRoutePath] = useState(null);
+  const [routePath, setRoutePath] = useState(() => {
+    const saved = localStorage.getItem('amb_routePath');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [previousReports, setPreviousReports] = useState([]);
   const [hospitalRecommendations, setHospitalRecommendations] = useState([]);
 
-  const [requestAccepted, setRequestAccepted] = useState(false);
-  const [arrivedAtUser, setArrivedAtUser] = useState(false);
-  const [patientLoaded, setPatientLoaded] = useState(false);
+  const [requestAccepted, setRequestAccepted] = useState(() => localStorage.getItem('amb_requestAccepted') === 'true');
+  const [arrivedAtUser, setArrivedAtUser] = useState(() => localStorage.getItem('amb_arrivedAtUser') === 'true');
+  const [patientLoaded, setPatientLoaded] = useState(() => localStorage.getItem('amb_patientLoaded') === 'true');
   const [arrivalCountdown, setArrivalCountdown] = useState(20);
   const [rerouteTarget, setRerouteTarget] = useState(null);
   const [shareHistory, setShareHistory] = useState(true);
   const [pendingResumeMission, setPendingResumeMission] = useState(null);
+
+  // Sync to local storage to prevent data loss on refresh
+  useEffect(() => {
+    if (activeMissionId) {
+      localStorage.setItem('activeMissionId', activeMissionId);
+    } else {
+      localStorage.removeItem('activeMissionId');
+    }
+  }, [activeMissionId]);
+
+  useEffect(() => {
+    if (assignedUser) {
+      localStorage.setItem('amb_assignedUser', JSON.stringify(assignedUser));
+    } else {
+      localStorage.removeItem('amb_assignedUser');
+    }
+  }, [assignedUser]);
+
+  useEffect(() => {
+    if (assignedHospital) {
+      localStorage.setItem('amb_assignedHospital', JSON.stringify(assignedHospital));
+    } else {
+      localStorage.removeItem('amb_assignedHospital');
+    }
+  }, [assignedHospital]);
+
+  useEffect(() => {
+    localStorage.setItem('amb_requestAccepted', requestAccepted);
+  }, [requestAccepted]);
+
+  useEffect(() => {
+    localStorage.setItem('amb_arrivedAtUser', arrivedAtUser);
+  }, [arrivedAtUser]);
+
+  useEffect(() => {
+    localStorage.setItem('amb_patientLoaded', patientLoaded);
+  }, [patientLoaded]);
+
+  useEffect(() => {
+    if (routePath) {
+      localStorage.setItem('amb_routePath', JSON.stringify(routePath));
+    } else {
+      localStorage.removeItem('amb_routePath');
+    }
+  }, [routePath]);
+
+  useEffect(() => {
+    localStorage.setItem('amb_streaming', streaming);
+  }, [streaming]);
   const ignoredMissionsRef = useRef(new Set());
   const lastFieldReportRef = useRef(null);
   const [commTab, setCommTab] = useState('hospital');

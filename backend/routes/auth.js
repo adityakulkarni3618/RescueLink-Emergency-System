@@ -113,11 +113,9 @@ router.post('/login', validate(loginBody), async (req, res) => {
       }
     }
 
-    // Enforce MFA setup/check in production
-    const requiresMfaEnforcement = (isAmbulanceTableLogin || ['doctor', 'hospital_admin', 'city_admin', 'paramedic'].includes(user.role)) && 
-      process.env.NODE_ENV === 'production' && 
-      process.env.DISABLE_MFA !== 'true' && 
-      req.body.bypassMFA !== true;
+    // Enforce MFA setup check for roles requiring MFA (doctor, admin, paramedic)
+    const roleRequiresMfa = (isAmbulanceTableLogin || ['doctor', 'hospital_admin', 'city_admin', 'paramedic'].includes(user.role));
+    const requiresMfaEnforcement = roleRequiresMfa && process.env.DISABLE_MFA !== 'true' && req.body.bypassMFA !== true;
     
     if (requiresMfaEnforcement && (!mfaSecret || !isMfaFullySetup)) {
       console.log(`[AUTH] MFA setup required/unverified for: ${loginIdentifier}`);
