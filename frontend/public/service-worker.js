@@ -36,9 +36,23 @@ self.addEventListener('activate', event => {
 
 // Fetch event - serve from cache if offline
 self.addEventListener('fetch', event => {
+  // Only handle GET requests
+  if (event.request.method !== 'GET') return;
+
+  // Do not intercept API requests or socket connections
+  if (event.request.url.includes('/api/') || event.request.url.includes('socket.io')) {
+    return;
+  }
+
   event.respondWith(
     fetch(event.request).catch(() => {
-      return caches.match(event.request);
+      return caches.match(event.request).then(response => {
+        if (response) {
+          return response;
+        }
+        // Fail gracefully instead of returning undefined and crashing
+        return Response.error();
+      });
     })
   );
 });
