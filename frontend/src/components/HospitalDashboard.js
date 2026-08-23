@@ -1854,12 +1854,7 @@ const HOSPITAL_CREDENTIALS = [
 ];
 
 export default function HospitalDashboard({ socket, connected }) {
-  // ── Auth State ──
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    const token = sessionStorage.getItem('rescuelink_token');
-    const hasAuth = localStorage.getItem('hospital_auth');
-    return (token && hasAuth) ? true : false;
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
 
   const [authHospital, setAuthHospital] = useState(() => {
     // If we have a logged-in user in sessionStorage, use their details
