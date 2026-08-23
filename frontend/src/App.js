@@ -9,6 +9,7 @@ import CustomAlert from './components/CustomAlert';
 import axios from 'axios';
 import PatientPortal from './components/PatientPortal';
 import { MfaVerifyScreen } from './components/MfaVerifyScreen';
+import AIEmergencyCorridorDashboard from './components/AIEmergencyCorridorDashboard';
 
 const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
 const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
@@ -2716,7 +2717,7 @@ export default function App() {
     const handleHash = () => {
       const hash = window.location.hash.replace('#', '');
       const parsedRole = hash.split('/')[0];
-      if (['user', 'ambulance', 'hospital', 'admin', 'family'].includes(parsedRole)) {
+      if (['user', 'ambulance', 'hospital', 'admin', 'family', 'corridor'].includes(parsedRole)) {
         setRole(parsedRole);
         sessionStorage.setItem('rescueLinkRole', parsedRole);
       } else if (!hash) {
@@ -3166,6 +3167,13 @@ export default function App() {
             window.location.hash = '';
           }}
           onShowSecurity={() => setShowSecurityModal(true)}
+        />
+      )}
+      {role === 'corridor' && (
+        <AIEmergencyCorridorDashboard 
+          socket={socket} 
+          connected={connected} 
+          onLogout={handleLogout}
         />
       )}
 
