@@ -218,6 +218,7 @@ export default function PatientPortal() {
       <div style={{ background: 'rgba(5, 15, 40, 0.8)', border: '1px solid rgba(0, 200, 255, 0.2)', borderRadius: 12, padding: 24 }}>
         {activeTab === 'overview' && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+            {/* Demographics block */}
             <div>
               <h3 style={{ fontFamily: "'Orbitron'", color: '#00c8ff', borderBottom: '1px solid rgba(0,200,255,0.1)', paddingBottom: 8 }}>DEMOGRAPHICS</h3>
               <table style={{ width: '100%', borderCollapse: 'collapse', color: '#e0eaff', fontSize: 14 }}>
@@ -239,8 +240,9 @@ export default function PatientPortal() {
               </table>
             </div>
 
+            {/* Medical Profile Block */}
             <div>
-              <h3 style={{ fontFamily: "'Orbitron'", color: '#ffb800', borderBottom: '1px solid rgba(255,184,0,0.2)', paddingBottom: 8 }}>EMERGENCY PROFILE & ALLERGIES</h3>
+              <h3 style={{ fontFamily: "'Orbitron'", color: '#ff4444', borderBottom: '1px solid rgba(255,68,68,0.2)', paddingBottom: 8 }}>MEDICAL PROFILE & ALLERGIES</h3>
               <table style={{ width: '100%', borderCollapse: 'collapse', color: '#e0eaff', fontSize: 14 }}>
                 <tbody>
                   {[
@@ -250,7 +252,45 @@ export default function PatientPortal() {
                   ].map(row => (
                     <tr key={row.label} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                       <td style={{ padding: '12px 0', color: 'rgba(160,200,255,0.6)' }}>{row.label}</td>
-                      <td style={{ padding: '12px 0', fontWeight: 'bold', textAlign: 'right', color: row.label === 'Blood Group' ? '#00ff88' : '#e0eaff' }}>{row.value}</td>
+                      <td style={{ padding: '12px 0', fontWeight: 'bold', textAlign: 'right', color: row.label === 'Blood Group' ? '#ff4444' : '#e0eaff' }}>{row.value}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Emergency Contact Block */}
+            <div>
+              <h3 style={{ fontFamily: "'Orbitron'", color: '#ffb800', borderBottom: '1px solid rgba(255,184,0,0.2)', paddingBottom: 8 }}>EMERGENCY CONTACT (NEXT OF KIN)</h3>
+              <table style={{ width: '100%', borderCollapse: 'collapse', color: '#e0eaff', fontSize: 14 }}>
+                <tbody>
+                  {[
+                    { label: 'Contact Name', value: profile?.emergency_contact_name || 'Not provided' },
+                    { label: 'Relationship', value: profile?.emergency_contact_relationship || 'Not provided' },
+                    { label: 'Phone Number', value: profile?.emergency_contact_phone || 'Not provided' }
+                  ].map(row => (
+                    <tr key={row.label} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                      <td style={{ padding: '12px 0', color: 'rgba(160,200,255,0.6)' }}>{row.label}</td>
+                      <td style={{ padding: '12px 0', fontWeight: 'bold', textAlign: 'right', color: '#ffb800' }}>{row.value}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Insurance Block */}
+            <div>
+              <h3 style={{ fontFamily: "'Orbitron'", color: '#00ff88', borderBottom: '1px solid rgba(0,255,136,0.2)', paddingBottom: 8 }}>INSURANCE & COVERAGE</h3>
+              <table style={{ width: '100%', borderCollapse: 'collapse', color: '#e0eaff', fontSize: 14 }}>
+                <tbody>
+                  {[
+                    { label: 'Provider Name', value: profile?.insurance_provider || 'Not provided' },
+                    { label: 'Policy Number', value: profile?.policy_number || 'Not provided' },
+                    { label: 'Group Number', value: profile?.group_number || 'Not provided' }
+                  ].map(row => (
+                    <tr key={row.label} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                      <td style={{ padding: '12px 0', color: 'rgba(160,200,255,0.6)' }}>{row.label}</td>
+                      <td style={{ padding: '12px 0', fontWeight: 'bold', textAlign: 'right', color: '#00ff88' }}>{row.value}</td>
                     </tr>
                   ))}
                 </tbody>
