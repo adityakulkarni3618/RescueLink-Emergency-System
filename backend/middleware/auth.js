@@ -58,7 +58,8 @@ function verifyToken(requiredRoles = []) {
           name: decoded.name,
           email: decoded.email,
           role: decoded.role,
-          hospital_id: decoded.hospital_id
+          hospital_id: decoded.hospital_id,
+          isAmbulance: decoded.isAmbulance || false
         };
 
         console.log(`[AUTH] Access granted: User ${req.user.email} (${req.user.role}) -> ${req.method} ${req.originalUrl}`);
