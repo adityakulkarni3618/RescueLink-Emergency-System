@@ -3631,19 +3631,7 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
                     </p>
                     <button
                       onClick={() => {
-                        if (window.confirm("Switch unit identity? All active unit session data will be reset.")) {
-                          localStorage.removeItem('ambulance_auth');
-                          sessionStorage.clear();
-                          localStorage.removeItem('activeMissionId');
-                          localStorage.removeItem('amb_requestAccepted');
-                          localStorage.removeItem('amb_assignedUser');
-                          localStorage.removeItem('amb_assignedHospital');
-                          localStorage.removeItem('amb_selectedPatient');
-                          localStorage.removeItem('amb_arrivedAtUser');
-                          localStorage.removeItem('amb_streaming');
-                          localStorage.removeItem('amb_incomingRequest');
-                          window.location.reload();
-                        }
+                        setSwitchUnitConfirm(true);
                       }}
                       style={{
                         padding: '10px 20px', background: 'rgba(255,68,68,0.15)', border: '1px solid #ff4444',
