@@ -605,6 +605,9 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
   const [vitals, setVitals] = useState({ heartRate: 75, spo2: 98, systolic: 120, diastolic: 80, temperature: 37.0, respRate: 16, bloodGlucose: 100 });
   const [vitalsSource, setVitalsSource] = useState('SIMULATED'); // 'SIMULATED', 'MANUAL', 'LIVE'
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [endMissionConfirm, setEndMissionConfirm] = useState(false);
+  const [abortMissionConfirm, setAbortMissionConfirm] = useState(false);
+  const [switchUnitConfirm, setSwitchUnitConfirm] = useState(false);
   const vitalsSourceRef = useRef(vitalsSource);
   useEffect(() => { vitalsSourceRef.current = vitalsSource; }, [vitalsSource]);
 
@@ -1759,19 +1762,14 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
             <button onClick={() => {
               // Simulated Biometric Login via WebAuthn
               const targetId = loginId.trim() || "AMB-101";
-              if (window.confirm(`Verify FaceID to login as ${targetId.toUpperCase()}?`)) {
-                setLoginId(targetId.toUpperCase());
-                
-                // Demo fallback password logic
-                let password = loginPass;
-                if (!password) {
-                  const match = targetId.match(/\d+$/);
-                  password = match ? `rescue${match[0]}` : 'rescue101';
-                  setLoginPass(password);
-                }
-                
-                setTimeout(handleLogin, 500);
+              setLoginId(targetId.toUpperCase());
+              let password = loginPass;
+              if (!password) {
+                const match = targetId.match(/\d+$/);
+                password = match ? `rescue${match[0]}` : 'rescue101';
+                setLoginPass(password);
               }
+              setTimeout(handleLogin, 500);
             }} style={{ padding: '12px', background: 'rgba(0,200,255,0.1)', border: '1px solid rgba(0,200,255,0.4)', borderRadius: 8, color: '#00c8ff', fontFamily: "'Orbitron'", fontSize: 13, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.1em', transition: 'all 0.2s', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 16 }}>👤</span> FACE-ID BIOMETRIC LOGIN
             </button>
@@ -1924,40 +1922,43 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
 
   const handleCompleteMission = () => {
     if (!assignedUser) return;
-    if (window.confirm("Are you sure you want to end this mission?")) {
-      if (socket) {
-        socket.emit('complete-mission', { reqId: assignedUser.id });
-        const storedToken = sessionStorage.getItem('rescuelink_token');
-        socket.emit('register-ambulance', { 
-          location, 
-          available: true,
-          unitId: authUnit?.unitId,
-          token: storedToken
-        });
-      }
-      setRequestAccepted(false);
-      setAssignedUser(null);
-      setAssignedHospital(null);
-      setRoutePath(null);
-      setSelectedPatient(null);
-      setArrivedAtUser(false);
-      setIncomingRequest(null);
-      setStreaming(false);
-      setPatientLoaded(false);
-      setArrivalCountdown(20);
-      setResourceLocks({ traumaBay: false, bloodUnits: false, ventilatorStandby: false });
-      setClinicalChecklist({});
-      setIncidentNote('');
-      
-      localStorage.removeItem('activeMissionId');
-      localStorage.removeItem('amb_requestAccepted');
-      localStorage.removeItem('amb_assignedUser');
-      localStorage.removeItem('amb_assignedHospital');
-      localStorage.removeItem('amb_selectedPatient');
-      localStorage.removeItem('amb_arrivedAtUser');
-      localStorage.removeItem('amb_streaming');
-      localStorage.removeItem('amb_incomingRequest');
+    setEndMissionConfirm(true);
+  };
+
+  const doCompleteMission = () => {
+    setEndMissionConfirm(false);
+    if (socket) {
+      socket.emit('complete-mission', { reqId: assignedUser.id });
+      const storedToken = sessionStorage.getItem('rescuelink_token');
+      socket.emit('register-ambulance', { 
+        location, 
+        available: true,
+        unitId: authUnit?.unitId,
+        token: storedToken
+      });
     }
+    setRequestAccepted(false);
+    setAssignedUser(null);
+    setAssignedHospital(null);
+    setRoutePath(null);
+    setSelectedPatient(null);
+    setArrivedAtUser(false);
+    setIncomingRequest(null);
+    setStreaming(false);
+    setPatientLoaded(false);
+    setArrivalCountdown(20);
+    setResourceLocks({ traumaBay: false, bloodUnits: false, ventilatorStandby: false });
+    setClinicalChecklist({});
+    setIncidentNote('');
+    
+    localStorage.removeItem('activeMissionId');
+    localStorage.removeItem('amb_requestAccepted');
+    localStorage.removeItem('amb_assignedUser');
+    localStorage.removeItem('amb_assignedHospital');
+    localStorage.removeItem('amb_selectedPatient');
+    localStorage.removeItem('amb_arrivedAtUser');
+    localStorage.removeItem('amb_streaming');
+    localStorage.removeItem('amb_incomingRequest');
   };
 
 
@@ -2044,39 +2045,7 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
 
       <button
         onClick={() => {
-          if (window.confirm("Abort current mission and reset?")) {
-            setRequestAccepted(false);
-            setAssignedUser(null);
-            setAssignedHospital(null);
-            setRoutePath(null);
-            setSelectedPatient(null);
-            setArrivedAtUser(false);
-            setIncomingRequest(null);
-            setStreaming(false);
-            setPatientLoaded(false);
-            setArrivalCountdown(20);
-            setResourceLocks({ traumaBay: false, bloodUnits: false, ventilatorStandby: false });
-            if (socket) {
-              if (activeMissionId) {
-                socket.emit('complete-mission', { reqId: activeMissionId });
-              }
-              const storedToken = sessionStorage.getItem('rescuelink_token');
-              socket.emit('register-ambulance', { 
-                location, 
-                available: true,
-                unitId: authUnit?.unitId,
-                token: storedToken
-              });
-            }
-            localStorage.removeItem('activeMissionId');
-            localStorage.removeItem('amb_requestAccepted');
-            localStorage.removeItem('amb_assignedUser');
-            localStorage.removeItem('amb_assignedHospital');
-            localStorage.removeItem('amb_selectedPatient');
-            localStorage.removeItem('amb_arrivedAtUser');
-            localStorage.removeItem('amb_streaming');
-            localStorage.removeItem('amb_incomingRequest');
-          }
+          setAbortMissionConfirm(true);
           if (isMobileView) setMobileMenuOpen(false);
         }}
         className="rl-btn-primary"
@@ -2093,19 +2062,7 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
 
       <button
         onClick={() => {
-          if (window.confirm("Switch unit identity? All active unit session data will be reset.")) {
-            localStorage.removeItem('ambulance_auth');
-            sessionStorage.clear();
-            localStorage.removeItem('activeMissionId');
-            localStorage.removeItem('amb_requestAccepted');
-            localStorage.removeItem('amb_assignedUser');
-            localStorage.removeItem('amb_assignedHospital');
-            localStorage.removeItem('amb_selectedPatient');
-            localStorage.removeItem('amb_arrivedAtUser');
-            localStorage.removeItem('amb_streaming');
-            localStorage.removeItem('amb_incomingRequest');
-            window.location.reload();
-          }
+          setSwitchUnitConfirm(true);
           if (isMobileView) setMobileMenuOpen(false);
         }}
         className="rl-btn-secondary"
@@ -2224,6 +2181,118 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
       flexDirection: 'row',
       overflow: 'hidden',
     }}>
+
+      {/* ── END MISSION CONFIRM MODAL ── */}
+      {endMissionConfirm && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999999, background: 'rgba(0,3,12,0.88)', backdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setEndMissionConfirm(false)}>
+          <div style={{ background: 'rgba(8,18,42,0.98)', border: '1px solid rgba(0,255,136,0.4)', borderRadius: 14, padding: 30, maxWidth: 420, width: '90%', boxShadow: '0 0 40px rgba(0,255,136,0.1)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 15, color: '#00ff88', fontWeight: 900, marginBottom: 10 }}>✅ END ACTIVE MISSION</div>
+            <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'", marginBottom: 22, lineHeight: 1.7 }}>
+              Are you sure you want to officially end this mission?<br /><br />
+              This will clear the patient context and mark the ambulance as <strong style={{ color: '#00ff88' }}>AVAILABLE</strong> for new dispatch requests.
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={doCompleteMission}
+                style={{ flex: 1, padding: '12px', background: 'rgba(0,255,136,0.15)', border: '1px solid rgba(0,255,136,0.5)', borderRadius: 8, color: '#00ff88', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+              >
+                🏁 COMPLETE MISSION
+              </button>
+              <button onClick={() => setEndMissionConfirm(false)} style={{ flex: 1, padding: '12px', background: 'transparent', border: '1px solid rgba(160,200,255,0.15)', borderRadius: 8, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 12, cursor: 'pointer' }}>
+                CANCEL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── ABORT MISSION CONFIRM MODAL ── */}
+      {abortMissionConfirm && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999999, background: 'rgba(0,3,12,0.88)', backdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setAbortMissionConfirm(false)}>
+          <div style={{ background: 'rgba(8,18,42,0.98)', border: '1px solid rgba(255,68,68,0.4)', borderRadius: 14, padding: 30, maxWidth: 420, width: '90%', boxShadow: '0 0 40px rgba(255,68,68,0.1)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 15, color: '#ff4444', fontWeight: 900, marginBottom: 10 }}>🚨 ABORT & RESET MISSION</div>
+            <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'", marginBottom: 22, lineHeight: 1.7 }}>
+              This will forcefully <strong style={{ color: '#ff4444' }}>cancel the current mission</strong> and reset all unit state.<br /><br />
+              Use only if the dispatch was an error or the mission cannot be completed.
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={() => {
+                  setAbortMissionConfirm(false);
+                  setRequestAccepted(false);
+                  setAssignedUser(null);
+                  setAssignedHospital(null);
+                  setRoutePath(null);
+                  setSelectedPatient(null);
+                  setArrivedAtUser(false);
+                  setIncomingRequest(null);
+                  setStreaming(false);
+                  setPatientLoaded(false);
+                  setArrivalCountdown(20);
+                  setResourceLocks({ traumaBay: false, bloodUnits: false, ventilatorStandby: false });
+                  if (socket) {
+                    if (activeMissionId) socket.emit('complete-mission', { reqId: activeMissionId });
+                    const storedToken = sessionStorage.getItem('rescuelink_token');
+                    socket.emit('register-ambulance', { location, available: true, unitId: authUnit?.unitId, token: storedToken });
+                  }
+                  localStorage.removeItem('activeMissionId');
+                  localStorage.removeItem('amb_requestAccepted');
+                  localStorage.removeItem('amb_assignedUser');
+                  localStorage.removeItem('amb_assignedHospital');
+                  localStorage.removeItem('amb_selectedPatient');
+                  localStorage.removeItem('amb_arrivedAtUser');
+                  localStorage.removeItem('amb_streaming');
+                  localStorage.removeItem('amb_incomingRequest');
+                }}
+                style={{ flex: 1, padding: '12px', background: 'rgba(255,68,68,0.15)', border: '1px solid rgba(255,68,68,0.5)', borderRadius: 8, color: '#ff4444', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+              >
+                🗑 YES, ABORT MISSION
+              </button>
+              <button onClick={() => setAbortMissionConfirm(false)} style={{ flex: 1, padding: '12px', background: 'transparent', border: '1px solid rgba(160,200,255,0.15)', borderRadius: 8, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 12, cursor: 'pointer' }}>
+                KEEP ACTIVE
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── SWITCH UNIT CONFIRM MODAL ── */}
+      {switchUnitConfirm && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999999, background: 'rgba(0,3,12,0.88)', backdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setSwitchUnitConfirm(false)}>
+          <div style={{ background: 'rgba(8,18,42,0.98)', border: '1px solid rgba(255,184,0,0.4)', borderRadius: 14, padding: 30, maxWidth: 420, width: '90%', boxShadow: '0 0 40px rgba(255,184,0,0.1)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 15, color: '#ffb800', fontWeight: 900, marginBottom: 10 }}>🚪 SWITCH UNIT IDENTITY</div>
+            <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'", marginBottom: 22, lineHeight: 1.7 }}>
+              You are about to log out and switch ambulance unit identities.<br /><br />
+              <strong style={{ color: '#ffb800' }}>All active unit session data will be reset.</strong>
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={() => {
+                  setSwitchUnitConfirm(false);
+                  localStorage.removeItem('ambulance_auth');
+                  sessionStorage.clear();
+                  localStorage.removeItem('activeMissionId');
+                  localStorage.removeItem('amb_requestAccepted');
+                  localStorage.removeItem('amb_assignedUser');
+                  localStorage.removeItem('amb_assignedHospital');
+                  localStorage.removeItem('amb_selectedPatient');
+                  localStorage.removeItem('amb_arrivedAtUser');
+                  localStorage.removeItem('amb_streaming');
+                  localStorage.removeItem('amb_incomingRequest');
+                  window.location.reload();
+                }}
+                style={{ flex: 1, padding: '12px', background: 'rgba(255,184,0,0.15)', border: '1px solid rgba(255,184,0,0.5)', borderRadius: 8, color: '#ffb800', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+              >
+                🔄 YES, SWITCH UNIT
+              </button>
+              <button onClick={() => setSwitchUnitConfirm(false)} style={{ flex: 1, padding: '12px', background: 'transparent', border: '1px solid rgba(160,200,255,0.15)', borderRadius: 8, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 12, cursor: 'pointer' }}>
+                CANCEL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style>{`
         @keyframes critFlash { from { box-shadow: 0 0 0 rgba(255,60,60,0); } to { box-shadow: 0 0 20px rgba(255,60,60,0.4); } }
         @keyframes blink { 0%,49%{opacity:1} 50%,100%{opacity:0} }
@@ -3345,6 +3414,8 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
                       const [mfaQR, setMfaQR] = React.useState(null);
                       const [mfaStatus, setMfaStatus] = React.useState(null);
                       const [mfaLoading, setMfaLoading] = React.useState(false);
+                      const [disable2FAConfirmAmb, setDisable2FAConfirmAmb] = React.useState(false);
+
 
                       const token = sessionStorage.getItem('rescuelink_token') || '';
                       const ambId = authUnit?.id || authUnit?.unitId;
@@ -3397,7 +3468,7 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
                       };
 
                       const handleDisable2FA = async () => {
-                        if (!window.confirm('Disable 2FA? This reduces account security.')) return;
+                        setDisable2FAConfirmAmb(false);
                         setMfaLoading(true);
                         try {
                           const res = await fetch('/api/mfa/disable', { method: 'POST', headers: hdrs });
@@ -3411,6 +3482,26 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
 
                       return (
                         <>
+                          {/* 2FA Disable Confirm Modal */}
+                          {disable2FAConfirmAmb && (
+                            <div style={{ position: 'fixed', inset: 0, zIndex: 9999999, background: 'rgba(0,3,12,0.88)', backdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setDisable2FAConfirmAmb(false)}>
+                              <div style={{ background: 'rgba(8,18,42,0.98)', border: '1px solid rgba(255,68,68,0.4)', borderRadius: 14, padding: 30, maxWidth: 420, width: '90%', boxShadow: '0 0 40px rgba(255,68,68,0.1)' }} onClick={e => e.stopPropagation()}>
+                                <div style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#ff4444', fontWeight: 900, marginBottom: 8 }}>🔓 DISABLE 2FA</div>
+                                <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'", marginBottom: 20, lineHeight: 1.65 }}>
+                                  Removing 2FA will leave your account protected only by your password.<br /><br />
+                                  <strong style={{ color: '#ffb800' }}>This reduces your unit security significantly.</strong>
+                                </div>
+                                <div style={{ display: 'flex', gap: 12 }}>
+                                  <button onClick={handleDisable2FA} style={{ flex: 1, padding: '10px', background: 'rgba(255,40,40,0.14)', border: '1px solid rgba(255,40,40,0.5)', borderRadius: 8, color: '#ff4444', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>
+                                    🔓 YES, DISABLE 2FA
+                                  </button>
+                                  <button onClick={() => setDisable2FAConfirmAmb(false)} style={{ flex: 1, padding: '10px', background: 'transparent', border: '1px solid rgba(160,200,255,0.15)', borderRadius: 8, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer' }}>
+                                    CANCEL
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                           {/* 1. Edit Unit Profile */}
                           <div style={S.card}>
                             <div style={S.sectionTitle}>🚑 UNIT PROFILE SETTINGS</div>
@@ -3468,7 +3559,7 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
                               <button onClick={handleSetup2FA} disabled={mfaLoading} style={{ ...S.btn('0,255,136'), opacity: mfaLoading ? 0.5 : 1 }}>
                                 {mfaLoading ? '⏳ LOADING…' : '🔒 ENABLE 2FA'}
                               </button>
-                              <button onClick={handleDisable2FA} disabled={mfaLoading} style={{ ...S.btn('255,68,68'), opacity: mfaLoading ? 0.5 : 1 }}>
+                              <button onClick={() => setDisable2FAConfirmAmb(true)} disabled={mfaLoading} style={{ ...S.btn('255,68,68'), opacity: mfaLoading ? 0.5 : 1 }}>
                                 🔓 DISABLE 2FA
                               </button>
                             </div>
