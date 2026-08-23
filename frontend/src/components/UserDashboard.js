@@ -1079,15 +1079,15 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
                 marginBottom: 16,
                 background: 'linear-gradient(135deg, rgba(255,30,30,0.25), rgba(220,0,0,0.15))',
                 border: '2px solid #ff2222', borderRadius: 10, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
                 animation: 'sosGlow 1.5s ease-in-out infinite', boxShadow: '0 0 20px rgba(255,30,30,0.3)',
-                transition: 'all 0.2s', padding: '18px 20px', height: 'auto', minHeight: 70
+                transition: 'all 0.2s', padding: '12px 14px', height: 'auto', minHeight: 64
               }}
             >
-              <span style={{ fontSize: 28, flexShrink: 0 }}>🆘</span>
-              <div style={{ textAlign: 'left', flex: 1 }}>
-                <div style={{ fontFamily: "'Orbitron'", fontSize: 16, color: '#ff4444', fontWeight: 900, letterSpacing: '0.1em' }}>SOS EMERGENCY</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,100,100,0.7)', marginTop: 2 }}>Instantly alerts nearest ambulance</div>
+              <span style={{ fontSize: 24, flexShrink: 0 }}>🆘</span>
+              <div style={{ textAlign: 'left', flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#ff4444', fontWeight: 900, letterSpacing: '0.05em', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>SOS EMERGENCY</div>
+                <div style={{ fontSize: 9.5, color: 'rgba(255,100,100,0.7)', marginTop: 1, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>Instantly alerts nearest ambulance</div>
               </div>
             </button>
           )}

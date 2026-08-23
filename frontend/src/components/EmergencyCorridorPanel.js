@@ -1,5 +1,92 @@
 import React, { useState, useEffect } from 'react';
 
+const getCityJunctions = (lat, lng) => {
+  if (!lat || !lng) return {
+    cityName: 'VIJAYAWADA',
+    junctions: [
+      { id: 'junc_pcr', name: 'PCR Junction' },
+      { id: 'junc_labbipet', name: 'Labbipet Junction' },
+      { id: 'junc_benz_circle', name: 'Benz Circle' },
+      { id: 'junc_rameswaram', name: 'Aster Ramesh Cross' }
+    ]
+  };
+
+  const lats = parseFloat(lat);
+  const lngs = parseFloat(lng);
+
+  // Vijayawada: approx 16.5
+  if (Math.abs(lats - 16.5) < 0.7 && Math.abs(lngs - 80.6) < 0.7) {
+    return {
+      cityName: 'VIJAYAWADA',
+      junctions: [
+        { id: 'junc_pcr', name: 'PCR Junction' },
+        { id: 'junc_labbipet', name: 'Labbipet Junction' },
+        { id: 'junc_benz_circle', name: 'Benz Circle' },
+        { id: 'junc_rameswaram', name: 'Aster Ramesh Cross' }
+      ]
+    };
+  }
+  // Bangalore: approx 12.97
+  if (Math.abs(lats - 12.97) < 0.7 && Math.abs(lngs - 77.59) < 0.7) {
+    return {
+      cityName: 'BENGALURU',
+      junctions: [
+        { id: 'junc_silkboard', name: 'Silk Board Crossing' },
+        { id: 'junc_koramangala', name: 'Koramangala 80ft Crossing' },
+        { id: 'junc_indiranagar', name: 'Indiranagar 100ft Junction' },
+        { id: 'junc_mgroad', name: 'MG Road Preemption Gate' }
+      ]
+    };
+  }
+  // Hyderabad: approx 17.38
+  if (Math.abs(lats - 17.38) < 0.7 && Math.abs(lngs - 78.48) < 0.7) {
+    return {
+      cityName: 'HYDERABAD',
+      junctions: [
+        { id: 'junc_gachibowli', name: 'Gachibowli X Roads' },
+        { id: 'junc_jubilee', name: 'Jubilee Hills Checkpost' },
+        { id: 'junc_begumpet', name: 'Begumpet Command Link' },
+        { id: 'junc_secunderabad', name: 'Secunderabad Station Gate' }
+      ]
+    };
+  }
+  // Mumbai: approx 19.07
+  if (Math.abs(lats - 19.07) < 0.7 && Math.abs(lngs - 72.87) < 0.7) {
+    return {
+      cityName: 'MUMBAI',
+      junctions: [
+        { id: 'junc_dadar', name: 'Dadar TT Circle' },
+        { id: 'junc_bandra', name: 'Bandra Toll Preemption' },
+        { id: 'junc_andheri', name: 'Andheri Kurla Intersection' },
+        { id: 'junc_gateway', name: 'Gateway Command Crossing' }
+      ]
+    };
+  }
+  // Delhi: approx 28.61
+  if (Math.abs(lats - 28.61) < 0.7 && Math.abs(lngs - 77.20) < 0.7) {
+    return {
+      cityName: 'NEW DELHI',
+      junctions: [
+        { id: 'junc_cp', name: 'Connaught Place Outer Ring' },
+        { id: 'junc_aiims', name: 'AIIMS Circle Crossing' },
+        { id: 'junc_dhaulakuan', name: 'Dhaula Kuan Preemption' },
+        { id: 'junc_noida', name: 'Noida Expressway Gate' }
+      ]
+    };
+  }
+
+  // Fallback
+  return {
+    cityName: 'METRO COMMUTE',
+    junctions: [
+      { id: 'junc_alpha', name: 'Intersection Alpha' },
+      { id: 'junc_beta', name: 'Metro Center Crossing' },
+      { id: 'junc_gamma', name: 'Highway Toll Link' },
+      { id: 'junc_delta', name: 'Hospital Entrance Gate' }
+    ]
+  };
+};
+
 const PREDEFINED_JUNCTIONS = [
   { id: 'junc_pcr', name: 'PCR Junction' },
   { id: 'junc_labbipet', name: 'Labbipet Junction' },
@@ -8,6 +95,7 @@ const PREDEFINED_JUNCTIONS = [
 ];
 
 export default function EmergencyCorridorPanel({ socket, incidentId, isControlPanel = false }) {
+  const [cityName, setCityName] = useState('VIJAYAWADA');
   const [junctions, setJunctions] = useState(
     PREDEFINED_JUNCTIONS.map(j => ({ ...j, status: 'SCHEDULED', eta: 0 }))
   );
@@ -52,6 +140,14 @@ export default function EmergencyCorridorPanel({ socket, incidentId, isControlPa
       if (data.reqId !== incidentId) return;
       if (data.speed) setSpeed(Math.round(data.speed));
       if (data.etaMinutes) setEta(Math.round(data.etaMinutes * 60));
+      if (data.lat && data.lng) {
+        const cityData = getCityJunctions(data.lat, data.lng);
+        setCityName(cityData.cityName);
+        setJunctions(prev => cityData.junctions.map((j, idx) => {
+          const old = prev[idx] || {};
+          return { ...j, status: old.status || 'SCHEDULED', eta: old.eta || 0 };
+        }));
+      }
     };
 
     socket.on('corridor:status_update', onStatusUpdate);
@@ -128,7 +224,7 @@ export default function EmergencyCorridorPanel({ socket, incidentId, isControlPa
       <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(0, 200, 255, 0.15)', paddingBottom: 12, marginBottom: 16 }}>
         <div>
           <span style={{ fontSize: 10, fontFamily: "'Orbitron'", color: '#00ff88', letterSpacing: '0.1em' }}>🚨 AI EMERGENCY CORRIDOR ACTIVE</span>
-          <div style={{ fontSize: 16, fontWeight: 700, fontFamily: "'Orbitron'" }}>VIJAYAWADA CORRIDOR #108</div>
+          <div style={{ fontSize: 16, fontWeight: 700, fontFamily: "'Orbitron'" }}>{cityName} CORRIDOR #108</div>
         </div>
         <div style={{ textAlign: 'right' }}>
           <span style={{ fontSize: 10, color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'" }}>SPEED / ETA</span>
