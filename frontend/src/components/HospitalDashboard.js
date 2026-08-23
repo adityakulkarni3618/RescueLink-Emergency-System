@@ -1982,6 +1982,8 @@ export default function HospitalDashboard({ socket, connected }) {
   const lastVitalsBeepTimeRef = useRef(0);
   const [showDocAssignModal, setShowDocAssignModal] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [hardResetConfirm, setHardResetConfirm] = useState(false);
+  const [switchProfileConfirm, setSwitchProfileConfirm] = useState(false);
   const [attendingDocName, setAttendingDocName] = useState('');
   const [attendingDocSpecialty, setAttendingDocSpecialty] = useState('');
   const [attendingNurses, setAttendingNurses] = useState('');
@@ -2976,12 +2978,7 @@ export default function HospitalDashboard({ socket, connected }) {
 
       <button
         onClick={() => {
-          if (window.confirm("Perform hard reset? This will clear all local mission data.")) {
-            localStorage.removeItem('hospital_auth');
-            localStorage.removeItem('active_mission_id');
-            sessionStorage.clear();
-            window.location.reload();
-          }
+          setHardResetConfirm(true);
           if (isMobileView) setMobileMenuOpen(false);
         }}
         style={{ padding: '0 12px', height: '32px', background: 'rgba(255,40,40,0.1)', border: '1px solid rgba(255,80,80,0.4)', borderRadius: 4, color: '#ff6b6b', fontSize: 11, cursor: 'pointer', fontFamily: "'Orbitron'", whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', boxSizing: 'border-box' }}
@@ -2991,11 +2988,7 @@ export default function HospitalDashboard({ socket, connected }) {
 
       <button
         onClick={() => {
-          if (window.confirm("Switch hospital profile? Active mission context will be preserved.")) {
-            localStorage.removeItem('hospital_auth');
-            sessionStorage.clear();
-            window.location.reload();
-          }
+          setSwitchProfileConfirm(true);
           if (isMobileView) setMobileMenuOpen(false);
         }}
         style={{
@@ -3082,6 +3075,65 @@ export default function HospitalDashboard({ socket, connected }) {
       overflow: 'hidden',
       transition: 'background 0.5s ease',
     }}>
+      
+      {/* ── HARD RESET CONFIRM MODAL ── */}
+      {hardResetConfirm && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999999, background: 'rgba(0,3,12,0.88)', backdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setHardResetConfirm(false)}>
+          <div style={{ background: 'rgba(8,18,42,0.98)', border: '1px solid rgba(255,68,68,0.4)', borderRadius: 14, padding: 30, maxWidth: 420, width: '90%', boxShadow: '0 0 40px rgba(255,68,68,0.1)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 15, color: '#ff4444', fontWeight: 900, marginBottom: 10 }}>🛑 PERFORM HARD RESET?</div>
+            <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'", marginBottom: 22, lineHeight: 1.7 }}>
+              This will clear all local mission data and log you out.<br /><br />
+              <strong style={{ color: '#ff4444' }}>This action is irreversible.</strong>
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={() => {
+                  setHardResetConfirm(false);
+                  localStorage.removeItem('hospital_auth');
+                  localStorage.removeItem('active_mission_id');
+                  sessionStorage.clear();
+                  window.location.reload();
+                }}
+                style={{ flex: 1, padding: '12px', background: 'rgba(255,68,68,0.15)', border: '1px solid rgba(255,68,68,0.5)', borderRadius: 8, color: '#ff4444', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+              >
+                🗑 RESET
+              </button>
+              <button onClick={() => setHardResetConfirm(false)} style={{ flex: 1, padding: '12px', background: 'transparent', border: '1px solid rgba(160,200,255,0.15)', borderRadius: 8, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 12, cursor: 'pointer' }}>
+                CANCEL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── SWITCH PROFILE CONFIRM MODAL ── */}
+      {switchProfileConfirm && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999999, background: 'rgba(0,3,12,0.88)', backdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setSwitchProfileConfirm(false)}>
+          <div style={{ background: 'rgba(8,18,42,0.98)', border: '1px solid rgba(255,184,0,0.4)', borderRadius: 14, padding: 30, maxWidth: 420, width: '90%', boxShadow: '0 0 40px rgba(255,184,0,0.1)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 15, color: '#ffb800', fontWeight: 900, marginBottom: 10 }}>🚪 SWITCH HOSPITAL PROFILE</div>
+            <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'", marginBottom: 22, lineHeight: 1.7 }}>
+              You are about to switch hospital profiles.<br /><br />
+              <strong style={{ color: '#ffb800' }}>Active mission context will be preserved on the server.</strong>
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={() => {
+                  setSwitchProfileConfirm(false);
+                  localStorage.removeItem('hospital_auth');
+                  sessionStorage.clear();
+                  window.location.reload();
+                }}
+                style={{ flex: 1, padding: '12px', background: 'rgba(255,184,0,0.15)', border: '1px solid rgba(255,184,0,0.5)', borderRadius: 8, color: '#ffb800', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+              >
+                🔄 SWITCH PROFILE
+              </button>
+              <button onClick={() => setSwitchProfileConfirm(false)} style={{ flex: 1, padding: '12px', background: 'transparent', border: '1px solid rgba(160,200,255,0.15)', borderRadius: 8, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 12, cursor: 'pointer' }}>
+                CANCEL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* SIDEBAR NAVIGATION & MISSION SELECTOR */}
       {isAuthenticated && (
@@ -4919,6 +4971,7 @@ export default function HospitalDashboard({ socket, connected }) {
                   const [mfaStatus, setMfaStatus] = React.useState(null);
                   const [mfaQR, setMfaQR] = React.useState(null);
                   const [mfaLoading, setMfaLoading] = React.useState(false);
+                  const [disable2FAConfirmHosp, setDisable2FAConfirmHosp] = React.useState(false);
                   const [notifPrefs, setNotifPrefs] = React.useState({ emailAlerts: true, smsAlerts: false, criticalOnly: false });
                   const [saveStatus, setSaveStatus] = React.useState(null);
 
@@ -4978,7 +5031,7 @@ export default function HospitalDashboard({ socket, connected }) {
                   };
 
                   const handleDisable2FA = async () => {
-                    if (!window.confirm('Disable Two-Factor Authentication? This reduces account security.')) return;
+                    setDisable2FAConfirmHosp(false);
                     setMfaLoading(true);
                     try {
                       const res = await fetch('/api/mfa/disable', { method: 'POST', headers: hdrs });
@@ -4992,6 +5045,27 @@ export default function HospitalDashboard({ socket, connected }) {
 
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+                      {/* 2FA Disable Confirm Modal */}
+                      {disable2FAConfirmHosp && (
+                        <div style={{ position: 'fixed', inset: 0, zIndex: 9999999, background: 'rgba(0,3,12,0.88)', backdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setDisable2FAConfirmHosp(false)}>
+                          <div style={{ background: 'rgba(8,18,42,0.98)', border: '1px solid rgba(255,68,68,0.4)', borderRadius: 14, padding: 30, maxWidth: 420, width: '90%', boxShadow: '0 0 40px rgba(255,68,68,0.1)' }} onClick={e => e.stopPropagation()}>
+                            <div style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#ff4444', fontWeight: 900, marginBottom: 8 }}>🔓 DISABLE 2FA</div>
+                            <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'", marginBottom: 20, lineHeight: 1.65 }}>
+                              Removing 2FA will leave your hospital account protected only by your password.<br /><br />
+                              <strong style={{ color: '#ffb800' }}>This reduces security significantly.</strong>
+                            </div>
+                            <div style={{ display: 'flex', gap: 12 }}>
+                              <button onClick={handleDisable2FA} style={{ flex: 1, padding: '10px', background: 'rgba(255,40,40,0.14)', border: '1px solid rgba(255,40,40,0.5)', borderRadius: 8, color: '#ff4444', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>
+                                🔓 YES, DISABLE 2FA
+                              </button>
+                              <button onClick={() => setDisable2FAConfirmHosp(false)} style={{ flex: 1, padding: '10px', background: 'transparent', border: '1px solid rgba(160,200,255,0.15)', borderRadius: 8, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer' }}>
+                                CANCEL
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
                       {/* 1. Edit Hospital Profile */}
                       <div style={S.card}>
@@ -5059,7 +5133,7 @@ export default function HospitalDashboard({ socket, connected }) {
                           <button onClick={handleSetup2FA} disabled={mfaLoading} style={{ ...S.btn('0,255,136'), opacity: mfaLoading ? 0.5 : 1 }}>
                             {mfaLoading ? '⏳ LOADING…' : '🔒 ENABLE 2FA — Generate QR'}
                           </button>
-                          <button onClick={handleDisable2FA} disabled={mfaLoading} style={{ ...S.btn('255,68,68'), opacity: mfaLoading ? 0.5 : 1 }}>
+                          <button onClick={() => setDisable2FAConfirmHosp(true)} disabled={mfaLoading} style={{ ...S.btn('255,68,68'), opacity: mfaLoading ? 0.5 : 1 }}>
                             🔓 DISABLE 2FA
                           </button>
                         </div>
