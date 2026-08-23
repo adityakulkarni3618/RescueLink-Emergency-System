@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const fetch = require('node-fetch');
 const { EmergencyCorridor, AuditLog } = require('./db');
 
 // Secure Key for telemetry validation (loaded from environment)
@@ -47,16 +48,47 @@ function getDistanceMeters(lat1, lon1, lat2, lon2) {
   const R = 6371e3; // meters
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
+  const a =
     Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
     Math.sin(dLon/2) * Math.sin(dLon/2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   return R * c;
 }
 
 /**
- * Dynamically extract and register junctions along any OSRM route polyline
+ * Reverse geocode a coordinate to get a human-readable junction name.
+ * Uses Nominatim (OpenStreetMap) — free, no API key required.
+ * Works for any real-world location globally.
+ */
+async function reverseGeocode(lat, lng) {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1`;
+    const res = await fetch(url, {
+      timeout: 4000,
+      headers: { 'User-Agent': 'RescueLink-Emergency-System/1.0' }
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    // Build a concise name: road + suburb/neighbourhood
+    const addr = data.address || {};
+    const parts = [
+      addr.road || addr.highway || addr.pedestrian,
+      addr.suburb || addr.neighbourhood || addr.quarter || addr.city_district,
+      addr.city || addr.town || addr.village
+    ].filter(Boolean);
+    return parts.length > 0 ? parts.slice(0, 2).join(', ') : (data.display_name || `Junction @ ${lat.toFixed(4)},${lng.toFixed(4)}`);
+  } catch (err) {
+    return null; // Will use fallback label
+  }
+}
+
+/**
+ * Dynamically extract and register junctions along any OSRM/ORS route polyline.
+ * Accepts either:
+ *  - Array of {lat, lng} objects (from getSmartRouteObjects)
+ *  - Array of [lat, lng] arrays (from getSmartRoute)
+ * Junction names are resolved via real-world reverse geocoding (Nominatim/OSM).
  */
 async function initializeCorridorForRoute(incidentId, routeCoordinates) {
   try {
@@ -64,26 +96,37 @@ async function initializeCorridorForRoute(incidentId, routeCoordinates) {
 
     if (!routeCoordinates || routeCoordinates.length < 2) return [];
 
+    // Normalize coordinate format — accept both {lat,lng} objects and [lat,lng] arrays
+    const normalizedRoute = routeCoordinates.map(c => {
+      if (Array.isArray(c)) return { lat: c[0], lng: c[1] };
+      return { lat: c.lat, lng: c.lng };
+    }).filter(c => c.lat && c.lng);
+
+    if (normalizedRoute.length < 2) return [];
+
     const corridors = [];
     let junctionIndex = 1;
+    let lastJunctionPoint = normalizedRoute[0];
+    let etaAccumulator = 45; // Start window ETA (seconds from now)
 
-    // Select nodes along the route path coordinates spaced approximately every 800 to 1200 meters
-    let lastJunctionPoint = routeCoordinates[0];
-    let etaAccumulator = 45; // Start window ETA
-
-    for (let i = 1; i < routeCoordinates.length - 1; i++) {
-      const coord = routeCoordinates[i];
+    for (let i = 1; i < normalizedRoute.length - 1; i++) {
+      const coord = normalizedRoute[i];
       const distFromLast = getDistanceMeters(lastJunctionPoint.lat, lastJunctionPoint.lng, coord.lat, coord.lng);
 
-      if (distFromLast >= 1000) { // Spacing of ~1km
+      if (distFromLast >= 1000) { // Spacing of ~1km between junctions
         const startWindow = new Date(Date.now() + (etaAccumulator - 20) * 1000);
         const endWindow = new Date(Date.now() + (etaAccumulator + 40) * 1000);
 
-        const nodeName = `Dynamic Junction #${junctionIndex}`;
+        // Resolve real-world name via Nominatim reverse geocoding
+        let junctionName = await reverseGeocode(coord.lat, coord.lng);
+        if (!junctionName) {
+          junctionName = `Junction #${junctionIndex} (${coord.lat.toFixed(4)}, ${coord.lng.toFixed(4)})`;
+        }
+
         const node = await EmergencyCorridor.create({
           incident_id: incidentId,
           junction_id: `junc_${incidentId}_${junctionIndex}`,
-          name: nodeName,
+          name: junctionName,
           status: 'SCHEDULED',
           eta_seconds: etaAccumulator,
           preempt_window_start: startWindow,
@@ -93,13 +136,14 @@ async function initializeCorridorForRoute(incidentId, routeCoordinates) {
         });
 
         corridors.push(node);
+        console.log(`[CORRIDOR] Junction ${junctionIndex}: "${junctionName}" @ ${coord.lat.toFixed(5)},${coord.lng.toFixed(5)}`);
         junctionIndex++;
         lastJunctionPoint = coord;
-        etaAccumulator += 80;
+        etaAccumulator += 80; // ~80 seconds between junctions at emergency speed
       }
     }
 
-    console.log(`[REAL-WORLD PREEMPTION] Generated ${corridors.length} dynamic route junctions along polyline for incident ${incidentId}`);
+    console.log(`[REAL-WORLD PREEMPTION] Generated ${corridors.length} dynamic route junctions for incident ${incidentId}`);
     return corridors;
   } catch (err) {
     console.error(`[PREEMPTION INIT ERROR]`, err.message);
@@ -129,7 +173,7 @@ function verifyTelemetrySignature(payload, signature) {
 async function evaluatePreemption(incidentId, rawLoc, io, signature = null) {
   if (!rawLoc || !rawLoc.lat || !rawLoc.lng) return;
 
-  // Real-world security verification
+  // Real-world security verification (only in production with explicit signature)
   if (process.env.NODE_ENV === 'production' && signature) {
     const isValid = verifyTelemetrySignature({ lat: rawLoc.lat, lng: rawLoc.lng, timestamp: rawLoc.timestamp }, signature);
     if (!isValid) {
@@ -161,7 +205,7 @@ async function evaluatePreemption(incidentId, rawLoc, io, signature = null) {
 
         await AuditLog.create({
           action: 'TRAFFIC_SIGNAL_PREEMPTION',
-          details: `Preempt window active for junction ${junc.name} (Incident: ${incidentId}). Initiating dynamic green wave.`,
+          details: `Preempt window active for junction "${junc.name}" (Incident: ${incidentId}). Initiating dynamic green wave.`,
           severity: 'INFO'
         }).catch(err => console.error(err));
 
@@ -179,7 +223,7 @@ async function evaluatePreemption(incidentId, rawLoc, io, signature = null) {
 
         await AuditLog.create({
           action: 'TRAFFIC_SIGNAL_PREEMPTION',
-          details: `CORRIDOR ACTIVE at ${junc.name} (Incident: ${incidentId}). Route fully preempted and cleared.`,
+          details: `CORRIDOR ACTIVE at "${junc.name}" (Incident: ${incidentId}). Route fully preempted and cleared.`,
           severity: 'WARNING'
         }).catch(err => console.error(err));
       } else if ((oldStatus === 'PREEMPTING' || oldStatus === 'CORRIDOR_ACTIVE') && distance > 180) {
@@ -187,7 +231,7 @@ async function evaluatePreemption(incidentId, rawLoc, io, signature = null) {
 
         await AuditLog.create({
           action: 'TRAFFIC_SIGNAL_PREEMPTION',
-          details: `Ambulance cleared junction bounds for ${junc.name}. Restoring standard traffic cycles.`,
+          details: `Ambulance cleared junction bounds for "${junc.name}". Restoring standard traffic cycles.`,
           severity: 'INFO'
         }).catch(err => console.error(err));
 
@@ -227,7 +271,10 @@ async function evaluatePreemption(incidentId, rawLoc, io, signature = null) {
   }
 }
 
-// Clean inactive preemptions (watchdog)
+/**
+ * Clean inactive preemptions (watchdog)
+ * Runs every 10 seconds, releases junctions when telemetry is stale > 20s
+ */
 async function startWatchdog(io, intervalMs = 10000) {
   setInterval(async () => {
     const now = Date.now();
@@ -246,7 +293,7 @@ async function startWatchdog(io, intervalMs = 10000) {
 
           await AuditLog.create({
             action: 'TRAFFIC_SIGNAL_PREEMPTION',
-            details: `WATCHDOG FAILSAFE: Released preemption at ${junc.name} due to telemetry timeout.`,
+            details: `WATCHDOG FAILSAFE: Released preemption at "${junc.name}" due to telemetry timeout.`,
             severity: 'WARNING'
           }).catch(err => console.error(err));
 
@@ -270,7 +317,7 @@ async function startWatchdog(io, intervalMs = 10000) {
               status: 'PASSED'
             });
           }
-          console.log(`[WATCHDOG FAILSAFE] Released junction ${junc.name} for incident ${junc.incident_id}`);
+          console.log(`[WATCHDOG FAILSAFE] Released junction "${junc.name}" for incident ${junc.incident_id}`);
         }
       }
     } catch (err) {
@@ -283,5 +330,6 @@ module.exports = {
   initializeCorridorForRoute,
   evaluatePreemption,
   startWatchdog,
-  verifyTelemetrySignature
+  verifyTelemetrySignature,
+  reverseGeocode
 };

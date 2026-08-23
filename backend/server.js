@@ -129,6 +129,11 @@ function syncMissionToDB(reqId) {
       const gps_log = req.gps_log || req.gpsHistory || [];
       const notes = req.fieldNotes || req.notes || '';
 
+      // Capture hospital GPS coords for corridor routing
+      const assignedHosp = req.assignedHospital || (hospitals && hospitals[req.hospitalSocket]);
+      const hospital_lat = assignedHosp?.location?.lat || assignedHosp?.pos?.lat || assignedHosp?.lat || null;
+      const hospital_lng = assignedHosp?.location?.lng || assignedHosp?.pos?.lng || assignedHosp?.lng || null;
+
       await Incident.upsert({
         id: req.id || reqId,
         patient_id: patientId,
@@ -139,6 +144,8 @@ function syncMissionToDB(reqId) {
         pickup_lat: pickup_lat,
         pickup_lng: pickup_lng,
         pickup_address: pickup_address,
+        hospital_lat: hospital_lat,
+        hospital_lng: hospital_lng,
         news2_score: news2_score,
         vitals_log: vitals_log,
         gps_log: gps_log,

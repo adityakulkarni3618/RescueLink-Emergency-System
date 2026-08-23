@@ -59,6 +59,8 @@ async function runMigrations() {
 
       // SQLite compatibility transformations
       if (dialect === 'sqlite') {
+        // Remove PostgreSQL-specific DO $$ ... $$ anonymous blocks (used for conditional enum alterations)
+        sql = sql.replace(/DO\s+\$\$[\s\S]*?\$\$\s*;?/gi, '');
         sql = sql
           .replace(/ADD COLUMN IF NOT EXISTS/gi, 'ADD COLUMN')
           .replace(/TIMESTAMP WITH TIME ZONE/gi, 'DATETIME')
