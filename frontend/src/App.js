@@ -71,6 +71,42 @@ const styles = `
     0%, 49% { opacity: 1; }
     50%, 100% { opacity: 0; }
   }
+  @keyframes logo-ring-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+  @keyframes logo-ring-spin-rev {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(-360deg); }
+  }
+  @keyframes logo-pulse-glow {
+    0%, 100% { filter: drop-shadow(0 0 4px rgba(220,50,50,0.6)); }
+    50%       { filter: drop-shadow(0 0 12px rgba(255,80,80,1)); }
+  }
+  .rescue-logo-wrap {
+    position: relative;
+    width: 52px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .rescue-logo-wrap svg.logo-main {
+    animation: logo-pulse-glow 2.5s ease-in-out infinite;
+  }
+  .rescue-ring-outer {
+    position: absolute;
+    top: 0; left: 0;
+    width: 52px; height: 52px;
+    animation: logo-ring-spin 7s linear infinite;
+  }
+  .rescue-ring-inner {
+    position: absolute;
+    top: 4px; left: 4px;
+    width: 44px; height: 44px;
+    animation: logo-ring-spin-rev 4.5s linear infinite;
+  }
 
   .role-card {
     animation: fadeSlideUp 0.6s ease forwards;
@@ -2076,18 +2112,27 @@ function LandingHomepage({ onSelectRole }) {
         background: 'rgba(5,15,35,0.7)', backdropFilter: 'blur(10px)', zIndex: 10
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 48, height: 48, flexShrink: 0 }}>
-            <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-              {/* Outer faint ring */}
-              <circle cx="24" cy="24" r="23" stroke="rgba(255,51,51,0.18)" strokeWidth="1"/>
-              {/* Main dark circle with glowing red border */}
-              <circle cx="24" cy="24" r="19" fill="#0d0d14" stroke="#cc2222" strokeWidth="2"/>
-              {/* Inner glow filter via circle */}
-              <circle cx="24" cy="24" r="18" fill="none" stroke="rgba(255,60,60,0.25)" strokeWidth="3"/>
-              {/* Bold red plus cross — horizontal bar */}
-              <rect x="10" y="20.5" width="28" height="7" rx="2" fill="#e03030"/>
-              {/* Bold red plus cross — vertical bar */}
-              <rect x="20.5" y="10" width="7" height="28" rx="2" fill="#e03030"/>
+          <div className="rescue-logo-wrap">
+            {/* Outer slow-rotating dashed ring */}
+            <svg className="rescue-ring-outer" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="26" cy="26" r="24" stroke="rgba(180,30,30,0.55)" strokeWidth="1.2" strokeDasharray="4 5" strokeLinecap="round"/>
+            </svg>
+            {/* Inner fast counter-rotating ring */}
+            <svg className="rescue-ring-inner" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="22" cy="22" r="20" stroke="rgba(80,160,255,0.35)" strokeWidth="1" strokeDasharray="2 8" strokeLinecap="round"/>
+            </svg>
+            {/* Static core logo */}
+            <svg className="logo-main" width="40" height="40" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              {/* Outer faint glow ring */}
+              <circle cx="24" cy="24" r="23" fill="none" stroke="rgba(255,40,40,0.12)" strokeWidth="1"/>
+              {/* Main dark circle with red border */}
+              <circle cx="24" cy="24" r="19" fill="#0a0a12" stroke="#cc2020" strokeWidth="2.2"/>
+              {/* Soft inner glow ring */}
+              <circle cx="24" cy="24" r="17.5" fill="none" stroke="rgba(255,60,60,0.2)" strokeWidth="2.5"/>
+              {/* Red cross — horizontal */}
+              <rect x="10" y="20.5" width="28" height="7" rx="2.2" fill="#dd2828"/>
+              {/* Red cross — vertical */}
+              <rect x="20.5" y="10" width="7" height="28" rx="2.2" fill="#dd2828"/>
             </svg>
           </div>
           <div>

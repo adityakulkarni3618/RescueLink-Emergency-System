@@ -1106,6 +1106,7 @@ function RegistryPanel() {
   const [editForm, setEditForm] = useState({});
   const [actionLoading, setActionLoading] = useState(null);
   const [toast, setToast] = useState(null);
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState(null); // {row, action: 'suspend'|'delete'}
 
   const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
   const token = sessionStorage.getItem('rescuelink_token') || '';
@@ -1164,7 +1165,6 @@ function RegistryPanel() {
   });
 
   const handleSuspend = async (row) => {
-    if (!window.confirm(`Suspend ${row.name || row.vehicleNo}? They will not be able to log in.`)) return;
     setActionLoading(row.id + '-suspend');
     try {
       let url = '';
@@ -1173,8 +1173,10 @@ function RegistryPanel() {
       else url = `/api/users/${row.id}/suspend`;
       const res = await fetch(url, { method: 'PUT', headers });
       if (!res.ok) throw new Error('Suspend failed');
+      // Optimistic update
+      setData(prev => prev.map(r => r.id === row.id ? { ...r, is_active: false } : r));
       showToast(`${row.name || row.vehicleNo} suspended`);
-      fetchData();
+      setDeleteConfirmModal(null);
     } catch (err) { showToast('Suspend failed', 'error'); }
     finally { setActionLoading(null); }
   };
@@ -1188,16 +1190,15 @@ function RegistryPanel() {
       else url = `/api/users/${row.id}/restore`;
       const res = await fetch(url, { method: 'PUT', headers });
       if (!res.ok) throw new Error('Restore failed');
+      setData(prev => prev.map(r => r.id === row.id ? { ...r, is_active: true } : r));
       showToast(`${row.name || row.vehicleNo} restored`);
-      fetchData();
     } catch (err) { showToast('Restore failed', 'error'); }
     finally { setActionLoading(null); }
   };
 
   const handleRemove = async (row) => {
-    const label = row.name || row.vehicleNo || row.email;
-    if (!window.confirm(`PERMANENTLY REMOVE "${label}"? This cannot be undone.`)) return;
     setActionLoading(row.id + '-remove');
+    const label = row.name || row.vehicleNo || row.email;
     try {
       let url = '';
       if (entityTab === 'hospitals') url = `/api/hospitals/${row.id}`;
@@ -1205,9 +1206,11 @@ function RegistryPanel() {
       else url = `/api/users/${row.id}`;
       const res = await fetch(url, { method: 'DELETE', headers });
       if (!res.ok) throw new Error('Delete failed');
-      showToast(`${label} removed permanently`);
-      fetchData();
-    } catch (err) { showToast('Remove failed', 'error'); }
+      // Optimistic removal — immediately remove from UI
+      setData(prev => prev.filter(r => r.id !== row.id));
+      showToast(`${label} permanently deleted`);
+      setDeleteConfirmModal(null);
+    } catch (err) { showToast('Permanent delete failed', 'error'); }
     finally { setActionLoading(null); }
   };
 
@@ -1349,7 +1352,7 @@ function RegistryPanel() {
               ? <button disabled={isLoadingS} onClick={() => handleSuspend(row)} style={{ ...S.btn('255,68,68'), padding: '4px 8px', opacity: isLoadingS ? 0.5 : 1 }} title="Suspend">⏸</button>
               : <button disabled={isLoadingR} onClick={() => handleRestore(row)} style={{ ...S.btn('0,255,136'), padding: '4px 8px', opacity: isLoadingR ? 0.5 : 1 }} title="Restore">▶</button>
             }
-            <button disabled={isLoadingD} onClick={() => handleRemove(row)} style={{ ...S.btn('255,40,40'), padding: '4px 8px', opacity: isLoadingD ? 0.5 : 1 }} title="Remove permanently">🗑</button>
+            <button onClick={() => setDeleteConfirmModal(row)} style={{ ...S.btn('255,40,40'), padding: '4px 8px', opacity: isLoadingD ? 0.5 : 1, fontSize: 13 }} title="Suspend / Delete">🗑</button>
           </div>
         </td>
       </tr>
@@ -1358,6 +1361,48 @@ function RegistryPanel() {
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16, padding: '0 0 20px' }}>
+
+      {/* ═══ Delete / Suspend Choice Modal ═══ */}
+      {deleteConfirmModal && (() => {
+        const row = deleteConfirmModal;
+        const label = row.name || row.vehicleNo || row.email || 'this entity';
+        const isActive = row.is_active !== false;
+        const isLoadingS = actionLoading === row.id + '-suspend';
+        const isLoadingD = actionLoading === row.id + '-remove';
+        return (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 999999, background: 'rgba(0,5,20,0.88)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setDeleteConfirmModal(null)}>
+            <div style={{ background: 'rgba(8,18,42,0.98)', border: '1px solid rgba(255,60,60,0.3)', borderRadius: 14, padding: 32, maxWidth: 440, width: '90%', boxShadow: '0 0 50px rgba(255,40,40,0.15)' }} onClick={e => e.stopPropagation()}>
+              <div style={{ fontFamily: "'Orbitron'", fontSize: 15, color: '#ff4444', fontWeight: 900, marginBottom: 8, letterSpacing: '0.06em' }}>⚠️ ACTION REQUIRED</div>
+              <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'", marginBottom: 24, lineHeight: 1.6 }}>
+                Choose what to do with:<br />
+                <span style={{ color: '#fff', fontWeight: 700, fontSize: 13 }}>「 {label} 」</span>
+              </div>
+
+              {/* Option 1: Suspend (only if currently active) */}
+              {isActive && (
+                <div style={{ background: 'rgba(255,184,0,0.07)', border: '1px solid rgba(255,184,0,0.25)', borderRadius: 10, padding: '16px 18px', marginBottom: 12 }}>
+                  <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#ffb800', fontWeight: 700, marginBottom: 6 }}>⏸ SUSPEND ACCOUNT</div>
+                  <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'", marginBottom: 12, lineHeight: 1.5 }}>Blocks login access. Account data is preserved. Reversible at any time.</div>
+                  <button onClick={() => handleSuspend(row)} disabled={isLoadingS} style={{ padding: '9px 20px', background: 'rgba(255,184,0,0.14)', border: '1px solid rgba(255,184,0,0.5)', borderRadius: 8, color: '#ffb800', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer', opacity: isLoadingS ? 0.5 : 1 }}>
+                    {isLoadingS ? '⏳ SUSPENDING...' : '⏸ SUSPEND'}
+                  </button>
+                </div>
+              )}
+
+              {/* Option 2: Permanent Delete */}
+              <div style={{ background: 'rgba(255,40,40,0.07)', border: '1px solid rgba(255,40,40,0.3)', borderRadius: 10, padding: '16px 18px', marginBottom: 20 }}>
+                <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#ff4444', fontWeight: 700, marginBottom: 6 }}>🗑 DELETE PERMANENTLY</div>
+                <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'", marginBottom: 12, lineHeight: 1.5 }}>All data, records, and credentials for this entity will be erased. This action <strong style={{ color: '#ff4444' }}>cannot be undone</strong>.</div>
+                <button onClick={() => handleRemove(row)} disabled={isLoadingD} style={{ padding: '9px 20px', background: 'rgba(255,40,40,0.14)', border: '1px solid rgba(255,40,40,0.5)', borderRadius: 8, color: '#ff4444', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer', opacity: isLoadingD ? 0.5 : 1 }}>
+                  {isLoadingD ? '⏳ DELETING...' : '🗑 PERMANENTLY DELETE'}
+                </button>
+              </div>
+
+              <button onClick={() => setDeleteConfirmModal(null)} style={{ width: '100%', padding: '9px', background: 'transparent', border: '1px solid rgba(160,200,255,0.15)', borderRadius: 8, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 10, cursor: 'pointer' }}>CANCEL</button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Toast */}
       {toast && (
@@ -1502,6 +1547,7 @@ function RegistryPanel() {
 function PendingErasureReviews({ SERVER_URL_CONST }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [purgeConfirmId, setPurgeConfirmId] = useState(null);
 
   const fetchPending = async () => {
     setLoading(true);
@@ -1526,6 +1572,7 @@ function PendingErasureReviews({ SERVER_URL_CONST }) {
   }, []);
 
   const handleReview = async (id, status, notes) => {
+    setPurgeConfirmId(null);
     try {
       const token = sessionStorage.getItem('rescuelink_token') || '';
       const response = await fetch(`/api/erasure/review/${id}`, {
@@ -1537,19 +1584,40 @@ function PendingErasureReviews({ SERVER_URL_CONST }) {
         body: JSON.stringify({ status, review_notes: notes })
       });
       if (response.ok) {
-        alert(`Request ${status === 'APPROVED' ? 'Approved' : 'Rejected'} successfully.`);
         fetchPending();
       } else {
         const err = await response.json();
-        alert(err.error || "Failed to process review");
+        console.error(err.error || "Failed to process review");
       }
     } catch (err) {
-      alert("Error: " + err.message);
+      console.error("Error: " + err.message);
     }
   };
 
   return (
     <div style={{ background: 'rgba(0,0,0,0.2)', padding: 16, borderRadius: 8, border: '1px solid rgba(0,200,255,0.1)' }}>
+
+      {/* ── Purge Confirmation Modal ── */}
+      {purgeConfirmId && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 999999, background: 'rgba(0,5,20,0.88)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setPurgeConfirmId(null)}>
+          <div style={{ background: 'rgba(8,18,42,0.98)', border: '1px solid rgba(255,60,60,0.35)', borderRadius: 14, padding: 32, maxWidth: 440, width: '90%', boxShadow: '0 0 50px rgba(255,40,40,0.12)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#ff4444', fontWeight: 900, marginBottom: 8 }}>⚠️ IRREVERSIBLE DPDP PURGE</div>
+            <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'", marginBottom: 20, lineHeight: 1.65 }}>
+              This action will <strong style={{ color: '#ff4444' }}>permanently delete</strong> all patient PII and cascade-remove all linked incident records from the system.<br /><br />
+              This operation complies with DPDP Act 2023 Section 12. It <strong style={{ color: '#ff4444' }}>cannot be undone</strong>.
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button onClick={() => handleReview(purgeConfirmId, 'APPROVED', 'DPDP Compliance Purge')} style={{ flex: 1, padding: '10px 16px', background: 'rgba(0,255,136,0.14)', border: '1px solid rgba(0,255,136,0.5)', borderRadius: 8, color: '#00ff88', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>
+                ✅ CONFIRM PURGE
+              </button>
+              <button onClick={() => setPurgeConfirmId(null)} style={{ flex: 1, padding: '10px 16px', background: 'transparent', border: '1px solid rgba(160,200,255,0.2)', borderRadius: 8, color: 'rgba(160,200,255,0.6)', fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer' }}>
+                CANCEL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#ffb800' }}>⚠️ PENDING ERASURE REQUESTS (SECTION 12)</div>
         <button onClick={fetchPending} style={{ padding: '4px 8px', background: 'rgba(0,200,255,0.15)', border: '1px solid #00c8ff', color: '#00c8ff', borderRadius: 4, fontSize: 9, cursor: 'pointer', fontFamily: "'Orbitron'" }}>REFRESH</button>
@@ -1571,19 +1639,15 @@ function PendingErasureReviews({ SERVER_URL_CONST }) {
               <div style={{ display: 'flex', gap: 8 }}>
                 <button 
                   onClick={() => {
-                    const notes = prompt("Enter rejection notes:");
-                    if (notes !== null) handleReview(req.id, 'REJECTED', notes);
+                    const notes = window.prompt("Enter rejection notes (required):");
+                    if (notes !== null && notes.trim()) handleReview(req.id, 'REJECTED', notes.trim());
                   }}
                   style={{ padding: '6px 12px', background: 'rgba(255,68,68,0.15)', border: '1px solid #ff4444', borderRadius: 4, color: '#ff4444', fontSize: 10, fontWeight: 'bold', cursor: 'pointer' }}
                 >
                   REJECT
                 </button>
                 <button 
-                  onClick={() => {
-                    if (window.confirm("Are you sure you want to approve? This will permanently wipe patient PII and cascade delete all incidents.")) {
-                      handleReview(req.id, 'APPROVED', 'DPDP Compliance Purge');
-                    }
-                  }}
+                  onClick={() => setPurgeConfirmId(req.id)}
                   style={{ padding: '6px 12px', background: 'rgba(0,255,136,0.15)', border: '1px solid #00ff88', borderRadius: 4, color: '#00ff88', fontSize: 10, fontWeight: 'bold', cursor: 'pointer' }}
                 >
                   APPROVE & PURGE
@@ -1899,6 +1963,9 @@ function RegistrationApprovals() {
   const [hospitals, setHospitals] = useState([]);
   const [ambulances, setAmbulances] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [actionModal, setActionModal] = useState(null); // { type, id, name, action: 'approve'|'reject' }
+  const [actionStatus, setActionStatus] = useState(null); // { ok, msg }
+  const [actionWorking, setActionWorking] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -1928,31 +1995,33 @@ function RegistrationApprovals() {
   }, []);
 
   const handleApprove = async (type, id) => {
+    setActionWorking(true);
     try {
       const token = sessionStorage.getItem('rescuelink_token') || '';
       const endpoint = type === 'hospital' ? `/api/hospitals/${id}` : `/api/ambulances/${id}/settings`;
       const response = await fetch(endpoint, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ is_active: true })
       });
       if (response.ok) {
-        alert('Registration approved successfully!');
+        setActionStatus({ ok: true, msg: 'Registration approved and activated successfully.' });
+        setActionModal(null);
         fetchData();
       } else {
         const err = await response.json();
-        alert(err.error || 'Failed to approve registration');
+        setActionStatus({ ok: false, msg: err.error || 'Failed to approve registration' });
       }
     } catch (err) {
-      alert('Error: ' + err.message);
+      setActionStatus({ ok: false, msg: 'Connection error: ' + err.message });
+    } finally {
+      setActionWorking(false);
+      setTimeout(() => setActionStatus(null), 4000);
     }
   };
 
   const handleReject = async (type, id) => {
-    if (!window.confirm(`Are you sure you want to REJECT and delete this ${type} registration?`)) return;
+    setActionWorking(true);
     try {
       const token = sessionStorage.getItem('rescuelink_token') || '';
       const endpoint = type === 'hospital' ? `/api/hospitals/${id}` : `/api/ambulances/${id}`;
@@ -1961,19 +2030,59 @@ function RegistrationApprovals() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
-        alert('Registration rejected and removed from system.');
+        setActionStatus({ ok: true, msg: 'Registration rejected and permanently removed.' });
+        setActionModal(null);
         fetchData();
       } else {
         const err = await response.json();
-        alert(err.error || 'Failed to reject registration');
+        setActionStatus({ ok: false, msg: err.error || 'Failed to reject registration' });
       }
     } catch (err) {
-      alert('Error: ' + err.message);
+      setActionStatus({ ok: false, msg: 'Connection error: ' + err.message });
+    } finally {
+      setActionWorking(false);
+      setTimeout(() => setActionStatus(null), 4000);
     }
   };
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', background: 'rgba(5,15,40,0.8)', borderRadius: 10, padding: 24, border: '1px solid rgba(0,255,136,0.15)', display: 'flex', flexDirection: 'column' }}>
+
+      {/* ── Approve / Reject Confirmation Modal ── */}
+      {actionModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 999999, background: 'rgba(0,5,20,0.88)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setActionModal(null)}>
+          <div style={{ background: 'rgba(8,18,42,0.98)', border: `1px solid ${actionModal.action === 'approve' ? 'rgba(0,255,136,0.3)' : 'rgba(255,60,60,0.3)'}`, borderRadius: 14, padding: 32, maxWidth: 440, width: '90%', boxShadow: '0 0 50px rgba(0,0,0,0.3)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 14, color: actionModal.action === 'approve' ? '#00ff88' : '#ff4444', fontWeight: 900, marginBottom: 8 }}>
+              {actionModal.action === 'approve' ? '✅ APPROVE REGISTRATION' : '⚠️ REJECT REGISTRATION'}
+            </div>
+            <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'", marginBottom: 20, lineHeight: 1.65 }}>
+              {actionModal.action === 'approve'
+                ? <>This will <strong style={{ color: '#00ff88' }}>activate</strong> the following {actionModal.type} and allow them to access the system:<br /><br /><span style={{ color: '#fff', fontWeight: 700 }}>「 {actionModal.name} 」</span></>
+                : <>This will <strong style={{ color: '#ff4444' }}>permanently delete</strong> the following {actionModal.type} registration from the system. <strong style={{ color: '#ff4444' }}>This cannot be undone.</strong><br /><br /><span style={{ color: '#fff', fontWeight: 700 }}>「 {actionModal.name} 」</span></>}
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                disabled={actionWorking}
+                onClick={() => actionModal.action === 'approve' ? handleApprove(actionModal.type, actionModal.id) : handleReject(actionModal.type, actionModal.id)}
+                style={{ flex: 1, padding: '10px 16px', background: actionModal.action === 'approve' ? 'rgba(0,255,136,0.14)' : 'rgba(255,40,40,0.14)', border: `1px solid ${actionModal.action === 'approve' ? 'rgba(0,255,136,0.5)' : 'rgba(255,40,40,0.5)'}`, borderRadius: 8, color: actionModal.action === 'approve' ? '#00ff88' : '#ff4444', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer', opacity: actionWorking ? 0.5 : 1 }}
+              >
+                {actionWorking ? '⏳ PROCESSING...' : (actionModal.action === 'approve' ? '✅ CONFIRM APPROVE' : '🗑 CONFIRM REJECT')}
+              </button>
+              <button onClick={() => setActionModal(null)} style={{ flex: 1, padding: '10px 16px', background: 'transparent', border: '1px solid rgba(160,200,255,0.15)', borderRadius: 8, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer' }}>
+                CANCEL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Action Status Toast ── */}
+      {actionStatus && (
+        <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 99999, background: actionStatus.ok ? 'rgba(0,255,136,0.12)' : 'rgba(255,40,40,0.15)', border: `1px solid ${actionStatus.ok ? '#00ff88' : '#ff4444'}`, borderRadius: 8, padding: '12px 20px', color: actionStatus.ok ? '#00ff88' : '#ff4444', fontFamily: "'Orbitron'", fontSize: 12, fontWeight: 700, backdropFilter: 'blur(10px)' }}>
+          {actionStatus.ok ? '✅' : '❌'} {actionStatus.msg}
+        </div>
+      )}
+
       <h3 style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#00ff88', borderBottom: '1px solid rgba(0,255,136,0.2)', paddingBottom: 10, margin: '0 0 20px', letterSpacing: '0.1em' }}>
         🛡️ REGISTRATION APPROVAL CENTER
       </h3>
@@ -2011,13 +2120,13 @@ function RegistrationApprovals() {
                     </div>
                     <div style={{ display: 'flex', gap: 10 }}>
                       <button
-                        onClick={() => handleApprove('hospital', h.id)}
+                        onClick={() => setActionModal({ type: 'hospital', id: h.id, name: h.name, action: 'approve' })}
                         style={{ padding: '8px 16px', background: 'rgba(0,255,136,0.15)', border: '1px solid #00ff88', borderRadius: 6, color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 'bold', cursor: 'pointer' }}
                       >
                         APPROVE
                       </button>
                       <button
-                        onClick={() => handleReject('hospital', h.id)}
+                        onClick={() => setActionModal({ type: 'hospital', id: h.id, name: h.name, action: 'reject' })}
                         style={{ padding: '8px 16px', background: 'rgba(255,68,68,0.1)', border: '1px solid #ff4444', borderRadius: 6, color: '#ff4444', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 'bold', cursor: 'pointer' }}
                       >
                         REJECT
@@ -2054,13 +2163,13 @@ function RegistrationApprovals() {
                     </div>
                     <div style={{ display: 'flex', gap: 10 }}>
                       <button
-                        onClick={() => handleApprove('ambulance', a.id)}
+                        onClick={() => setActionModal({ type: 'ambulance', id: a.id, name: `${a.vehicleNo} (${a.driverName})`, action: 'approve' })}
                         style={{ padding: '8px 16px', background: 'rgba(0,255,136,0.15)', border: '1px solid #00ff88', borderRadius: 6, color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 'bold', cursor: 'pointer' }}
                       >
                         APPROVE
                       </button>
                       <button
-                        onClick={() => handleReject('ambulance', a.id)}
+                        onClick={() => setActionModal({ type: 'ambulance', id: a.id, name: `${a.vehicleNo} (${a.driverName})`, action: 'reject' })}
                         style={{ padding: '8px 16px', background: 'rgba(255,68,68,0.1)', border: '1px solid #ff4444', borderRadius: 6, color: '#ff4444', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 'bold', cursor: 'pointer' }}
                       >
                         REJECT
