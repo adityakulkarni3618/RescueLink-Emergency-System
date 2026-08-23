@@ -42,6 +42,22 @@ axios.interceptors.request.use((config) => {
 
 /* ─── Animated scanline background ─────────────────────────────────────── */
 const styles = `
+  /* --- Universal responsive reset --- */
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+  html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  .app-root {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+  img, svg, canvas {
+    max-width: 100%;
+  }
+
   @keyframes scanline {
     0% { transform: translateY(-100%); }
     100% { transform: translateY(100vh); }
@@ -119,38 +135,6 @@ const styles = `
     --theme-danger: #ff4444;
   }
 
-  body[data-theme='dark-sage-green'] {
-    --theme-accent: #3cd070;
-    --theme-accent-rgb: 60, 208, 112;
-    --theme-accent-glow: rgba(60, 208, 112, 0.4);
-    --theme-accent-hover: #5be08c;
-    --theme-bg: radial-gradient(ellipse at 50% 30%, #021208 0%, #000402 100%);
-    --theme-card-bg: rgba(5, 30, 15, 0.85);
-    --theme-text-primary: #e0f2e5;
-    --theme-text-secondary: rgba(160, 255, 200, 0.6);
-    --theme-border: rgba(60, 208, 112, 0.25);
-    --theme-border-hover: rgba(60, 208, 112, 0.55);
-    --theme-success: #3cd070;
-    --theme-warning: #ffd000;
-    --theme-danger: #ff5555;
-  }
-
-  body[data-theme='dark-steel-blue'] {
-    --theme-accent: #5294e2;
-    --theme-accent-rgb: 82, 148, 226;
-    --theme-accent-glow: rgba(82, 148, 226, 0.4);
-    --theme-accent-hover: #74a9eb;
-    --theme-bg: radial-gradient(ellipse at 50% 30%, #081220 0%, #02050a 100%);
-    --theme-card-bg: rgba(10, 20, 45, 0.85);
-    --theme-text-primary: #e6f0fa;
-    --theme-text-secondary: rgba(175, 200, 240, 0.6);
-    --theme-border: rgba(82, 148, 226, 0.25);
-    --theme-border-hover: rgba(82, 148, 226, 0.55);
-    --theme-success: #00ffaa;
-    --theme-warning: #ffc800;
-    --theme-danger: #ff5555;
-  }
-
   body[data-theme='light-sky-breeze'] {
     --theme-accent: #0284c7;
     --theme-accent-rgb: 2, 132, 199;
@@ -165,54 +149,6 @@ const styles = `
     --theme-success: #16a34a;
     --theme-warning: #ea580c;
     --theme-danger: #dc2626;
-  }
-
-  body[data-theme='light-sage-green'] {
-    --theme-accent: #15803d;
-    --theme-accent-rgb: 21, 128, 61;
-    --theme-accent-glow: rgba(21, 128, 61, 0.25);
-    --theme-accent-hover: #166534;
-    --theme-bg: #f0fdf4;
-    --theme-card-bg: #ffffff;
-    --theme-text-primary: #0f172a;
-    --theme-text-secondary: #475569;
-    --theme-border: #bbf7d0;
-    --theme-border-hover: #86efac;
-    --theme-success: #16a34a;
-    --theme-warning: #d97706;
-    --theme-danger: #dc2626;
-  }
-
-  body[data-theme='light-steel-blue'] {
-    --theme-accent: #1d4ed8;
-    --theme-accent-rgb: 29, 78, 216;
-    --theme-accent-glow: rgba(29, 78, 216, 0.25);
-    --theme-accent-hover: #1e40af;
-    --theme-bg: #f8fafc;
-    --theme-card-bg: #ffffff;
-    --theme-text-primary: #0f172a;
-    --theme-text-secondary: #475569;
-    --theme-border: #cbd5e1;
-    --theme-border-hover: #94a3b8;
-    --theme-success: #16a34a;
-    --theme-warning: #dd6b20;
-    --theme-danger: #e53e3e;
-  }
-
-  body[data-theme='light'] {
-    --theme-accent: #1b4f72;
-    --theme-accent-rgb: 27, 79, 114;
-    --theme-accent-glow: rgba(27, 79, 114, 0.2);
-    --theme-accent-hover: #154360;
-    --theme-bg: #eef2f6;
-    --theme-card-bg: #ffffff;
-    --theme-text-primary: #1a202c;
-    --theme-text-secondary: #4a5568;
-    --theme-border: #cbd5e0;
-    --theme-border-hover: #a0aec0;
-    --theme-success: #2f855a;
-    --theme-warning: #dd6b20;
-    --theme-danger: #e53e3e;
   }
 
   /* --- Global Reset & Overrides --- */
@@ -488,6 +424,9 @@ const styles = `
       right: 10px !important;
       padding: 4px 8px !important;
       gap: 6px !important;
+      flex-wrap: wrap !important;
+      max-width: calc(100vw - 20px) !important;
+      justify-content: flex-end !important;
     }
     .global-buttons-container button {
       padding: 6px 10px !important;
@@ -495,6 +434,97 @@ const styles = `
       height: 30px !important;
     }
     .global-btn-label { display: none !important; }
+  }
+
+  @media (max-width: 380px) {
+    .global-buttons-container {
+      gap: 4px !important;
+      padding: 3px 6px !important;
+    }
+    .global-buttons-container button {
+      padding: 5px 8px !important;
+      font-size: 9px !important;
+      height: 26px !important;
+    }
+  }
+
+  /* When the emergency broadcast banner is showing, it wraps to 2 lines on
+     narrow screens and grows taller — push the action bar down further so
+     it never sits underneath the banner. */
+  @media (max-width: 640px) {
+    .global-buttons-container.gb-banner-active {
+      top: 96px !important;
+    }
+  }
+  @media (max-width: 380px) {
+    .global-buttons-container.gb-banner-active {
+      top: 110px !important;
+    }
+  }
+
+  /* --- Page headers (Landing / Ambulance / Hospital portals) --- */
+  .rl-page-header {
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
+  @media (max-width: 640px) {
+    .rl-page-header {
+      padding: 14px 16px !important;
+    }
+    .rl-page-header-right {
+      text-align: left !important;
+      width: 100%;
+      display: flex !important;
+      justify-content: flex-start !important;
+    }
+  }
+
+  /* --- Two-button action rows collapse to stacked on narrow screens --- */
+  .rl-two-btn-row {
+    flex-wrap: wrap;
+  }
+  @media (max-width: 480px) {
+    .rl-two-btn-row {
+      flex-direction: column !important;
+    }
+    .rl-two-btn-row > button {
+      width: 100% !important;
+    }
+  }
+
+  /* --- Emergency broadcast banner: keep readable and non-overlapping on mobile --- */
+  @media (max-width: 640px) {
+    .rl-emergency-banner {
+      flex-wrap: wrap !important;
+      padding: 10px 14px !important;
+    }
+    .rl-emergency-banner button {
+      margin-left: auto;
+    }
+  }
+
+  /* --- Theme switcher: keep clear of screen edges on small phones --- */
+  @media (max-width: 480px) {
+    .theme-switcher-container {
+      bottom: 14px !important;
+      left: 14px !important;
+    }
+  }
+
+  /* --- Role select & gateway cards: never overflow the viewport --- */
+  @media (max-width: 480px) {
+    .role-card {
+      width: 100% !important;
+      max-width: 320px !important;
+    }
+    .rl-gateway-card {
+      width: 100% !important;
+      max-width: 320px !important;
+    }
+    .rl-directory-panel {
+      min-width: 0 !important;
+      width: 100% !important;
+    }
   }
 
   .theme-switcher-btn {
@@ -515,7 +545,7 @@ const styles = `
     background: rgba(255, 255, 255, 0.08) !important;
     transform: scale(1.1) !important;
   }
-  [data-theme='light'] .theme-switcher-btn:hover {
+  [data-theme^='light'] .theme-switcher-btn:hover {
     background: rgba(0, 0, 0, 0.05) !important;
   }
 
@@ -985,7 +1015,7 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
   const [otpCode, setOtpCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
-  
+
   // Paramedic signup fields
   const [vehicleNo, setVehicleNo] = useState('');
   const [driverName, setDriverName] = useState('');
@@ -1297,7 +1327,7 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
     const promptedPhone = window.prompt("🚨 EMERGENCY SOS DISPATCH\n\nPlease enter your contact phone number to coordinate with the ambulance driver:", "");
     if (promptedPhone === null) return; // cancel
     const promptedName = window.prompt("Please enter your name (Optional):", "Guest SOS Patient");
-    
+
     setError('');
     setLoading(true);
     try {
@@ -1308,7 +1338,7 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Guest login failed');
-      
+
       sessionStorage.setItem('rescuelink_token', data.token);
       sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
       sessionStorage.setItem('guest_auto_sos', 'true'); // Flag to auto-trigger dispatch on dashboard load
@@ -1333,7 +1363,7 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
     }}>
       <div className="rl-card rl-modal-card" style={{ width: '100%', maxWidth: 480, padding: '28px 24px 32px 24px', position: 'relative' }}>
         <button onClick={onClose} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: 'rgba(160,200,255,0.6)', fontSize: 20, cursor: 'pointer' }}>✕</button>
-        
+
         <h2 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 22, color: '#00c8ff', textAlign: 'center', marginBottom: 4, letterSpacing: '0.1em' }}>
           {defaultRole ? `${defaultRole.toUpperCase()} GATEWAY` : 'RESCUELINK GATEWAY'}
         </h2>
@@ -1368,7 +1398,7 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
               {sentOtp ? 'CONFIRM OTP & RESET PASSWORD' : 'PASSWORD RECOVERY'}
             </h3>
             <p style={{ color: 'rgba(160,200,255,0.6)', fontSize: 11, lineHeight: 1.4 }}>
-              {sentOtp 
+              {sentOtp
                 ? 'Type the 6-digit verification code sent to your contact info along with your new secure access passcode.'
                 : 'Select verification channel and enter your contact details to receive a temporary recovery OTP.'}
             </p>
@@ -1473,26 +1503,26 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>PASSWORD</label>
                   <div style={{ position: 'relative' }}>
-                    <input 
-                      type={showPassword ? "text" : "password"} 
-                      value={password} 
-                      onChange={(e) => setPassword(e.target.value)} 
-                      placeholder="••••••••" 
-                      required 
-                      className="rl-input" 
-                      style={{ width: '100%', boxSizing: 'border-box', paddingRight: '40px' }} 
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                      className="rl-input"
+                      style={{ width: '100%', boxSizing: 'border-box', paddingRight: '40px' }}
                     />
-                    <button 
-                      type="button" 
-                      onClick={() => setShowPassword(!showPassword)} 
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
                       style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'rgba(160,200,255,0.6)', cursor: 'pointer', fontSize: 14 }}
                     >
                       {showPassword ? '👁️' : '👁️‍🗨️'}
                     </button>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 2 }}>
-                    <span 
-                      onClick={() => setIsForgotPassword(true)} 
+                    <span
+                      onClick={() => setIsForgotPassword(true)}
                       style={{ fontSize: 10, color: '#00c8ff', cursor: 'pointer', fontFamily: "'Share Tech Mono'" }}
                     >
                       Forgot Password?
@@ -1510,172 +1540,172 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
               </form>
             ) : (
               <form onSubmit={handleRegisterSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                 {defaultRole === 'ambulance' ? (
-                   <>
-                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                       <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>VEHICLE PLATE NUMBER</label>
-                       <input type="text" value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} required placeholder="MH-12-QW-5678" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
-                     </div>
-                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                       <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>LEAD PARAMEDIC / DRIVER NAME</label>
-                       <input type="text" value={driverName} onChange={(e) => setDriverName(e.target.value)} required placeholder="e.g. John Doe" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
-                     </div>
-                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                       <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>CONTACT PHONE NUMBER</label>
-                       <input type="text" value={contactInfo} onChange={(e) => setContactInfo(e.target.value)} required placeholder="e.g. 9876543210" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
-                     </div>
-                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                       <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>AMBULANCE TYPE</label>
-                       <select value={type} onChange={(e) => setType(e.target.value)} className="rl-input" style={{ width: '100%', background: 'rgba(5,15,40,0.85)' }}>
-                         <option value="BLS">BLS (Basic Life Support)</option>
-                         <option value="ALS">ALS (Advanced Life Support)</option>
-                       </select>
-                     </div>
-                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                       <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>HOSPITAL AFFILIATION</label>
-                       <select value={hospitalId} onChange={(e) => setHospitalId(e.target.value)} className="rl-input" style={{ width: '100%', background: 'rgba(5,15,40,0.85)' }}>
-                         <option value="">No Affiliation (Independent)</option>
-                         {hospitalsList.map(h => (
-                           <option key={h.id} value={h.id}>{h.name}</option>
-                         ))}
-                       </select>
-                     </div>
-                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                       <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>ONBOARD EQUIPMENT</label>
-                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                         {['Defibrillator', 'Ventilator', 'Oxygen Cylinder', 'ECG Monitor'].map(eq => {
-                           const checked = equipmentChecklist.includes(eq);
-                           return (
-                             <label key={eq} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#e0eaff', cursor: 'pointer' }}>
-                               <input 
-                                 type="checkbox" 
-                                 checked={checked} 
-                                 onChange={() => {
-                                   if (checked) {
-                                     setEquipmentChecklist(equipmentChecklist.filter(item => item !== eq));
-                                   } else {
-                                     setEquipmentChecklist([...equipmentChecklist, eq]);
-                                   }
-                                 }} 
-                               />
-                               {eq}
-                             </label>
-                           );
-                         })}
-                       </div>
-                     </div>
-                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>CREW MEMBERS (COMMA SEPARATED)</label>
-                        <input type="text" value={crewMembers} onChange={(e) => setCrewMembers(e.target.value)} placeholder="e.g. Paramedic John, Nurse Sarah" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                {defaultRole === 'ambulance' ? (
+                  <>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>VEHICLE PLATE NUMBER</label>
+                      <input type="text" value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} required placeholder="MH-12-QW-5678" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>LEAD PARAMEDIC / DRIVER NAME</label>
+                      <input type="text" value={driverName} onChange={(e) => setDriverName(e.target.value)} required placeholder="e.g. John Doe" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>CONTACT PHONE NUMBER</label>
+                      <input type="text" value={contactInfo} onChange={(e) => setContactInfo(e.target.value)} required placeholder="e.g. 9876543210" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>AMBULANCE TYPE</label>
+                      <select value={type} onChange={(e) => setType(e.target.value)} className="rl-input" style={{ width: '100%', background: 'rgba(5,15,40,0.85)' }}>
+                        <option value="BLS">BLS (Basic Life Support)</option>
+                        <option value="ALS">ALS (Advanced Life Support)</option>
+                      </select>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>HOSPITAL AFFILIATION</label>
+                      <select value={hospitalId} onChange={(e) => setHospitalId(e.target.value)} className="rl-input" style={{ width: '100%', background: 'rgba(5,15,40,0.85)' }}>
+                        <option value="">No Affiliation (Independent)</option>
+                        {hospitalsList.map(h => (
+                          <option key={h.id} value={h.id}>{h.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>ONBOARD EQUIPMENT</label>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                        {['Defibrillator', 'Ventilator', 'Oxygen Cylinder', 'ECG Monitor'].map(eq => {
+                          const checked = equipmentChecklist.includes(eq);
+                          return (
+                            <label key={eq} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#e0eaff', cursor: 'pointer' }}>
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => {
+                                  if (checked) {
+                                    setEquipmentChecklist(equipmentChecklist.filter(item => item !== eq));
+                                  } else {
+                                    setEquipmentChecklist([...equipmentChecklist, eq]);
+                                  }
+                                }}
+                              />
+                              {eq}
+                            </label>
+                          );
+                        })}
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                          <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>LEAD LICENSE NUMBER</label>
-                          <input type="text" value={licenseNumber} onChange={(e) => setLicenseNumber(e.target.value)} placeholder="e.g. EMT-99211" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                          <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>LICENSE EXPIRY</label>
-                          <input type="date" value={licenseExpiry} onChange={(e) => setLicenseExpiry(e.target.value)} className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
-                        </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>CREW MEMBERS (COMMA SEPARATED)</label>
+                      <input type="text" value={crewMembers} onChange={(e) => setCrewMembers(e.target.value)} placeholder="e.g. Paramedic John, Nurse Sarah" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>LEAD LICENSE NUMBER</label>
+                        <input type="text" value={licenseNumber} onChange={(e) => setLicenseNumber(e.target.value)} placeholder="e.g. EMT-99211" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>OXYGEN CAPACITY (LITERS)</label>
-                        <input type="number" value={oxygenCapacityLiters} onChange={(e) => setOxygenCapacityLiters(e.target.value)} placeholder="e.g. 500" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                        <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>LICENSE EXPIRY</label>
+                        <input type="date" value={licenseExpiry} onChange={(e) => setLicenseExpiry(e.target.value)} className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
                       </div>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#e0eaff', cursor: 'pointer', marginTop: 4 }}>
-                        <input type="checkbox" checked={isSystemStandard} onChange={(e) => setIsSystemStandard(e.target.checked)} style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#00c8ff' }} />
-                        <span>This vehicle is certified under Standard EMS vehicle safety metrics.</span>
-                      </label>
-                   </>
-                 ) : defaultRole === 'user' ? (
-                   <>
-                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                       <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>FULL NAME</label>
-                       <input type="text" value={driverName} onChange={(e) => setDriverName(e.target.value)} required placeholder="e.g. Aditya Kulkarni" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
-                     </div>
-                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                       <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>EMAIL ADDRESS</label>
-                       <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="aditya@gmail.com" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
-                     </div>
-                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                       <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>MOBILE PHONE NUMBER</label>
-                       <input type="text" value={contactInfo} onChange={(e) => setContactInfo(e.target.value)} required placeholder="e.g. 9876543210" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
-                     </div>
-                     <div style={{ display: 'flex', gap: 10 }}>
-                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                         <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>ABHA CARD NUMBER</label>
-                         <input type="text" value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} placeholder="12-3456-7890-12" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
-                       </div>
-                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                         <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>ABHA ADDRESS ID</label>
-                         <input type="text" value={abhaAddress} onChange={(e) => setAbhaAddress(e.target.value)} placeholder="aditya@abdm" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
-                       </div>
-                     </div>
-                     <div style={{ display: 'flex', gap: 10 }}>
-                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                         <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>BLOOD GROUP</label>
-                         <input type="text" value={bloodGroup} onChange={(e) => setBloodGroup(e.target.value)} placeholder="O+ve / B-ve" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
-                       </div>
-                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                         <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>DATE OF BIRTH</label>
-                         <input type="date" value={dob} onChange={(e) => setDob(e.target.value)} className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
-                       </div>
-                     </div>
-                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                       <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>KNOWN DRUG & METABOLIC ALLERGIES</label>
-                       <input type="text" value={allergies} onChange={(e) => setAllergies(e.target.value)} placeholder="e.g. Penicillin, Peanuts" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
-                     </div>
-                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                       <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>EXISTING CHRONIC MEDICAL CONDITIONS</label>
-                       <input type="text" value={chronicConditions} onChange={(e) => setChronicConditions(e.target.value)} placeholder="e.g. Asthma, Diabetes" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
-                     </div>
-                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                       <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>GENDER</label>
-                       <select value={gender} onChange={(e) => setGender(e.target.value)} className="rl-input" style={{ width: '100%', background: 'rgba(5,15,40,0.85)' }}>
-                         <option value="">Select Gender</option>
-                         <option value="Male">Male</option>
-                         <option value="Female">Female</option>
-                         <option value="Other">Other</option>
-                       </select>
-                     </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>OXYGEN CAPACITY (LITERS)</label>
+                      <input type="number" value={oxygenCapacityLiters} onChange={(e) => setOxygenCapacityLiters(e.target.value)} placeholder="e.g. 500" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                    </div>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#e0eaff', cursor: 'pointer', marginTop: 4 }}>
+                      <input type="checkbox" checked={isSystemStandard} onChange={(e) => setIsSystemStandard(e.target.checked)} style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#00c8ff' }} />
+                      <span>This vehicle is certified under Standard EMS vehicle safety metrics.</span>
+                    </label>
+                  </>
+                ) : defaultRole === 'user' ? (
+                  <>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>FULL NAME</label>
+                      <input type="text" value={driverName} onChange={(e) => setDriverName(e.target.value)} required placeholder="e.g. Aditya Kulkarni" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>EMAIL ADDRESS</label>
+                      <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="aditya@gmail.com" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>MOBILE PHONE NUMBER</label>
+                      <input type="text" value={contactInfo} onChange={(e) => setContactInfo(e.target.value)} required placeholder="e.g. 9876543210" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                    </div>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>ABHA CARD NUMBER</label>
+                        <input type="text" value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} placeholder="12-3456-7890-12" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                      </div>
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>ABHA ADDRESS ID</label>
+                        <input type="text" value={abhaAddress} onChange={(e) => setAbhaAddress(e.target.value)} placeholder="aditya@abdm" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>BLOOD GROUP</label>
+                        <input type="text" value={bloodGroup} onChange={(e) => setBloodGroup(e.target.value)} placeholder="O+ve / B-ve" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                      </div>
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>DATE OF BIRTH</label>
+                        <input type="date" value={dob} onChange={(e) => setDob(e.target.value)} className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>KNOWN DRUG & METABOLIC ALLERGIES</label>
+                      <input type="text" value={allergies} onChange={(e) => setAllergies(e.target.value)} placeholder="e.g. Penicillin, Peanuts" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>EXISTING CHRONIC MEDICAL CONDITIONS</label>
+                      <input type="text" value={chronicConditions} onChange={(e) => setChronicConditions(e.target.value)} placeholder="e.g. Asthma, Diabetes" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>GENDER</label>
+                      <select value={gender} onChange={(e) => setGender(e.target.value)} className="rl-input" style={{ width: '100%', background: 'rgba(5,15,40,0.85)' }}>
+                        <option value="">Select Gender</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
 
-                      {/* Emergency Contact details */}
+                    {/* Emergency Contact details */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label style={{ fontSize: 9, color: '#ffb800', fontFamily: "'Share Tech Mono'" }}>EMERGENCY CONTACT NAME (NEXT OF KIN)</label>
+                      <input type="text" value={emergencyContactName} onChange={(e) => setEmergencyContactName(e.target.value)} placeholder="e.g. Jane Doe" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        <label style={{ fontSize: 9, color: '#ffb800', fontFamily: "'Share Tech Mono'" }}>EMERGENCY CONTACT NAME (NEXT OF KIN)</label>
-                        <input type="text" value={emergencyContactName} onChange={(e) => setEmergencyContactName(e.target.value)} placeholder="e.g. Jane Doe" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                        <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>RELATIONSHIP</label>
+                        <input type="text" value={emergencyContactRelationship} onChange={(e) => setEmergencyContactRelationship(e.target.value)} placeholder="e.g. Spouse" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                          <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>RELATIONSHIP</label>
-                          <input type="text" value={emergencyContactRelationship} onChange={(e) => setEmergencyContactRelationship(e.target.value)} placeholder="e.g. Spouse" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                          <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>CONTACT PHONE</label>
-                          <input type="text" value={emergencyContactPhone} onChange={(e) => setEmergencyContactPhone(e.target.value)} placeholder="e.g. 9876543210" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
-                        </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>CONTACT PHONE</label>
+                        <input type="text" value={emergencyContactPhone} onChange={(e) => setEmergencyContactPhone(e.target.value)} placeholder="e.g. 9876543210" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
                       </div>
+                    </div>
 
-                      {/* Insurance Info */}
+                    {/* Insurance Info */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label style={{ fontSize: 9, color: '#00ff88', fontFamily: "'Share Tech Mono'" }}>INSURANCE PROVIDER</label>
+                      <input type="text" value={insuranceProvider} onChange={(e) => setInsuranceProvider(e.target.value)} placeholder="e.g. Star Health" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        <label style={{ fontSize: 9, color: '#00ff88', fontFamily: "'Share Tech Mono'" }}>INSURANCE PROVIDER</label>
-                        <input type="text" value={insuranceProvider} onChange={(e) => setInsuranceProvider(e.target.value)} placeholder="e.g. Star Health" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                        <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>POLICY NUMBER</label>
+                        <input type="text" value={policyNumber} onChange={(e) => setPolicyNumber(e.target.value)} placeholder="e.g. POL-12345" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                          <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>POLICY NUMBER</label>
-                          <input type="text" value={policyNumber} onChange={(e) => setPolicyNumber(e.target.value)} placeholder="e.g. POL-12345" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                          <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>GROUP NUMBER</label>
-                          <input type="text" value={groupNumber} onChange={(e) => setGroupNumber(e.target.value)} placeholder="e.g. GRP-6789" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
-                        </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>GROUP NUMBER</label>
+                        <input type="text" value={groupNumber} onChange={(e) => setGroupNumber(e.target.value)} placeholder="e.g. GRP-6789" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
                       </div>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#e0eaff', cursor: 'pointer', marginTop: 4 }}>
-                        <input type="checkbox" checked={consentToShareData} onChange={(e) => setConsentToShareData(e.target.checked)} style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#00ff88' }} />
-                        <span>I consent to share emergency EMR parameters under ABDM/HIPAA.</span>
-                      </label>
-                   </>
-                 ) : (
+                    </div>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#e0eaff', cursor: 'pointer', marginTop: 4 }}>
+                      <input type="checkbox" checked={consentToShareData} onChange={(e) => setConsentToShareData(e.target.checked)} style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#00ff88' }} />
+                      <span>I consent to share emergency EMR parameters under ABDM/HIPAA.</span>
+                    </label>
+                  </>
+                ) : (
                   <>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                       <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>HOSPITAL FULL NAME</label>
@@ -1730,16 +1760,16 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
                           const checked = departments.includes(dept);
                           return (
                             <label key={dept} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: '#e0eaff', cursor: 'pointer' }}>
-                              <input 
-                                type="checkbox" 
-                                checked={checked} 
+                              <input
+                                type="checkbox"
+                                checked={checked}
                                 onChange={() => {
                                   if (checked) {
                                     setDepartments(departments.filter(item => item !== dept));
                                   } else {
                                     setDepartments([...departments, dept]);
                                   }
-                                }} 
+                                }}
                               />
                               {dept}
                             </label>
@@ -1766,18 +1796,18 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>ACCESS PASSWORD</label>
                   <div style={{ position: 'relative' }}>
-                    <input 
-                      type={showPassword ? "text" : "password"} 
-                      value={password} 
-                      onChange={(e) => setPassword(e.target.value)} 
-                      placeholder="••••••••" 
-                      required 
-                      className="rl-input" 
-                      style={{ width: '100%', boxSizing: 'border-box', paddingRight: '40px' }} 
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                      className="rl-input"
+                      style={{ width: '100%', boxSizing: 'border-box', paddingRight: '40px' }}
                     />
-                    <button 
-                      type="button" 
-                      onClick={() => setShowPassword(!showPassword)} 
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
                       style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'rgba(160,200,255,0.6)', cursor: 'pointer', fontSize: 13 }}
                     >
                       {showPassword ? '👁️' : '👁️‍🗨️'}
@@ -1831,7 +1861,7 @@ function AmbulanceLandingHomepage({ onLogin, onRegister, onBack }) {
       <div className="scanline" />
 
       {/* Main Header */}
-      <header style={{
+      <header className="rl-page-header" style={{
         padding: '20px 40px', borderBottom: '1px solid rgba(255,107,53,0.25)',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         background: 'rgba(25,10,5,0.75)', backdropFilter: 'blur(10px)', zIndex: 10
@@ -1843,7 +1873,7 @@ function AmbulanceLandingHomepage({ onLogin, onRegister, onBack }) {
             <span style={{ fontSize: 9, letterSpacing: '0.2em', color: 'rgba(255,180,160,0.5)', fontFamily: "'Share Tech Mono'" }}>PARAMEDIC FLEET HUB</span>
           </div>
         </div>
-        <button onClick={onBack} className="rl-btn-secondary" style={{ padding: '8px 16px', fontSize: 11 }}>
+        <button onClick={onBack} className="rl-btn-secondary rl-page-header-right" style={{ padding: '8px 16px', fontSize: 11 }}>
           ← MAIN PORTAL
         </button>
       </header>
@@ -1856,7 +1886,7 @@ function AmbulanceLandingHomepage({ onLogin, onRegister, onBack }) {
           <p style={{ color: 'rgba(255,200,180,0.7)', fontSize: 13, lineHeight: 1.5, marginBottom: 24 }}>
             Access driver log sheets, monitor active ambulance status, and configure mandatory 2FA. Drivers must register and obtain verification prior to receiving dispatches.
           </p>
-          <div style={{ display: 'flex', gap: 16 }}>
+          <div className="rl-two-btn-row" style={{ display: 'flex', gap: 16 }}>
             <button onClick={onLogin} className="rl-btn-primary" style={{ flex: 1, background: 'linear-gradient(135deg, #ff6b35 0%, #dd4b14 100%)', boxShadow: '0 4px 15px rgba(255,107,53,0.2)' }}>
               DRIVER SIGN IN →
             </button>
@@ -1938,7 +1968,7 @@ function HospitalLandingHomepage({ onLogin, onRegister, onBack }) {
       <div className="scanline" />
 
       {/* Main Header */}
-      <header style={{
+      <header className="rl-page-header" style={{
         padding: '20px 40px', borderBottom: '1px solid rgba(0,200,255,0.25)',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         background: 'rgba(5,20,40,0.75)', backdropFilter: 'blur(10px)', zIndex: 10
@@ -1950,7 +1980,7 @@ function HospitalLandingHomepage({ onLogin, onRegister, onBack }) {
             <span style={{ fontSize: 9, letterSpacing: '0.2em', color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'" }}>MEDICAL COMMAND GATEWAY</span>
           </div>
         </div>
-        <button onClick={onBack} className="rl-btn-secondary" style={{ padding: '8px 16px', fontSize: 11 }}>
+        <button onClick={onBack} className="rl-btn-secondary rl-page-header-right" style={{ padding: '8px 16px', fontSize: 11 }}>
           ← MAIN PORTAL
         </button>
       </header>
@@ -1963,7 +1993,7 @@ function HospitalLandingHomepage({ onLogin, onRegister, onBack }) {
           <p style={{ color: 'rgba(160,200,255,0.7)', fontSize: 13, lineHeight: 1.5, marginBottom: 24 }}>
             Synchronize ER trauma bay capacity, assign incoming physicians, and lock resources for in-transit ICU ambulances. All medical portals require authorized coordinator credentials.
           </p>
-          <div style={{ display: 'flex', gap: 16 }}>
+          <div className="rl-two-btn-row" style={{ display: 'flex', gap: 16 }}>
             <button onClick={onLogin} className="rl-btn-primary" style={{ flex: 1, background: 'linear-gradient(135deg, #00c8ff 0%, #0072ff 100%)', boxShadow: '0 4px 15px rgba(0,200,255,0.2)' }}>
               COMMAND SIGN IN →
             </button>
@@ -2048,7 +2078,7 @@ function LandingHomepage({ onSelectRole }) {
       <div className="scanline" />
 
       {/* Main Header */}
-      <header style={{
+      <header className="rl-page-header" style={{
         padding: '20px 40px', borderBottom: '1px solid rgba(0,200,255,0.15)',
         display: 'flex', justifySelf: 'stretch', justifyContent: 'space-between', alignItems: 'center',
         background: 'rgba(5,15,35,0.7)', backdropFilter: 'blur(10px)', zIndex: 10
@@ -2056,14 +2086,14 @@ function LandingHomepage({ onSelectRole }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{
             width: 32, height: 32, border: '2px solid #ff3333', borderRadius: '50%',
-            display: 'flex', alignItems: 'center', justifyCenter: 'center', fontSize: 18, color: '#ff3333', fontWeight: 'bold'
+            display: 'flex', alignItems: 'center', justifyCenter: 'center', fontSize: 18, color: '#ff3333', fontWeight: 'bold', flexShrink: 0
           }}>🚨</div>
           <div>
             <h1 style={{ fontFamily: "'Orbitron'", fontSize: 18, letterSpacing: '0.15em', color: '#00c8ff', margin: 0 }}>RESCUELINK</h1>
             <span style={{ fontSize: 9, letterSpacing: '0.2em', color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'" }}>NATIONAL HEALTH NETWORK</span>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 15 }}>
+        <div className="rl-page-header-right" style={{ display: 'flex', gap: 15 }}>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>CENTRAL SERVER</div>
             <div style={{ fontSize: 12, color: '#00ff88', fontWeight: 'bold', fontFamily: "'Share Tech Mono'" }}>ACTIVE // ONLINE</div>
@@ -2089,8 +2119,8 @@ function LandingHomepage({ onSelectRole }) {
             { role: 'admin', emoji: '🏛️', title: 'WAR ROOM COMMAND', desc: 'Disaster coordinator, spatial logs, and audit logs viewer.', color: '#cc00ff' },
             { role: 'family', emoji: '👨‍👩‍👧', title: 'FAMILY TRACKER', desc: 'Real-time telemetry, location, and status mapping for families.', color: '#ffb800' }
           ].map(g => (
-            <div key={g.role} onClick={() => onSelectRole(g.role)} className="rl-card" style={{
-              width: 210, padding: 24, cursor: 'pointer', display: 'flex', flexDirection: 'column',
+            <div key={g.role} onClick={() => onSelectRole(g.role)} className="rl-card rl-gateway-card" style={{
+              width: 210, maxWidth: '100%', padding: 24, cursor: 'pointer', display: 'flex', flexDirection: 'column',
               alignItems: 'center', transition: 'all 0.3s', border: `1px solid rgba(0,200,255,0.2)`
             }} onMouseEnter={e => { e.currentTarget.style.borderColor = g.color; e.currentTarget.style.boxShadow = `0 0 15px ${g.color}33`; }} onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(0,200,255,0.2)'; e.currentTarget.style.boxShadow = 'none'; }}>
               <div style={{ fontSize: 36, marginBottom: 12 }}>{g.emoji}</div>
@@ -2103,7 +2133,7 @@ function LandingHomepage({ onSelectRole }) {
         {/* Live Registries split directories */}
         <div style={{ display: 'flex', gap: 30, maxWidth: 1200, margin: '0 auto', flexWrap: 'wrap', textAlign: 'left' }}>
           {/* Paramedic Fleet status directory */}
-          <div className="rl-card" style={{ flex: 1, minWidth: 340, padding: 24 }}>
+          <div className="rl-card rl-directory-panel" style={{ flex: 1, minWidth: 340, padding: 24 }}>
             <h3 style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#ff6b35', borderBottom: '1px solid rgba(255,107,53,0.3)', paddingBottom: 10, margin: '0 0 16px', letterSpacing: '0.1em' }}>
               📡 PARAMEDIC FLEET DIRECTORY
             </h3>
@@ -2131,7 +2161,7 @@ function LandingHomepage({ onSelectRole }) {
           </div>
 
           {/* Hospital Center capacity directory */}
-          <div className="rl-card" style={{ flex: 1, minWidth: 340, padding: 24 }}>
+          <div className="rl-card rl-directory-panel" style={{ flex: 1, minWidth: 340, padding: 24 }}>
             <h3 style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#00c8ff', borderBottom: '1px solid rgba(0,200,255,0.3)', paddingBottom: 10, margin: '0 0 16px', letterSpacing: '0.1em' }}>
               🏥 MEDICAL CENTER DIRECTORY
             </h3>
@@ -2314,14 +2344,16 @@ function SecurityModal({ isOpen, onClose, token }) {
       position: 'fixed', inset: 0, zIndex: 12000,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       background: 'rgba(5,13,26,0.85)', backdropFilter: 'blur(8px)',
-      fontFamily: "'Rajdhani', sans-serif"
+      fontFamily: "'Rajdhani', sans-serif",
+      padding: '16px', boxSizing: 'border-box', overflowY: 'auto'
     }}>
       <div style={{
         width: '100%', maxWidth: 500, padding: 32,
         background: 'rgba(10,22,48,0.95)',
         border: '1px solid rgba(0,200,255,0.4)',
         borderRadius: 12, boxShadow: '0 20px 50px rgba(0,0,0,0.6)',
-        position: 'relative'
+        position: 'relative', maxHeight: '90vh', overflowY: 'auto',
+        margin: 'auto'
       }}>
         <button
           onClick={resetState}
@@ -2590,8 +2622,14 @@ export default function App() {
   const [familyReqId] = useState(() => new URLSearchParams(window.location.search).get('reqId'));
   const [socket, setSocket] = useState(null);
   const [connected, setConnected] = useState(false);
-  const [theme, setTheme] = useState(() => localStorage.getItem('rescue_theme') || 'dark-sky-breeze');
-  const [showPalette, setShowPalette] = useState(false);
+  const [theme, setTheme] = useState(() => {
+    const stored = localStorage.getItem('rescue_theme');
+    if (stored === 'light-sky-breeze' || stored === 'dark-sky-breeze') return stored;
+    // Migrate any old/removed theme ids to the two supported themes
+    if (stored && stored.startsWith('light')) return 'light-sky-breeze';
+    if (stored && stored.startsWith('dark')) return 'dark-sky-breeze';
+    return 'dark-sky-breeze';
+  });
   const [globalAlertData, setGlobalAlertData] = useState(null);
   const [emergencyBroadcast, setEmergencyBroadcast] = useState(null);
   const [showSecurityModal, setShowSecurityModal] = useState(false);
@@ -2724,9 +2762,8 @@ export default function App() {
   };
 
   const ThemeSwitcher = () => (
-    <div 
-      onMouseEnter={() => setShowPalette(true)}
-      onMouseLeave={() => setShowPalette(false)}
+    <div
+      className="theme-switcher-container"
       style={{
         position: 'fixed', bottom: 25, left: 25, zIndex: 11000,
         display: 'flex', alignItems: 'center', gap: 10,
@@ -2741,54 +2778,11 @@ export default function App() {
         boxSizing: 'border-box'
       }}
     >
-      {/* Paint Palette Button */}
-      <button
-        className="theme-switcher-btn"
-        onClick={() => setShowPalette(!showPalette)}
-        title="Toggle Theme Palette"
-        style={{
-          width: 32, height: 32, borderRadius: '50%',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          cursor: 'pointer', transition: 'all 0.2s',
-          background: showPalette ? (theme.startsWith('light') ? 'rgba(27, 79, 114, 0.1)' : 'rgba(0, 200, 255, 0.15)') : 'transparent',
-          border: 'none',
-          color: theme.startsWith('light') ? '#1b4f72' : 'var(--theme-accent)',
-          padding: 0,
-          outline: 'none',
-          minWidth: 'auto',
-          height: '32px'
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'scale(1.1)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'scale(1)';
-        }}
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 22C17.5228 22 22 17.5228 22 12C22 9.53762 21.05 7.19943 19.5 5.5C18.5 4.5 17 3.5 15 3.5C14.4477 3.5 14 3.94772 14 4.5C14 5.5 13 6.5 12 6.5C11 6.5 10 5.5 10 4.5C10 3.94772 9.55228 3.5 9 3.5C5.13401 3.5 2 6.63401 2 10.5C2 16.8519 7.14806 22 12 22Z"></path>
-          <circle cx="7.5" cy="10.5" r="1" fill="currentColor"></circle>
-          <circle cx="11.5" cy="7.5" r="1" fill="currentColor"></circle>
-          <circle cx="16.5" cy="9.5" r="1" fill="currentColor"></circle>
-          <circle cx="15.5" cy="14.5" r="1" fill="currentColor"></circle>
-        </svg>
-      </button>
-
-      {/* Main Sun/Moon Toggle */}
+      {/* Sun/Moon Toggle */}
       <button
         className="theme-switcher-btn"
         onClick={() => {
-          if (theme.startsWith('dark')) {
-            if (theme === 'dark-sky-breeze') setTheme('light-sky-breeze');
-            else if (theme === 'dark-sage-green') setTheme('light-sage-green');
-            else if (theme === 'dark-steel-blue') setTheme('light-steel-blue');
-            else setTheme('light-sky-breeze');
-          } else {
-            if (theme === 'light-sky-breeze') setTheme('dark-sky-breeze');
-            else if (theme === 'light-sage-green') setTheme('dark-sage-green');
-            else if (theme === 'light-steel-blue' || theme === 'light') setTheme('dark-steel-blue');
-            else setTheme('dark-sky-breeze');
-          }
+          setTheme(theme === 'dark-sky-breeze' ? 'light-sky-breeze' : 'dark-sky-breeze');
         }}
         title={`Switch to ${theme.startsWith('dark') ? 'Light' : 'Dark'} Mode`}
         style={{
@@ -2828,79 +2822,6 @@ export default function App() {
           </svg>
         )}
       </button>
-
-      {/* Accent bubbles (visible when palette is toggled open) */}
-      {showPalette && (
-        <div style={{
-          display: 'flex', gap: 8,
-          borderLeft: `1px solid ${theme.startsWith('light') ? '#cbd5e0' : 'rgba(255,255,255,0.2)'}`,
-          paddingLeft: 8,
-          alignItems: 'center',
-          animation: 'fadeSlideUp 0.2s ease forwards'
-        }}>
-          {theme.startsWith('light') ? (
-            [
-              { id: 'light-sky-breeze', color: '#0284c7', name: 'Sky Breeze' },
-              { id: 'light-sage-green', color: '#15803d', name: 'Sage Green' },
-              { id: 'light-steel-blue', color: '#1d4ed8', name: 'Steel Blue' }
-            ].map(accent => (
-              <div
-                key={accent.id}
-                onClick={() => {
-                  setTheme(accent.id);
-                  localStorage.setItem('rescue_light_accent', accent.id);
-                }}
-                title={accent.name}
-                style={{
-                  width: 14, height: 14, borderRadius: '50%',
-                  backgroundColor: accent.color,
-                  cursor: 'pointer',
-                  border: theme === accent.id ? '2px solid #1a202c' : '1px solid rgba(0,0,0,0.2)',
-                  boxShadow: theme === accent.id ? `0 0 8px ${accent.color}` : 'none',
-                  transition: 'all 0.2s',
-                  boxSizing: 'border-box'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'scale(1.2)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'scale(1)';
-                }}
-              />
-            ))
-          ) : (
-            [
-              { id: 'dark-sky-breeze', color: '#00c8ff', name: 'Sky Breeze' },
-              { id: 'dark-sage-green', color: '#3cd070', name: 'Sage Green' },
-              { id: 'dark-steel-blue', color: '#5294e2', name: 'Steel Blue' }
-            ].map(accent => (
-              <div
-                key={accent.id}
-                onClick={() => {
-                  setTheme(accent.id);
-                  localStorage.setItem('rescue_dark_accent', accent.id);
-                }}
-                title={accent.name}
-                style={{
-                  width: 14, height: 14, borderRadius: '50%',
-                  backgroundColor: accent.color,
-                  cursor: 'pointer',
-                  border: theme === accent.id ? '2px solid #ffffff' : '1px solid rgba(255,255,255,0.4)',
-                  boxShadow: theme === accent.id ? `0 0 10px ${accent.color}` : 'none',
-                  transition: 'all 0.2s',
-                  boxSizing: 'border-box'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'scale(1.2)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'scale(1)';
-                }}
-              />
-            ))
-          )}
-        </div>
-      )}
     </div>
   );
 
@@ -3026,7 +2947,7 @@ export default function App() {
 
 
       {/* Global Actions Bar (Top Right) */}
-      <div className="global-buttons-container" style={{ position: 'fixed', top: 14, right: 25, zIndex: 11000, display: 'flex', gap: 12, alignItems: 'center' }}>
+      <div className={`global-buttons-container${emergencyBroadcast ? ' gb-banner-active' : ''}`} style={{ position: 'fixed', top: emergencyBroadcast ? 74 : 14, right: 25, zIndex: 11000, display: 'flex', gap: 12, alignItems: 'center', transition: 'top 0.25s ease' }}>
         {/* Switch role settings button */}
         <button
           className="rl-btn-secondary"
@@ -3081,21 +3002,21 @@ export default function App() {
       {role === 'family' && <FamilyDashboard socket={socket} connected={connected} reqId={familyReqId} />}
 
       {emergencyBroadcast && (
-        <div style={{
+        <div className="rl-emergency-banner" style={{
           position: 'fixed', top: 0, left: 0, right: 0, zIndex: 99999,
           background: 'linear-gradient(90deg, #ff1e1e 0%, #b30000 100%)',
           borderBottom: '2px solid #ff3333', color: '#fff', padding: '12px 24px',
           display: 'flex', alignItems: 'center', gap: 16,
           boxShadow: '0 4px 20px rgba(255,0,0,0.4)', fontFamily: "'Orbitron', sans-serif"
         }}>
-          <span style={{ fontSize: 20, animation: 'pulse-opacity 1s infinite' }}>🚨</span>
-          <div style={{ flex: 1 }}>
+          <span style={{ fontSize: 20, animation: 'pulse-opacity 1s infinite', flexShrink: 0 }}>🚨</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)', fontWeight: 'bold', letterSpacing: '0.1em' }}>CRITICAL EMERGENCY BROADCAST FROM WAR ROOM</div>
-            <div style={{ fontSize: 13, fontWeight: 900, marginTop: 2 }}>{emergencyBroadcast}</div>
+            <div style={{ fontSize: 13, fontWeight: 900, marginTop: 2, wordBreak: 'break-word' }}>{emergencyBroadcast}</div>
           </div>
-          <button 
+          <button
             onClick={() => setEmergencyBroadcast(null)}
-            style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 4, color: '#fff', fontSize: 10, padding: '6px 12px', cursor: 'pointer', fontFamily: "'Orbitron'", fontWeight: 'bold' }}
+            style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 4, color: '#fff', fontSize: 10, padding: '6px 12px', cursor: 'pointer', fontFamily: "'Orbitron'", fontWeight: 'bold', flexShrink: 0 }}
           >
             DISMISS
           </button>
