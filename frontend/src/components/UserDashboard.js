@@ -253,6 +253,8 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
   const [consentGranted, setConsentGranted] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showAccountSettings, setShowAccountSettings] = useState(false);
+  const [sosConfirmData, setSosConfirmData] = useState(null); // { phone } — pending SOS confirm
+  const [abortConfirm, setAbortConfirm] = useState(false); // pending abort confirm
   const SERVER_URL_CONST = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
 
   useEffect(() => {
@@ -817,9 +819,7 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
 
     const userPhone = promptedPhone.trim();
     setPatientData(prev => ({ ...prev, mobile: userPhone }));
-
-    if (!window.confirm('🚨 CONFIRM SOS DISPATCH\n\nThis will immediately alert the nearest ambulance.\nOnly use in a genuine emergency.')) return;
-    requestAmbulance(null, true, userPhone);
+    setSosConfirmData({ phone: userPhone });
   };
 
   const getAmbulanceDataList = () => {
@@ -928,6 +928,70 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
       `}</style>
 
       <div className="header-container" style={{ position: 'relative', background: 'rgba(5,15,40,0.97)', padding: '10px 20px', borderBottom: '1px solid rgba(0,200,255,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, zIndex: 200, flexWrap: 'wrap' }}>
+
+      {/* ── SOS DISPATCH CONFIRM MODAL ── */}
+      {sosConfirmData && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999999, background: 'rgba(0,3,12,0.92)', backdropFilter: 'blur(16px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setSosConfirmData(null)}>
+          <div style={{ background: 'rgba(8,18,42,0.98)', border: '2px solid rgba(255,30,30,0.5)', borderRadius: 16, padding: 36, maxWidth: 460, width: '90%', boxShadow: '0 0 80px rgba(255,30,30,0.25)', animation: 'sosGlow 1.5s ease-in-out infinite' }} onClick={e => e.stopPropagation()}>
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <div style={{ fontSize: 52, marginBottom: 12 }}>🚨</div>
+              <div style={{ fontFamily: "'Orbitron'", fontSize: 18, color: '#ff4444', fontWeight: 900, letterSpacing: '0.12em' }}>CONFIRM SOS DISPATCH</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,100,100,0.7)', marginTop: 6, fontFamily: "'Share Tech Mono'" }}>This will immediately alert the nearest available ambulance</div>
+            </div>
+            <div style={{ background: 'rgba(255,30,30,0.06)', border: '1px solid rgba(255,30,30,0.2)', borderRadius: 8, padding: '12px 16px', marginBottom: 24, fontFamily: "'Share Tech Mono'", fontSize: 12, color: 'rgba(220,230,255,0.8)', lineHeight: 1.7 }}>
+              <span style={{ color: '#ffb800', fontWeight: 700 }}>⚠️ ONLY USE IN A GENUINE EMERGENCY.</span><br />
+              Dispatch to: <strong style={{ color: '#00c8ff' }}>{sosConfirmData.phone}</strong><br />
+              Misuse of emergency services may result in penalties.
+            </div>
+            <div style={{ display: 'flex', gap: 14 }}>
+              <button
+                onClick={() => { const p = sosConfirmData.phone; setSosConfirmData(null); requestAmbulance(null, true, p); }}
+                style={{ flex: 1, padding: '14px 20px', background: 'linear-gradient(135deg, rgba(255,30,30,0.3), rgba(220,0,0,0.2))', border: '2px solid #ff2222', borderRadius: 10, color: '#ff4444', fontFamily: "'Orbitron'", fontWeight: 900, fontSize: 13, cursor: 'pointer', letterSpacing: '0.05em', animation: 'pulse-opacity 1.5s infinite' }}
+              >
+                🚨 YES, DISPATCH NOW
+              </button>
+              <button
+                onClick={() => setSosConfirmData(null)}
+                style={{ flex: 1, padding: '14px 20px', background: 'transparent', border: '1px solid rgba(160,200,255,0.2)', borderRadius: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Orbitron'", fontSize: 12, cursor: 'pointer' }}
+              >
+                CANCEL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── ABORT MISSION CONFIRM MODAL ── */}
+      {abortConfirm && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999999, background: 'rgba(0,3,12,0.88)', backdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setAbortConfirm(false)}>
+          <div style={{ background: 'rgba(8,18,42,0.98)', border: '1px solid rgba(255,107,53,0.4)', borderRadius: 14, padding: 30, maxWidth: 420, width: '90%', boxShadow: '0 0 40px rgba(255,107,53,0.1)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 15, color: '#ff6b35', fontWeight: 900, marginBottom: 10 }}>🚨 ABORT ACTIVE REQUEST</div>
+            <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'", marginBottom: 22, lineHeight: 1.7 }}>
+              This will <strong style={{ color: '#ff6b35' }}>cancel your current emergency request</strong> and dismiss any assigned ambulance.<br /><br />
+              Only cancel if you no longer require emergency assistance.
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={() => {
+                  setAbortConfirm(false);
+                  if (currentReqId && socket) socket.emit('cancel-request', { reqId: currentReqId });
+                  setRequestStatus('idle'); setCurrentReqId(null); setAssignedAmbulanceId(null);
+                  setRoutePath(null); setLiveAmbulanceLoc(null); setAssignedHospitalInfo(null);
+                  setEtaSeconds(null); setSosMode(false);
+                  localStorage.removeItem('user_currentReqId');
+                  setPatientData({ name: '', age: '', bloodGroup: 'O+', condition: '', isVerified: false });
+                }}
+                style={{ flex: 1, padding: '12px', background: 'rgba(255,107,53,0.15)', border: '1px solid rgba(255,107,53,0.5)', borderRadius: 8, color: '#ff6b35', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+              >
+                🗑 YES, ABORT REQUEST
+              </button>
+              <button onClick={() => setAbortConfirm(false)} style={{ flex: 1, padding: '12px', background: 'transparent', border: '1px solid rgba(160,200,255,0.15)', borderRadius: 8, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 12, cursor: 'pointer' }}>
+                KEEP ACTIVE
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
@@ -1244,16 +1308,7 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
                   textAlign: 'center', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4
                 }}>📞 CALL 108</a>
                 <button
-                  onClick={() => {
-                    if (window.confirm("Abort current request?")) {
-                      if (currentReqId && socket) socket.emit('cancel-request', { reqId: currentReqId });
-                      setRequestStatus('idle'); setCurrentReqId(null); setAssignedAmbulanceId(null);
-                      setRoutePath(null); setLiveAmbulanceLoc(null); setAssignedHospitalInfo(null);
-                      setEtaSeconds(null); setSosMode(false);
-                      localStorage.removeItem('user_currentReqId');
-                      setPatientData({ name: '', age: '', bloodGroup: 'O+', condition: '', isVerified: false });
-                    }
-                  }}
+                  onClick={() => setAbortConfirm(true)}
                   style={{ flex: 1, padding: '10px', background: 'rgba(255,100,50,0.1)', border: '1px solid rgba(255,107,53,0.4)', borderRadius: 6, color: '#ff6b35', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 'bold', cursor: 'pointer' }}
                 >🚨 CANCEL</button>
               </div>
