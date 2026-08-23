@@ -216,10 +216,18 @@ const styles = `
   }
 
   /* --- Global Reset & Overrides --- */
+  body, .app-root, p, span, div, label, input, textarea, select {
+    font-weight: 600 !important;
+  }
+  h1, h2, h3, h4, h5, h6, strong, b, button {
+    font-weight: 800 !important;
+  }
   body, .app-root {
     background: var(--theme-bg) !important;
     color: var(--theme-text-primary) !important;
     transition: background 0.3s ease, color 0.3s ease;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   /* Target all radial-gradient layouts and outer container backgrounds */
