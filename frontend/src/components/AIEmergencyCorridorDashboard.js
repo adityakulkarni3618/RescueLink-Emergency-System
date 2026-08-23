@@ -195,26 +195,14 @@ export default function AIEmergencyCorridorDashboard({ socket, connected, onLogo
   // Update corridor metrics when selected mission changes
   useEffect(() => {
     if (!selectedMissionId) {
-      // Load fallback demo state if no active dispatches exist
-      const mockRoute = [
-        [16.5062, 80.6480],
-        [16.5085, 80.6515],
-        [16.5120, 80.6550],
-        [16.5158, 80.6590]
-      ];
-      setCityName('VIJAYAWADA');
-      setJunctions([
-        { id: 'junc_pcr', name: 'PCR Junction', status: 'PASSED', eta: 0 },
-        { id: 'junc_labbipet', name: 'Labbipet Junction', status: 'CORRIDOR_ACTIVE', eta: 12 },
-        { id: 'junc_benz_circle', name: 'Benz Circle', status: 'PREEMPTING', eta: 45 },
-        { id: 'junc_rameswaram', name: 'Aster Ramesh Cross', status: 'SCHEDULED', eta: 90 }
-      ]);
-      setAmbulancePos([16.5085, 80.6515]);
-      setPatientPos([16.5120, 80.6550]);
-      setHospitalPos([16.5158, 80.6590]);
-      setRoutePath(mockRoute);
-      setAssignedHospitalName('Aster Ramesh Hospital');
-      setLogs(['[System Boot] AI Emergency Preemption Mode initialized (DEMO MODE)']);
+      setCityName('STANDBY');
+      setJunctions([]);
+      setAmbulancePos(null);
+      setPatientPos(null);
+      setHospitalPos(null);
+      setRoutePath(null);
+      setAssignedHospitalName('N/A');
+      setLogs(['[System Boot] Standing by... Waiting for incoming live emergency SOS dispatch...']);
       return;
     }
 
@@ -350,8 +338,8 @@ export default function AIEmergencyCorridorDashboard({ socket, connected, onLogo
               ))}
             </select>
           ) : (
-            <span style={{ fontSize: 11, color: '#ffb800', fontFamily: "'Share Tech Mono'", background: 'rgba(255,184,0,0.1)', border: '1px solid rgba(255,184,0,0.2)', padding: '4px 10px', borderRadius: 4 }}>
-              ⚠️ ACTIVE SIMULATOR MODE
+            <span style={{ fontSize: 11, color: '#ff3333', fontFamily: "'Share Tech Mono'", background: 'rgba(255,51,51,0.1)', border: '1px solid rgba(255,51,51,0.2)', padding: '4px 10px', borderRadius: 4 }}>
+              ⚠️ NO LIVE TELEMETRY
             </span>
           )}
 
@@ -423,7 +411,21 @@ export default function AIEmergencyCorridorDashboard({ socket, connected, onLogo
 
         {/* MIDDLE VIEW: MAP */}
         <main style={{ flex: 1, position: 'relative', background: '#0a0d1a' }}>
-          {ambulancePos || patientPos || hospitalPos ? (
+          {!selectedMissionId ? (
+            <div style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              height: '100%', padding: 40, textAlign: 'center', background: 'radial-gradient(circle at center, #0c122b 0%, #030612 100%)'
+            }}>
+              <div style={{ fontSize: 50, animation: 'pulse-opacity 1s infinite', marginBottom: 20 }}>📡</div>
+              <h2 style={{ fontFamily: "'Orbitron'", color: '#00c8ff', letterSpacing: '0.1em', marginBottom: 12 }}>
+                STANDING BY FOR LIVE PREEMPTION TELEMETRY
+              </h2>
+              <p style={{ fontFamily: "'Share Tech Mono'", color: 'rgba(160,200,255,0.6)', maxWidth: 450, fontSize: 13, lineHeight: 1.6 }}>
+                No active emergency dispatch missions found on the national registry.
+                Trigger an Emergency SOS from the patient portal or dispatch a unit to activate live preemption route tracking.
+              </p>
+            </div>
+          ) : (ambulancePos || patientPos || hospitalPos ? (
             <MapContainer
               center={ambulancePos || patientPos || [16.5062, 80.6480]}
               zoom={14}
@@ -456,7 +458,7 @@ export default function AIEmergencyCorridorDashboard({ socket, connected, onLogo
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
               <span style={{ fontSize: 14, fontFamily: "'Orbitron'", color: '#00c8ff' }}>LOADING MAP TELEMETRY...</span>
             </div>
-          )}
+          ))}
         </main>
 
         {/* RIGHT SIDEBAR: METRICS */}
