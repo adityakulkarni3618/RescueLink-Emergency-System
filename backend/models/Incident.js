@@ -24,7 +24,11 @@ module.exports = (sequelize) => {
       allowNull: true
     },
     status: {
-      type: DataTypes.ENUM('requested', 'dispatched', 'en_route', 'arrived', 'completed', 'cancelled'),
+      type: DataTypes.ENUM(
+        'requested', 'dispatched', 'en_route', 'arrived', 'completed', 'cancelled',
+        'pending_ambulance', 'ambulance_assigned', 'admission_request',
+        'hospital_accepted', 'patient_onboard', 'pending_hospital_accept'
+      ),
       defaultValue: 'requested'
     },
     pickup_lat: {
@@ -35,6 +39,14 @@ module.exports = (sequelize) => {
     },
     pickup_address: {
       type: DataTypes.STRING
+    },
+    hospital_lat: {
+      type: DataTypes.FLOAT,
+      allowNull: true
+    },
+    hospital_lng: {
+      type: DataTypes.FLOAT,
+      allowNull: true
     },
     news2_score: {
       type: DataTypes.INTEGER,
