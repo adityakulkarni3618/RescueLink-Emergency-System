@@ -1008,10 +1008,11 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
             <button
               onClick={requestSOSDispatch}
               style={{
-                width: '100%', padding: '18px', marginBottom: 16,
+                width: '100%', padding: '18px !important', marginBottom: 16,
+                height: 'auto !important',
                 background: 'linear-gradient(135deg, rgba(255,30,30,0.25), rgba(220,0,0,0.15))',
                 border: '2px solid #ff2222', borderRadius: 10, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12,
+                display: 'flex !important', alignItems: 'center', justifyContent: 'center', gap: 12,
                 animation: 'sosGlow 1.5s ease-in-out infinite', boxShadow: '0 0 20px rgba(255,30,30,0.3)',
                 transition: 'all 0.2s'
               }}
