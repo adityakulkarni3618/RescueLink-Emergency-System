@@ -275,13 +275,7 @@ const ALLOWED_ORIGINS = [
 ].filter(Boolean);
 
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, Postman)
-    if (!origin || ALLOWED_ORIGINS.some(o => origin.startsWith(o)) || origin.endsWith('.vercel.app') || origin.includes('vercel.app')) {
-      return callback(null, true);
-    }
-    callback(new Error(`CORS policy violation: ${origin} not allowed`));
-  },
+  origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 }));
@@ -703,12 +697,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: (origin, callback) => {
-      if (!origin || ALLOWED_ORIGINS.some(o => origin.startsWith(o)) || origin.endsWith('.vercel.app') || origin.includes('vercel.app')) {
-        return callback(null, true);
-      }
-      callback(new Error(`Socket CORS policy violation: ${origin} not allowed`));
-    },
+    origin: true,
     credentials: true,
     methods: ['GET', 'POST']
   }
