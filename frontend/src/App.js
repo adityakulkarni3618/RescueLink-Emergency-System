@@ -2063,8 +2063,8 @@ function LandingHomepage({ onSelectRole }) {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{
-            width: 32, height: 32, borderRadius: '50%', background: '#ff3333',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, color: '#fff', fontWeight: 'bold',
+            width: 32, height: 32, borderRadius: '50%', border: '2px solid #ff3333', background: 'transparent',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color: '#ff3333', fontWeight: 'bold',
             boxShadow: '0 0 10px rgba(255,51,51,0.5)'
           }}>+</div>
           <div>
