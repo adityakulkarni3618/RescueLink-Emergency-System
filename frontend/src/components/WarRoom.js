@@ -71,22 +71,7 @@ export default function WarRoom({ socket, connected, onLogout, onSwitchRole, onS
   const [aiAlert, setAiAlert] = useState(null);
   const [kpis, setKpis] = useState({ total: 0, completed: 0, active: 0, cancelled: 0, successRate: 0 });
   const [connectedRoles, setConnectedRoles] = useState({ user: 0, ambulance: 0, hospital: 0 });
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    if (sessionStorage.getItem('warroom_auth') === '1') return true;
-    try {
-      const userStr = sessionStorage.getItem('rescuelink_user');
-      const token = sessionStorage.getItem('rescuelink_token');
-      if (userStr && token) {
-        const user = JSON.parse(userStr);
-        if (user.role === 'city_admin') {
-          return true;
-        }
-      }
-    } catch (e) {
-      console.error('[WARROOM AUTO-AUTH] Error parsed:', e);
-    }
-    return false;
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
   const [activeTab, setActiveTab] = useState('map'); // map, mass_casualty, blood_bank

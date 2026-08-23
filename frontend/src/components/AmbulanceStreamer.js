@@ -571,37 +571,28 @@ function MapUpdater({ center }) {
 
 export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitchRole, onShowSecurity }) {
   // ── Auth State ──
-  const [isAuthenticated, setIsAuthenticated] = useState(() => !!sessionStorage.getItem('rescuelink_token'));
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
   const [authUnit, setAuthUnit] = useState(() => {
     const userStr = sessionStorage.getItem('rescuelink_user');
     if (userStr) {
       const user = JSON.parse(userStr);
-      const emailUpper = (user.email || '').toUpperCase();
+      const emailUpper = (user.email || user.username || user.id || '').toUpperCase();
       const found = AMBULANCE_CREDENTIALS.find(c => c.unitId === emailUpper) || {
-        unitId: user.id,
-        driverName: user.name,
+        unitId: user.id || 'AMB-101',
+        driverName: user.name || 'Unit 101 Lead Paramedic',
         vehicleNo: user.email?.includes('@') ? user.email.split('@')[0].toUpperCase() : (user.email || 'EMG-RL-0101'),
         type: 'ALS'
       };
       return found;
     }
-    return null;
+    // Fallback default so it doesn't crash
+    return {
+      unitId: 'AMB-101',
+      driverName: 'Unit 101 Lead Paramedic',
+      vehicleNo: 'EMG-RL-0101',
+      type: 'ALS'
+    };
   });
-  useEffect(() => {
-    const userStr = sessionStorage.getItem('rescuelink_user');
-    if (userStr) {
-      const user = JSON.parse(userStr);
-      const emailUpper = (user.email || '').toUpperCase();
-      const found = AMBULANCE_CREDENTIALS.find(c => c.unitId === emailUpper) || {
-        unitId: user.id,
-        driverName: user.name,
-        vehicleNo: user.email?.includes('@') ? user.email.split('@')[0].toUpperCase() : (user.email || 'EMG-RL-0101'),
-        type: 'ALS'
-      };
-      setAuthUnit(found);
-      setIsAuthenticated(true);
-    }
-  }, []);
   const [loginId, setLoginId] = useState('');
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -1931,6 +1922,44 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
     setIncomingRequest(null);
   };
 
+  const handleCompleteMission = () => {
+    if (!assignedUser) return;
+    if (window.confirm("Are you sure you want to end this mission?")) {
+      if (socket) {
+        socket.emit('complete-mission', { reqId: assignedUser.id });
+        const storedToken = sessionStorage.getItem('rescuelink_token');
+        socket.emit('register-ambulance', { 
+          location, 
+          available: true,
+          unitId: authUnit?.unitId,
+          token: storedToken
+        });
+      }
+      setRequestAccepted(false);
+      setAssignedUser(null);
+      setAssignedHospital(null);
+      setRoutePath(null);
+      setSelectedPatient(null);
+      setArrivedAtUser(false);
+      setIncomingRequest(null);
+      setStreaming(false);
+      setPatientLoaded(false);
+      setArrivalCountdown(20);
+      setResourceLocks({ traumaBay: false, bloodUnits: false, ventilatorStandby: false });
+      setClinicalChecklist({});
+      setIncidentNote('');
+      
+      localStorage.removeItem('activeMissionId');
+      localStorage.removeItem('amb_requestAccepted');
+      localStorage.removeItem('amb_assignedUser');
+      localStorage.removeItem('amb_assignedHospital');
+      localStorage.removeItem('amb_selectedPatient');
+      localStorage.removeItem('amb_arrivedAtUser');
+      localStorage.removeItem('amb_streaming');
+      localStorage.removeItem('amb_incomingRequest');
+    }
+  };
+
 
 
   const distanceToUser = assignedUser ? calcDist(location, assignedUser.userLocation) : 0;
@@ -2362,6 +2391,24 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
                 {assignedUser.patientDetails?.name || 'Emergency Incident'}
               </div>
             </div>
+            <button 
+              onClick={handleCompleteMission} 
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                background: 'linear-gradient(135deg, #ff4444 0%, #cc0000 100%)',
+                border: 'none',
+                borderRadius: 4,
+                color: '#fff',
+                fontFamily: "'Orbitron'",
+                fontSize: 10,
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                marginTop: 6
+              }}
+            >
+              END MISSION 🏁
+            </button>
           </div>
         )}
 
@@ -2467,6 +2514,23 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
                 {connected ? 'CONNECTED' : 'OFFLINE'}
               </span>
             </div>
+
+            {assignedUser && (
+              <button 
+                onClick={handleCompleteMission} 
+                className="rl-btn-primary" 
+                style={{ 
+                  height: 32, 
+                  padding: '0 12px', 
+                  fontSize: 10, 
+                  background: 'linear-gradient(135deg, #ff4444 0%, #cc0000 100%)', 
+                  border: 'none', 
+                  color: '#fff' 
+                }}
+              >
+                END MISSION 🏁
+              </button>
+            )}
 
             <button onClick={onSwitchRole} className="rl-btn-secondary" style={{ height: 32, padding: '0 12px', fontSize: 10, borderColor: '#00ff88', color: '#00ff88' }}>
               ROLE 🔄

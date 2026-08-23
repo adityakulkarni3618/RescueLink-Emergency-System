@@ -1855,17 +1855,7 @@ const HOSPITAL_CREDENTIALS = [
 
 export default function HospitalDashboard({ socket, connected }) {
   // ── Auth State ──
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    const token = sessionStorage.getItem('rescuelink_token');
-    const userStr = sessionStorage.getItem('rescuelink_user');
-    if (token && userStr) {
-      const user = JSON.parse(userStr);
-      if (user.role === 'doctor' || user.role === 'hospital_admin') {
-        return true;
-      }
-    }
-    return false;
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
 
   const [authHospital, setAuthHospital] = useState(() => {
     // If we have a logged-in user in sessionStorage, use their details
@@ -1875,12 +1865,12 @@ export default function HospitalDashboard({ socket, connected }) {
       const user = JSON.parse(userStr);
       if (user.role === 'doctor' || user.role === 'hospital_admin') {
         return {
-          hospitalId: user.hospital_id || 'HOSP-GENERIC',
+          hospitalId: user.hospital_id || 'HOSP-001',
           name: user.name || 'Manipal Global Trauma Center',
           adminName: user.name || 'Dr. Command',
-          internalId: (user.hospital_id || 'hosp-generic').toLowerCase(),
-          lat: user.lat || 18.5204,
-          lng: user.lng || 73.8567
+          internalId: (user.hospital_id || 'manipal-trauma').toLowerCase(),
+          lat: user.lat || 12.9592,
+          lng: user.lng || 77.6444
         };
       }
     }
@@ -1893,15 +1883,21 @@ export default function HospitalDashboard({ socket, connected }) {
       }
       return parsed;
     }
-    return null;
+    // Default fallback so we don't have null authHospital when bypassing the login screen
+    return {
+      hospitalId: 'HOSP-001',
+      name: 'Manipal Global Trauma Center',
+      adminName: 'Dr. Sarah Mitchell',
+      internalId: 'manipal-trauma',
+      lat: 12.9592,
+      lng: 77.6444
+    };
   });
 
   useEffect(() => {
     if (authHospital) {
-      setIsAuthenticated(true);
       localStorage.setItem('hospital_auth', JSON.stringify(authHospital));
     } else {
-      setIsAuthenticated(false);
       localStorage.removeItem('hospital_auth');
     }
   }, [authHospital]);
