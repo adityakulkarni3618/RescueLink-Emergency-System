@@ -11,11 +11,20 @@ const bcrypt = require('bcryptjs');
  */
 router.post('/setup', verifyToken(), async (req, res) => {
   try {
-    const user = await User.findByPk(req.user.id);
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    const { User, Ambulance } = require('../utils/db');
+    let entity = null;
+    let email = '';
+    if (req.user.isAmbulance) {
+      entity = await Ambulance.findByPk(req.user.id);
+      email = entity ? entity.vehicleNo : '';
+    } else {
+      entity = await User.findByPk(req.user.id);
+      email = entity ? entity.email : '';
+    }
+    if (!entity) return res.status(404).json({ error: 'Account not found' });
 
     // Generate secret and QR code
-    const setupData = await twoFactor.generateSecret(user.id, user.email);
+    const setupData = await twoFactor.generateSecret(entity.id, email);
     
     // We return the encrypted secret to the client. The client will pass this back during /enable
     // to confirm activation. This prevents half-configured MFA locks.
@@ -40,8 +49,14 @@ router.post('/enable', verifyToken(), async (req, res) => {
   }
 
   try {
-    const user = await User.findByPk(req.user.id);
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    const { User, Ambulance } = require('../utils/db');
+    let entity = null;
+    if (req.user.isAmbulance) {
+      entity = await Ambulance.findByPk(req.user.id);
+    } else {
+      entity = await User.findByPk(req.user.id);
+    }
+    if (!entity) return res.status(404).json({ error: 'Account not found' });
 
     // Verify token
     const isValid = twoFactor.verifyTOTP(tempSecret, code);
@@ -53,18 +68,18 @@ router.post('/enable', verifyToken(), async (req, res) => {
     const { plainCodes, hashedCodes } = await twoFactor.generateBackupCodes();
 
     // Enable MFA
-    user.totp_secret = tempSecret;
-    user.backup_codes = hashedCodes;
-    await user.save();
+    entity.totp_secret = tempSecret;
+    entity.backup_codes = hashedCodes;
+    await entity.save();
 
     // Audit log
     await AuditLog.create({
-      user_id: user.id,
+      user_id: req.user.isAmbulance ? null : entity.id,
       action: 'MFA_ENABLED',
-      resource: 'User',
-      resource_id: user.id,
+      resource: req.user.isAmbulance ? 'Ambulance' : 'User',
+      resource_id: entity.id,
       ip_address: req.ip || req.connection.remoteAddress,
-      details: { email: user.email }
+      details: { email: req.user.isAmbulance ? entity.vehicleNo : entity.email }
     });
 
     return res.json({
@@ -88,30 +103,36 @@ router.post('/disable', verifyToken(), async (req, res) => {
   }
 
   try {
-    const user = await User.findByPk(req.user.id);
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    const { User, Ambulance } = require('../utils/db');
+    let entity = null;
+    if (req.user.isAmbulance) {
+      entity = await Ambulance.findByPk(req.user.id);
+    } else {
+      entity = await User.findByPk(req.user.id);
+    }
+    if (!entity) return res.status(404).json({ error: 'Account not found' });
 
     // Verify password
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = await bcrypt.compare(password, entity.password);
     if (!isMatch) return res.status(401).json({ error: 'Invalid password' });
 
     // Verify TOTP code
-    const isValid = twoFactor.verifyTOTP(user.totp_secret, code);
+    const isValid = twoFactor.verifyTOTP(entity.totp_secret, code);
     if (!isValid) return res.status(400).json({ error: 'Invalid MFA verification code' });
 
     // Disable MFA
-    user.totp_secret = null;
-    user.backup_codes = [];
-    await user.save();
+    entity.totp_secret = null;
+    entity.backup_codes = [];
+    await entity.save();
 
     // Audit log
     await AuditLog.create({
-      user_id: user.id,
+      user_id: req.user.isAmbulance ? null : entity.id,
       action: 'MFA_DISABLED',
-      resource: 'User',
-      resource_id: user.id,
+      resource: req.user.isAmbulance ? 'Ambulance' : 'User',
+      resource_id: entity.id,
       ip_address: req.ip || req.connection.remoteAddress,
-      details: { email: user.email }
+      details: { email: req.user.isAmbulance ? entity.vehicleNo : entity.email }
     });
 
     return res.json({ message: 'Two-factor authentication disabled successfully.' });
