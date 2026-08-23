@@ -1106,6 +1106,7 @@ function RegistryPanel() {
   const [editForm, setEditForm] = useState({});
   const [actionLoading, setActionLoading] = useState(null);
   const [toast, setToast] = useState(null);
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState(null); // {row, action: 'suspend'|'delete'}
 
   const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
   const token = sessionStorage.getItem('rescuelink_token') || '';
@@ -1164,7 +1165,6 @@ function RegistryPanel() {
   });
 
   const handleSuspend = async (row) => {
-    if (!window.confirm(`Suspend ${row.name || row.vehicleNo}? They will not be able to log in.`)) return;
     setActionLoading(row.id + '-suspend');
     try {
       let url = '';
@@ -1173,8 +1173,10 @@ function RegistryPanel() {
       else url = `/api/users/${row.id}/suspend`;
       const res = await fetch(url, { method: 'PUT', headers });
       if (!res.ok) throw new Error('Suspend failed');
+      // Optimistic update
+      setData(prev => prev.map(r => r.id === row.id ? { ...r, is_active: false } : r));
       showToast(`${row.name || row.vehicleNo} suspended`);
-      fetchData();
+      setDeleteConfirmModal(null);
     } catch (err) { showToast('Suspend failed', 'error'); }
     finally { setActionLoading(null); }
   };
@@ -1188,16 +1190,15 @@ function RegistryPanel() {
       else url = `/api/users/${row.id}/restore`;
       const res = await fetch(url, { method: 'PUT', headers });
       if (!res.ok) throw new Error('Restore failed');
+      setData(prev => prev.map(r => r.id === row.id ? { ...r, is_active: true } : r));
       showToast(`${row.name || row.vehicleNo} restored`);
-      fetchData();
     } catch (err) { showToast('Restore failed', 'error'); }
     finally { setActionLoading(null); }
   };
 
   const handleRemove = async (row) => {
-    const label = row.name || row.vehicleNo || row.email;
-    if (!window.confirm(`PERMANENTLY REMOVE "${label}"? This cannot be undone.`)) return;
     setActionLoading(row.id + '-remove');
+    const label = row.name || row.vehicleNo || row.email;
     try {
       let url = '';
       if (entityTab === 'hospitals') url = `/api/hospitals/${row.id}`;
@@ -1205,9 +1206,11 @@ function RegistryPanel() {
       else url = `/api/users/${row.id}`;
       const res = await fetch(url, { method: 'DELETE', headers });
       if (!res.ok) throw new Error('Delete failed');
-      showToast(`${label} removed permanently`);
-      fetchData();
-    } catch (err) { showToast('Remove failed', 'error'); }
+      // Optimistic removal — immediately remove from UI
+      setData(prev => prev.filter(r => r.id !== row.id));
+      showToast(`${label} permanently deleted`);
+      setDeleteConfirmModal(null);
+    } catch (err) { showToast('Permanent delete failed', 'error'); }
     finally { setActionLoading(null); }
   };
 
@@ -1349,7 +1352,7 @@ function RegistryPanel() {
               ? <button disabled={isLoadingS} onClick={() => handleSuspend(row)} style={{ ...S.btn('255,68,68'), padding: '4px 8px', opacity: isLoadingS ? 0.5 : 1 }} title="Suspend">⏸</button>
               : <button disabled={isLoadingR} onClick={() => handleRestore(row)} style={{ ...S.btn('0,255,136'), padding: '4px 8px', opacity: isLoadingR ? 0.5 : 1 }} title="Restore">▶</button>
             }
-            <button disabled={isLoadingD} onClick={() => handleRemove(row)} style={{ ...S.btn('255,40,40'), padding: '4px 8px', opacity: isLoadingD ? 0.5 : 1 }} title="Remove permanently">🗑</button>
+            <button onClick={() => setDeleteConfirmModal(row)} style={{ ...S.btn('255,40,40'), padding: '4px 8px', opacity: isLoadingD ? 0.5 : 1, fontSize: 13 }} title="Suspend / Delete">🗑</button>
           </div>
         </td>
       </tr>
@@ -1358,6 +1361,48 @@ function RegistryPanel() {
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16, padding: '0 0 20px' }}>
+
+      {/* ═══ Delete / Suspend Choice Modal ═══ */}
+      {deleteConfirmModal && (() => {
+        const row = deleteConfirmModal;
+        const label = row.name || row.vehicleNo || row.email || 'this entity';
+        const isActive = row.is_active !== false;
+        const isLoadingS = actionLoading === row.id + '-suspend';
+        const isLoadingD = actionLoading === row.id + '-remove';
+        return (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 999999, background: 'rgba(0,5,20,0.88)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setDeleteConfirmModal(null)}>
+            <div style={{ background: 'rgba(8,18,42,0.98)', border: '1px solid rgba(255,60,60,0.3)', borderRadius: 14, padding: 32, maxWidth: 440, width: '90%', boxShadow: '0 0 50px rgba(255,40,40,0.15)' }} onClick={e => e.stopPropagation()}>
+              <div style={{ fontFamily: "'Orbitron'", fontSize: 15, color: '#ff4444', fontWeight: 900, marginBottom: 8, letterSpacing: '0.06em' }}>⚠️ ACTION REQUIRED</div>
+              <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'", marginBottom: 24, lineHeight: 1.6 }}>
+                Choose what to do with:<br />
+                <span style={{ color: '#fff', fontWeight: 700, fontSize: 13 }}>「 {label} 」</span>
+              </div>
+
+              {/* Option 1: Suspend (only if currently active) */}
+              {isActive && (
+                <div style={{ background: 'rgba(255,184,0,0.07)', border: '1px solid rgba(255,184,0,0.25)', borderRadius: 10, padding: '16px 18px', marginBottom: 12 }}>
+                  <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#ffb800', fontWeight: 700, marginBottom: 6 }}>⏸ SUSPEND ACCOUNT</div>
+                  <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'", marginBottom: 12, lineHeight: 1.5 }}>Blocks login access. Account data is preserved. Reversible at any time.</div>
+                  <button onClick={() => handleSuspend(row)} disabled={isLoadingS} style={{ padding: '9px 20px', background: 'rgba(255,184,0,0.14)', border: '1px solid rgba(255,184,0,0.5)', borderRadius: 8, color: '#ffb800', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer', opacity: isLoadingS ? 0.5 : 1 }}>
+                    {isLoadingS ? '⏳ SUSPENDING...' : '⏸ SUSPEND'}
+                  </button>
+                </div>
+              )}
+
+              {/* Option 2: Permanent Delete */}
+              <div style={{ background: 'rgba(255,40,40,0.07)', border: '1px solid rgba(255,40,40,0.3)', borderRadius: 10, padding: '16px 18px', marginBottom: 20 }}>
+                <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#ff4444', fontWeight: 700, marginBottom: 6 }}>🗑 DELETE PERMANENTLY</div>
+                <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'", marginBottom: 12, lineHeight: 1.5 }}>All data, records, and credentials for this entity will be erased. This action <strong style={{ color: '#ff4444' }}>cannot be undone</strong>.</div>
+                <button onClick={() => handleRemove(row)} disabled={isLoadingD} style={{ padding: '9px 20px', background: 'rgba(255,40,40,0.14)', border: '1px solid rgba(255,40,40,0.5)', borderRadius: 8, color: '#ff4444', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer', opacity: isLoadingD ? 0.5 : 1 }}>
+                  {isLoadingD ? '⏳ DELETING...' : '🗑 PERMANENTLY DELETE'}
+                </button>
+              </div>
+
+              <button onClick={() => setDeleteConfirmModal(null)} style={{ width: '100%', padding: '9px', background: 'transparent', border: '1px solid rgba(160,200,255,0.15)', borderRadius: 8, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 10, cursor: 'pointer' }}>CANCEL</button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Toast */}
       {toast && (
