@@ -2076,11 +2076,20 @@ function LandingHomepage({ onSelectRole }) {
         background: 'rgba(5,15,35,0.7)', backdropFilter: 'blur(10px)', zIndex: 10
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: '50%', border: '2px solid #ff3333', background: 'transparent',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color: '#ff3333', fontWeight: 'bold',
-            boxShadow: '0 0 10px rgba(255,51,51,0.5)'
-          }}>+</div>
+          <div style={{ width: 48, height: 48, flexShrink: 0 }}>
+            <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              {/* Outer faint ring */}
+              <circle cx="24" cy="24" r="23" stroke="rgba(255,51,51,0.18)" strokeWidth="1"/>
+              {/* Main dark circle with glowing red border */}
+              <circle cx="24" cy="24" r="19" fill="#0d0d14" stroke="#cc2222" strokeWidth="2"/>
+              {/* Inner glow filter via circle */}
+              <circle cx="24" cy="24" r="18" fill="none" stroke="rgba(255,60,60,0.25)" strokeWidth="3"/>
+              {/* Bold red plus cross — horizontal bar */}
+              <rect x="10" y="20.5" width="28" height="7" rx="2" fill="#e03030"/>
+              {/* Bold red plus cross — vertical bar */}
+              <rect x="20.5" y="10" width="7" height="28" rx="2" fill="#e03030"/>
+            </svg>
+          </div>
           <div>
             <h1 style={{ fontFamily: "'Orbitron'", fontSize: 18, letterSpacing: '0.15em', color: '#00c8ff', margin: 0 }}>RESCUELINK</h1>
             <span style={{ fontSize: 9, letterSpacing: '0.2em', color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'" }}>NATIONAL HEALTH NETWORK</span>
