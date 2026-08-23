@@ -1897,6 +1897,7 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
           const [mfaQR, setMfaQR] = React.useState(null);
           const [mfaStatus, setMfaStatus] = React.useState(null);
           const [mfaLoading, setMfaLoading] = React.useState(false);
+          const [disable2FAConfirmUD, setDisable2FAConfirmUD] = React.useState(false);
 
           const token = sessionStorage.getItem('rescuelink_token') || '';
           const hdrs = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
@@ -1947,7 +1948,7 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
           };
 
           const handleDisable2FA = async () => {
-            if (!window.confirm('Disable 2FA? This reduces account security.')) return;
+            setDisable2FAConfirmUD(false);
             setMfaLoading(true);
             try {
               const res = await fetch('/api/mfa/disable', { method: 'POST', headers: hdrs });
@@ -1961,6 +1962,27 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
 
           return (
             <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(0,5,20,0.93)', backdropFilter: 'blur(12px)', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+
+            {/* 2FA Disable Confirm */}
+            {disable2FAConfirmUD && (
+              <div style={{ position: 'fixed', inset: 0, zIndex: 9999999, background: 'rgba(0,5,20,0.88)', backdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setDisable2FAConfirmUD(false)}>
+                <div style={{ background: 'rgba(8,18,42,0.98)', border: '1px solid rgba(255,68,68,0.3)', borderRadius: 14, padding: 30, maxWidth: 420, width: '90%' }} onClick={e => e.stopPropagation()}>
+                  <div style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#ff4444', fontWeight: 900, marginBottom: 8 }}>🔓 DISABLE 2FA</div>
+                  <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'", marginBottom: 20, lineHeight: 1.65 }}>
+                    Removing 2FA will leave your account protected only by your password.<br /><br />
+                    <strong style={{ color: '#ffb800' }}>This reduces your account security significantly.</strong>
+                  </div>
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    <button onClick={handleDisable2FA} style={{ flex: 1, padding: '10px', background: 'rgba(255,40,40,0.14)', border: '1px solid rgba(255,40,40,0.5)', borderRadius: 8, color: '#ff4444', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>
+                      🔓 YES, DISABLE 2FA
+                    </button>
+                    <button onClick={() => setDisable2FAConfirmUD(false)} style={{ flex: 1, padding: '10px', background: 'transparent', border: '1px solid rgba(160,200,255,0.15)', borderRadius: 8, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer' }}>
+                      CANCEL
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
               <div style={{ background: 'rgba(3,10,28,0.98)', borderBottom: '1px solid rgba(0,200,255,0.15)', padding: '16px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
                 <div style={{ fontFamily: "'Orbitron'", fontSize: 15, color: '#a78bfa', fontWeight: 900, letterSpacing: '0.08em' }}>⚙️ ACCOUNT SETTINGS</div>
                 <button onClick={() => routeTo('')} style={{ background: 'none', border: 'none', color: '#ff4444', cursor: 'pointer', fontSize: 22, lineHeight: 1 }}>✕</button>
@@ -2018,8 +2040,8 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
                     <button onClick={handleSetup2FA} disabled={mfaLoading} style={{ ...S.btn('0,255,136'), opacity: mfaLoading ? 0.5 : 1 }}>
                       {mfaLoading ? '⏳ LOADING…' : '🔒 ENABLE 2FA — GENERATE QR'}
                     </button>
-                    <button onClick={handleDisable2FA} disabled={mfaLoading} style={{ ...S.btn('255,68,68'), opacity: mfaLoading ? 0.5 : 1 }}>
-                      DISABLE 2FA
+                    <button onClick={() => setDisable2FAConfirmUD(true)} disabled={mfaLoading} style={{ ...S.btn('255,68,68'), opacity: mfaLoading ? 0.5 : 1 }}>
+                      🔓 DISABLE 2FA
                     </button>
                   </div>
                   {mfaQR && (
