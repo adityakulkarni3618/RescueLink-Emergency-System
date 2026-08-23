@@ -208,8 +208,7 @@ async function syncDatabase() {
 
 
 
-    // Auto-seeding disabled to support completely blank system registration from scratch.
-    /*
+    // Auto-seeding enabled to support seeding default credentials.
     if (useSqlite && !isSeeding) {
       try {
         const userCount = await User.count();
@@ -225,7 +224,6 @@ async function syncDatabase() {
         console.error('[DB WARNING] Auto-seeding failed:', seedErr.message);
       }
     }
-    */
   } catch (err) {
     const { triggerCriticalAlert } = require('./alerting');
     await triggerCriticalAlert('DATABASE_CONNECT_FAIL', {
