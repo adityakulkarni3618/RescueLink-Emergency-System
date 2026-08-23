@@ -14,6 +14,7 @@ export default function EmergencyCorridorPanel({ socket, incidentId, isControlPa
   const [logs, setLogs] = useState([]);
   const [speed, setSpeed] = useState(65);
   const [eta, setEta] = useState(380); // seconds
+  const [overrideConfirm, setOverrideConfirm] = useState(null);
 
   const addLog = (text) => {
     const timestamp = new Date().toLocaleTimeString();
@@ -68,14 +69,18 @@ export default function EmergencyCorridorPanel({ socket, incidentId, isControlPa
 
   const handleManualOverride = (junctionId, name) => {
     if (!socket || !incidentId) return;
-    if (window.confirm(`Force manual override green signal preemption lock for ${name}?`)) {
-      socket.emit('corridor:manual-override', {
-        incidentId,
-        junctionId,
-        forceStatus: 'CORRIDOR_ACTIVE'
-      });
-      addLog(`[MANUAL COMMAND] Triggered emergency preemption override for ${name}`);
-    }
+    setOverrideConfirm({ junctionId, name });
+  };
+
+  const doManualOverride = () => {
+    if (!overrideConfirm || !socket || !incidentId) return;
+    socket.emit('corridor:manual-override', {
+      incidentId,
+      junctionId: overrideConfirm.junctionId,
+      forceStatus: 'CORRIDOR_ACTIVE'
+    });
+    addLog(`[MANUAL COMMAND] Triggered emergency preemption override for ${overrideConfirm.name}`);
+    setOverrideConfirm(null);
   };
 
   const formatTime = (secs) => {
@@ -93,8 +98,32 @@ export default function EmergencyCorridorPanel({ socket, incidentId, isControlPa
       fontFamily: "'Rajdhani', sans-serif",
       color: '#e0eaff',
       backdropFilter: 'blur(12px)',
-      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
     }}>
+      
+      {/* ── OVERRIDE CONFIRM MODAL ── */}
+      {overrideConfirm && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999999, background: 'rgba(0,3,12,0.88)', backdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setOverrideConfirm(null)}>
+          <div style={{ background: 'rgba(8,18,42,0.98)', border: '1px solid rgba(255,184,0,0.4)', borderRadius: 14, padding: 30, maxWidth: 420, width: '90%', boxShadow: '0 0 40px rgba(255,184,0,0.1)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 15, color: '#ffb800', fontWeight: 900, marginBottom: 10 }}>🚦 MANUAL PREEMPTION OVERRIDE</div>
+            <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'", marginBottom: 22, lineHeight: 1.7 }}>
+              Force green signal preemption lock for <strong style={{ color: '#ffb800' }}>{overrideConfirm.name}</strong>?<br /><br />
+              This will manually activate the AI emergency corridor for this junction.
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={doManualOverride}
+                style={{ flex: 1, padding: '12px', background: 'rgba(255,184,0,0.15)', border: '1px solid rgba(255,184,0,0.5)', borderRadius: 8, color: '#ffb800', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+              >
+                🚦 FORCE OVERRIDE
+              </button>
+              <button onClick={() => setOverrideConfirm(null)} style={{ flex: 1, padding: '12px', background: 'transparent', border: '1px solid rgba(160,200,255,0.15)', borderRadius: 8, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 12, cursor: 'pointer' }}>
+                CANCEL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Real-time Status Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(0, 200, 255, 0.15)', paddingBottom: 12, marginBottom: 16 }}>
         <div>
