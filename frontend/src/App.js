@@ -2055,42 +2055,33 @@ function LandingHomepage({ onSelectRole }) {
       <ParticleCanvas />
       <div className="scanline" />
 
-      {/* Centered Logo and Title header */}
-      <div style={{ textAlign: 'center', zIndex: 1, padding: '30px 20px 10px' }}>
-        <div style={{
-          width: 60, height: 60, borderRadius: '50%', background: '#ff3333',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 36, color: '#fff', fontWeight: 'bold', margin: '20px auto 16px',
-          boxShadow: '0 0 25px rgba(255,51,51,0.5)', cursor: 'default'
-        }}>+</div>
-        
-        <h2 style={{ fontFamily: "'Orbitron'", fontSize: '24px', color: '#00c8ff', letterSpacing: '0.15em', margin: '0 0 8px', fontWeight: 900 }}>
-          RESCUELINK EMERGENCY CARE SYSTEM v2.0
-        </h2>
-        <p style={{ fontFamily: "'Share Tech Mono'", fontSize: '10px', color: 'rgba(160,200,255,0.5)', letterSpacing: '0.25em', margin: '0 0 20px' }}>
-          NATIONAL HEALTH MISSION — EMERGENCY CONNECTIVITY
-        </p>
-
-        {/* System Status Badges */}
-        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginBottom: 30 }}>
-          {[
-            ['SYSTEM', 'ONLINE', '#00ff88'],
-            ['NETWORK', 'ACTIVE', '#00c8ff'],
-            ['ALERT', 'STANDBY', '#ffb800']
-          ].map(([label, val, c]) => (
-            <div key={label} style={{
-              textAlign: 'center', padding: '6px 16px', background: 'rgba(5,15,40,0.6)',
-              border: '1px solid rgba(0,200,255,0.15)', borderRadius: 6, minWidth: 90
-            }}>
-              <div style={{ fontSize: 8, color: 'rgba(160,200,255,0.4)', fontFamily: "'Orbitron'", letterSpacing: '0.08em' }}>{label}</div>
-              <div style={{ fontSize: 10, fontWeight: 900, color: c, fontFamily: "'Orbitron'", marginTop: 3 }}>{val}</div>
-            </div>
-          ))}
+      {/* Main Header */}
+      <header style={{
+        padding: '20px 40px', borderBottom: '1px solid rgba(0,200,255,0.15)',
+        display: 'flex', justifySelf: 'stretch', justifyContent: 'space-between', alignItems: 'center',
+        background: 'rgba(5,15,35,0.7)', backdropFilter: 'blur(10px)', zIndex: 10
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: '50%', background: '#ff3333',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, color: '#fff', fontWeight: 'bold',
+            boxShadow: '0 0 10px rgba(255,51,51,0.5)'
+          }}>+</div>
+          <div>
+            <h1 style={{ fontFamily: "'Orbitron'", fontSize: 18, letterSpacing: '0.15em', color: '#00c8ff', margin: 0 }}>RESCUELINK</h1>
+            <span style={{ fontSize: 9, letterSpacing: '0.2em', color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'" }}>NATIONAL HEALTH NETWORK</span>
+          </div>
         </div>
-      </div>
+        <div style={{ display: 'flex', gap: 15 }}>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>CENTRAL SERVER</div>
+            <div style={{ fontSize: 12, color: '#00ff88', fontWeight: 'bold', fontFamily: "'Share Tech Mono'" }}>ACTIVE // ONLINE</div>
+          </div>
+        </div>
+      </header>
 
       {/* Hero section */}
-      <div style={{ textShadow: '0 0 10px rgba(0,0,0,0.5)', padding: '0px 20px 30px', textAlign: 'center', zIndex: 1 }}>
+      <div style={{ textShadow: '0 0 10px rgba(0,0,0,0.5)', padding: '50px 20px 30px', textAlign: 'center', zIndex: 1 }}>
         <h2 style={{ fontFamily: "'Orbitron'", fontSize: 'clamp(24px, 5vw, 36px)', color: '#fff', letterSpacing: '0.2em', margin: '0 0 12px' }}>
           SECURE DISPATCH & RESOURCE GATEWAY
         </h2>
