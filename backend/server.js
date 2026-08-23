@@ -3515,11 +3515,33 @@ async function startServer() {
       console.error('[BOOTSTRAP] Failed to auto-create super admin:', bootstrapErr.message);
     }
 
-    // 2. Hydrate in-memory state from database
+    // 2. Hydrate active in-memory state from database (clearing stale items first)
+    const ONE_HOUR_AGO = new Date(Date.now() - 60 * 60 * 1000);
+    try {
+      const deletedStale = await Incident.update({ status: 'completed' }, {
+        where: {
+          status: {
+            [Op.notIn]: ['completed', 'cancelled']
+          },
+          createdAt: {
+            [Op.lt]: ONE_HOUR_AGO
+          }
+        }
+      });
+      if (deletedStale[0] > 0) {
+        console.log(`[BOOT CLEANUP] Auto-completed ${deletedStale[0]} stale active incidents older than 1 hour.`);
+      }
+    } catch (cleanupErr) {
+      console.error('[BOOT CLEANUP ERROR] Failed to clear stale database incidents:', cleanupErr.message);
+    }
+
     const persisted = await Incident.findAll({
       where: {
         status: {
           [Op.notIn]: ['completed', 'cancelled']
+        },
+        createdAt: {
+          [Op.gt]: ONE_HOUR_AGO
         }
       }
     });

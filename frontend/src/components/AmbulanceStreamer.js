@@ -2678,83 +2678,83 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
         {/* ── CONDITIONAL SUB-PAGE VIEWPORTS ── */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-          {/* IDLE STATE — No patient assigned yet */}
-          {!assignedUser && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100%', gap: 20, padding: 24 }}>
-              {!isActiveDuty ? (
-                <>
-                  <div style={{ fontSize: 60, opacity: 0.5, animation: 'pulse-opacity 2s infinite' }}>🛌</div>
-                  <div style={{ fontFamily: "'Orbitron'", fontSize: 18, color: '#ff4444', letterSpacing: '0.15em' }}>ON BREAK / INACTIVE</div>
-                  <div style={{ fontSize: 13, color: 'rgba(160,200,255,0.4)', textAlign: 'center', maxWidth: 400, lineHeight: 1.5 }}>
-                    You have toggled your status to <strong>INACTIVE</strong>. You will not receive any incoming emergency dispatch requests. Toggle <strong>ACTIVE</strong> in the sidebar to resume standby.
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div style={{ fontSize: 60, opacity: 0.3 }}>🚑</div>
-                  <div style={{ fontFamily: "'Orbitron'", fontSize: 18, color: 'rgba(160,200,255,0.3)', letterSpacing: '0.15em' }}>AWAITING DISPATCH</div>
-                  <div style={{ fontSize: 13, color: 'rgba(160,200,255,0.2)', textAlign: 'center', maxWidth: 400 }}>
-                    Ambulance unit is online and ready. Patient vitals and details will appear here once a dispatch request is accepted.
-                  </div>
-                  {connected ? (
-                    <div style={{ padding: '8px 20px', border: '1px solid rgba(0,255,136,0.3)', borderRadius: 6, fontSize: 11, fontFamily: "'Share Tech Mono'", color: '#00ff88', background: 'rgba(0,255,136,0.05)' }}>
-                      ● UNIT ONLINE — STANDING BY
-                    </div>
-                  ) : (
-                    <div style={{ padding: '8px 20px', border: '1px solid rgba(255,68,68,0.3)', borderRadius: 6, fontSize: 11, fontFamily: "'Share Tech Mono'", color: '#ff4444', background: 'rgba(255,68,68,0.05)' }}>
-                      ● OFFLINE
-                    </div>
-                  )}
-                  <div className="rl-card" style={{ marginTop: 30, padding: '20px', width: '100%', maxWidth: 320, textAlign: 'center' }}>
-                    <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Orbitron'", marginBottom: 8, letterSpacing: '0.1em' }}>MANUAL MISSION RECOVERY</div>
-                    <div style={{ display: 'flex', gap: 10 }}>
-                      <input 
-                        value={manualRecoveryId} 
-                        onChange={e => setManualRecoveryId(e.target.value)}
-                        onKeyDown={handleManualRecoveryKeyDown}
-                        placeholder="REQ ID" 
-                        className="rl-input"
-                        style={{ flex: 1, fontSize: 12, outline: 'none', fontFamily: "'Share Tech Mono'", boxSizing: 'border-box', height: '36px' }} 
-                      />
-                      <button onClick={handleManualRecover} className="rl-btn-primary" style={{ height: '36px', padding: '0 15px', fontSize: 10, fontWeight: 'bold' }}>GO</button>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* ACTIVE STATE but NOT ARRIVED YET */}
-          {assignedUser && !arrivedAtUser && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100%', gap: 20, padding: 24 }}>
-              <div style={{ fontSize: 60 }}>🚑</div>
-              <div style={{ fontFamily: "'Orbitron'", fontSize: 18, color: '#ff6b35', letterSpacing: '0.15em' }}>EN ROUTE TO PATIENT</div>
-              <div style={{ fontSize: 14, color: 'rgba(160,200,255,0.6)', textAlign: 'center', maxWidth: 400 }}>
-                AMBULANCE IS DISPATCHED AND HEADED TO THE INCIDENT SITE. STAND BY FOR PATIENT ENROLLMENT.
-              </div>
-              <button
-                onClick={() => {
-                  setArrivedAtUser(true);
-                  if (socket && assignedUser) {
-                    socket.emit('paramedic-arrived', { reqId: assignedUser.id });
-                  }
-                }}
-                style={{
-                  padding: '12px 24px', background: '#ff6b35', border: 'none',
-                  borderRadius: 6, color: '#000', fontWeight: 'bold', cursor: 'pointer',
-                  fontFamily: "'Orbitron'", fontSize: 12, letterSpacing: 1, marginTop: 10
-                }}
-              >
-                🚨 SIGNAL ARRIVAL AT SITE
-              </button>
-            </div>
-          )}
-
-          {/* ACTIVE STATE & ARRIVED AT USER */}
-          {assignedUser && arrivedAtUser && (
+          {/* TAB 1: LIVE MISSION VIEW */}
+          {activeTab === 'mission' && (
             <>
-              {/* TAB 1: LIVE MISSION VIEW (Map, routing, ETA, hospital match recommendations) */}
-              {activeTab === 'mission' && (
+              {/* IDLE STATE — No patient assigned yet */}
+              {!assignedUser && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100%', gap: 20, padding: 24 }}>
+                  {!isActiveDuty ? (
+                    <>
+                      <div style={{ fontSize: 60, opacity: 0.5, animation: 'pulse-opacity 2s infinite' }}>🛌</div>
+                      <div style={{ fontFamily: "'Orbitron'", fontSize: 18, color: '#ff4444', letterSpacing: '0.15em' }}>ON BREAK / INACTIVE</div>
+                      <div style={{ fontSize: 13, color: 'rgba(160,200,255,0.4)', textAlign: 'center', maxWidth: 400, lineHeight: 1.5 }}>
+                        You have toggled your status to <strong>INACTIVE</strong>. You will not receive any incoming emergency dispatch requests. Toggle <strong>ACTIVE</strong> in the sidebar to resume standby.
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: 60, opacity: 0.3 }}>🚑</div>
+                      <div style={{ fontFamily: "'Orbitron'", fontSize: 18, color: 'rgba(160,200,255,0.3)', letterSpacing: '0.15em' }}>AWAITING DISPATCH</div>
+                      <div style={{ fontSize: 13, color: 'rgba(160,200,255,0.2)', textAlign: 'center', maxWidth: 400 }}>
+                        Ambulance unit is online and ready. Patient vitals and details will appear here once a dispatch request is accepted.
+                      </div>
+                      {connected ? (
+                        <div style={{ padding: '8px 20px', border: '1px solid rgba(0,255,136,0.3)', borderRadius: 6, fontSize: 11, fontFamily: "'Share Tech Mono'", color: '#00ff88', background: 'rgba(0,255,136,0.05)' }}>
+                          ● UNIT ONLINE — STANDING BY
+                        </div>
+                      ) : (
+                        <div style={{ padding: '8px 20px', border: '1px solid rgba(255,68,68,0.3)', borderRadius: 6, fontSize: 11, fontFamily: "'Share Tech Mono'", color: '#ff4444', background: 'rgba(255,68,68,0.05)' }}>
+                          ● OFFLINE
+                        </div>
+                      )}
+                      <div className="rl-card" style={{ marginTop: 30, padding: '20px', width: '100%', maxWidth: 320, textAlign: 'center' }}>
+                        <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Orbitron'", marginBottom: 8, letterSpacing: '0.1em' }}>MANUAL MISSION RECOVERY</div>
+                        <div style={{ display: 'flex', gap: 10 }}>
+                          <input 
+                            value={manualRecoveryId} 
+                            onChange={e => setManualRecoveryId(e.target.value)}
+                            onKeyDown={handleManualRecoveryKeyDown}
+                            placeholder="REQ ID" 
+                            className="rl-input"
+                            style={{ flex: 1, fontSize: 12, outline: 'none', fontFamily: "'Share Tech Mono'", boxSizing: 'border-box', height: '36px' }} 
+                          />
+                          <button onClick={handleManualRecover} className="rl-btn-primary" style={{ height: '36px', padding: '0 15px', fontSize: 10, fontWeight: 'bold' }}>GO</button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* ACTIVE STATE but NOT ARRIVED YET */}
+              {assignedUser && !arrivedAtUser && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100%', gap: 20, padding: 24 }}>
+                  <div style={{ fontSize: 60 }}>🚑</div>
+                  <div style={{ fontFamily: "'Orbitron'", fontSize: 18, color: '#ff6b35', letterSpacing: '0.15em' }}>EN ROUTE TO PATIENT</div>
+                  <div style={{ fontSize: 14, color: 'rgba(160,200,255,0.6)', textAlign: 'center', maxWidth: 400 }}>
+                    AMBULANCE IS DISPATCHED AND HEADED TO THE INCIDENT SITE. STAND BY FOR PATIENT ENROLLMENT.
+                  </div>
+                  <button
+                    onClick={() => {
+                      setArrivedAtUser(true);
+                      if (socket && assignedUser) {
+                        socket.emit('paramedic-arrived', { reqId: assignedUser.id });
+                      }
+                    }}
+                    style={{
+                      padding: '12px 24px', background: '#ff6b35', border: 'none',
+                      borderRadius: 6, color: '#000', fontWeight: 'bold', cursor: 'pointer',
+                      fontFamily: "'Orbitron'", fontSize: 12, letterSpacing: 1, marginTop: 10
+                    }}
+                  >
+                    🚨 SIGNAL ARRIVAL AT SITE
+                  </button>
+                </div>
+              )}
+
+              {/* ACTIVE STATE & ARRIVED AT USER */}
+              {assignedUser && arrivedAtUser && (
                 <div className="ambulance-stream-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 0, flex: 1, overflow: 'hidden' }}>
                   
                   {/* Left panel: Map & Navigation */}
@@ -3035,6 +3035,8 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
                   </div>
                 </div>
               )}
+            </>
+          )}
 
               {/* TAB 2: PATIENT VITALS (Telemetry cards, Waveforms, Ble, and manual entry forms) */}
               {activeTab === 'vitals' && (
@@ -3334,7 +3336,7 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
                   {/* PROFILE SETTINGS SECTION */}
                   {(() => {
                     const AmbProfileSettings = () => {
-                      const [unitForm, setUnitForm] = React.useState({ driverName: authAmb?.driverName || '', type: authAmb?.type || 'BLS', contactInfo: authAmb?.contactInfo || '' });
+                      const [unitForm, setUnitForm] = React.useState({ driverName: authUnit?.driverName || '', type: authUnit?.type || 'BLS', contactInfo: authUnit?.contactInfo || '' });
                       const [unitStatus, setUnitStatus] = React.useState(null);
                       const [unitLoading, setUnitLoading] = React.useState(false);
                       const [pwForm, setPwForm] = React.useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
@@ -3345,7 +3347,7 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
                       const [mfaLoading, setMfaLoading] = React.useState(false);
 
                       const token = sessionStorage.getItem('rescuelink_token') || '';
-                      const ambId = authAmb?.id;
+                      const ambId = authUnit?.id || authUnit?.unitId;
                       const hdrs = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
 
                       const S = {
@@ -3562,8 +3564,6 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
                   </div>
                 </div>
               )}
-            </>
-          )}
 
           {/* Reroute Confirmation Modal */}
           {rerouteTarget && (
