@@ -2141,11 +2141,29 @@ function LandingHomepage({ onSelectRole }) {
             <span style={{ fontSize: 9, letterSpacing: '0.2em', color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'" }}>NATIONAL HEALTH NETWORK</span>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 15 }}>
+        <div style={{ display: 'flex', gap: 15, alignItems: 'center' }}>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>CENTRAL SERVER</div>
             <div style={{ fontSize: 12, color: '#00ff88', fontWeight: 'bold', fontFamily: "'Share Tech Mono'" }}>ACTIVE // ONLINE</div>
           </div>
+          <button
+            id="landing-switch-role-btn"
+            onClick={() => onSelectRole('__switch__')}
+            style={{
+              padding: '10px 22px',
+              background: 'linear-gradient(135deg, rgba(0,200,255,0.15) 0%, rgba(0,200,255,0.3) 100%)',
+              border: '1.5px solid rgba(0,200,255,0.6)',
+              borderRadius: 6, color: '#00c8ff',
+              fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700,
+              letterSpacing: '0.12em', cursor: 'pointer',
+              boxShadow: '0 0 12px rgba(0,200,255,0.2)',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(135deg, rgba(0,200,255,0.25) 0%, rgba(0,200,255,0.5) 100%)'; e.currentTarget.style.boxShadow = '0 0 20px rgba(0,200,255,0.4)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(135deg, rgba(0,200,255,0.15) 0%, rgba(0,200,255,0.3) 100%)'; e.currentTarget.style.boxShadow = '0 0 12px rgba(0,200,255,0.2)'; }}
+          >
+            🔀 SWITCH ROLE
+          </button>
         </div>
       </header>
 
@@ -2157,26 +2175,6 @@ function LandingHomepage({ onSelectRole }) {
         <p style={{ color: 'rgba(160,200,255,0.6)', maxWidth: 700, margin: '0 auto 40px', fontSize: 14, lineHeight: 1.6 }}>
           Real-time end-to-end medical response coordinator linking patients, paramedics, trauma centers, and government commanders under an encrypted national ledger.
         </p>
-
-        {/* Gateways Grid */}
-        <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 1200, margin: '0 auto 40px' }}>
-          {[
-            { role: 'user', emoji: '🧍', title: 'EMERGENCY SOS', desc: 'Instant AI triage, location mapping, and telemetry request.', color: '#00ff88' },
-            { role: 'ambulance', emoji: '🚑', title: 'PARAMEDIC HUB', desc: 'Driver active duty toggle, vitals streaming, and ER routing.', color: '#ff6b35' },
-            { role: 'hospital', emoji: '🏥', title: 'HOSPITAL COMMAND', desc: 'ER bed tracking, doctor assignments, and locks verification.', color: '#00c8ff' },
-            { role: 'admin', emoji: '🏛️', title: 'WAR ROOM COMMAND', desc: 'Disaster coordinator, spatial logs, and audit logs viewer.', color: '#cc00ff' },
-            { role: 'family', emoji: '👨‍👩‍👧', title: 'FAMILY TRACKER', desc: 'Real-time telemetry, location, and status mapping for families.', color: '#ffb800' }
-          ].map(g => (
-            <div key={g.role} onClick={() => onSelectRole(g.role)} className="rl-card" style={{
-              width: 210, padding: 24, cursor: 'pointer', display: 'flex', flexDirection: 'column',
-              alignItems: 'center', transition: 'all 0.3s', border: `1px solid rgba(0,200,255,0.2)`
-            }} onMouseEnter={e => { e.currentTarget.style.borderColor = g.color; e.currentTarget.style.boxShadow = `0 0 15px ${g.color}33`; }} onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(0,200,255,0.2)'; e.currentTarget.style.boxShadow = 'none'; }}>
-              <div style={{ fontSize: 36, marginBottom: 12 }}>{g.emoji}</div>
-              <h3 style={{ fontFamily: "'Orbitron'", fontSize: 13, color: g.color, letterSpacing: '0.1em', margin: '0 0 8px' }}>{g.title}</h3>
-              <p style={{ fontSize: 11, color: 'rgba(160,200,255,0.5)', textAlign: 'center', margin: 0, lineHeight: 1.4 }}>{g.desc}</p>
-            </div>
-          ))}
-        </div>
 
         {/* Live Registries split directories */}
         <div style={{ display: 'flex', gap: 30, maxWidth: 1200, margin: '0 auto', flexWrap: 'wrap', textAlign: 'left' }}>
@@ -2235,6 +2233,31 @@ function LandingHomepage({ onSelectRole }) {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Bottom CTA */}
+        <div style={{ marginTop: 50, marginBottom: 30, zIndex: 1 }}>
+          <button
+            id="landing-enter-system-btn"
+            onClick={() => onSelectRole('__switch__')}
+            style={{
+              padding: '16px 48px',
+              background: 'linear-gradient(135deg, #00c8ff22 0%, #00c8ff44 100%)',
+              border: '1.5px solid rgba(0,200,255,0.7)',
+              borderRadius: 8, color: '#00c8ff',
+              fontFamily: "'Orbitron'", fontSize: 13, fontWeight: 700,
+              letterSpacing: '0.18em', cursor: 'pointer',
+              boxShadow: '0 0 24px rgba(0,200,255,0.25)',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(135deg, #00c8ff44 0%, #00c8ff66 100%)'; e.currentTarget.style.boxShadow = '0 0 40px rgba(0,200,255,0.5)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(135deg, #00c8ff22 0%, #00c8ff44 100%)'; e.currentTarget.style.boxShadow = '0 0 24px rgba(0,200,255,0.25)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+          >
+            ⚡ ENTER SYSTEM / SWITCH ROLE →
+          </button>
+          <p style={{ marginTop: 12, color: 'rgba(160,200,255,0.4)', fontSize: 11, fontFamily: "'Share Tech Mono'", letterSpacing: '0.15em' }}>
+            SELECT YOUR PORTAL ACCESS LEVEL
+          </p>
         </div>
       </div>
     </div>
@@ -3060,13 +3083,45 @@ export default function App() {
       );
     }
 
+    const [showRoleSelector, setShowRoleSelector] = useState(false);
+
     return (
       <div className="app-root">
         <style>{styles}</style>
         <LandingHomepage onSelectRole={(selRole) => {
-          setLoginTargetRole(selRole);
-          window.location.hash = selRole;
+          if (selRole === '__switch__') {
+            setShowRoleSelector(true);
+          } else {
+            setLoginTargetRole(selRole);
+            window.location.hash = selRole;
+          }
         }} />
+        {showRoleSelector && (
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 15000,
+            background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }} onClick={(e) => { if (e.target === e.currentTarget) setShowRoleSelector(false); }}>
+            <div style={{ position: 'relative', width: '100%', maxHeight: '100vh', overflowY: 'auto' }}>
+              <button
+                onClick={() => setShowRoleSelector(false)}
+                style={{
+                  position: 'fixed', top: 20, right: 28, zIndex: 16000,
+                  background: 'rgba(10,22,48,0.95)', border: '1px solid rgba(0,200,255,0.3)',
+                  borderRadius: '50%', width: 40, height: 40,
+                  color: 'rgba(160,200,255,0.8)', fontSize: 18, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.4)'
+                }}
+              >✕</button>
+              <RoleSelector onSelect={(selRole) => {
+                setShowRoleSelector(false);
+                setLoginTargetRole(selRole);
+                window.location.hash = selRole;
+              }} />
+            </div>
+          </div>
+        )}
         {loginTargetRole && (
           <LoginScreen
             defaultRole={loginTargetRole}
