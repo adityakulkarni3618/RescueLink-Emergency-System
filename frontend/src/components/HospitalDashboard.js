@@ -3182,7 +3182,7 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
                     position: 'relative'
                   }}
                 >
-                  <div style={{ fontSize: 10, fontFamily: "'Share Tech Mono'", color: activeMissionId === m.id ? '#fff' : 'rgba(160,200,255,0.6)' }}>{m.id.slice(0, 8)}...</div>
+                  <div style={{ fontSize: 10, fontFamily: "'Share Tech Mono'", color: activeMissionId === m.id ? '#fff' : 'rgba(160,200,255,0.6)' }}>{m.id ? m.id.slice(0, 8) : 'N/A'}...</div>
                   <div style={{ fontSize: 9, color: activeMissionId === m.id ? '#00ff88' : 'rgba(255,255,255,0.3)', marginTop: 2 }}>{m.patient?.name || 'Inbound Patient'}</div>
                 </div>
               ))}
