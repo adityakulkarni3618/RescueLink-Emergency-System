@@ -132,7 +132,10 @@ router.put('/:id', verifyToken(['hospital_admin', 'city_admin']), async (req, re
       return res.status(403).json({ error: 'Access denied: Cannot manage other hospitals' });
     }
 
-    const { name, city, state, lat, lng, contact_number, total_beds, icu_beds, ventilators, is_active } = req.body;
+    const { 
+      name, city, state, lat, lng, contact_number, total_beds, icu_beds, ventilators, is_active,
+      license_number, departments, bay_capacity, trauma_tier, accreditation_id
+    } = req.body;
 
     if (name) hospital.name = name;
     if (city) hospital.city = city;
@@ -144,6 +147,12 @@ router.put('/:id', verifyToken(['hospital_admin', 'city_admin']), async (req, re
     if (icu_beds !== undefined) hospital.icu_beds = icu_beds;
     if (ventilators !== undefined) hospital.ventilators = ventilators;
     if (is_active !== undefined && req.user.role === 'city_admin') hospital.is_active = is_active;
+
+    if (license_number !== undefined) hospital.license_number = license_number;
+    if (departments !== undefined) hospital.departments = Array.isArray(departments) ? JSON.stringify(departments) : departments;
+    if (bay_capacity !== undefined) hospital.bay_capacity = bay_capacity;
+    if (trauma_tier !== undefined) hospital.trauma_tier = trauma_tier;
+    if (accreditation_id !== undefined) hospital.accreditation_id = accreditation_id;
 
     await hospital.save();
 

@@ -4978,6 +4978,60 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
                   const hdrs = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
                   const hospitalDbId = authHospital?.hospitalId;
 
+                  const [profileForm, setProfileForm] = React.useState({
+                    name: authHospital?.name || '',
+                    city: authHospital?.city || '',
+                    state: authHospital?.state || '',
+                    lat: authHospital?.lat || '',
+                    lng: authHospital?.lng || '',
+                    contact_number: authHospital?.contact_number || '',
+                    total_beds: authHospital?.total_beds || 0,
+                    icu_beds: icuBeds || authHospital?.icu_beds || 0,
+                    ventilators: authHospital?.ventilators || 0,
+                    license_number: authHospital?.license_number || '',
+                    departments: [],
+                    bay_capacity: 5,
+                    trauma_tier: '',
+                    accreditation_id: ''
+                  });
+
+                  React.useEffect(() => {
+                    const fetchHospitalDetails = async () => {
+                      if (!hospitalDbId) return;
+                      try {
+                        const res = await fetch(`/api/hospitals/${hospitalDbId}`, { headers: hdrs });
+                        if (res.ok) {
+                          const data = await res.json();
+                          let depts = [];
+                          try {
+                            depts = data.departments ? (Array.isArray(data.departments) ? data.departments : JSON.parse(data.departments)) : [];
+                          } catch (e) {
+                            depts = data.departments || [];
+                          }
+                          setProfileForm({
+                            name: data.name || '',
+                            city: data.city || '',
+                            state: data.state || '',
+                            lat: data.lat || 0.0,
+                            lng: data.lng || 0.0,
+                            contact_number: data.contact_number || '',
+                            total_beds: data.total_beds || 0,
+                            icu_beds: data.icu_beds || 0,
+                            ventilators: data.ventilators || 0,
+                            license_number: data.license_number || '',
+                            departments: depts,
+                            bay_capacity: data.bay_capacity || 5,
+                            trauma_tier: data.trauma_tier || '',
+                            accreditation_id: data.accreditation_id || ''
+                          });
+                        }
+                      } catch (e) {
+                        console.error("Failed to fetch hospital details", e);
+                      }
+                    };
+                    fetchHospitalDetails();
+                  }, [hospitalDbId]);
+
                   const S = {
                     card: { background: 'rgba(5,15,40,0.85)', border: '1px solid rgba(0,200,255,0.15)', borderRadius: 10, padding: 24, marginBottom: 0 },
                     label: { display: 'block', fontSize: 10, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.55)', marginBottom: 6, letterSpacing: '0.07em', textTransform: 'uppercase' },
@@ -4991,11 +5045,21 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
                     try {
                       const res = await fetch(`/api/hospitals/${hospitalDbId}`, {
                         method: 'PUT', headers: hdrs,
-                        body: JSON.stringify({ name: authHospital.name, lat: hospitalGps?.lat || authHospital.lat, lng: hospitalGps?.lng || authHospital.lng, icu_beds: icuBeds, ventilators: authHospital.ventilators || 5 })
+                        body: JSON.stringify(profileForm)
                       });
                       if (res.ok) {
+                        const data = await res.json();
                         setSaveStatus({ ok: true, msg: 'Hospital profile updated and broadcast to network!' });
-                        if (socket) socket.emit('register-hospital', { hospitalId: authHospital.hospitalId, name: authHospital.name, adminName: authHospital.adminName, id: authHospital.hospitalId, lat: hospitalGps?.lat || authHospital.lat, lng: hospitalGps?.lng || authHospital.lng, token });
+                        setAuthHospital(prev => ({
+                          ...prev,
+                          name: data.name,
+                          lat: data.lat,
+                          lng: data.lng,
+                          ventilators: data.ventilators
+                        }));
+                        setHospitalGps({ lat: data.lat, lng: data.lng });
+                        setIcuBeds(data.icu_beds);
+                        if (socket) socket.emit('register-hospital', { hospitalId: data.id, name: data.name, adminName: authHospital.adminName, id: data.id, lat: data.lat, lng: data.lng, token });
                       } else { const d = await res.json(); setSaveStatus({ ok: false, msg: d.error || 'Update failed' }); }
                     } catch (err) { setSaveStatus({ ok: false, msg: 'Connection error' }); }
                     setTimeout(() => setSaveStatus(null), 4000);
@@ -5072,23 +5136,84 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                           <div style={{ gridColumn: '1 / -1' }}>
                             <label style={S.label}>Hospital Name</label>
-                            <input style={S.input} value={authHospital?.name || ''} onChange={e => setAuthHospital({ ...authHospital, name: e.target.value })} />
+                            <input style={S.input} value={profileForm.name} onChange={e => setProfileForm({ ...profileForm, name: e.target.value })} />
+                          </div>
+                          <div>
+                            <label style={S.label}>City</label>
+                            <input style={S.input} value={profileForm.city} onChange={e => setProfileForm({ ...profileForm, city: e.target.value })} />
+                          </div>
+                          <div>
+                            <label style={S.label}>State</label>
+                            <input style={S.input} value={profileForm.state} onChange={e => setProfileForm({ ...profileForm, state: e.target.value })} />
                           </div>
                           <div>
                             <label style={S.label}>Latitude</label>
-                            <input type="number" step="0.0001" style={S.input} value={hospitalGps?.lat || authHospital?.lat || ''} onChange={e => { const lat = parseFloat(e.target.value); setHospitalGps({ ...hospitalGps, lat }); setAuthHospital({ ...authHospital, lat }); }} />
+                            <input type="number" step="0.0001" style={S.input} value={profileForm.lat} onChange={e => setProfileForm({ ...profileForm, lat: parseFloat(e.target.value) || 0.0 })} />
                           </div>
                           <div>
                             <label style={S.label}>Longitude</label>
-                            <input type="number" step="0.0001" style={S.input} value={hospitalGps?.lng || authHospital?.lng || ''} onChange={e => { const lng = parseFloat(e.target.value); setHospitalGps({ ...hospitalGps, lng }); setAuthHospital({ ...authHospital, lng }); }} />
+                            <input type="number" step="0.0001" style={S.input} value={profileForm.lng} onChange={e => setProfileForm({ ...profileForm, lng: parseFloat(e.target.value) || 0.0 })} />
+                          </div>
+                          <div>
+                            <label style={S.label}>Contact Number</label>
+                            <input style={S.input} value={profileForm.contact_number} onChange={e => setProfileForm({ ...profileForm, contact_number: e.target.value })} />
+                          </div>
+                          <div>
+                            <label style={S.label}>Total Beds</label>
+                            <input type="number" style={S.input} value={profileForm.total_beds} onChange={e => setProfileForm({ ...profileForm, total_beds: parseInt(e.target.value) || 0 })} />
                           </div>
                           <div>
                             <label style={S.label}>Total ICU Beds</label>
-                            <input type="number" style={S.input} value={icuBeds} onChange={e => setIcuBeds(parseInt(e.target.value) || 0)} />
+                            <input type="number" style={S.input} value={profileForm.icu_beds} onChange={e => setProfileForm({ ...profileForm, icu_beds: parseInt(e.target.value) || 0 })} />
                           </div>
                           <div>
                             <label style={S.label}>Ventilators Available</label>
-                            <input type="number" style={S.input} value={authHospital?.ventilators || 5} onChange={e => setAuthHospital({ ...authHospital, ventilators: parseInt(e.target.value) || 0 })} />
+                            <input type="number" style={S.input} value={profileForm.ventilators} onChange={e => setProfileForm({ ...profileForm, ventilators: parseInt(e.target.value) || 0 })} />
+                          </div>
+                          <div>
+                            <label style={S.label}>License Number</label>
+                            <input style={S.input} value={profileForm.license_number} onChange={e => setProfileForm({ ...profileForm, license_number: e.target.value })} />
+                          </div>
+                          <div>
+                            <label style={S.label}>Accreditation ID</label>
+                            <input style={S.input} value={profileForm.accreditation_id} onChange={e => setProfileForm({ ...profileForm, accreditation_id: e.target.value })} />
+                          </div>
+                          <div>
+                            <label style={S.label}>Emergency Bay Capacity</label>
+                            <input type="number" style={S.input} value={profileForm.bay_capacity} onChange={e => setProfileForm({ ...profileForm, bay_capacity: parseInt(e.target.value) || 0 })} />
+                          </div>
+                          <div>
+                            <label style={S.label}>Trauma Tier</label>
+                            <select style={S.input} value={profileForm.trauma_tier} onChange={e => setProfileForm({ ...profileForm, trauma_tier: e.target.value })}>
+                              <option value="">-- Select Tier --</option>
+                              <option value="Tier-1">Level 1 — Comprehensive Trauma Center</option>
+                              <option value="Tier-2">Level 2 — Major Trauma Center</option>
+                              <option value="Tier-3">Level 3 — General Emergency Room</option>
+                            </select>
+                          </div>
+                          <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+                            <label style={S.label}>Active Departments</label>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                              {['Cardiology', 'Neurology', 'Orthopedics', 'Pediatrics', 'Burn Unit', 'ICU'].map(dept => {
+                                const checked = profileForm.departments.includes(dept);
+                                return (
+                                  <label key={dept} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#e0eaff', cursor: 'pointer' }}>
+                                    <input 
+                                      type="checkbox" 
+                                      checked={checked} 
+                                      onChange={() => {
+                                        if (checked) {
+                                          setProfileForm(p => ({ ...p, departments: p.departments.filter(item => item !== dept) }));
+                                        } else {
+                                          setProfileForm(p => ({ ...p, departments: [...p.departments, dept] }));
+                                        }
+                                      }} 
+                                    />
+                                    {dept}
+                                  </label>
+                                );
+                              })}
+                            </div>
                           </div>
                         </div>
                         <div style={{ marginTop: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
