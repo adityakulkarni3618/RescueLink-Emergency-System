@@ -712,6 +712,12 @@ router.post('/register-hospital', async (req, res) => {
       totp_secret: setupData.secret,
       is_active: true
     });
+    try {
+      const cache = require('../utils/cache');
+      await cache.del('hospitals:all');
+    } catch (cacheErr) {
+      console.error('[AUTH WARNING] Failed to invalidate hospitals cache:', cacheErr.message);
+    }
 
     return res.json({
       success: true,
