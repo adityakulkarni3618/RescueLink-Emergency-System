@@ -128,6 +128,7 @@ router.put('/:id/settings', async (req, res) => {
     if (assocUser) {
       if (driverName) assocUser.name = driverName;
       if (contactInfo) assocUser.mobile = contactInfo;
+      if (is_active !== undefined) assocUser.is_active = is_active;
       if (vehicleNo && vehicleNo !== oldVehicleNo) {
         assocUser.email = `${vehicleNo.replace(/[\s\-]+/g, '').toLowerCase()}@rescuelink.com`;
       }

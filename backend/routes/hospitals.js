@@ -146,7 +146,11 @@ router.put('/:id', verifyToken(['hospital_admin', 'city_admin']), async (req, re
     if (total_beds !== undefined) hospital.total_beds = total_beds;
     if (icu_beds !== undefined) hospital.icu_beds = icu_beds;
     if (ventilators !== undefined) hospital.ventilators = ventilators;
-    if (is_active !== undefined && req.user.role === 'city_admin') hospital.is_active = is_active;
+    if (is_active !== undefined && req.user.role === 'city_admin') {
+      hospital.is_active = is_active;
+      const { User } = require('../utils/db');
+      await User.update({ is_active }, { where: { hospital_id: hospital.id } });
+    }
 
     if (license_number !== undefined) hospital.license_number = license_number;
     if (departments !== undefined) hospital.departments = Array.isArray(departments) ? JSON.stringify(departments) : departments;
