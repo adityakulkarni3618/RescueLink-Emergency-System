@@ -3523,7 +3523,19 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
                   {/* PROFILE SETTINGS SECTION */}
                   {(() => {
                     const AmbProfileSettings = () => {
-                      const [unitForm, setUnitForm] = React.useState({ driverName: authUnit?.driverName || '', type: authUnit?.type || 'BLS', contactInfo: authUnit?.contactInfo || '' });
+                      const [unitForm, setUnitForm] = React.useState({
+                        driverName: authUnit?.driverName || '',
+                        type: authUnit?.type || 'BLS',
+                        contactInfo: authUnit?.contactInfo || '',
+                        vehicleNo: authUnit?.vehicleNo || '',
+                        hospitalId: '',
+                        equipmentChecklist: [],
+                        crewMembers: '',
+                        licenseNumber: '',
+                        licenseExpiry: '',
+                        isSystemStandard: true,
+                        oxygenCapacityLiters: 0
+                      });
                       const [unitStatus, setUnitStatus] = React.useState(null);
                       const [unitLoading, setUnitLoading] = React.useState(false);
                       const [pwForm, setPwForm] = React.useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
@@ -3533,11 +3545,67 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
                       const [mfaStatus, setMfaStatus] = React.useState(null);
                       const [mfaLoading, setMfaLoading] = React.useState(false);
                       const [disable2FAConfirmAmb, setDisable2FAConfirmAmb] = React.useState(false);
-
+                      const [hospitalsList, setHospitalsList] = React.useState([]);
 
                       const token = sessionStorage.getItem('rescuelink_token') || '';
                       const ambId = authUnit?.id || authUnit?.unitId;
                       const hdrs = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+
+                      React.useEffect(() => {
+                        const fetchHospitals = async () => {
+                          try {
+                            const res = await fetch('/api/hospitals');
+                            if (res.ok) {
+                              const data = await res.json();
+                              setHospitalsList(data || []);
+                            }
+                          } catch (e) {
+                            console.error("Failed to fetch hospitals list", e);
+                          }
+                        };
+                        fetchHospitals();
+                      }, []);
+
+                      React.useEffect(() => {
+                        const fetchUnitDetails = async () => {
+                          if (!ambId) return;
+                          try {
+                            const res = await fetch(`/api/ambulances/${ambId}`, { headers: hdrs });
+                            if (res.ok) {
+                              const data = await res.json();
+                              let checklist = [];
+                              try {
+                                checklist = data.equipment_checklist ? JSON.parse(data.equipment_checklist) : [];
+                              } catch (e) {
+                                checklist = data.equipment_checklist || [];
+                              }
+                              let crew = '';
+                              try {
+                                const parsedCrew = data.crew_members ? JSON.parse(data.crew_members) : [];
+                                crew = Array.isArray(parsedCrew) ? parsedCrew.join(', ') : parsedCrew;
+                              } catch (e) {
+                                crew = data.crew_members || '';
+                              }
+                              setUnitForm({
+                                driverName: data.driverName || '',
+                                type: data.type || 'BLS',
+                                contactInfo: data.contactInfo || '',
+                                vehicleNo: data.vehicleNo || '',
+                                hospitalId: data.hospital_id || '',
+                                equipmentChecklist: checklist,
+                                crewMembers: crew,
+                                licenseNumber: data.license_number || '',
+                                licenseExpiry: data.license_expiry || '',
+                                isSystemStandard: data.is_system_standard !== undefined ? data.is_system_standard : true,
+                                oxygenCapacityLiters: data.oxygen_capacity_liters || 0
+                              });
+                            }
+                          } catch (e) {
+                            console.error("Failed to fetch full ambulance details", e);
+                          }
+                        };
+                        fetchUnitDetails();
+                      }, [ambId]);
 
                       const S = {
                         card: { background: 'rgba(5,15,40,0.85)', border: '1px solid rgba(0,200,255,0.15)', borderRadius: 10, padding: 20 },
@@ -3552,9 +3620,30 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
                         if (!ambId) { setUnitStatus({ ok: false, msg: 'Unit ID not found in session' }); return; }
                         setUnitLoading(true);
                         try {
-                          const res = await fetch(`/api/ambulances/${ambId}/settings`, { method: 'PUT', headers: hdrs, body: JSON.stringify(unitForm) });
+                          const crewArray = unitForm.crewMembers.split(',').map(s => s.trim()).filter(Boolean);
+                          const body = {
+                            ...unitForm,
+                            crewMembers: crewArray
+                          };
+                          const res = await fetch(`/api/ambulances/${ambId}/settings`, { method: 'PUT', headers: hdrs, body: JSON.stringify(body) });
                           const d = await res.json();
-                          setUnitStatus({ ok: res.ok, msg: d.message || d.error || (res.ok ? 'Unit profile updated!' : 'Update failed') });
+                          setUnitStatus({ ok: res.ok, msg: res.ok ? 'Unit profile updated!' : (d.error || 'Update failed') });
+                          if (res.ok) {
+                            const userStr = sessionStorage.getItem('rescuelink_user');
+                            if (userStr) {
+                              const u = JSON.parse(userStr);
+                              u.name = d.driverName;
+                              u.email = d.vehicleNo;
+                              u.mobile = d.contactInfo;
+                              sessionStorage.setItem('rescuelink_user', JSON.stringify(u));
+                            }
+                            setAuthUnit({
+                              unitId: d.id,
+                              driverName: d.driverName,
+                              vehicleNo: d.vehicleNo,
+                              type: d.type
+                            });
+                          }
                         } catch (err) { setUnitStatus({ ok: false, msg: 'Connection error' }); }
                         setUnitLoading(false);
                         setTimeout(() => setUnitStatus(null), 4000);
@@ -3629,6 +3718,10 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
                                 <input style={S.input} value={unitForm.driverName} onChange={e => setUnitForm(p => ({ ...p, driverName: e.target.value }))} />
                               </div>
                               <div>
+                                <label style={S.label}>Vehicle Plate Number</label>
+                                <input style={S.input} value={unitForm.vehicleNo} onChange={e => setUnitForm(p => ({ ...p, vehicleNo: e.target.value }))} placeholder="MH-12-QW-5678" />
+                              </div>
+                              <div>
                                 <label style={S.label}>Unit Type</label>
                                 <select value={unitForm.type} onChange={e => setUnitForm(p => ({ ...p, type: e.target.value }))} style={{ ...S.input, appearance: 'none' }}>
                                   <option value="BLS">BLS — Basic Life Support</option>
@@ -3638,6 +3731,61 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
                               <div>
                                 <label style={S.label}>Contact Number</label>
                                 <input style={S.input} value={unitForm.contactInfo} onChange={e => setUnitForm(p => ({ ...p, contactInfo: e.target.value }))} placeholder="+91 XXXXXXXXXX" />
+                              </div>
+                              <div>
+                                <label style={S.label}>Hospital Affiliation</label>
+                                <select value={unitForm.hospitalId} onChange={e => setUnitForm(p => ({ ...p, hospitalId: e.target.value }))} style={{ ...S.input, appearance: 'none' }}>
+                                  <option value="">No Affiliation (Independent)</option>
+                                  {hospitalsList.map(h => (
+                                    <option key={h.id} value={h.id}>{h.name}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div style={{ gridColumn: '1 / -1' }}>
+                                <label style={S.label}>Crew Members (Comma separated)</label>
+                                <input style={S.input} value={unitForm.crewMembers} onChange={e => setUnitForm(p => ({ ...p, crewMembers: e.target.value }))} placeholder="Paramedic John, Nurse Sarah" />
+                              </div>
+                              <div>
+                                <label style={S.label}>Lead License Number</label>
+                                <input style={S.input} value={unitForm.licenseNumber} onChange={e => setUnitForm(p => ({ ...p, licenseNumber: e.target.value }))} placeholder="e.g. EMT-99211" />
+                              </div>
+                              <div>
+                                <label style={S.label}>License Expiry</label>
+                                <input type="date" style={S.input} value={unitForm.licenseExpiry} onChange={e => setUnitForm(p => ({ ...p, licenseExpiry: e.target.value }))} />
+                              </div>
+                              <div style={{ gridColumn: '1 / -1' }}>
+                                <label style={S.label}>Oxygen Capacity (Liters)</label>
+                                <input type="number" style={S.input} value={unitForm.oxygenCapacityLiters} onChange={e => setUnitForm(p => ({ ...p, oxygenCapacityLiters: Number(e.target.value) }))} />
+                              </div>
+                              <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+                                <label style={S.label}>Onboard Equipment Checklist</label>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                                  {['Defibrillator', 'Ventilator', 'Oxygen Cylinder', 'ECG Monitor'].map(eq => {
+                                    const checked = unitForm.equipmentChecklist.includes(eq);
+                                    return (
+                                      <label key={eq} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#e0eaff', cursor: 'pointer' }}>
+                                        <input 
+                                          type="checkbox" 
+                                          checked={checked} 
+                                          onChange={() => {
+                                            if (checked) {
+                                              setUnitForm(p => ({ ...p, equipmentChecklist: p.equipmentChecklist.filter(item => item !== eq) }));
+                                            } else {
+                                              setUnitForm(p => ({ ...p, equipmentChecklist: [...p.equipmentChecklist, eq] }));
+                                            }
+                                          }} 
+                                        />
+                                        {eq}
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                              <div style={{ gridColumn: '1 / -1', marginTop: 8 }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#e0eaff', cursor: 'pointer' }}>
+                                  <input type="checkbox" checked={unitForm.isSystemStandard} onChange={(e) => setUnitForm(p => ({ ...p, isSystemStandard: e.target.checked }))} style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#00c8ff' }} />
+                                  <span>Certified under Standard EMS safety metrics.</span>
+                                </label>
                               </div>
                             </div>
                             <div style={{ marginTop: 14, display: 'flex', gap: 12, alignItems: 'center' }}>

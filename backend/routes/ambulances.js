@@ -66,20 +66,48 @@ router.post('/register', async (req, res) => {
  * @desc Update ambulance settings (driver profile, availability, capability)
  */
 router.put('/:id/settings', async (req, res) => {
-  const { driverName, type, contactInfo, is_active } = req.body;
+  const { 
+    driverName, type, contactInfo, is_active, vehicleNo, hospitalId, 
+    equipmentChecklist, crewMembers, licenseNumber, licenseExpiry, 
+    isSystemStandard, oxygenCapacityLiters 
+  } = req.body;
   try {
     const amb = await Ambulance.findByPk(req.params.id);
     if (!amb) {
       return res.status(404).json({ error: 'Ambulance not found' });
     }
 
+    const oldVehicleNo = amb.vehicleNo;
+
     if (driverName) amb.driverName = driverName;
     if (type) amb.type = type;
     if (contactInfo) amb.contactInfo = contactInfo;
     if (is_active !== undefined) amb.is_active = is_active;
+    if (vehicleNo) amb.vehicleNo = vehicleNo;
+    if (hospitalId !== undefined) amb.hospital_id = hospitalId || null;
+    if (equipmentChecklist !== undefined) amb.equipment_checklist = JSON.stringify(equipmentChecklist || []);
+    if (crewMembers !== undefined) amb.crew_members = JSON.stringify(crewMembers || []);
+    if (licenseNumber !== undefined) amb.license_number = licenseNumber || null;
+    if (licenseExpiry !== undefined) amb.license_expiry = licenseExpiry || null;
+    if (isSystemStandard !== undefined) amb.is_system_standard = isSystemStandard;
+    if (oxygenCapacityLiters !== undefined) amb.oxygen_capacity_liters = parseInt(oxygenCapacityLiters) || 0;
 
     await amb.save();
     console.log(`[REGISTRY] Ambulance details updated: ${amb.vehicleNo}`);
+
+    // Sync details to associated User table record if exists
+    const { User } = require('../utils/db');
+    const normalizedEmail = `${oldVehicleNo.replace(/[\s\-]+/g, '').toLowerCase()}@rescuelink.com`;
+    const assocUser = await User.findOne({ where: { email: normalizedEmail } });
+    if (assocUser) {
+      if (driverName) assocUser.name = driverName;
+      if (contactInfo) assocUser.mobile = contactInfo;
+      if (vehicleNo && vehicleNo !== oldVehicleNo) {
+        assocUser.email = `${vehicleNo.replace(/[\s\-]+/g, '').toLowerCase()}@rescuelink.com`;
+      }
+      await assocUser.save();
+    }
+
     return res.json(amb);
   } catch (err) {
     console.error('[AMBULANCES API] Settings update error:', err.message);
@@ -215,6 +243,23 @@ router.put('/:id/restore', verifyToken(['city_admin']), async (req, res) => {
   } catch (err) {
     console.error('[AMBULANCES API] restore error:', err.message);
     return res.status(500).json({ error: 'Failed to restore ambulance' });
+  }
+});
+
+/**
+ * @route GET /api/ambulances/:id
+ * @desc Get ambulance by ID
+ */
+router.get('/:id', async (req, res) => {
+  try {
+    const amb = await Ambulance.findByPk(req.params.id);
+    if (!amb) {
+      return res.status(404).json({ error: 'Ambulance not found' });
+    }
+    return res.json(amb);
+  } catch (err) {
+    console.error('[AMBULANCES API] Fetch single error:', err.message);
+    return res.status(500).json({ error: 'Failed to fetch ambulance' });
   }
 });
 
