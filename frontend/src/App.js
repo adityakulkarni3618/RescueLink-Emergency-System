@@ -3002,7 +3002,7 @@ export default function App() {
     );
   }
 
-  if (!role) {
+  if (!role && currentHash === '#select-role') {
     return (
       <div className="app-root">
         <style>{styles}</style>
@@ -3031,7 +3031,7 @@ export default function App() {
           onSwitchRole={() => {
             sessionStorage.removeItem('rescueLinkRole');
             setRole(null);
-            window.location.hash = '';
+            window.location.hash = 'select-role';
           }}
           onShowSecurity={() => setShowSecurityModal(true)}
         />
@@ -3044,7 +3044,7 @@ export default function App() {
           onSwitchRole={() => {
             sessionStorage.removeItem('rescueLinkRole');
             setRole(null);
-            window.location.hash = '';
+            window.location.hash = 'select-role';
           }}
           onShowSecurity={() => setShowSecurityModal(true)}
         />
@@ -3057,7 +3057,7 @@ export default function App() {
           onSwitchRole={() => {
             sessionStorage.removeItem('rescueLinkRole');
             setRole(null);
-            window.location.hash = '';
+            window.location.hash = 'select-role';
           }}
           onShowSecurity={() => setShowSecurityModal(true)}
         />
@@ -3070,7 +3070,7 @@ export default function App() {
           onSwitchRole={() => {
             sessionStorage.removeItem('rescueLinkRole');
             setRole(null);
-            window.location.hash = '';
+            window.location.hash = 'select-role';
           }}
           onShowSecurity={() => setShowSecurityModal(true)}
         />
@@ -3084,7 +3084,7 @@ export default function App() {
           onSwitchRole={() => {
             sessionStorage.removeItem('rescueLinkRole');
             setRole(null);
-            window.location.hash = '';
+            window.location.hash = 'select-role';
           }}
           onShowSecurity={() => setShowSecurityModal(true)}
         />
