@@ -168,40 +168,123 @@ router.put('/:id', verifyToken(['hospital_admin', 'city_admin']), async (req, re
   }
 });
 
+
 /**
- * @route DELETE /api/hospitals/:id
- * @desc Deactivate hospital tenant (City Admin only)
+ * @route PUT /api/hospitals/:id/suspend
+ * @desc Suspend a hospital (set is_active = false, city_admin only)
  */
-router.delete('/:id', verifyToken(['city_admin']), async (req, res) => {
+router.put('/:id/suspend', verifyToken(['city_admin']), async (req, res) => {
   try {
     const hospital = await Hospital.findByPk(req.params.id);
-    if (!hospital) {
-      return res.status(404).json({ error: 'Hospital not found' });
-    }
+    if (!hospital) return res.status(404).json({ error: 'Hospital not found' });
 
     hospital.is_active = false;
     await hospital.save();
-
-    // Invalidate caches
     await cache.del(ALL_HOSPITALS_CACHE_KEY);
     await cache.del(`hospitals:${req.params.id}`);
 
     await AuditLog.create({
       user_id: req.user.id,
-      action: 'DEACTIVATE_HOSPITAL',
+      action: 'SUSPEND_HOSPITAL',
+      resource: 'Hospital',
+      resource_id: hospital.id,
+      ip_address: req.ip || req.connection.remoteAddress,
+      details: { name: hospital.name, reason: req.body.reason || 'Admin action' }
+    });
+
+    return res.json({ message: 'Hospital suspended successfully', is_active: false });
+  } catch (err) {
+    console.error('[HOSPITALS API] suspend error:', err.message);
+    return res.status(500).json({ error: 'Failed to suspend hospital' });
+  }
+});
+
+/**
+ * @route PUT /api/hospitals/:id/restore
+ * @desc Restore a suspended hospital (city_admin only)
+ */
+router.put('/:id/restore', verifyToken(['city_admin']), async (req, res) => {
+  try {
+    const hospital = await Hospital.findByPk(req.params.id);
+    if (!hospital) return res.status(404).json({ error: 'Hospital not found' });
+
+    hospital.is_active = true;
+    await hospital.save();
+    await cache.del(ALL_HOSPITALS_CACHE_KEY);
+    await cache.del(`hospitals:${req.params.id}`);
+
+    await AuditLog.create({
+      user_id: req.user.id,
+      action: 'RESTORE_HOSPITAL',
       resource: 'Hospital',
       resource_id: hospital.id,
       ip_address: req.ip || req.connection.remoteAddress,
       details: { name: hospital.name }
     });
 
-    console.log(`[TENANT] Deactivated hospital tenant: ${hospital.name} (${hospital.id})`);
-    return res.json({ message: 'Hospital tenant deactivated successfully' });
+    return res.json({ message: 'Hospital restored successfully', is_active: true });
   } catch (err) {
-    console.error('[HOSPITALS API] Error deactivating hospital:', err.message);
-    return res.status(500).json({ error: 'Failed to deactivate hospital tenant' });
+    console.error('[HOSPITALS API] restore error:', err.message);
+    return res.status(500).json({ error: 'Failed to restore hospital' });
   }
 });
+
+/**
+ * @route POST /api/hospitals/:id/change-password
+ * @desc Change the login password of the hospital's admin user account
+ */
+router.post('/:id/change-password', verifyToken(['hospital_admin', 'city_admin']), async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    }
+
+    const { User } = require('../utils/db');
+    const bcrypt = require('bcryptjs');
+
+    // Find the hospital admin user for this hospital
+    let adminUser;
+    if (req.user.role === 'city_admin') {
+      // City admin can target any hospital admin; find by hospital_id
+      adminUser = await User.findOne({ where: { hospital_id: req.params.id, role: 'hospital_admin' } });
+    } else {
+      // hospital_admin can only change their own password
+      adminUser = await User.findByPk(req.user.id);
+      if (adminUser.hospital_id !== req.params.id) {
+        return res.status(403).json({ error: 'Access denied: Hospital mismatch' });
+      }
+    }
+
+    if (!adminUser) return res.status(404).json({ error: 'Hospital admin account not found' });
+
+    // Self change requires current password
+    if (req.user.role === 'hospital_admin') {
+      if (!currentPassword) return res.status(400).json({ error: 'Current password is required' });
+      const valid = await bcrypt.compare(currentPassword, adminUser.password);
+      if (!valid) return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+
+    adminUser.password = await bcrypt.hash(newPassword, 10);
+    await adminUser.save();
+
+    await AuditLog.create({
+      user_id: req.user.id,
+      action: 'CHANGE_HOSPITAL_PASSWORD',
+      resource: 'Hospital',
+      resource_id: req.params.id,
+      ip_address: req.ip || req.connection.remoteAddress,
+      details: { adminEmail: adminUser.email }
+    });
+
+    return res.json({ message: 'Hospital admin password updated successfully' });
+  } catch (err) {
+    console.error('[HOSPITALS API] change-password error:', err.message);
+    return res.status(500).json({ error: 'Failed to change hospital password' });
+  }
+});
+
+
 
 /**
  * @route POST /api/hospitals/register

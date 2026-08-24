@@ -1853,19 +1853,8 @@ const HOSPITAL_CREDENTIALS = [
   { hospitalId: 'HOSP-005', password: 'rescue123', name: 'Cardiac & Neuro Institute', adminName: 'Dr. Maria Garcia', internalId: 'cardiac-neuro', lat: 13.0116, lng: 77.5501 },
 ];
 
-export default function HospitalDashboard({ socket, connected }) {
-  // ── Auth State ──
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    const token = sessionStorage.getItem('rescuelink_token');
-    const userStr = sessionStorage.getItem('rescuelink_user');
-    if (token && userStr) {
-      const user = JSON.parse(userStr);
-      if (user.role === 'doctor' || user.role === 'hospital_admin') {
-        return true;
-      }
-    }
-    return false;
-  });
+export default function HospitalDashboard({ socket, connected, onLogout, onSwitchRole, onShowSecurity }) {
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
 
   const [authHospital, setAuthHospital] = useState(() => {
     // If we have a logged-in user in sessionStorage, use their details
@@ -1875,12 +1864,12 @@ export default function HospitalDashboard({ socket, connected }) {
       const user = JSON.parse(userStr);
       if (user.role === 'doctor' || user.role === 'hospital_admin') {
         return {
-          hospitalId: user.hospital_id || 'HOSP-GENERIC',
+          hospitalId: user.hospital_id || 'HOSP-001',
           name: user.name || 'Manipal Global Trauma Center',
           adminName: user.name || 'Dr. Command',
-          internalId: (user.hospital_id || 'hosp-generic').toLowerCase(),
-          lat: user.lat || 18.5204,
-          lng: user.lng || 73.8567
+          internalId: (user.hospital_id || 'manipal-trauma').toLowerCase(),
+          lat: user.lat || 12.9592,
+          lng: user.lng || 77.6444
         };
       }
     }
@@ -1893,15 +1882,21 @@ export default function HospitalDashboard({ socket, connected }) {
       }
       return parsed;
     }
-    return null;
+    // Default fallback so we don't have null authHospital when bypassing the login screen
+    return {
+      hospitalId: 'HOSP-001',
+      name: 'Manipal Global Trauma Center',
+      adminName: 'Dr. Sarah Mitchell',
+      internalId: 'manipal-trauma',
+      lat: 12.9592,
+      lng: 77.6444
+    };
   });
 
   useEffect(() => {
     if (authHospital) {
-      setIsAuthenticated(true);
       localStorage.setItem('hospital_auth', JSON.stringify(authHospital));
     } else {
-      setIsAuthenticated(false);
       localStorage.removeItem('hospital_auth');
     }
   }, [authHospital]);
@@ -1914,6 +1909,7 @@ export default function HospitalDashboard({ socket, connected }) {
   const [hospitalGps, setHospitalGps] = useState(null);
   const [incidentLocation, setIncidentLocation] = useState(null); // Where the SOS was triggered
   const [activeTab, setActiveTab] = useState('triage'); // triage, er_queue, blood_bank, insurance, mass_casualty
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [fhirPreviewData, setFhirPreviewData] = useState(null);
   useEffect(() => {
     const fetchIpLocation = async () => {
@@ -1985,6 +1981,8 @@ export default function HospitalDashboard({ socket, connected }) {
   const lastVitalsBeepTimeRef = useRef(0);
   const [showDocAssignModal, setShowDocAssignModal] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [hardResetConfirm, setHardResetConfirm] = useState(false);
+  const [switchProfileConfirm, setSwitchProfileConfirm] = useState(false);
   const [attendingDocName, setAttendingDocName] = useState('');
   const [attendingDocSpecialty, setAttendingDocSpecialty] = useState('');
   const [attendingNurses, setAttendingNurses] = useState('');
@@ -2979,12 +2977,7 @@ export default function HospitalDashboard({ socket, connected }) {
 
       <button
         onClick={() => {
-          if (window.confirm("Perform hard reset? This will clear all local mission data.")) {
-            localStorage.removeItem('hospital_auth');
-            localStorage.removeItem('active_mission_id');
-            sessionStorage.clear();
-            window.location.reload();
-          }
+          setHardResetConfirm(true);
           if (isMobileView) setMobileMenuOpen(false);
         }}
         style={{ padding: '0 12px', height: '32px', background: 'rgba(255,40,40,0.1)', border: '1px solid rgba(255,80,80,0.4)', borderRadius: 4, color: '#ff6b6b', fontSize: 11, cursor: 'pointer', fontFamily: "'Orbitron'", whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', boxSizing: 'border-box' }}
@@ -2994,11 +2987,7 @@ export default function HospitalDashboard({ socket, connected }) {
 
       <button
         onClick={() => {
-          if (window.confirm("Switch hospital profile? Active mission context will be preserved.")) {
-            localStorage.removeItem('hospital_auth');
-            sessionStorage.clear();
-            window.location.reload();
-          }
+          setSwitchProfileConfirm(true);
           if (isMobileView) setMobileMenuOpen(false);
         }}
         style={{
@@ -3085,51 +3074,190 @@ export default function HospitalDashboard({ socket, connected }) {
       overflow: 'hidden',
       transition: 'background 0.5s ease',
     }}>
+      
+      {/* ── HARD RESET CONFIRM MODAL ── */}
+      {hardResetConfirm && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999999, background: 'rgba(0,3,12,0.88)', backdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setHardResetConfirm(false)}>
+          <div style={{ background: 'rgba(8,18,42,0.98)', border: '1px solid rgba(255,68,68,0.4)', borderRadius: 14, padding: 30, maxWidth: 420, width: '90%', boxShadow: '0 0 40px rgba(255,68,68,0.1)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 15, color: '#ff4444', fontWeight: 900, marginBottom: 10 }}>🛑 PERFORM HARD RESET?</div>
+            <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'", marginBottom: 22, lineHeight: 1.7 }}>
+              This will clear all local mission data and log you out.<br /><br />
+              <strong style={{ color: '#ff4444' }}>This action is irreversible.</strong>
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={() => {
+                  setHardResetConfirm(false);
+                  localStorage.removeItem('hospital_auth');
+                  localStorage.removeItem('active_mission_id');
+                  sessionStorage.clear();
+                  window.location.reload();
+                }}
+                style={{ flex: 1, padding: '12px', background: 'rgba(255,68,68,0.15)', border: '1px solid rgba(255,68,68,0.5)', borderRadius: 8, color: '#ff4444', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+              >
+                🗑 RESET
+              </button>
+              <button onClick={() => setHardResetConfirm(false)} style={{ flex: 1, padding: '12px', background: 'transparent', border: '1px solid rgba(160,200,255,0.15)', borderRadius: 8, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 12, cursor: 'pointer' }}>
+                CANCEL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-      {/* LEFT SIDEBAR - MISSION SELECTOR */}
-      {isAuthenticated && Object.keys(activeMissions).length > 0 && (
-        <div style={{
-          width: 200, background: 'rgba(5, 15, 40, 0.95)', borderRight: '1px solid rgba(0,200,255,0.2)',
-          display: 'flex', flexDirection: 'column', gap: 10, padding: '20px 10px 70px 10px'
-        }}>
-          <div style={{ fontSize: 10, color: '#00c8ff', fontFamily: "'Orbitron'", letterSpacing: 1.5, marginBottom: 10, textAlign: 'center' }}>ACTIVE MISSIONS</div>
-          {Object.values(activeMissions).map(m => (
-            <div
-              key={m.id}
-              onClick={() => switchMission(m.id)}
+      {/* ── SWITCH PROFILE CONFIRM MODAL ── */}
+      {switchProfileConfirm && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999999, background: 'rgba(0,3,12,0.88)', backdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setSwitchProfileConfirm(false)}>
+          <div style={{ background: 'rgba(8,18,42,0.98)', border: '1px solid rgba(255,184,0,0.4)', borderRadius: 14, padding: 30, maxWidth: 420, width: '90%', boxShadow: '0 0 40px rgba(255,184,0,0.1)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 15, color: '#ffb800', fontWeight: 900, marginBottom: 10 }}>🚪 SWITCH HOSPITAL PROFILE</div>
+            <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'", marginBottom: 22, lineHeight: 1.7 }}>
+              You are about to switch hospital profiles.<br /><br />
+              <strong style={{ color: '#ffb800' }}>Active mission context will be preserved on the server.</strong>
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={() => {
+                  setSwitchProfileConfirm(false);
+                  localStorage.removeItem('hospital_auth');
+                  sessionStorage.clear();
+                  window.location.reload();
+                }}
+                style={{ flex: 1, padding: '12px', background: 'rgba(255,184,0,0.15)', border: '1px solid rgba(255,184,0,0.5)', borderRadius: 8, color: '#ffb800', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+              >
+                🔄 SWITCH PROFILE
+              </button>
+              <button onClick={() => setSwitchProfileConfirm(false)} style={{ flex: 1, padding: '12px', background: 'transparent', border: '1px solid rgba(160,200,255,0.15)', borderRadius: 8, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 12, cursor: 'pointer' }}>
+                CANCEL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SIDEBAR NAVIGATION & MISSION SELECTOR */}
+      {isAuthenticated && (
+        <div className={`sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
+          <div style={{ padding: '20px 10px 10px 10px', borderBottom: '1px solid rgba(0,200,255,0.1)', textAlign: 'center' }}>
+            <div style={{ fontSize: 18, color: '#00c8ff', fontFamily: "'Orbitron'", fontWeight: 'bold' }}>RESCUELINK</div>
+            <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'", marginTop: 4 }}>CLINICAL PORTAL</div>
+          </div>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '15px 0' }}>
+            {[
+              { id: 'triage', label: 'LIVE TRIAGE', icon: '🚑' },
+              { id: 'er_queue', label: 'ER QUEUE & BEDS', icon: '⏳' },
+              { id: 'blood_bank', label: 'BLOOD BANK', icon: '🩸' },
+              { id: 'insurance', label: 'INSURANCE CLAIM', icon: '🛡️' },
+              { id: 'mass_casualty', label: 'MASS CASUALTY', icon: '⚠️' },
+              { id: 'analytics', label: 'ANALYTICS', icon: '📊' },
+              { id: 'settings', label: 'SETTINGS', icon: '⚙️' },
+            ].map(tab => (
+              <div
+                key={tab.id}
+                onClick={() => {
+                  handleTabChange(tab.id);
+                  if (window.innerWidth <= 768) setSidebarOpen(false); // Auto-close on mobile
+                }}
+                className={`sidebar-item ${activeTab === tab.id ? 'active' : ''}`}
+              >
+                <span>{tab.icon}</span>
+                <span>{tab.label}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Active Missions block in the same sidebar */}
+          {Object.keys(activeMissions).length > 0 && (
+            <div style={{ borderTop: '1px solid rgba(0,200,255,0.1)', padding: '15px 10px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ fontSize: 10, color: '#00c8ff', fontFamily: "'Orbitron'", letterSpacing: 1.5, marginBottom: 5, textAlign: 'center' }}>ACTIVE MISSIONS</div>
+              {Object.values(activeMissions).map(m => (
+                <div
+                  key={m.id}
+                  onClick={() => switchMission(m.id)}
+                  style={{
+                    padding: '10px', borderRadius: 6, cursor: 'pointer',
+                    background: activeMissionId === m.id ? 'rgba(0,200,255,0.15)' : 'rgba(255,255,255,0.03)',
+                    border: `1px solid ${activeMissionId === m.id ? '#00c8ff' : 'rgba(255,255,255,0.1)'}`,
+                    transition: 'all 0.2s ease',
+                    position: 'relative'
+                  }}
+                >
+                  <div style={{ fontSize: 10, fontFamily: "'Share Tech Mono'", color: activeMissionId === m.id ? '#fff' : 'rgba(160,200,255,0.6)' }}>{m.id.slice(0, 8)}...</div>
+                  <div style={{ fontSize: 9, color: activeMissionId === m.id ? '#00ff88' : 'rgba(255,255,255,0.3)', marginTop: 2 }}>{m.patient?.name || 'Inbound Patient'}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Connection & Sync Status Panel */}
+          <div style={{ borderTop: '1px solid rgba(0,200,255,0.1)', padding: '15px 10px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Orbitron'", letterSpacing: 1, marginBottom: 4 }}>NODE TELEMETRY</div>
+            
+            {/* Live Connection & Auto-Sync in one row */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+              {/* LIVE Connection Badge */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4, flex: 1 }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: connected ? '#00ff88' : '#ff4444' }} />
+                <span style={{ fontSize: 9, color: connected ? '#00ff88' : '#ff4444', fontFamily: "'Share Tech Mono'", fontWeight: 700 }}>{connected ? 'LIVE' : 'OFFLINE'}</span>
+              </div>
+ 
+              {/* Auto-Sync Toggle */}
+              <div
+                onClick={() => setAutoSync(!autoSync)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px',
+                  background: autoSync ? 'rgba(0,255,136,0.1)' : 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${autoSync ? 'rgba(0,255,136,0.3)' : 'rgba(255,255,255,0.1)'}`,
+                  borderRadius: 4, cursor: 'pointer', flex: 1
+                }}
+              >
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: autoSync ? '#00ff88' : '#888' }} />
+                <span style={{ fontSize: 9, fontFamily: "'Orbitron'", color: autoSync ? '#00ff88' : '#aaa', fontWeight: 700 }}>SYNC: {autoSync ? 'ON' : 'OFF'}</span>
+              </div>
+            </div>
+ 
+            {/* Connection counts (Ambulance, Doctors) */}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 4, fontSize: 9, fontFamily: "'Share Tech Mono'", color: 'rgba(160,200,255,0.7)' }}>
+                <span>🚑</span> AMB: <strong style={{ color: '#ff8855' }}>{connectedRoles.ambulance}</strong>
+              </div>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 4, fontSize: 9, fontFamily: "'Share Tech Mono'", color: 'rgba(160,200,255,0.7)' }}>
+                <span>🏥</span> DOC: <strong style={{ color: '#00c8ff' }}>{connectedRoles.hospital}</strong>
+              </div>
+            </div>
+ 
+            {/* Archives button */}
+            <button
+              onClick={() => setShowArchives(true)}
               style={{
-                padding: '12px 10px', borderRadius: 8, cursor: 'pointer',
-                background: activeMissionId === m.id ? 'rgba(0,200,255,0.15)' : 'rgba(255,255,255,0.03)',
-                border: `1px solid ${activeMissionId === m.id ? '#00c8ff' : 'rgba(255,255,255,0.1)'}`,
-                transition: 'all 0.2s ease',
-                position: 'relative'
+                width: '100%', height: '30px', background: 'rgba(0,200,255,0.05)', border: '1px solid rgba(0,200,255,0.2)',
+                borderRadius: 4, color: 'rgba(160,200,255,0.8)', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 700,
+                cursor: 'pointer', transition: 'all 0.2s', marginTop: 4
               }}
             >
-              <div style={{ fontSize: 11, fontFamily: "'Share Tech Mono'", color: activeMissionId === m.id ? '#fff' : 'rgba(160,200,255,0.6)' }}>{m.id}</div>
-              <div style={{ fontSize: 10, color: activeMissionId === m.id ? '#00ff88' : 'rgba(255,255,255,0.3)', marginTop: 4 }}>{m.patient?.name || 'Inbound Patient'}</div>
-              {m.vitals?.heartRate > 110 && (
-                <div style={{ position: 'absolute', top: 5, right: 5, fontSize: 10, animation: 'blink 0.5s infinite' }}>⚠️</div>
-              )}
-            </div>
-          ))}
-          <div style={{ marginTop: 'auto', borderTop: '1px solid rgba(0,200,255,0.1)', paddingTop: 20 }}>
-            <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Orbitron'", marginBottom: 8, textAlign: 'center', letterSpacing: '0.05em' }}>MANUAL RECOVERY</div>
-            <div style={{ display: 'flex', gap: 6, height: 32 }}>
+              📜 VIEW EMR ARCHIVES {savedReports.length > 0 && `(${savedReports.length})`}
+            </button>
+          </div>
+ 
+          {/* Manual Recovery at the bottom of the sidebar */}
+          <div style={{ marginTop: 'auto', borderTop: '1px solid rgba(0,200,255,0.1)', padding: '15px 10px' }}>
+            <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Orbitron'", marginBottom: 6, textAlign: 'center' }}>MANUAL RECOVERY</div>
+            <div style={{ display: 'flex', gap: 4, height: 28 }}>
               <input
                 value={manualRecoveryId}
                 onChange={e => setManualRecoveryId(e.target.value)}
                 onKeyDown={handleManualSearch}
                 placeholder="REQ ID"
-                style={{ flex: 1, background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 4, padding: '0 10px', color: '#fff', fontSize: 12, outline: 'none', height: '100%', boxSizing: 'border-box' }}
+                style={{ flex: 1, background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 4, padding: '0 8px', color: '#fff', fontSize: 10, outline: 'none' }}
               />
-              <button onClick={handleManualRecover} style={{ height: '100%', background: 'rgba(0,200,255,0.15)', border: '1px solid #00c8ff', color: '#00c8ff', borderRadius: 4, padding: '0 12px', cursor: 'pointer', fontSize: 12, fontFamily: "'Orbitron'", fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' }}>GO</button>
+              <button onClick={handleManualRecover} style={{ background: 'rgba(0,200,255,0.15)', border: '1px solid #00c8ff', color: '#00c8ff', borderRadius: 4, padding: '0 8px', cursor: 'pointer', fontSize: 10, fontFamily: "'Orbitron'", fontWeight: 'bold' }}>GO</button>
             </div>
           </div>
         </div>
       )}
 
       {/* MAIN CONTENT AREA */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
         <style>{`
         @keyframes critBg {
           0%,100% { opacity: 0; }
@@ -3140,6 +3268,100 @@ export default function HospitalDashboard({ socket, connected }) {
           to { opacity: 1; transform: translateY(0); }
         }
         @keyframes blink { 0%,49%{opacity:1}50%,100%{opacity:0} }
+
+        /* Sidebar styles */
+        .sidebar {
+          width: 260px;
+          background: rgba(5, 15, 40, 0.95);
+          border-right: 1px solid rgba(0, 200, 255, 0.2);
+          display: flex;
+          flex-direction: column;
+          transition: all 0.3s ease;
+          overflow-y: auto;
+          z-index: 999;
+          flex-shrink: 0;
+        }
+        .sidebar.closed {
+          width: 0px;
+          overflow: hidden;
+          border-right: none;
+        }
+        
+        .sidebar-item {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 14px 20px;
+          color: rgba(160, 200, 255, 0.7);
+          text-decoration: none;
+          font-family: 'Orbitron', sans-serif;
+          font-size: 12px;
+          border-left: 3px solid transparent;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          letter-spacing: 0.05em;
+        }
+        .sidebar-item:hover {
+          background: rgba(0, 200, 255, 0.05);
+          color: #00c8ff;
+        }
+        .sidebar-item.active {
+          background: rgba(0, 200, 255, 0.1);
+          color: #00c8ff;
+          border-left-color: #00c8ff;
+        }
+
+        /* Mobile controls */
+        .mobile-nav-trigger {
+          display: none;
+        }
+
+        /* Responsive styles */
+        @media (max-width: 1024px) {
+          .hospital-triage-grid {
+            grid-template-columns: 1fr 1fr !important;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .sidebar {
+            position: absolute;
+            left: 0;
+            top: 60px;
+            height: calc(100vh - 60px);
+            transform: translateX(-100%);
+            width: 260px;
+          }
+          .sidebar.open {
+            transform: translateX(0);
+          }
+          .sidebar.closed {
+            transform: translateX(-100%);
+            width: 260px;
+          }
+          
+          /* Stacking grids for mobile compatibility */
+          .hospital-triage-grid {
+            grid-template-columns: 1fr !important;
+            overflow-y: auto !important;
+          }
+          
+          .desktop-nav-group {
+            display: none !important;
+          }
+          .mobile-nav-trigger {
+            display: inline-flex !important;
+            background: rgba(0, 200, 255, 0.1);
+            border: 1px solid rgba(0, 200, 255, 0.3);
+            border-radius: 4px;
+            color: #00c8ff;
+            padding: 6px 12px;
+            font-family: 'Orbitron';
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+          }
+        }
       `}</style>
 
         {fhirPreviewData && (
@@ -3590,7 +3812,7 @@ export default function HospitalDashboard({ socket, connected }) {
         )}
 
         {isAuthenticated && (
-          <div style={{ padding: '20px', height: '100vh', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ padding: '20px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
             {/* Handover Syncing Overlay */}
             {isHandoverSyncing && (
@@ -3632,27 +3854,43 @@ export default function HospitalDashboard({ socket, connected }) {
             )}
 
             {/* Header */}
+            {/* Slim, Clean Header */}
             <div style={{
               background: 'rgba(3,8,22,0.95)',
               borderBottom: `1px solid ${isCritical ? 'rgba(255,80,80,0.4)' : 'rgba(0,200,255,0.15)'}`,
-              padding: '10px 450px 10px 24px',
-              display: 'flex', alignItems: 'center', gap: 15, minHeight: 60, height: 'auto', flexWrap: 'wrap',
+              padding: '10px 24px',
+              display: 'flex', alignItems: 'center', gap: 15, minHeight: 50, height: 'auto', flexWrap: 'wrap',
               backdropFilter: 'blur(15px)', transition: 'border-color 0.3s',
             }}>
+              {/* Sidebar toggle button (Hamburger) */}
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                style={{
+                  background: 'rgba(0, 200, 255, 0.05)',
+                  border: '1px solid rgba(0, 200, 255, 0.2)',
+                  borderRadius: 6,
+                  color: '#00c8ff',
+                  padding: '6px 12px',
+                  fontFamily: "'Orbitron'",
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6
+                }}
+              >
+                ☰ {sidebarOpen ? 'CLOSE' : 'MENU'}
+              </button>
               <div style={{ fontSize: 22, flexShrink: 0 }}>🏥</div>
               <div style={{ flexShrink: 0, minWidth: 'fit-content' }}>
-                <div style={{ fontFamily: "'Orbitron'", fontSize: 14, fontWeight: 700, color: '#00c8ff', letterSpacing: '0.1em' }}>
-                  {authHospital?.hospitalId && authHospital.hospitalId.length > 15
-                    ? `HOSP-${authHospital.hospitalId.slice(0, 8).toUpperCase()}`
-                    : authHospital?.hospitalId || 'HOSPITAL'} — {authHospital?.adminName || 'DR. DASHBOARD'}
-                </div>
-                <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>
-                  {authHospital?.name?.toUpperCase() || activeHospital?.name?.toUpperCase() || 'EMERGENCY WING'} · EMERGENCY WING
+                <div style={{ fontFamily: "'Orbitron'", fontSize: 13, fontWeight: 700, color: '#00c8ff', letterSpacing: '0.05em' }}>
+                  {authHospital?.name || 'EMERGENCY WING'}
                 </div>
               </div>
-
+ 
               {/* ICU BEDS INVENTORY */}
-              <div style={{ marginLeft: 20, display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(0,0,0,0.3)', padding: '5px 15px', borderRadius: 20, border: `1px solid ${icuBeds > 0 ? 'rgba(0,255,136,0.3)' : 'rgba(255,68,68,0.5)'}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(0,0,0,0.3)', padding: '5px 15px', borderRadius: 20, border: `1px solid ${icuBeds > 0 ? 'rgba(0,255,136,0.3)' : 'rgba(255,68,68,0.5)'}` }}>
                 <div style={{ fontSize: 10, color: icuBeds > 0 ? '#00ff88' : '#ff4444', fontFamily: "'Orbitron'", fontWeight: 'bold' }}>
                   ICU BEDS: {icuBeds} {icuBeds === 0 && '(DIVERTING)'}
                 </div>
@@ -3663,22 +3901,31 @@ export default function HospitalDashboard({ socket, connected }) {
                 />
               </div>
 
-              {/* Responsive Header Button Controls */}
-              <div className="desktop-nav-group" style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'nowrap' }}>
-                {headerActions(false)}
-              </div>
-              <div style={{ marginLeft: 'auto', position: 'relative', display: 'inline-block' }}>
-                <button className="mobile-nav-trigger" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-                  ☰ MENU
-                </button>
-                {mobileMenuOpen && (
-                  <div className="mobile-nav-dropdown">
-                    {headerActions(true)}
-                  </div>
+              {/* Action buttons embedded natively in the flex layout */}
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                {patient && (
+                  <>
+                    <button onClick={downloadFHIR} style={{ background: 'rgba(0,255,136,0.1)', border: '1px solid rgba(0,255,136,0.3)', padding: '6px 12px', borderRadius: 4, color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>
+                      📥 FHIR HL7
+                    </button>
+                    <button onClick={() => setShowHandover(true)} style={{ background: 'rgba(0,200,255,0.1)', border: '1px solid rgba(0,200,255,0.3)', padding: '6px 12px', borderRadius: 4, color: '#00c8ff', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>
+                      📄 REPORT
+                    </button>
+                  </>
                 )}
+                
+                <button onClick={onSwitchRole} className="rl-btn-secondary" style={{ height: 32, padding: '0 12px', fontSize: 10 }}>
+                  ROLE 🔄
+                </button>
+                <button onClick={onShowSecurity} className="rl-btn-secondary" style={{ height: 32, padding: '0 12px', fontSize: 10 }}>
+                  SECURITY 🛡️
+                </button>
+                <button onClick={onLogout} className="rl-btn-primary" style={{ height: 32, padding: '0 12px', fontSize: 10, background: 'linear-gradient(135deg, #ff4444 0%, #cc0000 100%)', border: 'none', color: '#fff' }}>
+                  LOGOUT ⏻
+                </button>
               </div>
             </div>
-
+ 
             {/* Connection Banner */}
             {patient && (
               <div style={{
@@ -3708,7 +3955,7 @@ export default function HospitalDashboard({ socket, connected }) {
                 </div>
               </div>
             )}
-
+ 
             {/* Critical alert banner */}
             <div style={{ position: 'relative', zIndex: 50 }}>
               {/* Green Corridor Active Banner */}
@@ -3728,7 +3975,7 @@ export default function HospitalDashboard({ socket, connected }) {
                  </div>
                </div>
              )}
-
+ 
              {icuBeds === 0 && (
                 <div style={{
                   background: 'linear-gradient(90deg, rgba(255,0,0,0.35) 0%, rgba(255,0,0,0.1) 100%)',
@@ -3745,7 +3992,7 @@ export default function HospitalDashboard({ socket, connected }) {
                   </div>
                 </div>
               )}
-
+ 
               {aiAlert && (
                 <div style={{
                   background: 'linear-gradient(90deg, rgba(255,180,0,0.2) 0%, rgba(255,180,0,0.05) 100%)',
@@ -3772,7 +4019,7 @@ export default function HospitalDashboard({ socket, connected }) {
                   }}>ACKNOWLEDGE</button>
                 </div>
               )}
-
+ 
               {rerouteAlert && (
                 <div style={{
                   background: 'linear-gradient(90deg, rgba(255,180,0,0.3) 0%, rgba(255,180,0,0.1) 100%)',
@@ -3787,8 +4034,8 @@ export default function HospitalDashboard({ socket, connected }) {
                   </div>
                 </div>
               )}
-
-
+ 
+ 
               {isCritical && !aiAlert && (
                 <div style={{
                   background: 'rgba(255,30,30,0.2)', borderBottom: '2px solid rgba(255,80,80,0.5)',
@@ -3815,34 +4062,7 @@ export default function HospitalDashboard({ socket, connected }) {
                 </div>
               )}
             </div>
-
-            {/* TABS NAVIGATION */}
-            <div style={{ display: 'flex', gap: 10, padding: '0 24px 10px 24px', borderBottom: '1px solid rgba(0,200,255,0.1)' }}>
-              {[
-                { id: 'triage', label: '🚑 LIVE TRIAGE' },
-                { id: 'er_queue', label: '⏳ ER QUEUE & BEDS' },
-                { id: 'blood_bank', label: '🩸 BLOOD BANK' },
-                { id: 'insurance', label: '🛡️ INSURANCE AUTO-PAY' },
-                { id: 'mass_casualty', label: '⚠️ MASS CASUALTY' },
-                { id: 'analytics', label: '📊 ANALYTICS' },
-                { id: 'settings', label: '⚙️ SETTINGS' },
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => handleTabChange(tab.id)}
-                  style={{
-                    padding: '8px 16px', background: activeTab === tab.id ? 'rgba(0,200,255,0.15)' : 'transparent',
-                    border: `1px solid ${activeTab === tab.id ? '#00c8ff' : 'rgba(255,255,255,0.1)'}`,
-                    borderRadius: 8, color: activeTab === tab.id ? '#00c8ff' : 'rgba(160,200,255,0.6)',
-                    fontFamily: "'Orbitron'", fontSize: 11, fontWeight: activeTab === tab.id ? 700 : 400,
-                    cursor: 'pointer', transition: 'all 0.2s'
-                  }}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-
+ 
             {/* Main Content Area Based on Active Tab */}
             <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
               {activeTab === 'triage' && (
@@ -4741,113 +4961,219 @@ export default function HospitalDashboard({ socket, connected }) {
                 </div>
               )}
 
-              {activeTab === 'settings' && (
-                <div style={{ padding: 24, overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <h2 style={{ fontFamily: "'Orbitron'", color: '#00c8ff', margin: '0 0 10px' }}>🏥 SYSTEM SETTINGS & INVENTORY</h2>
-                  <div style={{ background: 'rgba(5, 15, 40, 0.8)', border: '1px solid rgba(0, 200, 255, 0.2)', borderRadius: 10, padding: 24, maxWidth: 600 }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                      <div>
-                        <label style={{ display: 'block', fontSize: 11, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.6)', marginBottom: 6 }}>HOSPITAL NAME</label>
-                        <input
-                          value={authHospital?.name || ''}
-                          onChange={(e) => setAuthHospital({ ...authHospital, name: e.target.value })}
-                          style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }}
-                        />
+              {activeTab === 'settings' && (() => {
+                // Local settings state — held inside an IIFE-rendered component to avoid polluting parent scope
+                const SettingsContent = () => {
+                  const [pwForm, setPwForm] = React.useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                  const [pwStatus, setPwStatus] = React.useState(null);
+                  const [pwLoading, setPwLoading] = React.useState(false);
+                  const [mfaStatus, setMfaStatus] = React.useState(null);
+                  const [mfaQR, setMfaQR] = React.useState(null);
+                  const [mfaLoading, setMfaLoading] = React.useState(false);
+                  const [disable2FAConfirmHosp, setDisable2FAConfirmHosp] = React.useState(false);
+                  const [notifPrefs, setNotifPrefs] = React.useState({ emailAlerts: true, smsAlerts: false, criticalOnly: false });
+                  const [saveStatus, setSaveStatus] = React.useState(null);
+
+                  const token = sessionStorage.getItem('rescuelink_token');
+                  const hdrs = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+                  const hospitalDbId = authHospital?.hospitalId;
+
+                  const S = {
+                    card: { background: 'rgba(5,15,40,0.85)', border: '1px solid rgba(0,200,255,0.15)', borderRadius: 10, padding: 24, marginBottom: 0 },
+                    label: { display: 'block', fontSize: 10, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.55)', marginBottom: 6, letterSpacing: '0.07em', textTransform: 'uppercase' },
+                    input: { width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none', fontSize: 13, boxSizing: 'border-box', fontFamily: "'Share Tech Mono'" },
+                    btn: (color) => ({ padding: '10px 22px', background: `rgba(${color},0.14)`, border: `1px solid rgba(${color},0.4)`, borderRadius: 8, color: `rgb(${color})`, fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer', letterSpacing: '0.06em', transition: 'all 0.2s' }),
+                    sectionTitle: { fontFamily: "'Orbitron'", fontSize: 13, color: '#00c8ff', fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 },
+                    statusMsg: (ok) => ({ marginTop: 10, padding: '8px 14px', borderRadius: 6, background: ok ? 'rgba(0,255,136,0.1)' : 'rgba(255,68,68,0.1)', border: `1px solid ${ok ? '#00ff88' : '#ff4444'}`, color: ok ? '#00ff88' : '#ff4444', fontSize: 11, fontFamily: "'Share Tech Mono'" })
+                  };
+
+                  const handleSaveProfile = async () => {
+                    try {
+                      const res = await fetch(`/api/hospitals/${hospitalDbId}`, {
+                        method: 'PUT', headers: hdrs,
+                        body: JSON.stringify({ name: authHospital.name, lat: hospitalGps?.lat || authHospital.lat, lng: hospitalGps?.lng || authHospital.lng, icu_beds: icuBeds, ventilators: authHospital.ventilators || 5 })
+                      });
+                      if (res.ok) {
+                        setSaveStatus({ ok: true, msg: 'Hospital profile updated and broadcast to network!' });
+                        if (socket) socket.emit('register-hospital', { hospitalId: authHospital.hospitalId, name: authHospital.name, adminName: authHospital.adminName, id: authHospital.hospitalId, lat: hospitalGps?.lat || authHospital.lat, lng: hospitalGps?.lng || authHospital.lng, token });
+                      } else { const d = await res.json(); setSaveStatus({ ok: false, msg: d.error || 'Update failed' }); }
+                    } catch (err) { setSaveStatus({ ok: false, msg: 'Connection error' }); }
+                    setTimeout(() => setSaveStatus(null), 4000);
+                  };
+
+                  const handleChangePassword = async () => {
+                    if (pwForm.newPassword !== pwForm.confirmPassword) { setPwStatus({ ok: false, msg: 'Passwords do not match' }); return; }
+                    if (pwForm.newPassword.length < 6) { setPwStatus({ ok: false, msg: 'Password must be at least 6 characters' }); return; }
+                    setPwLoading(true);
+                    try {
+                      const res = await fetch(`/api/hospitals/${hospitalDbId}/change-password`, {
+                        method: 'POST', headers: hdrs,
+                        body: JSON.stringify({ currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword })
+                      });
+                      const d = await res.json();
+                      setPwStatus({ ok: res.ok, msg: d.message || d.error });
+                      if (res.ok) setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                    } catch (err) { setPwStatus({ ok: false, msg: 'Connection error' }); }
+                    setPwLoading(false);
+                    setTimeout(() => setPwStatus(null), 5000);
+                  };
+
+                  const handleSetup2FA = async () => {
+                    setMfaLoading(true);
+                    try {
+                      const res = await fetch('/api/mfa/setup', { method: 'POST', headers: hdrs });
+                      const d = await res.json();
+                      if (res.ok) setMfaQR(d.qrCode);
+                      else setMfaStatus({ ok: false, msg: d.error || 'Setup failed' });
+                    } catch (err) { setMfaStatus({ ok: false, msg: 'Connection error' }); }
+                    setMfaLoading(false);
+                  };
+
+                  const handleDisable2FA = async () => {
+                    setDisable2FAConfirmHosp(false);
+                    setMfaLoading(true);
+                    try {
+                      const res = await fetch('/api/mfa/disable', { method: 'POST', headers: hdrs });
+                      const d = await res.json();
+                      setMfaStatus({ ok: res.ok, msg: d.message || d.error });
+                      setMfaQR(null);
+                    } catch (err) { setMfaStatus({ ok: false, msg: 'Connection error' }); }
+                    setMfaLoading(false);
+                    setTimeout(() => setMfaStatus(null), 5000);
+                  };
+
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+                      {/* 2FA Disable Confirm Modal */}
+                      {disable2FAConfirmHosp && (
+                        <div style={{ position: 'fixed', inset: 0, zIndex: 9999999, background: 'rgba(0,3,12,0.88)', backdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setDisable2FAConfirmHosp(false)}>
+                          <div style={{ background: 'rgba(8,18,42,0.98)', border: '1px solid rgba(255,68,68,0.4)', borderRadius: 14, padding: 30, maxWidth: 420, width: '90%', boxShadow: '0 0 40px rgba(255,68,68,0.1)' }} onClick={e => e.stopPropagation()}>
+                            <div style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#ff4444', fontWeight: 900, marginBottom: 8 }}>🔓 DISABLE 2FA</div>
+                            <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'", marginBottom: 20, lineHeight: 1.65 }}>
+                              Removing 2FA will leave your hospital account protected only by your password.<br /><br />
+                              <strong style={{ color: '#ffb800' }}>This reduces security significantly.</strong>
+                            </div>
+                            <div style={{ display: 'flex', gap: 12 }}>
+                              <button onClick={handleDisable2FA} style={{ flex: 1, padding: '10px', background: 'rgba(255,40,40,0.14)', border: '1px solid rgba(255,40,40,0.5)', borderRadius: 8, color: '#ff4444', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>
+                                🔓 YES, DISABLE 2FA
+                              </button>
+                              <button onClick={() => setDisable2FAConfirmHosp(false)} style={{ flex: 1, padding: '10px', background: 'transparent', border: '1px solid rgba(160,200,255,0.15)', borderRadius: 8, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer' }}>
+                                CANCEL
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 1. Edit Hospital Profile */}
+                      <div style={S.card}>
+                        <div style={S.sectionTitle}>🏥 Edit Hospital Profile</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                          <div style={{ gridColumn: '1 / -1' }}>
+                            <label style={S.label}>Hospital Name</label>
+                            <input style={S.input} value={authHospital?.name || ''} onChange={e => setAuthHospital({ ...authHospital, name: e.target.value })} />
+                          </div>
+                          <div>
+                            <label style={S.label}>Latitude</label>
+                            <input type="number" step="0.0001" style={S.input} value={hospitalGps?.lat || authHospital?.lat || ''} onChange={e => { const lat = parseFloat(e.target.value); setHospitalGps({ ...hospitalGps, lat }); setAuthHospital({ ...authHospital, lat }); }} />
+                          </div>
+                          <div>
+                            <label style={S.label}>Longitude</label>
+                            <input type="number" step="0.0001" style={S.input} value={hospitalGps?.lng || authHospital?.lng || ''} onChange={e => { const lng = parseFloat(e.target.value); setHospitalGps({ ...hospitalGps, lng }); setAuthHospital({ ...authHospital, lng }); }} />
+                          </div>
+                          <div>
+                            <label style={S.label}>Total ICU Beds</label>
+                            <input type="number" style={S.input} value={icuBeds} onChange={e => setIcuBeds(parseInt(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <label style={S.label}>Ventilators Available</label>
+                            <input type="number" style={S.input} value={authHospital?.ventilators || 5} onChange={e => setAuthHospital({ ...authHospital, ventilators: parseInt(e.target.value) || 0 })} />
+                          </div>
+                        </div>
+                        <div style={{ marginTop: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
+                          <button onClick={handleSaveProfile} style={S.btn('0,200,255')}>💾 SAVE PROFILE & BROADCAST</button>
+                          {saveStatus && <div style={S.statusMsg(saveStatus.ok)}>{saveStatus.ok ? '✅' : '❌'} {saveStatus.msg}</div>}
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', gap: 16 }}>
-                        <div style={{ flex: 1 }}>
-                          <label style={{ display: 'block', fontSize: 11, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.6)', marginBottom: 6 }}>LATITUDE</label>
-                          <input
-                            type="number" step="0.0001"
-                            value={hospitalGps?.lat || authHospital?.lat || ''}
-                            onChange={(e) => {
-                              const lat = parseFloat(e.target.value);
-                              setHospitalGps({ ...hospitalGps, lat });
-                              setAuthHospital({ ...authHospital, lat });
-                            }}
-                            style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }}
-                          />
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <label style={{ display: 'block', fontSize: 11, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.6)', marginBottom: 6 }}>LONGITUDE</label>
-                          <input
-                            type="number" step="0.0001"
-                            value={hospitalGps?.lng || authHospital?.lng || ''}
-                            onChange={(e) => {
-                              const lng = parseFloat(e.target.value);
-                              setHospitalGps({ ...hospitalGps, lng });
-                              setAuthHospital({ ...authHospital, lng });
-                            }}
-                            style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }}
-                          />
+
+                      {/* 2. Change Login Credentials */}
+                      <div style={S.card}>
+                        <div style={S.sectionTitle}>🔑 Change Login Credentials</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 460 }}>
+                          <div>
+                            <label style={S.label}>Current Password</label>
+                            <input type="password" style={S.input} placeholder="Enter current password" value={pwForm.currentPassword} onChange={e => setPwForm(p => ({ ...p, currentPassword: e.target.value }))} />
+                          </div>
+                          <div>
+                            <label style={S.label}>New Password</label>
+                            <input type="password" style={S.input} placeholder="Min. 6 characters" value={pwForm.newPassword} onChange={e => setPwForm(p => ({ ...p, newPassword: e.target.value }))} />
+                          </div>
+                          <div>
+                            <label style={S.label}>Confirm New Password</label>
+                            <input type="password" style={S.input} placeholder="Repeat new password" value={pwForm.confirmPassword} onChange={e => setPwForm(p => ({ ...p, confirmPassword: e.target.value }))} />
+                          </div>
+                          <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 4 }}>
+                            <button onClick={handleChangePassword} disabled={pwLoading} style={{ ...S.btn('255,184,0'), opacity: pwLoading ? 0.5 : 1 }}>
+                              {pwLoading ? 'UPDATING…' : '🔐 UPDATE PASSWORD'}
+                            </button>
+                            {pwStatus && <div style={S.statusMsg(pwStatus.ok)}>{pwStatus.ok ? '✅' : '❌'} {pwStatus.msg}</div>}
+                          </div>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', gap: 16 }}>
-                        <div style={{ flex: 1 }}>
-                          <label style={{ display: 'block', fontSize: 11, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.6)', marginBottom: 6 }}>TOTAL ICU BEDS</label>
-                          <input
-                            type="number"
-                            value={icuBeds}
-                            onChange={(e) => setIcuBeds(parseInt(e.target.value) || 0)}
-                            style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }}
-                          />
+
+                      {/* 3. Two-Factor Authentication */}
+                      <div style={S.card}>
+                        <div style={S.sectionTitle}>🛡️ Two-Factor Authentication (TOTP)</div>
+                        <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.55)', marginBottom: 16, fontFamily: "'Share Tech Mono'", lineHeight: 1.6 }}>
+                          TOTP-based 2FA adds an extra layer of security. Scan the QR code below with an authenticator app (Google Authenticator, Authy, etc.).
                         </div>
-                        <div style={{ flex: 1 }}>
-                          <label style={{ display: 'block', fontSize: 11, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.6)', marginBottom: 6 }}>VENTILATORS AVAILABLE</label>
-                          <input
-                            type="number"
-                            value={authHospital?.ventilators || 5}
-                            onChange={(e) => setAuthHospital({ ...authHospital, ventilators: parseInt(e.target.value) || 0 })}
-                            style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }}
-                          />
+                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+                          <button onClick={handleSetup2FA} disabled={mfaLoading} style={{ ...S.btn('0,255,136'), opacity: mfaLoading ? 0.5 : 1 }}>
+                            {mfaLoading ? '⏳ LOADING…' : '🔒 ENABLE 2FA — Generate QR'}
+                          </button>
+                          <button onClick={() => setDisable2FAConfirmHosp(true)} disabled={mfaLoading} style={{ ...S.btn('255,68,68'), opacity: mfaLoading ? 0.5 : 1 }}>
+                            🔓 DISABLE 2FA
+                          </button>
+                        </div>
+                        {mfaQR && (
+                          <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 10 }}>
+                            <div style={{ fontSize: 10, color: '#00ff88', fontFamily: "'Orbitron'", letterSpacing: '0.08em' }}>SCAN WITH YOUR AUTHENTICATOR APP</div>
+                            <img src={mfaQR} alt="2FA QR Code" style={{ width: 180, height: 180, borderRadius: 8, border: '2px solid rgba(0,255,136,0.3)', background: '#fff', padding: 4 }} />
+                            <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>After scanning, enter the 6-digit code from your app at next login.</div>
+                          </div>
+                        )}
+                        {mfaStatus && <div style={{ ...S.statusMsg(mfaStatus.ok), marginTop: 14 }}>{mfaStatus.ok ? '✅' : '❌'} {mfaStatus.msg}</div>}
+                      </div>
+
+                      {/* 4. Notification Preferences */}
+                      <div style={S.card}>
+                        <div style={S.sectionTitle}>🔔 Notification Preferences</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                          {[['emailAlerts', 'Email Alerts for new emergency requests'], ['smsAlerts', 'SMS/Push Alerts (requires mobile verified)'], ['criticalOnly', 'Critical incidents only (suppress routine alerts)']].map(([key, label]) => (
+                            <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+                              <div onClick={() => setNotifPrefs(p => ({ ...p, [key]: !p[key] }))} style={{ width: 42, height: 24, borderRadius: 12, background: notifPrefs[key] ? 'rgba(0,200,255,0.35)' : 'rgba(0,0,0,0.4)', border: `1px solid ${notifPrefs[key] ? '#00c8ff' : 'rgba(255,255,255,0.1)'}`, position: 'relative', cursor: 'pointer', transition: 'all 0.2s', flexShrink: 0 }}>
+                                <div style={{ position: 'absolute', top: 3, left: notifPrefs[key] ? 20 : 3, width: 16, height: 16, borderRadius: '50%', background: notifPrefs[key] ? '#00c8ff' : 'rgba(160,200,255,0.3)', transition: 'left 0.2s' }} />
+                              </div>
+                              <span style={{ fontSize: 12, color: notifPrefs[key] ? '#e0eaff' : 'rgba(160,200,255,0.45)', fontFamily: "'Share Tech Mono'" }}>{label}</span>
+                            </label>
+                          ))}
+                          <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.3)', fontFamily: "'Share Tech Mono'", marginTop: 4 }}>
+                            Note: Notification delivery requires backend email/SMS integration. Preferences are saved locally.
+                          </div>
                         </div>
                       </div>
-                      <button
-                        onClick={async () => {
-                          try {
-                            const res = await fetch(`/api/hospitals/${authHospital.hospitalId}`, {
-                              method: 'PUT',
-                              headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${sessionStorage.getItem('rescuelink_token')}`
-                              },
-                              body: JSON.stringify({
-                                name: authHospital.name,
-                                lat: hospitalGps?.lat || authHospital.lat,
-                                lng: hospitalGps?.lng || authHospital.lng,
-                                icu_beds: icuBeds,
-                                ventilators: authHospital.ventilators || 5
-                              })
-                            });
-                            if (res.ok) {
-                              window.alert('🏥 Hospital settings updated successfully and sync broadcasted!');
-                              if (socket) {
-                                socket.emit('register-hospital', {
-                                  hospitalId: authHospital.hospitalId,
-                                  name: authHospital.name,
-                                  adminName: authHospital.adminName,
-                                  id: authHospital.hospitalId,
-                                  lat: hospitalGps?.lat || authHospital.lat,
-                                  lng: hospitalGps?.lng || authHospital.lng,
-                                  token: sessionStorage.getItem('rescuelink_token')
-                                });
-                              }
-                            } else {
-                              const errData = await res.json();
-                              window.alert('⚠️ Update failed: ' + (errData.error || 'Unknown error'));
-                            }
-                          } catch (err) {
-                            window.alert('⚠️ Connection error occurred.');
-                          }
-                        }}
-                        style={{ padding: 12, background: 'rgba(0,200,255,0.15)', border: '1px solid #00c8ff', borderRadius: 8, color: '#00c8ff', fontFamily: "'Orbitron'", fontWeight: 'bold', cursor: 'pointer', marginTop: 10 }}
-                      >
-                        SAVE SETTINGS & BROADCAST
-                      </button>
+
                     </div>
+                  );
+                };
+                return (
+                  <div style={{ flex: 1, padding: 24, overflowY: 'auto' }}>
+                    <SettingsContent key="hospital-settings-panel" />
                   </div>
-                </div>
-              )}
+                );
+              })()}
+            
             </div>
           </div>
         )}

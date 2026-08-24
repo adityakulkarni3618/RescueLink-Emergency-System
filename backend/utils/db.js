@@ -198,34 +198,20 @@ async function syncDatabase() {
       console.log('[DB] Connected to PostgreSQL');
     }
 
+    // First, sync model structures to ensure all tables exist
+    await sequelize.sync();
+
     // Run SQL DDL Migrations
     const runMigrations = require('../scripts/run-migrations');
     await runMigrations();
-
-    // Secondary sync to align any Sequelize hooks or updates
-    await sequelize.sync();
-    console.log('[DB] Database synchronized.');
-
-
-
-    // Auto-seeding disabled to support completely blank system registration from scratch.
-    /*
-    if (useSqlite && !isSeeding) {
-      try {
-        const userCount = await User.count();
-        if (userCount === 0) {
-          console.log('[DB] SQLite database is empty. Auto-seeding default credentials...');
-          isSeeding = true;
-          const seed = require('../scripts/seed_db');
-          await seed();
-          isSeeding = false;
-        }
-      } catch (seedErr) {
-        isSeeding = false;
-        console.error('[DB WARNING] Auto-seeding failed:', seedErr.message);
-      }
+    console.log('[DB] Database synchronized.');    // Automatically activate any existing registered hospitals/ambulances
+    try {
+      await Hospital.update({ is_active: true }, { where: { is_active: false } });
+      await Ambulance.update({ is_active: true }, { where: { is_active: false } });
+      console.log('[DB PATCH] Existing inactive hospitals and ambulances activated.');
+    } catch (patchErr) {
+      console.error('[DB PATCH WARNING] Failed to activate existing records:', patchErr.message);
     }
-    */
   } catch (err) {
     const { triggerCriticalAlert } = require('./alerting');
     await triggerCriticalAlert('DATABASE_CONNECT_FAIL', {

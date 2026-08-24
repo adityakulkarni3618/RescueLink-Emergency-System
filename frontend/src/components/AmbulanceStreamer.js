@@ -569,49 +569,45 @@ function MapUpdater({ center }) {
 }
 
 
-export default function AmbulanceStreamer({ socket, connected }) {
+export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitchRole, onShowSecurity }) {
   // ── Auth State ──
-  const [isAuthenticated, setIsAuthenticated] = useState(() => !!sessionStorage.getItem('rescuelink_token'));
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
   const [authUnit, setAuthUnit] = useState(() => {
     const userStr = sessionStorage.getItem('rescuelink_user');
     if (userStr) {
       const user = JSON.parse(userStr);
-      const emailUpper = (user.email || '').toUpperCase();
+      const emailUpper = (user.email || user.username || user.id || '').toUpperCase();
       const found = AMBULANCE_CREDENTIALS.find(c => c.unitId === emailUpper) || {
-        unitId: user.id,
-        driverName: user.name,
+        unitId: user.id || 'AMB-101',
+        driverName: user.name || 'Unit 101 Lead Paramedic',
         vehicleNo: user.email?.includes('@') ? user.email.split('@')[0].toUpperCase() : (user.email || 'EMG-RL-0101'),
         type: 'ALS'
       };
       return found;
     }
-    return null;
+    // Fallback default so it doesn't crash
+    return {
+      unitId: 'AMB-101',
+      driverName: 'Unit 101 Lead Paramedic',
+      vehicleNo: 'EMG-RL-0101',
+      type: 'ALS'
+    };
   });
-  useEffect(() => {
-    const userStr = sessionStorage.getItem('rescuelink_user');
-    if (userStr) {
-      const user = JSON.parse(userStr);
-      const emailUpper = (user.email || '').toUpperCase();
-      const found = AMBULANCE_CREDENTIALS.find(c => c.unitId === emailUpper) || {
-        unitId: user.id,
-        driverName: user.name,
-        vehicleNo: user.email?.includes('@') ? user.email.split('@')[0].toUpperCase() : (user.email || 'EMG-RL-0101'),
-        type: 'ALS'
-      };
-      setAuthUnit(found);
-      setIsAuthenticated(true);
-    }
-  }, []);
   const [loginId, setLoginId] = useState('');
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [activeMissionId, setActiveMissionId] = useState(null);
+  const [activeMissionId, setActiveMissionId] = useState(() => localStorage.getItem('activeMissionId') || null);
+  const [activeTab, setActiveTab] = useState('mission'); // mission, vitals, comms, settings
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isPendingApproval, setIsPendingApproval] = useState(false);
   const [manualRecoveryId, setManualRecoveryId] = useState('');
   const [vitals, setVitals] = useState({ heartRate: 75, spo2: 98, systolic: 120, diastolic: 80, temperature: 37.0, respRate: 16, bloodGlucose: 100 });
   const [vitalsSource, setVitalsSource] = useState('SIMULATED'); // 'SIMULATED', 'MANUAL', 'LIVE'
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [endMissionConfirm, setEndMissionConfirm] = useState(false);
+  const [abortMissionConfirm, setAbortMissionConfirm] = useState(false);
+  const [switchUnitConfirm, setSwitchUnitConfirm] = useState(false);
   const vitalsSourceRef = useRef(vitalsSource);
   useEffect(() => { vitalsSourceRef.current = vitalsSource; }, [vitalsSource]);
 
@@ -731,7 +727,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
     
     return { score, breakdown, eta, icuBeds, traumaReady, queue };
   };
-  const [streaming, setStreaming] = useState(false);
+  const [streaming, setStreaming] = useState(() => localStorage.getItem('amb_streaming') === 'true');
   const [hardwareMode, setHardwareMode] = useState(true); // Enable simulation by default for vitals generation
   const [selectedPatient, setSelectedPatient] = useState(() => localStorage.getItem('amb_selectedPatient') || '');
   const [isScanning, setIsScanning] = useState(false);
@@ -813,8 +809,15 @@ export default function AmbulanceStreamer({ socket, connected }) {
   const [hospitalRequestSent, setHospitalRequestSent] = useState(false);
 
   const [incomingRequest, setIncomingRequest] = useState(null);
-  const [assignedUser, setAssignedUser] = useState(null);
-  const [assignedHospital, setAssignedHospital] = useState(null);
+  const [assignedUser, setAssignedUser] = useState(() => {
+    const saved = localStorage.getItem('amb_assignedUser');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [assignedHospital, setAssignedHospital] = useState(() => {
+    const saved = localStorage.getItem('amb_assignedHospital');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [waitingList, setWaitingList] = useState([]);
 
   const assignedUserRef = useRef(assignedUser);
   useEffect(() => {
@@ -823,29 +826,98 @@ export default function AmbulanceStreamer({ socket, connected }) {
 
 
   const [ambulances, setAmbulances] = useState({}); // Fleet overview
-  const [routePath, setRoutePath] = useState(null);
+  const [routePath, setRoutePath] = useState(() => {
+    const saved = localStorage.getItem('amb_routePath');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [previousReports, setPreviousReports] = useState([]);
   const [hospitalRecommendations, setHospitalRecommendations] = useState([]);
 
-  const [requestAccepted, setRequestAccepted] = useState(false);
-  const [arrivedAtUser, setArrivedAtUser] = useState(false);
-  const [patientLoaded, setPatientLoaded] = useState(false);
+  const [requestAccepted, setRequestAccepted] = useState(() => localStorage.getItem('amb_requestAccepted') === 'true');
+  const [arrivedAtUser, setArrivedAtUser] = useState(() => localStorage.getItem('amb_arrivedAtUser') === 'true');
+  const [patientLoaded, setPatientLoaded] = useState(() => localStorage.getItem('amb_patientLoaded') === 'true');
   const [arrivalCountdown, setArrivalCountdown] = useState(20);
   const [rerouteTarget, setRerouteTarget] = useState(null);
   const [shareHistory, setShareHistory] = useState(true);
   const [pendingResumeMission, setPendingResumeMission] = useState(null);
+
+  // Sync to local storage to prevent data loss on refresh
+  useEffect(() => {
+    if (activeMissionId) {
+      localStorage.setItem('activeMissionId', activeMissionId);
+    } else {
+      localStorage.removeItem('activeMissionId');
+    }
+  }, [activeMissionId]);
+
+  useEffect(() => {
+    if (assignedUser) {
+      localStorage.setItem('amb_assignedUser', JSON.stringify(assignedUser));
+    } else {
+      localStorage.removeItem('amb_assignedUser');
+    }
+  }, [assignedUser]);
+
+  useEffect(() => {
+    if (assignedHospital) {
+      localStorage.setItem('amb_assignedHospital', JSON.stringify(assignedHospital));
+    } else {
+      localStorage.removeItem('amb_assignedHospital');
+    }
+  }, [assignedHospital]);
+
+  useEffect(() => {
+    localStorage.setItem('amb_requestAccepted', requestAccepted);
+  }, [requestAccepted]);
+
+  useEffect(() => {
+    localStorage.setItem('amb_arrivedAtUser', arrivedAtUser);
+  }, [arrivedAtUser]);
+
+  useEffect(() => {
+    localStorage.setItem('amb_patientLoaded', patientLoaded);
+  }, [patientLoaded]);
+
+  useEffect(() => {
+    if (routePath) {
+      localStorage.setItem('amb_routePath', JSON.stringify(routePath));
+    } else {
+      localStorage.removeItem('amb_routePath');
+    }
+  }, [routePath]);
+
+  useEffect(() => {
+    localStorage.setItem('amb_streaming', streaming);
+  }, [streaming]);
   const ignoredMissionsRef = useRef(new Set());
   const lastFieldReportRef = useRef(null);
   const [commTab, setCommTab] = useState('hospital');
 
+  const safeSetItem = (key, value) => {
+    try {
+      localStorage.setItem(key, value);
+    } catch (e) {
+      console.warn(`[LocalStorage Error] Failed to write key "${key}":`, e);
+      if (e.name === 'QuotaExceededError') {
+        try {
+          // Clear non-critical offline backlog to free space
+          localStorage.removeItem('offline_backlog');
+          localStorage.setItem(key, value);
+        } catch (innerErr) {
+          console.warn('[LocalStorage Error] Fallback cleanup failed:', innerErr);
+        }
+      }
+    }
+  };
+
   // --- STATE RECOVERY SYNC ---
-  useEffect(() => { localStorage.setItem('amb_streaming', streaming); }, [streaming]);
-  useEffect(() => { localStorage.setItem('amb_selectedPatient', selectedPatient); }, [selectedPatient]);
-  useEffect(() => { localStorage.setItem('amb_incomingRequest', JSON.stringify(incomingRequest)); }, [incomingRequest]);
-  useEffect(() => { localStorage.setItem('amb_assignedUser', JSON.stringify(assignedUser)); }, [assignedUser]);
-  useEffect(() => { localStorage.setItem('amb_assignedHospital', JSON.stringify(assignedHospital)); }, [assignedHospital]);
-  useEffect(() => { localStorage.setItem('amb_requestAccepted', requestAccepted); }, [requestAccepted]);
-  useEffect(() => { localStorage.setItem('amb_arrivedAtUser', arrivedAtUser); }, [arrivedAtUser]);
+  useEffect(() => { safeSetItem('amb_streaming', streaming); }, [streaming]);
+  useEffect(() => { safeSetItem('amb_selectedPatient', selectedPatient); }, [selectedPatient]);
+  useEffect(() => { safeSetItem('amb_incomingRequest', JSON.stringify(incomingRequest)); }, [incomingRequest]);
+  useEffect(() => { safeSetItem('amb_assignedUser', JSON.stringify(assignedUser)); }, [assignedUser]);
+  useEffect(() => { safeSetItem('amb_assignedHospital', JSON.stringify(assignedHospital)); }, [assignedHospital]);
+  useEffect(() => { safeSetItem('amb_requestAccepted', requestAccepted); }, [requestAccepted]);
+  useEffect(() => { safeSetItem('amb_arrivedAtUser', arrivedAtUser); }, [arrivedAtUser]);
 
 
   const vitalsRef = useRef(vitals);
@@ -1137,6 +1209,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
       setArrivedAtUser(false);
       setAssignedUser(null);
       setAssignedHospital(null);
+      setWaitingList([]);
       setIncomingRequest(null);
       setRequestAccepted(false);
       setSelectedPatient(null);
@@ -1148,6 +1221,10 @@ export default function AmbulanceStreamer({ socket, connected }) {
     });
 
     socket.on('patient-onboard', () => setPatientLoaded(true));
+    socket.on('mission-coordination-update', (data) => {
+      if (data.assignedHospital) setAssignedHospital(data.assignedHospital);
+      if (data.waitingList) setWaitingList(data.waitingList);
+    });
 
     // --- SMART AUTO-SYNC LOGIC ---
     if (connected) {
@@ -1194,6 +1271,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
       socket.off('route-update');
       socket.off('mission-completed');
       socket.off('patient-onboard');
+    socket.off('mission-coordination-update');
       socket.off('hospital-facility-recommendations');
       socket.off('patient-data', onPatientData);
       socket.off('hospital-resources-locked', onResourcesLocked);
@@ -1231,35 +1309,46 @@ export default function AmbulanceStreamer({ socket, connected }) {
         }
       }
 
-      setAssignedUser({ id: data.id, ...data });
-      setRequestAccepted(true); 
-      
-      const isArrived = data.status === 'ambulance_arrived' || data.status === 'patient_onboard' || data.status === 'hospital_accepted' || !!data.arrivedAtUser;
-      setArrivedAtUser(isArrived);
-      
-      if (data.status === 'patient_onboard' || data.status === 'hospital_accepted' || data.patientDetails) {
-        setPatientLoaded(true);
-        setSelectedPatient(data.patientDetails?.id || 'EMERGENCY');
-      }
-      
-      if (data.assignedHospital) setAssignedHospital(data.assignedHospital);
-      
-      if (data.routePath && Array.isArray(data.routePath)) {
-        setRoutePath(data.routePath.map(pos => (Array.isArray(pos) ? pos : [pos.lat, pos.lng])));
-      }
-      
-      if (data.status === 'patient_onboard' || data.status === 'hospital_accepted' || data.patientDetails || data.fieldReport) {
-        setPatientLoaded(true);
-        setStreaming(true);
-      }
-      
-      if (data.chatMessages) setMessages(data.chatMessages);
-      if (data.checklist) setClinicalChecklist(data.checklist);
-      
-      if (data.resourceLocks) {
-        setResourceLocks(data.resourceLocks);
+      if (data.status === 'pending_ambulance') {
+        // If it is pending, set it as the active incoming request so the driver can Accept or Decline.
+        setIncomingRequest(data);
+        setAssignedUser(null);
+        setRequestAccepted(false);
+        setArrivedAtUser(false);
+        setPatientLoaded(false);
+        setStreaming(false);
+        setRoutePath(null);
       } else {
-        setResourceLocks({ traumaBay: false, bloodUnits: false, ventilatorStandby: false });
+        setAssignedUser({ id: data.id, ...data });
+        setRequestAccepted(true); 
+        
+        const isArrived = data.status === 'ambulance_arrived' || data.status === 'patient_onboard' || data.status === 'hospital_accepted' || !!data.arrivedAtUser;
+        setArrivedAtUser(isArrived);
+        
+        if (data.status === 'patient_onboard' || data.status === 'hospital_accepted' || data.patientDetails) {
+          setPatientLoaded(true);
+          setSelectedPatient(data.patientDetails?.id || 'EMERGENCY');
+        }
+        
+        if (data.assignedHospital) setAssignedHospital(data.assignedHospital);
+        
+        if (data.routePath && Array.isArray(data.routePath)) {
+          setRoutePath(data.routePath.map(pos => (Array.isArray(pos) ? pos : [pos.lat, pos.lng])));
+        }
+        
+        if (data.status === 'patient_onboard' || data.status === 'hospital_accepted' || data.patientDetails || data.fieldReport) {
+          setPatientLoaded(true);
+          setStreaming(true);
+        }
+        
+        if (data.chatMessages) setMessages(data.chatMessages);
+        if (data.checklist) setClinicalChecklist(data.checklist);
+        
+        if (data.resourceLocks) {
+          setResourceLocks(data.resourceLocks);
+        } else {
+          setResourceLocks({ traumaBay: false, bloodUnits: false, ventilatorStandby: false });
+        }
       }
       
       setPendingResumeMission(null);
@@ -1318,7 +1407,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
           if (isOfflineRef.current) {
             offlineBacklog.current.push({ ...vitalsWithSource, timestamp: Date.now() });
             if (offlineBacklog.current.length > 100) offlineBacklog.current.shift();
-            localStorage.setItem('offline_backlog', JSON.stringify(offlineBacklog.current));
+            safeSetItem('offline_backlog', JSON.stringify(offlineBacklog.current));
           } else {
             socket.emit('vitals-update', vitalsPayload);
           }
@@ -1738,19 +1827,14 @@ export default function AmbulanceStreamer({ socket, connected }) {
             <button onClick={() => {
               // Simulated Biometric Login via WebAuthn
               const targetId = loginId.trim() || "AMB-101";
-              if (window.confirm(`Verify FaceID to login as ${targetId.toUpperCase()}?`)) {
-                setLoginId(targetId.toUpperCase());
-                
-                // Demo fallback password logic
-                let password = loginPass;
-                if (!password) {
-                  const match = targetId.match(/\d+$/);
-                  password = match ? `rescue${match[0]}` : 'rescue101';
-                  setLoginPass(password);
-                }
-                
-                setTimeout(handleLogin, 500);
+              setLoginId(targetId.toUpperCase());
+              let password = loginPass;
+              if (!password) {
+                const match = targetId.match(/\d+$/);
+                password = match ? `rescue${match[0]}` : 'rescue101';
+                setLoginPass(password);
               }
+              setTimeout(handleLogin, 500);
             }} style={{ padding: '12px', background: 'rgba(0,200,255,0.1)', border: '1px solid rgba(0,200,255,0.4)', borderRadius: 8, color: '#00c8ff', fontFamily: "'Orbitron'", fontSize: 13, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.1em', transition: 'all 0.2s', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 16 }}>👤</span> FACE-ID BIOMETRIC LOGIN
             </button>
@@ -1901,6 +1985,48 @@ export default function AmbulanceStreamer({ socket, connected }) {
     setIncomingRequest(null);
   };
 
+  const handleCompleteMission = () => {
+    if (!assignedUser) return;
+    setEndMissionConfirm(true);
+  };
+
+  const doCompleteMission = () => {
+    setEndMissionConfirm(false);
+    if (socket) {
+      socket.emit('complete-mission', { reqId: assignedUser.id });
+      const storedToken = sessionStorage.getItem('rescuelink_token');
+      socket.emit('register-ambulance', { 
+        location, 
+        available: true,
+        unitId: authUnit?.unitId,
+        token: storedToken
+      });
+    }
+    setRequestAccepted(false);
+    setAssignedUser(null);
+    setAssignedHospital(null);
+    setWaitingList([]);
+    setRoutePath(null);
+    setSelectedPatient(null);
+    setArrivedAtUser(false);
+    setIncomingRequest(null);
+    setStreaming(false);
+    setPatientLoaded(false);
+    setArrivalCountdown(20);
+    setResourceLocks({ traumaBay: false, bloodUnits: false, ventilatorStandby: false });
+    setClinicalChecklist({});
+    setIncidentNote('');
+    
+    localStorage.removeItem('activeMissionId');
+    localStorage.removeItem('amb_requestAccepted');
+    localStorage.removeItem('amb_assignedUser');
+    localStorage.removeItem('amb_assignedHospital');
+    localStorage.removeItem('amb_selectedPatient');
+    localStorage.removeItem('amb_arrivedAtUser');
+    localStorage.removeItem('amb_streaming');
+    localStorage.removeItem('amb_incomingRequest');
+  };
+
 
 
   const distanceToUser = assignedUser ? calcDist(location, assignedUser.userLocation) : 0;
@@ -1985,39 +2111,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
 
       <button
         onClick={() => {
-          if (window.confirm("Abort current mission and reset?")) {
-            setRequestAccepted(false);
-            setAssignedUser(null);
-            setAssignedHospital(null);
-            setRoutePath(null);
-            setSelectedPatient(null);
-            setArrivedAtUser(false);
-            setIncomingRequest(null);
-            setStreaming(false);
-            setPatientLoaded(false);
-            setArrivalCountdown(20);
-            setResourceLocks({ traumaBay: false, bloodUnits: false, ventilatorStandby: false });
-            if (socket) {
-              if (activeMissionId) {
-                socket.emit('complete-mission', { reqId: activeMissionId });
-              }
-              const storedToken = sessionStorage.getItem('rescuelink_token');
-              socket.emit('register-ambulance', { 
-                location, 
-                available: true,
-                unitId: authUnit?.unitId,
-                token: storedToken
-              });
-            }
-            localStorage.removeItem('activeMissionId');
-            localStorage.removeItem('amb_requestAccepted');
-            localStorage.removeItem('amb_assignedUser');
-            localStorage.removeItem('amb_assignedHospital');
-            localStorage.removeItem('amb_selectedPatient');
-            localStorage.removeItem('amb_arrivedAtUser');
-            localStorage.removeItem('amb_streaming');
-            localStorage.removeItem('amb_incomingRequest');
-          }
+          setAbortMissionConfirm(true);
           if (isMobileView) setMobileMenuOpen(false);
         }}
         className="rl-btn-primary"
@@ -2034,19 +2128,7 @@ export default function AmbulanceStreamer({ socket, connected }) {
 
       <button
         onClick={() => {
-          if (window.confirm("Switch unit identity? All active unit session data will be reset.")) {
-            localStorage.removeItem('ambulance_auth');
-            sessionStorage.clear();
-            localStorage.removeItem('activeMissionId');
-            localStorage.removeItem('amb_requestAccepted');
-            localStorage.removeItem('amb_assignedUser');
-            localStorage.removeItem('amb_assignedHospital');
-            localStorage.removeItem('amb_selectedPatient');
-            localStorage.removeItem('amb_arrivedAtUser');
-            localStorage.removeItem('amb_streaming');
-            localStorage.removeItem('amb_incomingRequest');
-            window.location.reload();
-          }
+          setSwitchUnitConfirm(true);
           if (isMobileView) setMobileMenuOpen(false);
         }}
         className="rl-btn-secondary"
@@ -2162,9 +2244,122 @@ export default function AmbulanceStreamer({ socket, connected }) {
       fontFamily: "'Rajdhani', sans-serif",
       color: '#e0eaff',
       display: 'flex',
-      flexDirection: 'column',
+      flexDirection: 'row',
       overflow: 'hidden',
     }}>
+
+      {/* ── END MISSION CONFIRM MODAL ── */}
+      {endMissionConfirm && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999999, background: 'rgba(0,3,12,0.88)', backdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setEndMissionConfirm(false)}>
+          <div style={{ background: 'rgba(8,18,42,0.98)', border: '1px solid rgba(0,255,136,0.4)', borderRadius: 14, padding: 30, maxWidth: 420, width: '90%', boxShadow: '0 0 40px rgba(0,255,136,0.1)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 15, color: '#00ff88', fontWeight: 900, marginBottom: 10 }}>✅ END ACTIVE MISSION</div>
+            <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'", marginBottom: 22, lineHeight: 1.7 }}>
+              Are you sure you want to officially end this mission?<br /><br />
+              This will clear the patient context and mark the ambulance as <strong style={{ color: '#00ff88' }}>AVAILABLE</strong> for new dispatch requests.
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={doCompleteMission}
+                style={{ flex: 1, padding: '12px', background: 'rgba(0,255,136,0.15)', border: '1px solid rgba(0,255,136,0.5)', borderRadius: 8, color: '#00ff88', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+              >
+                🏁 COMPLETE MISSION
+              </button>
+              <button onClick={() => setEndMissionConfirm(false)} style={{ flex: 1, padding: '12px', background: 'transparent', border: '1px solid rgba(160,200,255,0.15)', borderRadius: 8, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 12, cursor: 'pointer' }}>
+                CANCEL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── ABORT MISSION CONFIRM MODAL ── */}
+      {abortMissionConfirm && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999999, background: 'rgba(0,3,12,0.88)', backdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setAbortMissionConfirm(false)}>
+          <div style={{ background: 'rgba(8,18,42,0.98)', border: '1px solid rgba(255,68,68,0.4)', borderRadius: 14, padding: 30, maxWidth: 420, width: '90%', boxShadow: '0 0 40px rgba(255,68,68,0.1)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 15, color: '#ff4444', fontWeight: 900, marginBottom: 10 }}>🚨 ABORT & RESET MISSION</div>
+            <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'", marginBottom: 22, lineHeight: 1.7 }}>
+              This will forcefully <strong style={{ color: '#ff4444' }}>cancel the current mission</strong> and reset all unit state.<br /><br />
+              Use only if the dispatch was an error or the mission cannot be completed.
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={() => {
+                  setAbortMissionConfirm(false);
+                  setRequestAccepted(false);
+                  setAssignedUser(null);
+                  setAssignedHospital(null);
+                  setWaitingList([]);
+                  setRoutePath(null);
+                  setSelectedPatient(null);
+                  setArrivedAtUser(false);
+                  setIncomingRequest(null);
+                  setStreaming(false);
+                  setPatientLoaded(false);
+                  setArrivalCountdown(20);
+                  setResourceLocks({ traumaBay: false, bloodUnits: false, ventilatorStandby: false });
+                  if (socket) {
+                    if (activeMissionId) socket.emit('complete-mission', { reqId: activeMissionId });
+                    const storedToken = sessionStorage.getItem('rescuelink_token');
+                    socket.emit('register-ambulance', { location, available: true, unitId: authUnit?.unitId, token: storedToken });
+                  }
+                  localStorage.removeItem('activeMissionId');
+                  localStorage.removeItem('amb_requestAccepted');
+                  localStorage.removeItem('amb_assignedUser');
+                  localStorage.removeItem('amb_assignedHospital');
+                  localStorage.removeItem('amb_selectedPatient');
+                  localStorage.removeItem('amb_arrivedAtUser');
+                  localStorage.removeItem('amb_streaming');
+                  localStorage.removeItem('amb_incomingRequest');
+                }}
+                style={{ flex: 1, padding: '12px', background: 'rgba(255,68,68,0.15)', border: '1px solid rgba(255,68,68,0.5)', borderRadius: 8, color: '#ff4444', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+              >
+                🗑 YES, ABORT MISSION
+              </button>
+              <button onClick={() => setAbortMissionConfirm(false)} style={{ flex: 1, padding: '12px', background: 'transparent', border: '1px solid rgba(160,200,255,0.15)', borderRadius: 8, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 12, cursor: 'pointer' }}>
+                KEEP ACTIVE
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── SWITCH UNIT CONFIRM MODAL ── */}
+      {switchUnitConfirm && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999999, background: 'rgba(0,3,12,0.88)', backdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setSwitchUnitConfirm(false)}>
+          <div style={{ background: 'rgba(8,18,42,0.98)', border: '1px solid rgba(255,184,0,0.4)', borderRadius: 14, padding: 30, maxWidth: 420, width: '90%', boxShadow: '0 0 40px rgba(255,184,0,0.1)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 15, color: '#ffb800', fontWeight: 900, marginBottom: 10 }}>🚪 SWITCH UNIT IDENTITY</div>
+            <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'", marginBottom: 22, lineHeight: 1.7 }}>
+              You are about to log out and switch ambulance unit identities.<br /><br />
+              <strong style={{ color: '#ffb800' }}>All active unit session data will be reset.</strong>
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={() => {
+                  setSwitchUnitConfirm(false);
+                  localStorage.removeItem('ambulance_auth');
+                  sessionStorage.clear();
+                  localStorage.removeItem('activeMissionId');
+                  localStorage.removeItem('amb_requestAccepted');
+                  localStorage.removeItem('amb_assignedUser');
+                  localStorage.removeItem('amb_assignedHospital');
+                  localStorage.removeItem('amb_selectedPatient');
+                  localStorage.removeItem('amb_arrivedAtUser');
+                  localStorage.removeItem('amb_streaming');
+                  localStorage.removeItem('amb_incomingRequest');
+                  window.location.reload();
+                }}
+                style={{ flex: 1, padding: '12px', background: 'rgba(255,184,0,0.15)', border: '1px solid rgba(255,184,0,0.5)', borderRadius: 8, color: '#ffb800', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+              >
+                🔄 YES, SWITCH UNIT
+              </button>
+              <button onClick={() => setSwitchUnitConfirm(false)} style={{ flex: 1, padding: '12px', background: 'transparent', border: '1px solid rgba(160,200,255,0.15)', borderRadius: 8, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 12, cursor: 'pointer' }}>
+                CANCEL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style>{`
         @keyframes critFlash { from { box-shadow: 0 0 0 rgba(255,60,60,0); } to { box-shadow: 0 0 20px rgba(255,60,60,0.4); } }
         @keyframes blink { 0%,49%{opacity:1} 50%,100%{opacity:0} }
@@ -2217,7 +2412,74 @@ export default function AmbulanceStreamer({ socket, connected }) {
           visibility: visible;
           opacity: 1;
         }
+
+        /* Sidebar styles */
+        .sidebar {
+          width: 260px;
+          background: rgba(3, 10, 25, 0.96);
+          border-right: 1px solid rgba(0, 255, 136, 0.2);
+          display: flex;
+          flex-direction: column;
+          transition: all 0.3s ease;
+          overflow-y: auto;
+          z-index: 999;
+          flex-shrink: 0;
+        }
+        .sidebar.closed {
+          width: 0px;
+          overflow: hidden;
+          border-right: none;
+        }
+        
+        .sidebar-item {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 14px 20px;
+          color: rgba(160, 200, 255, 0.7);
+          text-decoration: none;
+          font-family: 'Orbitron', sans-serif;
+          font-size: 12px;
+          border-left: 3px solid transparent;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          letter-spacing: 0.05em;
+        }
+        .sidebar-item:hover {
+          background: rgba(0, 255, 136, 0.05);
+          color: #00ff88;
+        }
+        .sidebar-item.active {
+          background: rgba(0, 255, 136, 0.1);
+          color: #00ff88;
+          border-left-color: #00ff88;
+        }
+
+        /* Responsive styles */
+        @media (max-width: 1024px) {
+          .ambulance-stream-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+
         @media (max-width: 768px) {
+          .sidebar {
+            position: absolute;
+            left: 0;
+            top: 60px;
+            height: calc(100vh - 60px);
+            transform: translateX(-100%);
+            width: 260px;
+          }
+          .sidebar.open {
+            transform: translateX(0);
+          }
+          .sidebar.closed {
+            transform: translateX(-100%);
+            width: 260px;
+          }
+          
+          /* Stacking grids for mobile compatibility */
           .ambulance-stream-grid {
             grid-template-columns: 1fr !important;
             overflow-y: auto !important;
@@ -2225,1623 +2487,1440 @@ export default function AmbulanceStreamer({ socket, connected }) {
         }
       `}</style>
 
-      {/* Header */}
-      <div style={{
-        background: 'rgba(5,20,10,0.98)',
-        borderBottom: '1px solid rgba(0,255,136,0.2)',
-        padding: '10px 450px 10px 24px',
-        display: 'flex', alignItems: 'center', gap: 12, minHeight: 70, height: 'auto', flexWrap: 'wrap',
-        backdropFilter: 'blur(15px)',
-        position: 'relative', zIndex: 100
-      }}>
-        <div style={{ fontSize: 22 }}>🚑</div>
-        <div>
-          <div style={{ fontFamily: "'Orbitron'", fontSize: 14, fontWeight: 700, color: '#88ff88', letterSpacing: '0.1em' }}>
-            {(authUnit?.vehicleNo || 'AMBULANCE')} — PARAMEDIC CONSOLE
-          </div>
-          <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>
-            {authUnit ? `${authUnit.driverName} · ${authUnit.vehicleNo} · ${authUnit.type}` : 'RESCUELINK FIELD TERMINAL v2.0'}
-          </div>
+      {/* Collapsible Left Sidebar */}
+      <div className={`sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
+        <div style={{ padding: '20px 10px 10px 10px', borderBottom: '1px solid rgba(0,255,136,0.1)', textAlign: 'center' }}>
+          <div style={{ fontSize: 18, color: '#00ff88', fontFamily: "'Orbitron'", fontWeight: 'bold' }}>RESCUELINK</div>
+          <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'", marginTop: 4 }}>PARAMEDIC CONSOLE</div>
         </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 20, alignItems: 'center' }}>
-          {/* Global God Mode Panel */}
-      {showGodMode && (
-        <div style={{
-          position: 'fixed', top: 20, right: 20, width: 320, background: 'rgba(10, 0, 20, 0.95)',
-          border: '1px solid #cc00ff', borderRadius: 8, padding: 16, zIndex: 99999,
-          boxShadow: '0 0 40px rgba(204,0,255,0.4)', backdropFilter: 'blur(10px)'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <div style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#cc00ff', fontWeight: 700, letterSpacing: '0.1em' }}>
-              🛠️ GOD MODE (DEMO CONTROL)
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '15px 0' }}>
+          {[
+            { id: 'mission', label: 'LIVE DISPATCH', icon: '🗺️' },
+            { id: 'vitals', label: 'PATIENT VITALS', icon: '📈' },
+            { id: 'comms', label: 'COMMS & CHAT', icon: '💬' },
+            { id: 'settings', label: 'CONSOLE SETTINGS', icon: '⚙️' },
+          ].map(tab => (
+            <div
+              key={tab.id}
+              onClick={() => {
+                setActiveTab(tab.id);
+                if (window.innerWidth <= 768) setSidebarOpen(false); // Auto-close on mobile
+              }}
+              className={`sidebar-item ${activeTab === tab.id ? 'active' : ''}`}
+            >
+              <span>{tab.icon}</span>
+              <span>{tab.label}</span>
             </div>
-            <button onClick={() => setShowGodMode(false)} style={{ background: 'transparent', border: 'none', color: '#cc00ff', cursor: 'pointer', fontSize: 18 }}>×</button>
+          ))}
+        </div>
+
+        {/* Current Active Mission status */}
+        {assignedUser && (
+          <div style={{ borderTop: '1px solid rgba(0,255,136,0.1)', padding: '15px 10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Orbitron'", letterSpacing: 1 }}>CURRENT DISPATCH</div>
+            <div style={{ padding: '8px 10px', background: 'rgba(255,107,53,0.1)', border: '1px solid rgba(255,107,53,0.2)', borderRadius: 4 }}>
+              <div style={{ fontSize: 11, fontFamily: "'Orbitron'", color: '#ff6b35', fontWeight: 'bold' }}>
+                {assignedUser.id && assignedUser.id.length > 15 ? `RL-${assignedUser.id.replace(/-/g, '').slice(-4).toUpperCase()}` : assignedUser.id}
+              </div>
+              <div style={{ fontSize: 10, color: '#fff', marginTop: 4 }}>
+                {assignedUser.patientDetails?.name || 'Emergency Incident'}
+              </div>
+            </div>
+            <button 
+              onClick={handleCompleteMission} 
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                background: 'linear-gradient(135deg, #ff4444 0%, #cc0000 100%)',
+                border: 'none',
+                borderRadius: 4,
+                color: '#fff',
+                fontFamily: "'Orbitron'",
+                fontSize: 10,
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                marginTop: 6
+              }}
+            >
+              END MISSION 🏁
+            </button>
           </div>
+        )}
+
+        {/* Node Telemetry panel */}
+        <div style={{ borderTop: '1px solid rgba(0,255,136,0.1)', padding: '15px 10px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Orbitron'", letterSpacing: 1 }}>UNIT TELEMETRY</div>
           
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <button
-              onClick={() => setSimulateCrisis(!simulateCrisis)}
-              style={{
-                background: simulateCrisis ? 'rgba(255,40,40,0.2)' : 'rgba(255,255,255,0.05)',
-                border: `1px solid ${simulateCrisis ? '#ff4444' : 'rgba(255,255,255,0.2)'}`,
-                padding: 10, borderRadius: 6, color: simulateCrisis ? '#ff4444' : '#fff',
-                fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer', textAlign: 'left',
-                display: 'flex', justifyContent: 'space-between'
-              }}
-            >
-              <span>{simulateCrisis ? '🛑 CANCEL CRISIS' : '⚠️ TRIGGER CARDIAC ARREST'}</span>
-              <span>{simulateCrisis ? 'ON' : 'OFF'}</span>
-            </button>
+          {/* Live Connection status */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4 }}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: connected ? '#00ff88' : '#ff4444' }} />
+            <span style={{ fontSize: 9, color: connected ? '#00ff88' : '#ff4444', fontFamily: "'Share Tech Mono'", fontWeight: 700 }}>{connected ? 'CONNECTED' : 'OFFLINE'}</span>
+          </div>
 
+          {/* Active Duty Switch */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 4 }}>
+            <span style={{ fontSize: 9, fontFamily: "'Orbitron'", color: isActiveDuty ? '#00ff88' : '#ff4444', fontWeight: 'bold' }}>{isActiveDuty ? 'ACTIVE' : 'BREAK'}</span>
             <button
-              onClick={() => setSimulateTraffic(!simulateTraffic)}
+              onClick={() => {
+                const nextStatus = !isActiveDuty;
+                setIsActiveDuty(nextStatus);
+                if (socket) socket.emit('toggle-active-duty', { active: nextStatus });
+              }}
               style={{
-                background: simulateTraffic ? 'rgba(255,184,0,0.2)' : 'rgba(255,255,255,0.05)',
-                border: `1px solid ${simulateTraffic ? '#ffb800' : 'rgba(255,255,255,0.2)'}`,
-                padding: 10, borderRadius: 6, color: simulateTraffic ? '#ffb800' : '#fff',
-                fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer', textAlign: 'left',
-                display: 'flex', justifyContent: 'space-between'
+                background: isActiveDuty ? '#00ff88' : '#ff4444',
+                border: 'none', width: 28, height: 14, borderRadius: 10,
+                position: 'relative', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '0 2px'
               }}
             >
-              <span>{simulateTraffic ? '🛣️ CLEAR TRAFFIC' : '🚧 SIMULATE TRAFFIC JAM'}</span>
-              <span>{simulateTraffic ? 'ON' : 'OFF'}</span>
-            </button>
-
-            <button
-              onClick={() => setIsOffline(!isOffline)}
-              style={{
-                background: isOffline ? 'rgba(100,100,100,0.4)' : 'rgba(255,255,255,0.05)',
-                border: `1px solid ${isOffline ? '#aaa' : 'rgba(255,255,255,0.2)'}`,
-                padding: 10, borderRadius: 6, color: isOffline ? '#aaa' : '#fff',
-                fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer', textAlign: 'left',
-                display: 'flex', justifyContent: 'space-between'
-              }}
-            >
-              <span>{isOffline ? '📡 RESTORE SIGNAL' : '📡 FORCE OFFLINE (BLACKOUT)'}</span>
-              <span>{isOffline ? 'OFFLINE' : 'ONLINE'}</span>
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#051025', position: 'absolute', left: isActiveDuty ? 16 : 2, transition: 'left 0.2s' }} />
             </button>
           </div>
-          <div style={{ marginTop: 12, fontSize: 10, color: 'rgba(255,255,255,0.4)', textAlign: 'center' }}>
-            Use Ctrl+Shift+D to hide/show this panel.
+
+          {/* Stream Status Toggle */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 4 }}>
+            <span style={{ fontSize: 9, fontFamily: "'Orbitron'", color: streaming ? '#00ff88' : '#aaa', fontWeight: 'bold' }}>{streaming ? 'STREAMING' : 'IDLE'}</span>
+            <button
+              onClick={() => setStreaming(!streaming)}
+              style={{
+                background: streaming ? '#00ff88' : '#555',
+                border: 'none', width: 28, height: 14, borderRadius: 10,
+                position: 'relative', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '0 2px'
+              }}
+            >
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#051025', position: 'absolute', left: streaming ? 16 : 2, transition: 'left 0.2s' }} />
+            </button>
           </div>
         </div>
-      )}
 
-      {/* ── Dashboard Layout ── */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
-            {(resourceLocks.traumaBay || resourceLocks.bloodUnits || resourceLocks.ventilatorStandby) && (
-              <div style={{
-                background: 'rgba(0,255,136,0.15)', border: '1px solid #00ff88',
-                padding: '4px 12px', borderRadius: 4, fontSize: 11, fontFamily: "'Orbitron'",
-                color: '#00ff88', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4,
-                boxShadow: '0 0 10px rgba(0,255,136,0.2)'
-              }}>
-                ✅ EMR RESOURCES LOCKED
-              </div>
-            )}
-            {assignedUser && (
-              <div style={{ 
-                background: 'rgba(0,200,255,0.1)', border: '1px solid #00c8ff', 
-                padding: '4px 12px', borderRadius: 4, fontSize: 11, fontFamily: "'Orbitron'" 
-              }}>
-                <span style={{ opacity: 0.5 }}>MISSION CODE:</span> {assignedUser.id && assignedUser.id.length > 15 ? `RL-${assignedUser.id.replace(/-/g, '').slice(-4).toUpperCase()}` : assignedUser.id}
-              </div>
-            )}
-            {/* Active Duty Switch */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,200,255,0.05)', padding: '6px 12px', borderRadius: 20, border: '1px solid rgba(0,200,255,0.2)' }}>
-              <span style={{ fontSize: 10, fontFamily: "'Orbitron'", color: isActiveDuty ? '#00ff88' : '#ff4444', fontWeight: 'bold' }}>
-                {isActiveDuty ? 'ACTIVE DUTY' : 'ON BREAK'}
-              </span>
-              <button
-                onClick={() => {
-                  const nextStatus = !isActiveDuty;
-                  setIsActiveDuty(nextStatus);
-                  if (socket) {
-                    socket.emit('toggle-active-duty', { active: nextStatus });
-                  }
-                }}
-                style={{
-                  background: isActiveDuty ? '#00ff88' : '#ff4444',
-                  border: 'none', width: 34, height: 18, borderRadius: 10,
-                  position: 'relative', cursor: 'pointer', transition: 'background-color 0.2s',
-                  display: 'flex', alignItems: 'center', padding: '0 2px'
-                }}
-              >
-                <div style={{
-                  width: 14, height: 14, borderRadius: '50%', background: '#051025',
-                  position: 'absolute', left: isActiveDuty ? 18 : 2, transition: 'left 0.2s'
-                }} />
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, position: 'relative' }}>
-              <div style={{
-                width: 10, height: 10, borderRadius: '50%',
-                background: connected ? '#00ff88' : '#ff4444',
-                boxShadow: connected ? '0 0 12px #00ff88' : '0 0 8px #ff4444',
-                position: 'relative', zIndex: 2,
-                animation: connected ? 'pulse-opacity 1s ease-in-out infinite' : 'none'
-              }} />
-              {connected && (
-                <div style={{
-                  position: 'absolute', inset: -4, borderRadius: '50%',
-                  background: 'rgba(0,255,136,0.4)', animation: 'pulse-ring 2s ease-out infinite',
-                  zIndex: 1
-                }} />
-              )}
-            </div>
-            <span style={{ fontSize: 12, color: connected ? '#00ff88' : '#ff4444', fontFamily: "'Share Tech Mono'" }}>
-              {connected ? 'CONNECTED' : 'OFFLINE'}
-            </span>
-          </div>
-
-          {/* Responsive Header Button Controls */}
-          <div className="desktop-nav-group" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center' }}>
-            {headerActions(false)}
-          </div>
-          <div style={{ position: 'relative', display: 'inline-block' }}>
-            <button className="mobile-nav-trigger" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-              ☰ MENU
-            </button>
-            {mobileMenuOpen && (
-              <div className="mobile-nav-dropdown">
-                {headerActions(true)}
-              </div>
-            )}
+        {/* Manual Recovery at the bottom */}
+        <div style={{ marginTop: 'auto', borderTop: '1px solid rgba(0,255,136,0.1)', padding: '15px 10px' }}>
+          <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Orbitron'", marginBottom: 6, textAlign: 'center' }}>MANUAL DISPATCH</div>
+          <div style={{ display: 'flex', gap: 4, height: 28 }}>
+            <input
+              value={manualRecoveryId}
+              onChange={e => setManualRecoveryId(e.target.value)}
+              onKeyDown={handleManualRecoveryKeyDown}
+              placeholder="REQ ID"
+              style={{ flex: 1, background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 4, padding: '0 8px', color: '#fff', fontSize: 10, outline: 'none' }}
+            />
+            <button onClick={handleManualRecover} style={{ background: 'rgba(0,255,136,0.15)', border: '1px solid #00ff88', color: '#00ff88', borderRadius: 4, padding: '0 8px', cursor: 'pointer', fontSize: 10, fontFamily: "'Orbitron'", fontWeight: 'bold' }}>GO</button>
           </div>
         </div>
       </div>
 
-      {/* Mission Resume Guard Overlay */}
-      {pendingResumeMission && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 11000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)' }}>
-          <div style={{ background: 'linear-gradient(135deg, #051a3a 0%, #020814 100%)', border: '1px solid rgba(0,200,255,0.3)', borderRadius: 16, width: 480, padding: 40, textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}>
-            <div style={{ fontSize: 40, marginBottom: 20, animation: 'pulse-opacity 1s infinite' }}>📡</div>
-            <h2 style={{ fontFamily: "'Orbitron'", color: '#00c8ff', margin: '0 0 10px', fontSize: 20, letterSpacing: 2 }}>MISSION RECOVERY DETECTED</h2>
-            <p style={{ fontSize: 13, color: 'rgba(160,200,255,0.7)', marginBottom: 30, lineHeight: 1.5 }}>
-              The central server has an active mission (<strong>{pendingResumeMission.id}</strong>) assigned to this unit. 
-              Would you like to resume terminal duties or abort the previous mission?
-            </p>
-
-
-
-            <div style={{ display: 'flex', gap: 15, justifyContent: 'center' }}>
-              <button 
-                onClick={handleAbortResume}
-                style={{ flex: 1, padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: '#aaa', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 11 }}
-              >
-                ABORT & RESET
-              </button>
-              <button 
-                onClick={handleResumeMission}
-                style={{ flex: 2, padding: '12px', background: '#00c8ff', border: 'none', borderRadius: 8, color: '#000', fontWeight: 'bold', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 11, boxShadow: '0 0 20px rgba(0,200,255,0.3)' }}
-              >
-                RESUME MISSION
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {incomingRequest && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(5px)' }}>
-          <div style={{ background: '#0a1e3a', border: '2px solid #ff6b35', borderRadius: 12, width: 440, padding: 30, boxShadow: '0 0 30px rgba(255,107,53,0.3)', textAlign: 'center' }}>
-            <div style={{ fontSize: 50, marginBottom: 10 }}>🚨</div>
-            <h2 style={{ fontFamily: "'Orbitron'", color: '#ff6b35', margin: '0 0 10px', fontSize: 18 }}>INCOMING EMERGENCY REQUEST</h2>
-            <div style={{ background: 'rgba(255,255,255,0.05)', padding: 15, borderRadius: 8, marginBottom: 20 }}>
-              <div style={{ fontSize: 14, color: '#e0eaff', marginBottom: 5 }}>
-                Patient: <strong style={{ color: '#ff6b35' }}>{incomingRequest.patientDetails?.name || 'EMERGENCY CASE'}</strong>
-              </div>
-              <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.6)' }}>
-                Risk Level: <span style={{ color: '#ffb800', fontWeight: 'bold' }}>{incomingRequest.patientDetails?.riskLevel || 'CRITICAL'}</span>
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-              <button onClick={acceptRequest} style={{ padding: '10px 24px', background: '#00ff88', border: 'none', borderRadius: 6, color: '#000', fontWeight: 'bold', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 12 }}>ACCEPT DISPATCH</button>
-              <button onClick={rejectRequest} style={{ padding: '10px 24px', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 6, color: '#fff', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 12 }}>REJECT</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Alerts section */}
-      <div style={{ display: 'flex', flexDirection: 'column' }}>
-        {authUnit?.type === 'BLS' && assignedUser && (assignedUser.fallbackBLS || calculateTriage(vitals).level === 'RED') && (
-          <div style={{
-            background: 'linear-gradient(90deg, rgba(255,50,50,0.25) 0%, rgba(255,50,50,0.05) 100%)',
-            borderBottom: '2px solid rgba(255,80,80,0.8)',
-            padding: '12px 24px', display: 'flex', alignItems: 'center', gap: 12,
-            animation: 'critFlash 0.5s ease infinite alternate',
-          }}>
-            <span style={{ fontSize: 24 }}>⚠️</span>
-            <div>
-              <div style={{ fontFamily: "'Orbitron'", fontSize: 13, color: '#ff4444', fontWeight: 700, letterSpacing: '0.1em' }}>
-                HIGH-ACUITY MISSION ASSIGNED TO BLS UNIT
-              </div>
-              <div style={{ fontSize: 12, color: '#ffb800', fontFamily: "'Share Tech Mono'", marginTop: 2 }}>
-                WARNING: Patient condition is critical (NEWS2 Red / High-Acuity). Dispatch requested ALS, but none were available. Fallback protocol active. Prepare for immediate stabilization and rapid transit.
-              </div>
-            </div>
-          </div>
-        )}
-
-        {aiAlert && (
-          <div style={{
-            background: 'linear-gradient(90deg, rgba(255,180,0,0.2) 0%, rgba(255,180,0,0.05) 100%)',
-            borderBottom: '2px solid rgba(255,180,0,0.6)',
-            padding: '12px 24px', display: 'flex', alignItems: 'center', gap: 12,
-            animation: 'critFlash 0.5s ease infinite alternate',
-          }}>
-            <span style={{ fontSize: 24 }}>🤖</span>
-            <div>
-              <div style={{ fontFamily: "'Orbitron'", fontSize: 13, color: '#ffb800', fontWeight: 700, letterSpacing: '0.1em' }}>
-                AI PREDICTION ALERT
-              </div>
-              <div style={{ fontSize: 12, color: 'rgba(255,200,100,0.9)', fontFamily: "'Share Tech Mono'", marginTop: 2 }}>
-                {aiAlert.message}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {isCritical && streaming && !aiAlert && (
-          <div style={{
-            background: 'rgba(255,40,40,0.15)', borderBottom: '1px solid rgba(255,80,80,0.4)',
-            padding: '8px 24px', display: 'flex', alignItems: 'center', gap: 12,
-            animation: 'critFlash 0.4s ease infinite alternate',
-          }}>
-            <span style={{ fontSize: 18 }}>⚠️</span>
-            <span style={{ fontFamily: "'Orbitron'", fontSize: 12, color: '#ff6060', fontWeight: 700, letterSpacing: '0.1em' }}>
-              CRITICAL VITALS DETECTED — HOSPITAL ALERTED
-            </span>
-          </div>
-        )}
-      </div>
-
-      {requestAccepted && assignedHospital && (
+      {/* Main Content Area Container */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+        {/* Slim, Clean Header */}
         <div style={{
-          background: 'linear-gradient(90deg, rgba(0,255,136,0.15) 0%, rgba(0,255,136,0.02) 100%)',
-          borderBottom: '1px solid rgba(0,255,136,0.5)', padding: '10px 24px', display: 'flex', alignItems: 'center', gap: 12
+          background: 'rgba(5,20,10,0.98)',
+          borderBottom: '1px solid rgba(0,255,136,0.2)',
+          padding: '10px 24px',
+          display: 'flex', alignItems: 'center', gap: 12, minHeight: 50, height: 'auto', flexWrap: 'wrap',
+          backdropFilter: 'blur(15px)',
+          position: 'relative', zIndex: 100
         }}>
-          <span style={{ fontSize: 20 }}>🔗</span>
+          {/* Hamburger toggle button */}
+          <button 
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            style={{
+              background: 'transparent', border: 'none', color: '#00ff88', 
+              fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: '4px 8px', borderRadius: 4, transition: 'all 0.2s', marginRight: 10
+            }}
+          >
+            ☰
+          </button>
+          <div style={{ fontSize: 20 }}>🚑</div>
           <div>
-            <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00ff88', fontWeight: 700, letterSpacing: '0.1em' }}>
-              SECURE HANDSHAKE ESTABLISHED
-            </div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', fontFamily: "'Share Tech Mono'", marginTop: 2 }}>
-              Receiving Hospital: <strong style={{ color: '#fff' }}>{assignedHospital.name}</strong> | Point of Contact: <strong style={{ color: '#fff' }}>{assignedHospital.adminName || 'Emergency Bay 1'}</strong>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 13, fontWeight: 700, color: '#88ff88', letterSpacing: '0.1em' }}>
+              {(authUnit?.vehicleNo || 'AMBULANCE')} — PARAMEDIC CONSOLE
             </div>
           </div>
+
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 15, alignItems: 'center' }}>
+            {/* Connection status badge */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginRight: 8 }}>
+              <div style={{
+                width: 8, height: 8, borderRadius: '50%',
+                background: connected ? '#00ff88' : '#ff4444',
+                boxShadow: connected ? '0 0 10px #00ff88' : '0 0 6px #ff4444'
+              }} />
+              <span style={{ fontSize: 11, color: connected ? '#00ff88' : '#ff4444', fontFamily: "'Share Tech Mono'", fontWeight: 700 }}>
+                {connected ? 'CONNECTED' : 'OFFLINE'}
+              </span>
+            </div>
+
+            {assignedUser && (
+              <button 
+                onClick={handleCompleteMission} 
+                className="rl-btn-primary" 
+                style={{ 
+                  height: 32, 
+                  padding: '0 12px', 
+                  fontSize: 10, 
+                  background: 'linear-gradient(135deg, #ff4444 0%, #cc0000 100%)', 
+                  border: 'none', 
+                  color: '#fff' 
+                }}
+              >
+                END MISSION 🏁
+              </button>
+            )}
+
+            <button onClick={onSwitchRole} className="rl-btn-secondary" style={{ height: 32, padding: '0 12px', fontSize: 10, borderColor: '#00ff88', color: '#00ff88' }}>
+              ROLE 🔄
+            </button>
+            <button onClick={onShowSecurity} className="rl-btn-secondary" style={{ height: 32, padding: '0 12px', fontSize: 10, borderColor: '#00ff88', color: '#00ff88' }}>
+              SECURITY 🛡️
+            </button>
+            <button onClick={onLogout} className="rl-btn-primary" style={{ height: 32, padding: '0 12px', fontSize: 10, background: 'linear-gradient(135deg, #ff4444 0%, #cc0000 100%)', border: 'none', color: '#fff' }}>
+              LOGOUT ⏻
+            </button>
+          </div>
         </div>
-      )}
 
-      <div className="ambulance-stream-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 0, flex: 1, overflow: 'hidden' }}>
-        {/* Main Panel */}
-        <div style={{ padding: 24, overflowY: 'auto', background: 'rgba(0,0,0,0.2)', position: 'relative' }}>
-
-          {/* IDLE STATE — No patient assigned yet */}
-          {!assignedUser && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400, gap: 20 }}>
-              {!isActiveDuty ? (
-                <>
-                  <div style={{ fontSize: 60, opacity: 0.5, animation: 'pulse-opacity 2s infinite' }}>🛌</div>
-                  <div style={{ fontFamily: "'Orbitron'", fontSize: 18, color: '#ff4444', letterSpacing: '0.15em' }}>ON BREAK / INACTIVE</div>
-                  <div style={{ fontSize: 13, color: 'rgba(160,200,255,0.4)', textAlign: 'center', maxWidth: 400, lineHeight: 1.5 }}>
-                    You have toggled your status to <strong>INACTIVE</strong>. You will not receive any incoming emergency dispatch requests. Toggle <strong>ACTIVE DUTY</strong> in the header to resume standby.
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div style={{ fontSize: 60, opacity: 0.3 }}>🚑</div>
-                  <div style={{ fontFamily: "'Orbitron'", fontSize: 18, color: 'rgba(160,200,255,0.3)', letterSpacing: '0.15em' }}>AWAITING DISPATCH</div>
-                  <div style={{ fontSize: 13, color: 'rgba(160,200,255,0.2)', textAlign: 'center', maxWidth: 400 }}>
-                    Ambulance unit is online and ready. Patient vitals and details will appear here once a dispatch request is accepted.
-                  </div>
-                  {connected ? (
-                    <div style={{ padding: '8px 20px', border: '1px solid rgba(0,255,136,0.3)', borderRadius: 6, fontSize: 11, fontFamily: "'Share Tech Mono'", color: '#00ff88', background: 'rgba(0,255,136,0.05)' }}>
-                      ● UNIT ONLINE — STANDING BY
-                    </div>
-                  ) : (
-                    <div style={{ padding: '8px 20px', border: '1px solid rgba(255,68,68,0.3)', borderRadius: 6, fontSize: 11, fontFamily: "'Share Tech Mono'", color: '#ff4444', background: 'rgba(255,68,68,0.05)' }}>
-                      ● OFFLINE
-                    </div>
-                  )}
-                  <div className="rl-card" style={{ marginTop: 30, padding: '20px', width: '100%', maxWidth: 320, textAlign: 'center' }}>
-                    <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Orbitron'", marginBottom: 8, letterSpacing: '0.1em' }}>MANUAL MISSION RECOVERY</div>
-                    <div style={{ display: 'flex', gap: 10 }}>
-                      <input 
-                        value={manualRecoveryId} 
-                        onChange={e => setManualRecoveryId(e.target.value)}
-                        onKeyDown={handleManualRecoveryKeyDown}
-                        placeholder="REQ ID" 
-                        className="rl-input"
-                        style={{ flex: 1, fontSize: 12, outline: 'none', fontFamily: "'Share Tech Mono'", boxSizing: 'border-box', height: '36px' }} 
-                      />
-                      <button onClick={handleManualRecover} className="rl-btn-primary" style={{ height: '36px', padding: '0 15px', fontSize: 10, fontWeight: 'bold' }}>GO</button>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* ACTIVE STATE — show EN ROUTE or VITALS based on arrival */}
-          {assignedUser && !arrivedAtUser && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400, gap: 20 }}>
-              <div style={{ fontSize: 60 }}>🚑</div>
-              <div style={{ fontFamily: "'Orbitron'", fontSize: 18, color: '#ff6b35', letterSpacing: '0.15em' }}>EN ROUTE TO PATIENT</div>
-              <div style={{ fontSize: 14, color: 'rgba(160,200,255,0.6)', textAlign: 'center', maxWidth: 300 }}>
-                AMBULANCE IS DISPATCHED AND HEADED TO YOUR LOCATION. STAND BY FOR PATIENT ENROLLMENT.
+        {/* Global God Mode Panel overlay */}
+        {showGodMode && (
+          <div style={{
+            position: 'fixed', top: 20, right: 20, width: 320, background: 'rgba(10, 0, 20, 0.95)',
+            border: '1px solid #cc00ff', borderRadius: 8, padding: 16, zIndex: 99999,
+            boxShadow: '0 0 40px rgba(204,0,255,0.4)', backdropFilter: 'blur(10px)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#cc00ff', fontWeight: 700, letterSpacing: '0.1em' }}>
+                🛠️ GOD MODE (DEMO CONTROL)
               </div>
+              <button onClick={() => setShowGodMode(false)} style={{ background: 'transparent', border: 'none', color: '#cc00ff', cursor: 'pointer', fontSize: 18 }}>×</button>
             </div>
-          )}
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <button
+                onClick={() => setSimulateCrisis(!simulateCrisis)}
+                style={{
+                  background: simulateCrisis ? 'rgba(255,40,40,0.2)' : 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${simulateCrisis ? '#ff4444' : 'rgba(255,255,255,0.2)'}`,
+                  padding: 10, borderRadius: 6, color: simulateCrisis ? '#ff4444' : '#fff',
+                  fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer', textAlign: 'left',
+                  display: 'flex', justifyContent: 'space-between'
+                }}
+              >
+                <span>{simulateCrisis ? '🛑 CANCEL CRISIS' : '⚠️ TRIGGER CARDIAC ARREST'}</span>
+                <span>{simulateCrisis ? 'ON' : 'OFF'}</span>
+              </button>
 
+              <button
+                onClick={() => setSimulateTraffic(!simulateTraffic)}
+                style={{
+                  background: simulateTraffic ? 'rgba(255,184,0,0.2)' : 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${simulateTraffic ? '#ffb800' : 'rgba(255,255,255,0.2)'}`,
+                  padding: 10, borderRadius: 6, color: simulateTraffic ? '#ffb800' : '#fff',
+                  fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer', textAlign: 'left',
+                  display: 'flex', justifyContent: 'space-between'
+                }}
+              >
+                <span>{simulateTraffic ? '🛣️ CLEAR TRAFFIC' : '🚧 SIMULATE TRAFFIC JAM'}</span>
+                <span>{simulateTraffic ? 'ON' : 'OFF'}</span>
+              </button>
 
-          {assignedUser && arrivedAtUser && (<>
+              <button
+                onClick={() => setIsOffline(!isOffline)}
+                style={{
+                  background: isOffline ? 'rgba(100,100,100,0.4)' : 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${isOffline ? '#aaa' : 'rgba(255,255,255,0.2)'}`,
+                  padding: 10, borderRadius: 6, color: isOffline ? '#aaa' : '#fff',
+                  fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer', textAlign: 'left',
+                  display: 'flex', justifyContent: 'space-between'
+                }}
+              >
+                <span>{isOffline ? '📡 RESTORE SIGNAL' : '📡 FORCE OFFLINE (BLACKOUT)'}</span>
+                <span>{isOffline ? 'OFFLINE' : 'ONLINE'}</span>
+              </button>
+            </div>
+          </div>
+        )}
 
-            {/* Patient selector */}
+        {/* Dispatch Alerts section */}
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {authUnit?.type === 'BLS' && assignedUser && (assignedUser.fallbackBLS || calculateTriage(vitals).level === 'RED') && (
             <div style={{
-              background: 'rgba(5,20,45,0.8)', border: '1px solid rgba(0,200,255,0.15)',
-              borderRadius: 10, padding: 20, marginBottom: 20,
+              background: 'linear-gradient(90deg, rgba(255,50,50,0.25) 0%, rgba(255,50,50,0.05) 100%)',
+              borderBottom: '2px solid rgba(255,80,80,0.8)',
+              padding: '12px 24px', display: 'flex', alignItems: 'center', gap: 12,
+              animation: 'critFlash 0.5s ease infinite alternate',
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontFamily: "'Orbitron'", fontSize: 12, color: '#00c8ff', letterSpacing: '0.1em' }}>
-                    PATIENT IDENTITY
-                  </span>
-                  {(resourceLocks.traumaBay || resourceLocks.bloodUnits || resourceLocks.ventilatorStandby) && (
-                    <span style={{
-                      padding: '2px 8px', background: 'rgba(0,255,136,0.2)',
-                      border: '1px solid #00ff88', borderRadius: 4,
-                      fontSize: 10, color: '#00ff88', fontFamily: "'Orbitron'", fontWeight: 'bold',
-                      animation: 'pulse-opacity 1.5s ease infinite'
-                    }}>
-                      🔒 EMR LOCKED
-                    </span>
-                  )}
+              <span style={{ fontSize: 24 }}>⚠️</span>
+              <div>
+                <div style={{ fontFamily: "'Orbitron'", fontSize: 13, color: '#ff4444', fontWeight: 700, letterSpacing: '0.1em' }}>
+                  HIGH-ACUITY MISSION ASSIGNED TO BLS UNIT
                 </div>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <select
-                    onChange={(e) => {
-                      if (e.target.value) setSelectedPatient(e.target.value);
-                    }}
-                    value={selectedPatient || ''}
-                    style={{
-                      background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(160,200,255,0.2)',
-                      borderRadius: 4, padding: '4px 12px', color: 'rgba(160,200,255,0.8)',
-                      fontFamily: "'Share Tech Mono'", fontSize: 11, cursor: 'pointer', outline: 'none'
-                    }}
-                  >
-                    <option value="">-- MANUAL SELECT --</option>
-                    {Object.entries(PATIENT_NAMES).map(([id, name]) => (
-                      <option key={id} value={id}>{name} (ID: {id})</option>
-                    ))}
-                  </select>
-
-                  <button
-                    onClick={simulateIdScan}
-                    disabled={isScanning || !requestAccepted}
-                    style={{
-                      background: isScanning ? 'rgba(0,255,136,0.2)' : 'rgba(0,255,136,0.1)',
-                      border: `1px solid ${isScanning ? '#00ff88' : '#00ff88'}`,
-                      borderRadius: 4, padding: '6px 16px',
-                      color: '#00ff88',
-                      fontFamily: "'Share Tech Mono'", fontSize: 11, cursor: (isScanning || !requestAccepted) ? 'not-allowed' : 'pointer',
-                      fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 8,
-                      boxShadow: isScanning ? '0 0 15px rgba(0,255,136,0.4)' : 'none',
-                      transition: 'all 0.3s'
-                    }}>
-                    {isScanning ? (
-                      <>
-                        <span className="scan-pulse" style={{ width: 10, height: 10, background: '#00ff88', borderRadius: '50%' }}></span>
-                        PROCESSING AI CLOUD-ID...
-                      </>
-                    ) : (
-                      <>📷 SCAN ID / AADHAR</>
-                    )}
-                  </button>
+                <div style={{ fontSize: 12, color: '#ffb800', fontFamily: "'Share Tech Mono'", marginTop: 2 }}>
+                  WARNING: Patient condition is critical (NEWS2 Red / High-Acuity). Dispatch requested ALS, but none were available. Fallback protocol active. Prepare for immediate stabilization and rapid transit.
                 </div>
               </div>
+            </div>
+          )}
 
-              {assignedUser?.patientDetails ? (
-                <div style={{
-                  padding: 12, background: 'rgba(0,255,136,0.05)', border: '1px solid rgba(0,255,136,0.2)',
-                  borderRadius: 6, marginBottom: 15
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <div style={{ fontSize: 10, color: '#00ff88', fontFamily: "'Orbitron'" }}>
-                      DISPATCH DATA (FROM USER)
-                    </div>
-                    {assignedUser.patientDetails?.isVerified && (
-                      <div style={{ 
-                        display: 'flex', alignItems: 'center', gap: 4, padding: '2px 8px', 
-                        background: 'rgba(0,255,136,0.1)', border: '1px solid #00ff88', 
-                        borderRadius: 20, fontSize: 9, color: '#00ff88', fontFamily: "'Orbitron'", fontWeight: 'bold'
-                      }}>
-                        ✓ ABDM VERIFIED
-                      </div>
-                    )}
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                    <div>
-                      <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>NAME</div>
-                      <div style={{ fontSize: 13, color: '#fff', fontFamily: "'Orbitron'" }}>{assignedUser.patientDetails.name || 'N/A'}</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>AGE</div>
-                      <div style={{ fontSize: 13, color: '#fff', fontFamily: "'Orbitron'" }}>{assignedUser.patientDetails.age || 'N/A'} yrs</div>
-                    </div>
-                    <div style={{ gridColumn: 'span 2' }}>
-                      <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>CONDITION</div>
-                      <div style={{ fontSize: 12, color: '#ffb800', fontFamily: "'Share Tech Mono'" }}>{assignedUser.patientDetails.condition || 'General Emergency'}</div>
-                    </div>
-                  </div>
+          {aiAlert && (
+            <div style={{
+              background: 'linear-gradient(90deg, rgba(255,180,0,0.2) 0%, rgba(255,180,0,0.05) 100%)',
+              borderBottom: '2px solid rgba(255,180,0,0.6)',
+              padding: '12px 24px', display: 'flex', alignItems: 'center', gap: 12,
+              animation: 'critFlash 0.5s ease infinite alternate',
+            }}>
+              <span style={{ fontSize: 24 }}>🤖</span>
+              <div>
+                <div style={{ fontFamily: "'Orbitron'", fontSize: 13, color: '#ffb800', fontWeight: 700, letterSpacing: '0.1em' }}>
+                  AI PREDICTION ALERT
                 </div>
-              ) : (
-                <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.3)', fontStyle: 'italic', marginBottom: 15 }}>
-                  (No pre-registered details provided by caller)
+                <div style={{ fontSize: 12, color: 'rgba(255,200,100,0.9)', fontFamily: "'Share Tech Mono'", marginTop: 2 }}>
+                  {aiAlert.message}
                 </div>
-              )}
-
-              {/* User Dispatch Details (Manual Entry from Caller) */}
-              {!selectedPatient && assignedUser?.patientDetails && (
-                <div style={{ marginBottom: 15, padding: '12px', background: 'rgba(255,107,53,0.1)', border: '1px solid rgba(255,107,53,0.3)', borderRadius: 8 }}>
-                  <div style={{ fontSize: 10, color: '#ff6b35', fontFamily: "'Orbitron'", marginBottom: 6 }}>USER DISPATCH NOTES</div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 'bold' }}>{assignedUser.patientDetails.name}</div>
-                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>Condition: {assignedUser.patientDetails.condition}</div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>REPORTED RISK</div>
-                      <div style={{ fontSize: 13, color: '#ff4444', fontWeight: 'bold' }}>{assignedUser.patientDetails.riskLevel}</div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Manual selection info */}
-              <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', marginBottom: 12, fontFamily: "'Share Tech Mono'" }}>
-                ENROLL PATIENT MANUALLY OR SCAN PHYSICAL ID CARD TO SYNC WITH DISPATCH.
               </div>
-              {selectedPatient && (
-                <>
-                  <div style={{ marginTop: 10, padding: '12px', background: 'rgba(0,200,255,0.06)', borderRadius: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <span style={{ color: 'rgba(160,200,255,0.5)', fontSize: 12, fontFamily: "'Share Tech Mono'" }}>PATIENT: </span>
-                      <span style={{ color: '#00c8ff', fontSize: 13, fontWeight: 600 }}>{PATIENT_NAMES[selectedPatient]}</span>
-                      <div style={{ fontSize: 11, color: '#00ff88', fontFamily: "'Share Tech Mono'", marginTop: 4 }}>✓ TRANSMITTED TO HOSPITAL</div>
-                    </div>
-                    {/* Dynamic Triage Badge */}
-                    <div style={{
-                      padding: '6px 12px', borderRadius: 4,
-                      background: `${calculateTriage(vitals).color}22`,
-                      border: `1px solid ${calculateTriage(vitals).color}66`,
-                      color: calculateTriage(vitals).color,
-                      fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700,
-                      animation: calculateTriage(vitals).level === 'RED' ? 'pulse 1.5s infinite' : 'none',
-                    }}>
-                      {calculateTriage(vitals).label}
-                    </div>
-                  </div>
-                  {(resourceLocks.traumaBay || resourceLocks.bloodUnits || resourceLocks.ventilatorStandby) && (
-                    <div style={{
-                      marginTop: 10, padding: '10px 12px', background: 'rgba(0,255,136,0.05)',
-                      border: '1px solid rgba(0,255,136,0.2)', borderRadius: 6,
-                      display: 'flex', flexDirection: 'column', gap: 6
-                    }}>
-                      <div style={{ fontSize: 10, color: '#00ff88', fontFamily: "'Orbitron'", fontWeight: 'bold', letterSpacing: '0.05em' }}>
-                        🔒 RESERVED CLINICAL RESOURCES (EMR SYNCED)
+            </div>
+          )}
+
+          {isCritical && streaming && !aiAlert && (
+            <div style={{
+              background: 'rgba(255,40,40,0.15)', borderBottom: '1px solid rgba(255,80,80,0.4)',
+              padding: '8px 24px', display: 'flex', alignItems: 'center', gap: 12,
+              animation: 'critFlash 0.4s ease infinite alternate',
+            }}>
+              <span style={{ fontSize: 18 }}>⚠️</span>
+              <span style={{ fontFamily: "'Orbitron'", fontSize: 12, color: '#ff6060', fontWeight: 700, letterSpacing: '0.1em' }}>
+                CRITICAL VITALS DETECTED — HOSPITAL ALERTED
+              </span>
+            </div>
+          )}
+        </div>
+
+        {requestAccepted && assignedHospital && (
+          <div style={{
+            background: 'linear-gradient(90deg, rgba(0,255,136,0.15) 0%, rgba(0,255,136,0.02) 100%)',
+            borderBottom: '1px solid rgba(0,255,136,0.5)', padding: '10px 24px', display: 'flex', alignItems: 'center', gap: 12
+          }}>
+            <span style={{ fontSize: 20 }}>🔗</span>
+            <div>
+              <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00ff88', fontWeight: 700, letterSpacing: '0.1em' }}>
+                SECURE HANDSHAKE ESTABLISHED
+              </div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', fontFamily: "'Share Tech Mono'", marginTop: 2 }}>
+                Receiving Hospital: <strong style={{ color: '#fff' }}>{assignedHospital.name}</strong> | Point of Contact: <strong style={{ color: '#fff' }}>{assignedHospital.adminName || 'Emergency Bay 1'}</strong>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── CONDITIONAL SUB-PAGE VIEWPORTS ── */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+          {/* TAB 1: LIVE MISSION VIEW */}
+          {activeTab === 'mission' && (
+            <>
+              {/* IDLE STATE — No patient assigned yet */}
+              {!assignedUser && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100%', gap: 20, padding: 24 }}>
+                  {!isActiveDuty ? (
+                    <>
+                      <div style={{ fontSize: 60, opacity: 0.5, animation: 'pulse-opacity 2s infinite' }}>🛌</div>
+                      <div style={{ fontFamily: "'Orbitron'", fontSize: 18, color: '#ff4444', letterSpacing: '0.15em' }}>ON BREAK / INACTIVE</div>
+                      <div style={{ fontSize: 13, color: 'rgba(160,200,255,0.4)', textAlign: 'center', maxWidth: 400, lineHeight: 1.5 }}>
+                        You have toggled your status to <strong>INACTIVE</strong>. You will not receive any incoming emergency dispatch requests. Toggle <strong>ACTIVE</strong> in the sidebar to resume standby.
                       </div>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        {resourceLocks.traumaBay && (
-                          <span style={{
-                            padding: '2px 6px', background: 'rgba(0,255,136,0.15)',
-                            border: '1px solid #00ff88', borderRadius: 4,
-                            fontSize: 10, color: '#00ff88', fontFamily: "'Share Tech Mono'"
-                          }}>
-                            🏨 TRAUMA BAY
-                          </span>
-                        )}
-                        {resourceLocks.bloodUnits && (
-                          <span style={{
-                            padding: '2px 6px', background: 'rgba(0,255,136,0.15)',
-                            border: '1px solid #00ff88', borderRadius: 4,
-                            fontSize: 10, color: '#00ff88', fontFamily: "'Share Tech Mono'"
-                          }}>
-                            🩸 BLOOD UNITS
-                          </span>
-                        )}
-                        {resourceLocks.ventilatorStandby && (
-                          <span style={{
-                            padding: '2px 6px', background: 'rgba(0,255,136,0.15)',
-                            border: '1px solid #00ff88', borderRadius: 4,
-                            fontSize: 10, color: '#00ff88', fontFamily: "'Share Tech Mono'"
-                          }}>
-                            🫁 VENTILATOR STANDBY
-                          </span>
-                        )}
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: 60, opacity: 0.3 }}>🚑</div>
+                      <div style={{ fontFamily: "'Orbitron'", fontSize: 18, color: 'rgba(160,200,255,0.3)', letterSpacing: '0.15em' }}>AWAITING DISPATCH</div>
+                      <div style={{ fontSize: 13, color: 'rgba(160,200,255,0.2)', textAlign: 'center', maxWidth: 400 }}>
+                        Ambulance unit is online and ready. Patient vitals and details will appear here once a dispatch request is accepted.
                       </div>
-                    </div>
-                  )}
-                  
-                  {/* Two-Phase Resource Locking Controller */}
-                  {assignedHospital && !resourceLocks.traumaBay && !resourceLocks.bloodUnits && !resourceLocks.ventilatorStandby && (
-                    <div style={{ marginTop: 12, padding: '12px', background: 'rgba(255,107,53,0.05)', border: '1px solid rgba(255,107,53,0.2)', borderRadius: 8 }}>
-                      <div style={{ fontSize: 10, color: '#ff6b35', fontFamily: "'Orbitron'", fontWeight: 'bold', letterSpacing: '0.05em', marginBottom: 8 }}>
-                        🏥 EMR RESOURCE LOCKING CONTROL (20-MIN HOLD)
-                      </div>
-                      <div style={{ display: 'flex', gap: 12, marginBottom: 10 }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, cursor: 'pointer' }}>
-                          <input type="checkbox" checked={pendingLocks.traumaBay} onChange={e => setPendingLocks({ ...pendingLocks, traumaBay: e.target.checked })} style={{ accentColor: '#ff6b35' }} />
-                          Trauma Bay
-                        </label>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, cursor: 'pointer' }}>
-                          <input type="checkbox" checked={pendingLocks.ventilatorStandby} onChange={e => setPendingLocks({ ...pendingLocks, ventilatorStandby: e.target.checked })} style={{ accentColor: '#ff6b35' }} />
-                          Ventilator
-                        </label>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, cursor: 'pointer' }}>
-                          <input type="checkbox" checked={pendingLocks.bloodUnits} onChange={e => setPendingLocks({ ...pendingLocks, bloodUnits: e.target.checked })} style={{ accentColor: '#ff6b35' }} />
-                          Blood Units
-                        </label>
-                      </div>
-                      
-                      {lockStatus === 'PENDING' ? (
-                        <div style={{ fontSize: 10, color: '#ffb800', fontStyle: 'italic', fontFamily: "'Share Tech Mono'" }}>
-                          ⏳ Awaiting approval from {assignedHospital.name || 'Hospital Duty Desk'}...
+                      {connected ? (
+                        <div style={{ padding: '8px 20px', border: '1px solid rgba(0,255,136,0.3)', borderRadius: 6, fontSize: 11, fontFamily: "'Share Tech Mono'", color: '#00ff88', background: 'rgba(0,255,136,0.05)' }}>
+                          ● UNIT ONLINE — STANDING BY
                         </div>
                       ) : (
-                        <button
-                          onClick={() => {
-                            if (socket && assignedUser) {
-                              socket.emit('paramedic-request-lock', { reqId: assignedUser.id, locks: pendingLocks });
-                              setLockStatus('PENDING');
-                            }
-                          }}
-                          style={{
-                            width: '100%', padding: '8px', background: 'rgba(255,107,53,0.15)',
-                            border: '1px solid #ff6b35', borderRadius: 4, color: '#ff6b35',
-                            fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 'bold', cursor: 'pointer'
-                          }}
-                        >
-                          🚀 REQUEST CRITICAL RESOURCE LOCKS
-                        </button>
+                        <div style={{ padding: '8px 20px', border: '1px solid rgba(255,68,68,0.3)', borderRadius: 6, fontSize: 11, fontFamily: "'Share Tech Mono'", color: '#ff4444', background: 'rgba(255,68,68,0.05)' }}>
+                          ● OFFLINE
+                        </div>
                       )}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-
-            {/* Vitals Grid - Only shown when patient is selected */}
-            {selectedPatient ? (
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
-                    <div style={{ fontFamily: "'Orbitron'", fontSize: 12, color: '#88ff88', letterSpacing: '0.1em' }}>
-                      PATIENT VITALS {streaming && <span style={{ color: '#ff4444', animation: 'blink 1s step-end infinite' }}>● REC</span>}
-                      <span style={{
-                        marginLeft: 10,
-                        background: `${(vitals.source || 'SIMULATED') === 'LIVE' ? '#00ff88' : (vitals.source || 'SIMULATED') === 'MANUAL' ? '#ffb800' : '#00c8ff'}22`,
-                        color: (vitals.source || 'SIMULATED') === 'LIVE' ? '#00ff88' : (vitals.source || 'SIMULATED') === 'MANUAL' ? '#ffb800' : '#00c8ff',
-                        border: `1px solid ${(vitals.source || 'SIMULATED') === 'LIVE' ? '#00ff88' : (vitals.source || 'SIMULATED') === 'MANUAL' ? '#ffb800' : '#00c8ff'}88`,
-                        borderRadius: 12,
-                        padding: '2px 8px',
-                        fontSize: 10,
-                        fontFamily: "'Orbitron'",
-                        fontWeight: 'bold',
-                        letterSpacing: '0.05em'
-                      }}>
-                        {vitals.source || 'SIMULATED'}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => sendHospitalRequest(selectedPatient)}
-                      style={{ background: 'rgba(255,184,0,0.1)', border: '1px solid #ffb800', borderRadius: 4, padding: '4px 10px', color: '#ffb800', fontSize: 9, fontFamily: "'Orbitron'", cursor: 'pointer', fontWeight: 'bold' }}>
-                      ⚡ RE-SEND ALERT
-                    </button>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                    <span style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Orbitron'" }}>SOURCE:</span>
-                    <select
-                      value={vitalsSource}
-                      onChange={(e) => {
-                        const nextSource = e.target.value;
-                        setVitalsSource(nextSource);
-                        if (nextSource === 'LIVE') {
-                          setStreaming(true);
-                          setVitals(prev => ({ ...prev, source: 'LIVE' }));
-                        } else if (nextSource === 'SIMULATED') {
-                          setStreaming(true);
-                          setVitals(prev => ({ ...prev, source: 'SIMULATED' }));
-                        } else if (nextSource === 'MANUAL') {
-                          setStreaming(true);
-                          setVitals(prev => ({ ...prev, source: 'MANUAL' }));
-                        } else if (nextSource === 'BLUETOOTH') {
-                          connectBluetoothHRM();
-                        }
-                      }}
-                      style={{
-                        background: 'rgba(0,0,0,0.4)',
-                        color: vitalsSource === 'LIVE' ? '#00ff88' : vitalsSource === 'MANUAL' ? '#ffb800' : '#00c8ff',
-                        border: `1px solid ${vitalsSource === 'LIVE' ? '#00ff88' : vitalsSource === 'MANUAL' ? '#ffb800' : '#00c8ff'}`,
-                        borderRadius: 4,
-                        padding: '4px 8px',
-                        fontSize: 10,
-                        fontFamily: "'Orbitron'",
-                        fontWeight: 'bold',
-                        cursor: 'pointer',
-                        outline: 'none'
-                      }}
-                    >
-                      <option value="SIMULATED">SIMULATED</option>
-                      <option value="MANUAL">MANUAL (FORM)</option>
-                      <option value="LIVE">LIVE (IOT / GATEWAY)</option>
-                      <option value="BLUETOOTH">📡 BLUETOOTH HRM</option>
-                    </select>
-                    <button
-                      onClick={() => setSimulateCrisis(!simulateCrisis)}
-                      disabled={vitalsSource !== 'SIMULATED'}
-                      style={{
-                        padding: '4px 10px', background: simulateCrisis ? 'rgba(255,180,0,0.2)' : 'rgba(160,200,255,0.05)',
-                        border: `1px solid ${simulateCrisis ? '#ffb800' : 'rgba(160,200,255,0.2)'}`,
-                        borderRadius: 4, color: simulateCrisis ? '#ffb800' : 'rgba(160,200,255,0.5)',
-                        fontFamily: "'Share Tech Mono'", fontSize: 10, cursor: vitalsSource === 'SIMULATED' ? 'pointer' : 'not-allowed',
-                        opacity: vitalsSource === 'SIMULATED' ? 1 : 0.5
-                      }}>
-                      {simulateCrisis ? "⚠️ SIMULATING CRISIS" : "SIMULATE CRISIS"}
-                    </button>
-                  </div>
-                </div>
-
-                {vitalsSource === 'BLUETOOTH' && (
-                  <div style={{
-                    background: 'rgba(0,200,255,0.05)', border: '1px solid rgba(0,200,255,0.2)',
-                    borderRadius: 10, padding: 15, marginBottom: 15
-                  }}>
-                    <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', marginBottom: 10, letterSpacing: '0.1em', fontWeight: 'bold' }}>
-                      📡 WEB BLUETOOTH INTEGRATION
-                    </div>
-                    {bleDevice ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        <div style={{ fontSize: 12, color: '#00ff88', fontFamily: "'Share Tech Mono'" }}>
-                          🟢 CONNECTED: {bleDevice.name || 'Bluetooth HRM'}
-                        </div>
-                        <button 
-                          onClick={disconnectBluetoothHRM}
-                          style={{
-                            padding: '8px 12px', background: 'rgba(255,68,68,0.15)', border: '1px solid #ff4444',
-                            borderRadius: 6, color: '#ff4444', fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer'
-                          }}
-                        >
-                          DISCONNECT DEVICE
-                        </button>
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', lineHeight: 1.4 }}>
-                          Connect a standard BLE Heart Rate Monitor device to stream live ECG pulse directly to this terminal.
-                        </div>
-                        {bleError && (
-                          <div style={{ fontSize: 11, color: '#ff4444', fontFamily: "'Share Tech Mono'" }}>
-                            Status: {bleError}
-                          </div>
-                        )}
+                      <div className="rl-card" style={{ marginTop: 30, padding: '20px', width: '100%', maxWidth: 320, textAlign: 'center' }}>
+                        <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Orbitron'", marginBottom: 8, letterSpacing: '0.1em' }}>MANUAL MISSION RECOVERY</div>
                         <div style={{ display: 'flex', gap: 10 }}>
-                          <button 
-                            onClick={connectBluetoothHRM}
-                            disabled={bleConnecting}
-                            style={{
-                              flex: 1, padding: '10px 16px', background: 'rgba(0,200,255,0.15)', border: '1px solid #00c8ff',
-                              borderRadius: 6, color: '#00c8ff', fontFamily: "'Orbitron'", fontSize: 12, cursor: 'pointer',
-                              fontWeight: 'bold'
-                            }}
-                          >
-                            {bleConnecting ? 'SCANNING...' : '🔌 CONNECT REAL BLE'}
-                          </button>
-                          <button 
-                            onClick={() => {
-                              setBleDevice({ name: 'Simulated HRM Watch' });
-                              setVitalsSource('BLUETOOTH');
-                              // Start mock vitals streaming for Bluetooth mode
-                              const interval = setInterval(() => {
-                                setVitals(prev => {
-                                  const updated = {
-                                    ...prev,
-                                    heartRate: Math.round(70 + Math.random() * 15)
-                                  };
-                                  if (socket && connected && assignedUserRef.current) {
-                                    socket.emit('vitals-update', { ...updated, reqId: assignedUserRef.current.id });
-                                  }
-                                  return updated;
-                                });
-                              }, 1000);
-                              bleIntervalRef.current = interval;
-                            }}
-                            style={{
-                              flex: 1, padding: '10px 16px', background: 'rgba(0,255,136,0.1)', border: '1px solid #00ff88',
-                              borderRadius: 6, color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 12, cursor: 'pointer',
-                              fontWeight: 'bold'
-                            }}
-                          >
-                            ⚙️ MOCK BLE DEVICE
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {vitalsSource === 'MANUAL' && patientLoaded && (
-                  <div style={{
-                    background: 'rgba(255,184,0,0.05)', border: '1px solid rgba(255,184,0,0.2)',
-                    borderRadius: 10, padding: 15, marginBottom: 15
-                  }}>
-                    <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#ffb800', marginBottom: 10, letterSpacing: '0.1em', fontWeight: 'bold' }}>
-                      ✍️ MANUAL VITAL SIGNS ENTRY FORM
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10 }}>
-                      {[
-                        { key: 'heartRate', label: 'HEART RATE (BPM)', min: 30, max: 200 },
-                        { key: 'spo2', label: 'SpO2 (%)', min: 50, max: 100 },
-                        { key: 'systolic', label: 'BP SYSTOLIC (MMHG)', min: 60, max: 220 },
-                        { key: 'diastolic', label: 'BP DIASTOLIC (MMHG)', min: 30, max: 130 },
-                        { key: 'temperature', label: 'TEMP (°C)', min: 34, max: 42, step: 0.1 },
-                        { key: 'respRate', label: 'RESP RATE (MIN)', min: 8, max: 40 },
-                        { key: 'bloodGlucose', label: 'GLUCOSE (MG/DL)', min: 40, max: 400 }
-                      ].map(field => (
-                        <div key={field.key}>
-                          <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", display: 'block', marginBottom: 3 }}>
-                            {field.label}
-                          </label>
-                          <input
-                            type="number"
-                            min={field.min}
-                            max={field.max}
-                            step={field.step || 1}
-                            value={vitals[field.key] || ''}
-                            onChange={(e) => handleManualVitalChange(field.key, e.target.value)}
-                            style={{
-                              width: '100%',
-                              padding: '6px 8px',
-                              background: 'rgba(0,0,0,0.4)',
-                              border: '1px solid rgba(255,184,0,0.3)',
-                              borderRadius: 4,
-                              color: '#fff',
-                              fontSize: 12,
-                              fontFamily: "'Share Tech Mono'",
-                              outline: 'none',
-                              boxSizing: 'border-box'
-                            }}
+                          <input 
+                            value={manualRecoveryId} 
+                            onChange={e => setManualRecoveryId(e.target.value)}
+                            onKeyDown={handleManualRecoveryKeyDown}
+                            placeholder="REQ ID" 
+                            className="rl-input"
+                            style={{ flex: 1, fontSize: 12, outline: 'none', fontFamily: "'Share Tech Mono'", boxSizing: 'border-box', height: '36px' }} 
                           />
+                          <button onClick={handleManualRecover} className="rl-btn-primary" style={{ height: '36px', padding: '0 15px', fontSize: 10, fontWeight: 'bold' }}>GO</button>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {!arrivedAtUser ? (
-                  <div style={{
-                    padding: '40px 20px', textAlign: 'center', background: 'rgba(255,184,0,0.05)',
-                    borderRadius: 10, border: '1px dashed rgba(255,184,0,0.3)', marginBottom: 20
-                  }}>
-                    <div style={{ fontSize: 30, marginBottom: 10 }}>🚑</div>
-                    <div style={{ fontFamily: "'Orbitron'", fontSize: 13, color: '#ffb800', fontWeight: 700, letterSpacing: 1 }}>
-                      EN ROUTE TO INCIDENT SITE
-                    </div>
-                    <div style={{ fontFamily: "'Share Tech Mono'", fontSize: 11, color: 'rgba(255,184,0,0.6)', marginTop: 8 }}>
-                      SENSORS DISCONNECTED • VITALS MONITORING WILL START UPON ARRIVAL
-                    </div>
-                  </div>
-                ) : !patientLoaded ? (
-                  <div style={{
-                    padding: '40px 20px', textAlign: 'center', background: 'rgba(0,255,136,0.05)',
-                    borderRadius: 10, border: '1px dashed rgba(0,255,136,0.3)', marginBottom: 20
-                  }}>
-                    <div style={{ fontSize: 30, marginBottom: 10 }}>📥</div>
-                    <div style={{ fontFamily: "'Orbitron'", fontSize: 13, color: '#00ff88', fontWeight: 700, letterSpacing: 1 }}>
-                      ARRIVED AT INCIDENT SITE
-                    </div>
-                    <div style={{ fontFamily: "'Share Tech Mono'", fontSize: 11, color: 'rgba(0,255,136,0.6)', margin: '8px 0 20px' }}>
-                      PATIENT CONTACT ESTABLISHED • CONNECT SENSORS TO START MONITORING
-                    </div>
-                    <button 
-                      onClick={() => {
-                        setPatientLoaded(true);
-                        setStreaming(true); // Automatically start streaming when patient is onboarded
-                        if (socket && assignedUser) {
-                          socket.emit('patient-onboard', { reqId: assignedUser.id });
-                        }
-                      }}
-                      style={{
-                        padding: '12px 24px', background: 'rgba(0,255,136,0.2)', border: '1px solid #00ff88',
-                        borderRadius: 8, color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 12,
-                        fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s'
-                      }}
-                      onMouseOver={(e) => e.target.style.background = 'rgba(0,255,136,0.3)'}
-                      onMouseOut={(e) => e.target.style.background = 'rgba(0,255,136,0.2)'}
-                    >
-                      🚀 📤 PATIENT ONBOARD
-                    </button>
-                  </div>
-                ) : (
-                  <div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 16 }}>
-                      <VitalCard label="HEART RATE" value={vitals.heartRate} unit="bpm" color="#ff6b6b" icon="❤️"
-                        critical={vitals.heartRate > 110 || vitals.heartRate < 50} />
-                      <VitalCard label="SpO2" value={vitals.spo2} unit="%" color="#00c8ff" icon="💧"
-                        critical={vitals.spo2 < 92} />
-                      <VitalCard label="BLOOD PRESSURE" value={`${vitals.systolic}/${vitals.diastolic}`} unit="mmHg" color="#ffb800" icon="🩸"
-                        critical={vitals.systolic > 150} />
-                      <VitalCard label="TEMPERATURE" value={vitals.temperature} unit="°C" color="#ff88aa" icon="🌡️"
-                        critical={vitals.temperature > 38.5} />
-                      <VitalCard label="RESP RATE" value={vitals.respRate} unit="br/min" color="#88ff88" icon="🫁"
-                        critical={vitals.respRate > 25 || vitals.respRate < 12} />
-                      <VitalCard label="BLOOD GLUCOSE" value={vitals.bloodGlucose || vitals.glucose} unit="mg/dL" color="#aa88ff" icon="🔬"
-                        critical={(vitals.bloodGlucose || vitals.glucose) > 200 || (vitals.bloodGlucose || vitals.glucose) < 70} />
-                    </div>
-
-                    {/* Real-time Physiological Waveforms Component */}
-                    <div style={{ marginTop: 16 }}>
-                      <PhysiologicalWaveforms 
-                        vitals={vitals} 
-                        news2Score={
-                          (() => {
-                            let score = 0;
-                            if (vitals.heartRate <= 40 || vitals.heartRate >= 131) score += 3;
-                            else if (vitals.heartRate >= 111) score += 2;
-                            else if (vitals.heartRate <= 50 || vitals.heartRate >= 91) score += 1;
-                          
-                            if (vitals.spo2 <= 91) score += 3;
-                            else if (vitals.spo2 === 92 || vitals.spo2 === 93) score += 2;
-                            else if (vitals.spo2 === 94 || vitals.spo2 === 95) score += 1;
-                          
-                            if (vitals.systolic <= 90) score += 3;
-                            else if (vitals.systolic <= 100) score += 2;
-                            else if (vitals.systolic <= 110) score += 1;
-                            else if (vitals.systolic >= 220) score += 3;
-                            return score;
-                          })()
-                        }
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div style={{
-                padding: '40px 20px', textAlign: 'center', background: 'rgba(0,0,0,0.2)',
-                borderRadius: 10, border: '1px dashed rgba(160,200,255,0.2)', marginBottom: 20
-              }}>
-                <div style={{ fontSize: 30, marginBottom: 10 }}>📋</div>
-                <div style={{ fontFamily: "'Orbitron'", fontSize: 12, color: 'rgba(160,200,255,0.4)' }}>
-                  SELECT A PATIENT ABOVE TO START VITALS MONITORING
-                </div>
-              </div>
-            )}
-
-
-            {/* Location & ETA */}
-            <div style={{
-              background: 'rgba(5,20,45,0.8)', border: '1px solid rgba(0,200,255,0.15)',
-              borderRadius: 10, padding: 20, marginBottom: 20,
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <div style={{ fontFamily: "'Orbitron'", fontSize: 12, color: '#00c8ff', letterSpacing: '0.1em' }}>
-                  GPS NAVIGATION
-                </div>
-                {simulateTraffic && (
-                  <div style={{ fontFamily: "'Share Tech Mono'", fontSize: 10, color: '#ffb800', animation: 'blink 1s step-end infinite' }}>
-                    ⚠ HEAVY TRAFFIC DELAY
-                  </div>
-                )}
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-                {[
-                  ['LAT', location.lat.toFixed(4), '°N'],
-                  ['LNG', location.lng.toFixed(4), '°E'],
-                  ['DISTANCE', distanceKm.toFixed(1), 'km remaining'],
-                  ['ETA', `~${etaMin}`, 'minutes'],
-                ].map(([l, v, u]) => (
-                  <div key={l} style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'", letterSpacing: '0.1em' }}>{l}</div>
-                    <div style={{ fontFamily: "'Share Tech Mono'", fontSize: 22, color: '#00c8ff', fontWeight: 700 }}>{v}</div>
-                    <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>{u}</div>
-                  </div>
-                ))}
-              </div>
-              {/* Progress bar */}
-              <div style={{ marginTop: 16 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 11, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>
-                  <span>📍 LIVE INCIDENT SITE</span>
-                  <span>🏥 {selectedHospital?.name?.toUpperCase() || 'SEARCHING...'}</span>
-                </div>
-                <div style={{ height: 8, background: 'rgba(0,200,255,0.1)', borderRadius: 4, overflow: 'hidden' }}>
-                  <div style={{
-                    height: '100%', width: `${routeProgress * 100}%`,
-                    background: simulateTraffic ? 'linear-gradient(90deg, #ffb800, #ff6b6b)' : 'linear-gradient(90deg, #00c8ff, #88ff88)',
-                    borderRadius: 4, transition: 'width 0.5s ease',
-                  }} />
-                </div>
-              </div>
-              
-              {/* === ENTERPRISE CONTROLS === */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
-                <button
-                  onClick={() => {
-                    const active = window.confirm("Request Green Corridor? Traffic signals will be cleared.");
-                    if (active && socket) {
-                      socket.emit('green-corridor-request', {
-                        ambulanceId: authUnit?.unitId,
-                        route: routePath,
-                        destination: selectedHospital?.id
-                      });
-                      showAlert('🟢 Green Corridor Activated. Route prioritized.');
-                    }
-                  }}
-                  style={{
-                    padding: '10px', background: 'rgba(0,255,136,0.1)',
-                    border: '1px solid #00ff88', borderRadius: 8, color: '#00ff88',
-                    fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                    boxShadow: '0 0 10px rgba(0,255,136,0.2)'
-                  }}
-                >🟢 REQUEST GREEN CORRIDOR</button>
-                <button
-                  onClick={() => {
-                    if (window.confirm("💥 SIMULATE VEHICLE COLLISION? This will trigger an automatic SOS to the War Room and Hospital.")) {
-                      socket.emit('accident-detected', {
-                        ambulanceId: authUnit?.unitId,
-                        location,
-                        severity: 'CRITICAL',
-                        force: '8.4G'
-                      });
-                      showAlert('💥 COLLISION DETECTED. SOS SENT AUTOMATICALLY.');
-                    }
-                  }}
-                  style={{
-                    padding: '10px', background: 'rgba(255,68,68,0.1)',
-                    border: '1px solid #ff4444', borderRadius: 8, color: '#ff4444',
-                    fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                    boxShadow: '0 0 10px rgba(255,68,68,0.2)'
-                  }}
-                >💥 SIMULATE COLLISION</button>
-              </div>
-
-              {/* GPS Status & Override Panel */}
-              <div style={{
-                background: 'rgba(5,20,45,0.8)', border: '1px solid rgba(0,200,255,0.15)',
-                borderRadius: 10, padding: 15, marginTop: 16
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', letterSpacing: '0.1em' }}>
-                    📡 REAL-TIME GPS TELEMETRY
-                  </div>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: '#ff6b35', cursor: 'pointer', fontFamily: "'Orbitron'" }}>
-                    <input
-                      type="checkbox"
-                      checked={gpsOverride}
-                      onChange={(e) => setGpsOverride(e.target.checked)}
-                      style={{ cursor: 'pointer' }}
-                    />
-                    GPS OVERRIDE
-                  </label>
-                </div>
-
-                {gpsError && (
-                  <div style={{ padding: '6px 10px', background: 'rgba(255,50,50,0.1)', border: '1px solid #ff4444', borderRadius: 4, color: '#ff8888', fontSize: 10, marginBottom: 10, fontFamily: "'Share Tech Mono'" }}>
-                    ⚠️ {gpsError} — Using last known position / IP fallback
-                  </div>
-                )}
-
-                {gpsOverride ? (
-                  <form onSubmit={handleGpsOverrideSubmit} style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-                    <input
-                      type="number"
-                      step="any"
-                      placeholder="Lat (e.g. 12.9592)"
-                      value={overrideLat}
-                      onChange={(e) => setOverrideLat(e.target.value)}
-                      required
-                      style={{ flex: 1, padding: '6px 8px', background: 'rgba(5,15,40,0.6)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 4, color: '#fff', fontSize: 11, outline: 'none' }}
-                    />
-                    <input
-                      type="number"
-                      step="any"
-                      placeholder="Lng (e.g. 77.6444)"
-                      value={overrideLng}
-                      onChange={(e) => setOverrideLng(e.target.value)}
-                      required
-                      style={{ flex: 1, padding: '6px 8px', background: 'rgba(5,15,40,0.6)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 4, color: '#fff', fontSize: 11, outline: 'none' }}
-                    />
-                    <button type="submit" style={{ padding: '6px 12px', background: 'rgba(255,107,53,0.2)', border: '1px solid #ff6b35', borderRadius: 4, color: '#ff6b35', fontSize: 10, fontWeight: 700, cursor: 'pointer', fontFamily: "'Orbitron'" }}>
-                      SET
-                    </button>
-                  </form>
-                ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 10 }}>
-                    <div style={{ background: 'rgba(0,0,0,0.2)', padding: '6px 8px', borderRadius: 6, textAlign: 'center' }}>
-                      <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>ACCURACY</div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: gpsAccuracy && gpsAccuracy < 30 ? '#00ff88' : '#ffb800', fontFamily: "'Share Tech Mono'" }}>
-                        {gpsAccuracy ? `${Math.round(gpsAccuracy)} m` : 'N/A'}
                       </div>
-                    </div>
-                    <div style={{ background: 'rgba(0,0,0,0.2)', padding: '6px 8px', borderRadius: 6, textAlign: 'center' }}>
-                      <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>SPEED</div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: '#00c8ff', fontFamily: "'Share Tech Mono'" }}>
-                        {gpsSpeed !== null ? `${gpsSpeed} km/h` : '0 km/h'}
-                      </div>
-                    </div>
-                    <div style={{ background: 'rgba(0,0,0,0.2)', padding: '6px 8px', borderRadius: 6, textAlign: 'center' }}>
-                      <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>SIGNAL</div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: gpsAccuracy && gpsAccuracy < 15 ? '#00ff88' : gpsAccuracy ? '#ffb800' : 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>
-                        {gpsAccuracy ? (gpsAccuracy < 15 ? '🟢 EXCELLENT' : '🟡 GOOD') : '⚪ NO GPS'}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Live Map */}
-
-              <div style={{
-                marginTop: 16, borderRadius: 8, overflow: 'hidden',
-                border: '1px solid rgba(0,200,255,0.2)', height: 200, position: 'relative',
-              }}>
-                <div style={{
-                  position: 'absolute', top: 10, left: 10, right: 10, zIndex: 1000,
-                  display: 'flex', gap: 6
-                }}>
-                  <input 
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleManualSearch()}
-                    placeholder="Search city/area..."
-                    style={{
-                      flex: 1, padding: '6px 10px', background: 'rgba(5,20,40,0.9)', 
-                      border: '1px solid rgba(0,200,255,0.4)', borderRadius: 4, 
-                      color: '#fff', fontSize: 11, outline: 'none'
-                    }}
-                  />
-                  <button onClick={handleManualSearch} style={{
-                    padding: '6px 10px', background: 'rgba(0,200,255,0.2)', 
-                    border: '1px solid #00c8ff', borderRadius: 4, color: '#00c8ff',
-                    cursor: 'pointer', fontSize: 10
-                  }}>📍</button>
-                </div>
-                <div style={{
-                  position: 'absolute', bottom: 10, left: 10, zIndex: 1000,
-                  background: 'rgba(0,0,0,0.6)', padding: '2px 6px', borderRadius: 4,
-                  fontSize: 8, color: 'rgba(0,255,136,0.8)', fontFamily: "'Share Tech Mono'"
-                }}>
-                  MODE: {locationMethod}
-                </div>
-                <MapContainer
-                  center={location ? [location.lat, location.lng] : [12.9716, 77.5946]}
-                  zoom={location ? 12 : 2}
-                  style={{ height: '100%', width: '100%', background: '#050d1a' }}
-                  zoomControl={false}
-                >
-                  <OfflineTileLayer
-                    url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                    attribution='&copy; OpenStreetMap'
-                  />
-                  <SmartMapController 
-                    ambulanceLoc={location} 
-                    userLoc={assignedUser?.userLocation} 
-                    manualCenter={manualCenter} 
-                  />
-                  {location && location.lat && (
-                    <>
-                      <Marker position={[location.lat, location.lng]} icon={ambulanceIcon}>
-                        <Popup><strong>🚑 Ambulance</strong><br />Lat: {location.lat.toFixed(4)}<br />Lng: {location.lng.toFixed(4)}</Popup>
-                      </Marker>
-                      <MapUpdater center={location} />
                     </>
                   )}
-                  {assignedUser && assignedUser.userLocation && (
-                    <Marker position={[assignedUser.userLocation.lat, assignedUser.userLocation.lng]} icon={userIcon}>
-                      <Popup><strong>🧍 Emergency Location</strong></Popup>
-                    </Marker>
-                  )}
-                  {selectedHospital && (
-                    <Marker
-                      position={[
-                        selectedHospital.pos ? selectedHospital.pos.lat : (selectedHospital.location?.lat || 0),
-                        selectedHospital.pos ? selectedHospital.pos.lng : (selectedHospital.location?.lng || 0)
-                      ]}
-                      icon={hospitalIcon}
-                    >
-                      <Popup><strong>🏥 {selectedHospital?.name || 'Hospital'}</strong></Popup>
-                    </Marker>
-                  )}
-                  {Object.entries(networkHospitals).map(([id, hosp]) => {
-                    const pos = hosp.location || hosp.pos;
-                    if (!pos || (selectedHospital && (selectedHospital.id === hosp.id || selectedHospital.hospitalId === hosp.id))) return null;
-                    return (
-                      <Marker key={id} position={[pos.lat, pos.lng]} icon={hospitalIcon} opacity={0.6}>
-                        <Popup>
-                          <strong>🏥 {hosp.name}</strong><br />
-                          {hosp.isOnline ? '🟢 Online' : '⚪ Offline'}<br />
-                          {hosp.isBusy ? '🔴 Busy' : '🟢 Ready'}
-                        </Popup>
-                      </Marker>
-                    );
-                  })}
-                  {routePath && (
-                    greenCorridorActive ? (
-                      <>
-                        <Polyline positions={routePath} color="#00ff88" weight={12} opacity={0.25} />
-                        <Polyline positions={routePath} color="#00ff88" weight={8} opacity={0.5} />
-                        <Polyline positions={routePath} color="#00ff88" weight={4} opacity={0.9} />
-                      </>
-                    ) : (
-                      <Polyline positions={routePath} color="#00ff88" weight={5} opacity={0.7} dashArray="10, 10" />
-                    )
-                  )}
-                  {locationHistory.length > 1 && (
-                    <Polyline positions={locationHistory} color={simulateTraffic ? "#ffb800" : "#00c8ff"} weight={3} opacity={0.5} />
-                  )}
-
-                  {/* Traffic Incidents Circles */}
-                  {Object.values(trafficIncidents).map((incident) => (
-                    <React.Fragment key={incident.id}>
-                      <Circle
-                        center={[incident.lat, incident.lng]}
-                        radius={incident.radius || 300}
-                        pathOptions={{
-                          color: '#ff3333',
-                          fillColor: '#ff3333',
-                          fillOpacity: 0.15,
-                          dashArray: '5, 10',
-                          weight: 2
-                        }}
-                      >
-                        <Popup>
-                          <div style={{ color: '#333', fontFamily: 'sans-serif' }}>
-                            <strong style={{ color: '#ff3333' }}>⚠️ Traffic Incident / Blockage</strong>
-                            <p style={{ margin: '5px 0 0 0', fontSize: '11px' }}>{incident.reason}</p>
-                            <span style={{ fontSize: '9px', color: '#666' }}>Radius: {incident.radius}m</span>
-                          </div>
-                        </Popup>
-                      </Circle>
-                      <Circle
-                        center={[incident.lat, incident.lng]}
-                        radius={20}
-                        pathOptions={{
-                          color: '#ff1111',
-                          fillColor: '#ff1111',
-                          fillOpacity: 0.8,
-                          weight: 1
-                        }}
-                      />
-                    </React.Fragment>
-                  ))}
-
-                  {/* Fleet Overview: Other Ambulances */}
-                  {Object.entries(ambulances).map(([id, amb]) => {
-                    if (!amb.location || id === socket.id) return null;
-                    return (
-                      <Marker key={id} position={[amb.location.lat, amb.location.lng]} icon={ambulanceIcon} opacity={0.4}>
-                        <Popup>
-                          <strong>🚑 {amb.name || 'Ambulance'}</strong><br/>
-                          {amb.available ? '🟢 Available' : '🔴 Busy'}
-                        </Popup>
-                      </Marker>
-                    );
-                  })}
-                </MapContainer>
-              </div>
-            </div>
-
-            {/* Real-time Hospital Facility Analysis & Triage Recommendations */}
-            {patientLoaded && hospitalRecommendations.length > 0 && (
-              <div style={{
-                background: 'rgba(10,35,70,0.85)', border: '1px solid rgba(0,255,136,0.3)',
-                borderRadius: 10, padding: 20, marginBottom: 20, boxShadow: '0 0 15px rgba(0,255,136,0.15)'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <div style={{ fontFamily: "'Orbitron'", fontSize: 12, color: '#00ff88', letterSpacing: '0.1em', fontWeight: 700 }}>
-                    🧬 CLINICAL FACILITY TRIAGE RECOMMENDATION
-                  </div>
-                  <div style={{ fontFamily: "'Share Tech Mono'", fontSize: 9, color: '#00ff88', background: 'rgba(0,255,136,0.1)', padding: '2px 6px', borderRadius: 4 }}>
-                    LIVE MATCHING
-                  </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {hospitalRecommendations.map((rec, idx) => {
-                    const isTop = idx === 0;
-                    return (
-                      <div key={rec.id} style={{
-                        padding: '12px', borderRadius: 8,
-                        background: isTop ? 'rgba(0,255,136,0.08)' : 'rgba(0,0,0,0.3)',
-                        border: `1px solid ${isTop ? '#00ff88' : 'rgba(160,200,255,0.1)'}`,
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                          <div style={{ fontWeight: 800, fontSize: 13, color: isTop ? '#00ff88' : '#fff' }}>
-                            {idx + 1}. {rec.name}
+              )}
+
+              {/* ACTIVE STATE but NOT ARRIVED YET */}
+              {assignedUser && !arrivedAtUser && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100%', gap: 20, padding: 24 }}>
+                  <div style={{ fontSize: 60 }}>🚑</div>
+                  <div style={{ fontFamily: "'Orbitron'", fontSize: 18, color: '#ff6b35', letterSpacing: '0.15em' }}>EN ROUTE TO PATIENT</div>
+                  <div style={{ fontSize: 14, color: 'rgba(160,200,255,0.6)', textAlign: 'center', maxWidth: 400 }}>
+                    AMBULANCE IS DISPATCHED AND HEADED TO THE INCIDENT SITE. STAND BY FOR PATIENT ENROLLMENT.
+                  </div>
+                  <button
+                    onClick={() => {
+                      setArrivedAtUser(true);
+                      if (socket && assignedUser) {
+                        socket.emit('paramedic-arrived', { reqId: assignedUser.id });
+                      }
+                    }}
+                    style={{
+                      padding: '12px 24px', background: '#ff6b35', border: 'none',
+                      borderRadius: 6, color: '#000', fontWeight: 'bold', cursor: 'pointer',
+                      fontFamily: "'Orbitron'", fontSize: 12, letterSpacing: 1, marginTop: 10
+                    }}
+                  >
+                    🚨 SIGNAL ARRIVAL AT SITE
+                  </button>
+                </div>
+              )}
+
+              {/* ACTIVE STATE & ARRIVED AT USER */}
+              {assignedUser && arrivedAtUser && (
+                <div className="ambulance-stream-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 0, flex: 1, overflow: 'hidden' }}>
+                  
+                  {/* Left panel: Map & Navigation */}
+                  <div style={{ padding: 24, overflowY: 'auto', background: 'rgba(0,0,0,0.2)' }}>
+                    
+                    {/* Patient identity overview */}
+                    <div style={{ background: 'rgba(5,20,45,0.8)', border: '1px solid rgba(0,200,255,0.15)', borderRadius: 10, padding: 20, marginBottom: 20 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <div style={{ fontFamily: "'Orbitron'", fontSize: 12, color: '#00c8ff', letterSpacing: '0.1em' }}>
+                          PATIENT IDENTITY
+                        </div>
+                        {selectedPatient ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ color: 'rgba(160,200,255,0.5)', fontSize: 11 }}>SYNCED: </span>
+                            <span style={{ color: '#00ff88', fontSize: 12, fontWeight: 'bold' }}>{PATIENT_NAMES[selectedPatient]}</span>
                           </div>
-                          <div style={{ fontFamily: "'Share Tech Mono'", fontSize: 12, color: isTop ? '#00ff88' : '#88ccee', fontWeight: 700 }}>
-                            {rec.score}% MATCH
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', gap: 12, fontSize: 11, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'", marginBottom: 6 }}>
-                          <span>📍 {rec.distanceKm} km away</span>
-                          <span>🛏️ ICU Beds: {rec.icuBeds}</span>
-                          <span>🫁 Vent: {rec.ventilators}</span>
-                        </div>
-                        <div style={{ fontSize: 11, color: isTop ? 'rgba(0,255,136,0.85)' : 'rgba(255,255,255,0.5)', fontFamily: "'Share Tech Mono'", fontStyle: 'italic', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 6 }}>
-                          📋 {rec.rationale}
-                        </div>
+                        ) : (
+                          <span style={{ color: '#ffb800', fontSize: 11, fontFamily: "'Orbitron'" }}>AWAITING ENROLLMENT (GO TO VITALS TAB)</span>
+                        )}
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+                      
+                      {assignedUser?.patientDetails && (
+                        <div style={{ padding: 12, background: 'rgba(0,255,136,0.05)', border: '1px solid rgba(0,255,136,0.15)', borderRadius: 6 }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                            <div>
+                              <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>NAME</div>
+                              <div style={{ fontSize: 12, color: '#fff', fontFamily: "'Orbitron'" }}>{assignedUser.patientDetails.name || 'N/A'}</div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>REPORTED RISK</div>
+                              <div style={{ fontSize: 12, color: '#ff4444', fontFamily: "'Orbitron'", fontWeight: 'bold' }}>{assignedUser.patientDetails.riskLevel || 'HIGH'}</div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
-            {/* Multi-Hospital Network Directory */}
-            <div style={{
-              background: 'rgba(5,20,45,0.8)', border: '1px solid rgba(0,200,255,0.15)',
-              borderRadius: 10, padding: 20,
-            }}>
-              <div style={{ fontFamily: "'Orbitron'", fontSize: 12, color: '#00c8ff', letterSpacing: '0.1em', marginBottom: 12 }}>
-                NEARBY HOSPITALS NETWORK
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {(() => {
-                  const anchor = assignedUser?.userLocation || location;
-                  const realHospitals = Object.values(networkHospitals);
-                  const list = realHospitals.length > 0 ? realHospitals : generateGlobalHospitals(anchor);
+                    {/* Dispatch Coordination Agent Card */}
+                    <div style={{ background: 'rgba(5,20,45,0.85)', border: '1px solid rgba(0,200,255,0.25)', borderRadius: 10, padding: 20, marginBottom: 20 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', letterSpacing: '0.1em', fontWeight: 900 }}>
+                          🤖 DISPATCH COORDINATION AGENT
+                        </div>
+                        <span style={{ fontSize: 10, padding: '2px 6px', background: 'rgba(0,255,136,0.1)', color: '#00ff88', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 4, fontFamily: "'Share Tech Mono'" }}>ACTIVE</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.65)', lineHeight: 1.5, marginBottom: 14 }}>
+                        Optimal trauma centers are ranked dynamically. You can redirect routing to backup nodes in the waiting list if traffic or conditions degrade.
+                      </div>
+                      
+                      <div style={{ padding: 12, background: 'rgba(0,255,136,0.06)', border: '1px solid rgba(0,255,136,0.25)', borderRadius: 6, marginBottom: 14 }}>
+                        <div style={{ fontSize: 9, color: '#00ff88', fontFamily: "'Share Tech Mono'", fontWeight: 'bold' }}>CONNECTED PRIMARY HOSPITAL</div>
+                        <div style={{ fontSize: 13, color: '#fff', fontFamily: "'Orbitron'", fontWeight: 'bold', marginTop: 3 }}>{assignedHospital?.name || 'Searching...'}</div>
+                      </div>
 
-                  return list
-                    .map(h => {
-                      const dist = calcDist(anchor, h.pos || h.location || h);
-                      const { score, breakdown } = calculateHRI(dist, h);
-                      return { ...h, currentDist: dist, hriScore: score, hriBreakdown: breakdown };
-                    })
-                    .sort((a, b) => b.hriScore - a.hriScore)
-                    .map(h => {
-                      const dist = h.currentDist;
-                      const isSelected = selectedHospital?.id === h.id || selectedHospital?.hospitalId === h.id;
-                      const isOnline = h.isOnline || !!h.socketId;
-
-                      const resources = (selectedHospital?.id === h.id) ? hospitalResources : (h.simulatedResources || h.resources || {});
-                      const readyCount = Object.values(resources).filter(Boolean).length;
-                      const hasInventoryWarning = h.inventory?.outOfBlood || h.inventory?.outOfBeds;
-
-                      return (
-                        <div key={h.id} style={{
-                          padding: '12px', borderRadius: 8,
-                          background: isSelected ? 'rgba(0,200,255,0.1)' : (h.isBusy ? 'rgba(255,184,0,0.05)' : (hasInventoryWarning ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.2)')),
-                          border: `1px solid ${isSelected ? '#00c8ff' : (h.isBusy ? '#ffb800' : (hasInventoryWarning ? 'rgba(255,40,40,0.2)' : 'rgba(160,200,255,0.1)'))}`,
-                          transition: 'all 0.2s',
-                          opacity: (hasInventoryWarning || (h.isBusy && !isSelected)) ? 0.8 : 1,
-                        }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                            <div style={{ fontWeight: 800, fontSize: 13, color: isSelected ? '#00c8ff' : '#fff' }}>{h.name}</div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <div style={{ 
-                                fontSize: 9, 
-                                padding: '2px 6px', 
-                                borderRadius: 4, 
-                                background: isOnline ? 'rgba(0,255,136,0.1)' : 'rgba(255,255,255,0.05)',
-                                color: isOnline ? '#00ff88' : 'rgba(255,255,255,0.4)',
-                                border: `1px solid ${isOnline ? '#00ff8844' : 'rgba(255,255,255,0.1)'}`,
-                                fontFamily: "'Share Tech Mono'"
-                              }}>
-                                {isOnline ? '● ONLINE' : '○ OFFLINE'}
-                              </div>
-                              {(h.inventory?.beds === 0 || h.inventory?.outOfBeds) && (
-                                <div style={{
-                                  background: 'rgba(255, 68, 68, 0.2)',
-                                  color: '#ff5555',
-                                  border: '1px solid rgba(255, 68, 68, 0.4)',
-                                  borderRadius: 4,
-                                  padding: '2px 6px',
-                                  fontSize: 9,
-                                  fontFamily: "'Orbitron'",
-                                  fontWeight: 'bold',
-                                  animation: 'pulse-opacity 1.5s infinite'
-                                }}>
-                                  ⚠️ DIVERT RECOMMENDED
+                      {waitingList && waitingList.length > 0 ? (
+                        <div>
+                          <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.45)', fontFamily: "'Share Tech Mono'", marginBottom: 8, letterSpacing: '0.05em' }}>BACKUP WAITING LIST NODES</div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            {waitingList.map(hosp => (
+                              <div key={hosp.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 8, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 6 }}>
+                                <div>
+                                  <div style={{ fontSize: 11, color: '#fff', fontWeight: 600 }}>{hosp.name}</div>
+                                  <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', marginTop: 2 }}>Ready for transfer</div>
                                 </div>
-                              )}
-                              <div className="hri-tooltip" style={{
-                                fontSize: 9,
-                                padding: '2px 6px',
-                                borderRadius: 4,
-                                background: h.hriScore > 75 ? 'rgba(0,255,136,0.2)' : h.hriScore > 40 ? 'rgba(255,184,0,0.2)' : 'rgba(255,68,68,0.2)',
-                                color: h.hriScore > 75 ? '#00ff88' : h.hriScore > 40 ? '#ffb800' : '#ff4444',
-                                border: `1px solid ${h.hriScore > 75 ? '#00ff88' : h.hriScore > 40 ? '#ffb800' : '#ff4444'}`,
-                                fontFamily: "'Orbitron'",
-                                fontWeight: 'bold',
-                              }}>
-                                {h.hriScore}% MATCH
-                                <span className="hri-tooltip-text">
-                                  <strong>Hospital Recommendation Index (HRI):</strong><br />
-                                  {h.hriBreakdown}<br /><br />
-                                  Factors:<br />
-                                  • Proximity: -1.2 per min ETA<br />
-                                  • ICU Beds: +3.0 per bed<br />
-                                  • Trauma Bay Prepared: +15%<br />
-                                  • Active ER Queue: -2.0 per mission
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                            <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>
-                              ETA: ~{Math.ceil(dist / 0.6)} mins · {h.isBusy ? 'Capacity Full' : `${readyCount}/4 Services Ready`}
-                            </div>
-                            {!isSelected && (
-                              <button onClick={() => setRerouteTarget(h)} style={{
-                                padding: '4px 10px', background: 'rgba(255,100,100,0.1)',
-                                border: '1px solid rgba(255,100,100,0.4)', borderRadius: 4,
-                                color: '#ff6b6b', fontFamily: "'Orbitron'", fontSize: 9, cursor: 'pointer'
-                              }}>🔄 REROUTE</button>
-                            )}
-                            {isSelected && (
-                              <div style={{ fontSize: 10, color: '#00c8ff', fontFamily: "'Orbitron'", fontWeight: 700, padding: '4px 10px', background: 'rgba(0,200,255,0.1)', borderRadius: 4 }}>
-                                SELECTED
-                              </div>
-                            )}
-                          </div>
-
-                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                            {[
-                              { k: 'otPrepared', label: 'OT', icon: '🔪' },
-                              { k: 'ventilatorReady', label: 'VENT', icon: '🫁' },
-                              { k: 'cardiologistAssigned', label: 'CARDIO', icon: '🫀' },
-                              { k: 'bloodBankAlerted', label: 'BLOOD', icon: '🩸' }
-                            ].map(({ k, label, icon }) => (
-                              <div key={k} style={{
-                                padding: '2px 6px', borderRadius: 4, fontSize: 10, fontFamily: "'Share Tech Mono'",
-                                background: resources[k] ? 'rgba(0,255,100,0.1)' : 'rgba(255,40,40,0.1)',
-                                border: `1px solid ${resources[k] ? 'rgba(0,255,100,0.3)' : 'rgba(255,40,40,0.3)'}`,
-                                color: resources[k] ? '#00ff88' : 'rgba(255,80,80,0.7)',
-                              }}>
-                                {icon} {label}
+                                <button
+                                  onClick={() => {
+                                    if (socket && assignedUser) {
+                                      socket.emit('ambulance-manual-redirect', { reqId: assignedUser.id, targetHospitalId: hosp.id });
+                                    }
+                                  }}
+                                  style={{
+                                    background: 'rgba(0,200,255,0.15)', color: '#00c8ff', border: '1px solid rgba(0,200,255,0.3)',
+                                    padding: '5px 10px', borderRadius: 4, fontSize: 9, fontFamily: "'Orbitron'", cursor: 'pointer', fontWeight: 700
+                                  }}
+                                >
+                                  🔀 REDIRECT
+                                </button>
                               </div>
                             ))}
                           </div>
                         </div>
-                      );
-                    });
-                })()}
-              </div>
-            </div>
-
-            {/* Paramedic Toolkit */}
-            <ParamedicToolkit 
-              patientDetails={assignedUser?.patientDetails} 
-              socket={socket} 
-              reqId={assignedUser?.id || activeMissionId} 
-              checklist={clinicalChecklist} 
-              setChecklist={setClinicalChecklist} 
-            />
-
-            {/* AI Emergency Corridor & Signal Preemption Panel */}
-            <EmergencyCorridorPanel socket={socket} incidentId={assignedUser?.id || activeMissionId} isControlPanel={false} />
-
-            {/* Paramedic Clinical AI Diagnosis & ACLS Advisor */}
-            <ClinicalAIDiagnosticAdvisor vitals={vitals} patient={assignedUser?.patientDetails} />
-
-            {/* AI Voice SOS Dispatch Call Simulator */}
-            <AIVoiceDispatcher vitals={vitals} patient={assignedUser?.patientDetails} />
-
-            {/* AI Stroke LAMS Copilot */}
-            <AIStrokeCopilot />
-
-            {/* Incident Notes */}
-            <div style={{
-              background: 'rgba(5,20,45,0.8)', border: '1px solid rgba(0,200,255,0.15)',
-              borderRadius: 10, padding: 20,
-            }}>
-              <div style={{ fontFamily: "'Orbitron'", fontSize: 12, color: '#00c8ff', letterSpacing: '0.1em', marginBottom: 12 }}>
-                INCIDENT NOTES
-              </div>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button onClick={toggleNoteListening} style={{
-                  background: isListeningNote ? 'rgba(255,40,40,0.2)' : 'rgba(0,200,255,0.1)',
-                  border: `1px solid ${isListeningNote ? 'rgba(255,80,80,0.5)' : 'rgba(0,200,255,0.3)'}`,
-                  borderRadius: 6, padding: '10px 14px', color: isListeningNote ? '#ff6060' : '#00c8ff',
-                  cursor: 'pointer', transition: 'all 0.2s',
-                }}>
-                  🎤
-                </button>
-                <input
-                  value={incidentNote}
-                  onChange={e => setIncidentNote(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && sendNote()}
-                  placeholder={isListeningNote ? "Listening..." : "Type incident note and press Enter..."}
-                  style={{
-                    flex: 1, background: 'rgba(0,200,255,0.05)', border: '1px solid rgba(0,200,255,0.2)',
-                    borderRadius: 6, padding: '10px 14px', color: '#e0eaff', fontSize: 14,
-                    fontFamily: "'Rajdhani'", outline: 'none',
-                  }}
-                />
-                <button onClick={sendNote} style={{
-                  padding: '10px 20px',
-                  background: 'rgba(0,200,255,0.15)', border: '1px solid rgba(0,200,255,0.3)',
-                  borderRadius: 6, color: '#00c8ff', fontFamily: "'Orbitron'",
-                  fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                }}>SEND</button>
-              </div>
-              <div style={{ marginTop: 25, borderTop: '1px solid rgba(0,255,136,0.1)', paddingTop: 20 }}>
-                <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Orbitron'", marginBottom: 10 }}>MANUAL MISSION RECOVERY (FALLBACK)</div>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <input 
-                    value={manualRecoveryId} 
-                    onChange={e => setManualRecoveryId(e.target.value)}
-                    onKeyDown={handleManualRecoveryKeyDown}
-                    placeholder="ENTER REQUEST ID..." 
-                    style={{ flex: 1, background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 8, padding: '10px 15px', color: '#fff', fontSize: 12, outline: 'none', fontFamily: "'Share Tech Mono'" }} 
-                  />
-                  <button onClick={handleManualRecover} style={{ background: 'rgba(0,255,136,0.1)', border: '1px solid #00ff88', color: '#00ff88', borderRadius: 8, padding: '0 20px', cursor: 'pointer', fontSize: 10, fontFamily: "'Orbitron'", fontWeight: 'bold' }}>RECOVER</button>
-                </div>
-              </div>
-            </div>
-
-          </>)}
-        </div>
-
-        {/* Chat sidebar */}
-        <div style={{
-          background: 'rgba(3,10,28,0.95)',
-          borderLeft: '1px solid rgba(0,200,255,0.1)',
-          display: 'flex', flexDirection: 'column', overflow: 'hidden',
-          height: '100%'
-        }}>
-          <div style={{ padding: '14px', borderBottom: '1px solid rgba(0,200,255,0.1)', flexShrink: 0 }}>
-            {assignedUser && (
-              <VideoCall 
-                socket={socket} 
-                role="paramedic" 
-                missionId={assignedUser?.id} 
-              />
-            )}
-          </div>
-
-          {/* --- AI SMART ROUTING PANEL --- */}
-          <div style={{ flexShrink: 0, padding: '12px 16px', background: 'rgba(0,200,255,0.03)', borderBottom: '1px solid rgba(0,200,255,0.1)' }}>
-            
-            {/* Green Corridor Toggle */}
-            {assignedUser && (
-              <div style={{ 
-                background: greenCorridorActive ? 'rgba(0,255,136,0.08)' : 'rgba(255,255,255,0.02)',
-                border: `1px solid ${greenCorridorActive ? '#00ff88' : 'rgba(255,255,255,0.08)'}`,
-                borderRadius: 8, padding: '10px 12px', marginBottom: 12,
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-              }}>
-                <div>
-                  <div style={{ fontFamily: "'Orbitron'", fontSize: 10, color: greenCorridorActive ? '#00ff88' : '#e0eaff', fontWeight: 'bold', letterSpacing: '0.05em' }}>
-                    🚦 GREEN CORRIDOR
-                  </div>
-                  <div style={{ fontSize: 8, color: 'rgba(160,200,255,0.5)', marginTop: 2 }}>
-                    Preempt municipal signals
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
-                    const newStatus = !greenCorridorActive;
-                    setGreenCorridorActive(newStatus);
-                    socket.emit('green-corridor-status', {
-                      reqId: assignedUser.id,
-                      active: newStatus
-                    });
-                  }}
-                  style={{
-                    padding: '4px 10px',
-                    background: greenCorridorActive ? '#00ff88' : 'rgba(0,200,255,0.15)',
-                    border: 'none',
-                    borderRadius: 4,
-                    color: greenCorridorActive ? '#000' : '#00c8ff',
-                    fontSize: 9,
-                    fontWeight: 'bold',
-                    fontFamily: "'Orbitron'",
-                    cursor: 'pointer'
-                  }}
-                >
-                  {greenCorridorActive ? 'ACTIVE' : 'REQUEST'}
-                </button>
-              </div>
-            )}
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <div style={{ fontFamily: "'Orbitron'", fontSize: 10, color: '#00c8ff', letterSpacing: '0.1em' }}>
-                📡 SMART SUGGESTIONS
-              </div>
-              <div style={{ fontSize: 8, background: '#00c8ff', color: '#000', padding: '1px 4px', borderRadius: 2, fontWeight: 'bold' }}>AI</div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {(() => {
-                const incidentAnchor = assignedUser?.userLocation || location;
-                const realHospitals = Object.values(networkHospitals);
-                const list = realHospitals.length > 0 ? realHospitals : generateGlobalHospitals(incidentAnchor);
-
-                return list.map(h => {
-                  const dist = incidentAnchor && (h.pos || h.location || h) ? calcDist(incidentAnchor, h.pos || h.location || h) : 0;
-                  const { score, breakdown, eta } = calculateHRI(dist, h);
-                  return { ...h, dist, eta, hriScore: score, hriBreakdown: breakdown };
-                })
-                .sort((a, b) => b.hriScore - a.hriScore)
-                .slice(0, 2)
-                .map(h => {
-                  const isSelected = selectedHospital?.id === h.id || selectedHospital?.hospitalId === h.id;
-                  return (
-                    <div key={h.id} style={{ 
-                      background: isSelected ? 'rgba(0,255,136,0.1)' : 'rgba(255,255,255,0.02)',
-                      border: `1px solid ${isSelected ? '#00ff88' : 'rgba(255,255,255,0.1)'}`,
-                      borderRadius: 6, padding: '8px 10px', cursor: h.isBusy ? 'not-allowed' : 'pointer',
-                      position: 'relative'
-                    }} onClick={() => !h.isBusy && setRerouteTarget(h)}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, alignItems: 'center' }}>
-                        <span style={{ fontWeight: 'bold', color: '#fff' }}>{h.name.split(' ')[0]}...</span>
-                        <span style={{ color: h.isBusy ? '#ff4444' : '#00ff88', fontSize: 10 }}>{h.eta}m ETA</span>
-                      </div>
-                      
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
-                        <div style={{ display: 'flex', gap: 4 }}>
-                          {Object.entries(h.simulatedResources || h.resources || {}).slice(0, 2).map(([key, val]) => (
-                            <div key={key} style={{ fontSize: 7, color: val ? '#00ff88' : '#ff4444' }}>
-                              {val ? '✓' : '✗'} {key.replace('Ready', '').replace('Prepared', '').toUpperCase()}
-                            </div>
-                          ))}
+                      ) : (
+                        <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.3)', fontStyle: 'italic', textAlign: 'center', marginTop: 10 }}>
+                          No backup hospitals in waiting list.
                         </div>
-                        
-                        <div className="hri-tooltip" style={{
-                          fontSize: 8,
-                          padding: '1px 5px',
-                          borderRadius: 3,
-                          background: h.hriScore > 75 ? 'rgba(0,255,136,0.15)' : h.hriScore > 40 ? 'rgba(255,184,0,0.15)' : 'rgba(255,68,68,0.15)',
-                          color: h.hriScore > 75 ? '#00ff88' : h.hriScore > 40 ? '#ffb800' : '#ff4444',
-                          border: `1px solid ${h.hriScore > 75 ? '#00ff8844' : h.hriScore > 40 ? '#ffb80044' : '#ff444444'}`,
-                          fontFamily: "'Orbitron'",
-                          fontWeight: 'bold',
-                        }}>
-                          {h.hriScore}% MATCH
-                          <span className="hri-tooltip-text" style={{ bottom: '150%', left: 'auto', right: '0%', marginLeft: '0px', transform: 'none' }}>
-                            <strong>Hospital Recommendation Index (HRI):</strong><br />
-                            {h.hriBreakdown}<br /><br />
-                            Factors:<br />
-                            • Proximity: -1.2 per min ETA<br />
-                            • ICU Beds: +3.0 per bed<br />
-                            • Trauma Bay Prepared: +15%<br />
-                            • Active ER Queue: -2.0 per mission
-                          </span>
+                      )}
+                    </div>
+
+                    {/* GPS Navigation & route details */}
+                    <div style={{ background: 'rgba(5,20,45,0.8)', border: '1px solid rgba(0,200,255,0.15)', borderRadius: 10, padding: 20, marginBottom: 20 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <div style={{ fontFamily: "'Orbitron'", fontSize: 12, color: '#00c8ff', letterSpacing: '0.1em' }}>
+                          GPS NAVIGATION
+                        </div>
+                        {simulateTraffic && <span style={{ fontSize: 10, color: '#ffb800' }}>⚠ TRAFFIC DELAY SIMULATED</span>}
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+                        {[
+                          ['LAT', location?.lat?.toFixed(4) || 'N/A', '°N'],
+                          ['LNG', location?.lng?.toFixed(4) || 'N/A', '°E'],
+                          ['DISTANCE', distanceKm?.toFixed(1) || '0.0', 'km left'],
+                          ['ETA', `~${etaMin || '0'}`, 'minutes'],
+                        ].map(([l, v, u]) => (
+                          <div key={l} style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>{l}</div>
+                            <div style={{ fontFamily: "'Share Tech Mono'", fontSize: 20, color: '#00c8ff', fontWeight: 700 }}>{v}</div>
+                            <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>{u}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div style={{ marginTop: 16 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 11, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>
+                          <span>📍 INCIDENT SITE</span>
+                          <span>🏥 {selectedHospital?.name?.toUpperCase() || 'SEARCHING...'}</span>
+                        </div>
+                        <div style={{ height: 8, background: 'rgba(0,200,255,0.1)', borderRadius: 4, overflow: 'hidden' }}>
+                          <div style={{
+                            height: '100%', width: `${routeProgress * 100}%`,
+                            background: simulateTraffic ? 'linear-gradient(90deg, #ffb800, #ff6b6b)' : 'linear-gradient(90deg, #00c8ff, #88ff88)',
+                            borderRadius: 4, transition: 'width 0.5s ease',
+                          }} />
                         </div>
                       </div>
                     </div>
-                  );
-                });
-              })()}
-            </div>
-          </div>
-          <div style={{ flex: 1, padding: '12px 16px 40px 16px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            <ChatPanel socket={socket} messages={messages} />
-          </div>
+
+                    {/* Leaflet Live Map Widget */}
+                    <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(0,200,255,0.2)', height: 350, position: 'relative' }}>
+                      <div style={{ position: 'absolute', top: 10, left: 10, right: 10, zIndex: 1000, display: 'flex', gap: 6 }}>
+                        <input 
+                          value={searchQuery}
+                          onChange={e => setSearchQuery(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && handleManualSearch()}
+                          placeholder="Search incident city/area..."
+                          style={{
+                            flex: 1, padding: '6px 10px', background: 'rgba(5,20,40,0.9)', 
+                            border: '1px solid rgba(0,200,255,0.4)', borderRadius: 4, 
+                            color: '#fff', fontSize: 11, outline: 'none'
+                          }}
+                        />
+                        <button onClick={handleManualSearch} style={{ padding: '6px 10px', background: 'rgba(0,200,255,0.2)', border: '1px solid #00c8ff', borderRadius: 4, color: '#00c8ff', cursor: 'pointer', fontSize: 10 }}>📍</button>
+                      </div>
+                      
+                      <MapContainer
+                        center={location ? [location.lat, location.lng] : [12.9716, 77.5946]}
+                        zoom={location ? 12 : 2}
+                        style={{ height: '100%', width: '100%', background: '#050d1a' }}
+                        zoomControl={false}
+                      >
+                        <OfflineTileLayer
+                          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                          attribution='&copy; OpenStreetMap'
+                        />
+                        <SmartMapController 
+                          ambulanceLoc={location} 
+                          userLoc={assignedUser?.userLocation} 
+                          manualCenter={manualCenter} 
+                        />
+                        {location && location.lat && (
+                          <>
+                            <Marker position={[location.lat, location.lng]} icon={ambulanceIcon}>
+                              <Popup><strong>🚑 Ambulance</strong><br />Lat: {location.lat.toFixed(4)}<br />Lng: {location.lng.toFixed(4)}</Popup>
+                            </Marker>
+                            <MapUpdater center={location} />
+                          </>
+                        )}
+                        {assignedUser && assignedUser.userLocation && (
+                          <Marker position={[assignedUser.userLocation.lat, assignedUser.userLocation.lng]} icon={userIcon}>
+                            <Popup><strong>🧍 Emergency Location</strong></Popup>
+                          </Marker>
+                        )}
+                        {selectedHospital && (
+                          <Marker
+                            position={[
+                              selectedHospital.pos ? selectedHospital.pos.lat : (selectedHospital.location?.lat || 0),
+                              selectedHospital.pos ? selectedHospital.pos.lng : (selectedHospital.location?.lng || 0)
+                            ]}
+                            icon={hospitalIcon}
+                          >
+                            <Popup><strong>🏥 {selectedHospital?.name || 'Hospital'}</strong></Popup>
+                          </Marker>
+                        )}
+                        {Object.entries(networkHospitals).map(([id, hosp]) => {
+                          const pos = hosp.location || hosp.pos;
+                          if (!pos || (selectedHospital && (selectedHospital.id === hosp.id || selectedHospital.hospitalId === hosp.id))) return null;
+                          return (
+                            <Marker key={id} position={[pos.lat, pos.lng]} icon={hospitalIcon} opacity={0.6}>
+                              <Popup>
+                                <strong>🏥 {hosp.name}</strong><br />
+                                {hosp.isOnline ? '🟢 Online' : '⚪ Offline'}<br />
+                                {hosp.isBusy ? '🔴 Busy' : '🟢 Ready'}
+                              </Popup>
+                            </Marker>
+                          );
+                        })}
+                        {routePath && (
+                          greenCorridorActive ? (
+                            <>
+                              <Polyline positions={routePath} color="#00ff88" weight={12} opacity={0.25} />
+                              <Polyline positions={routePath} color="#00ff88" weight={8} opacity={0.5} />
+                              <Polyline positions={routePath} color="#00ff88" weight={4} opacity={0.9} />
+                            </>
+                          ) : (
+                            <Polyline positions={routePath} color="#00ff88" weight={5} opacity={0.7} dashArray="10, 10" />
+                          )
+                        )}
+                        {locationHistory.length > 1 && (
+                          <Polyline positions={locationHistory} color={simulateTraffic ? "#ffb800" : "#00c8ff"} weight={3} opacity={0.5} />
+                        )}
+
+                        {/* Traffic circles */}
+                        {Object.values(trafficIncidents).map((incident) => (
+                          <React.Fragment key={incident.id}>
+                            <Circle
+                              center={[incident.lat, incident.lng]}
+                              radius={incident.radius || 300}
+                              pathOptions={{
+                                color: '#ff3333',
+                                fillColor: '#ff3333',
+                                fillOpacity: 0.15,
+                                dashArray: '5, 10',
+                                weight: 2
+                              }}
+                            >
+                              <Popup>
+                                <div style={{ color: '#333', fontFamily: 'sans-serif' }}>
+                                  <strong style={{ color: '#ff3333' }}>⚠️ Traffic Blockage</strong>
+                                  <p style={{ margin: '5px 0 0 0', fontSize: '11px' }}>{incident.reason}</p>
+                                </div>
+                              </Popup>
+                            </Circle>
+                          </React.Fragment>
+                        ))}
+                      </MapContainer>
+                    </div>
+                  </div>
+
+                  {/* Right panel: AI Smart Suggestions & Corridor controllers */}
+                  <div style={{ background: 'rgba(3,10,28,0.95)', borderLeft: '1px solid rgba(0,200,255,0.1)', padding: 20, display: 'flex', flexDirection: 'column', gap: 15 }}>
+                    
+                    {/* Green Corridor Trigger */}
+                    <div style={{ background: 'rgba(0,255,136,0.05)', border: '1px solid #00ff88', borderRadius: 8, padding: 15 }}>
+                      <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00ff88', fontWeight: 'bold', marginBottom: 6 }}>
+                        🚦 GREEN CORRIDOR CONTROL
+                      </div>
+                      <p style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', lineHeight: 1.4, marginBottom: 12 }}>
+                        Lock municipal traffic signals ahead of route to clear vehicle blockages automatically.
+                      </p>
+                      <button
+                        onClick={() => {
+                          const newStatus = !greenCorridorActive;
+                          setGreenCorridorActive(newStatus);
+                          if (socket && assignedUser) {
+                            socket.emit('green-corridor-status', { reqId: assignedUser.id, active: newStatus });
+                          }
+                        }}
+                        style={{
+                          width: '100%', padding: '10px', background: greenCorridorActive ? '#00ff88' : 'rgba(0,255,136,0.1)',
+                          border: '1px solid #00ff88', borderRadius: 6, color: greenCorridorActive ? '#000' : '#00ff88',
+                          fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 'bold', cursor: 'pointer'
+                        }}
+                      >
+                        {greenCorridorActive ? '🛑 STOP prioritisation' : '⚡ REQUEST PRIORITISATION'}
+                      </button>
+                    </div>
+
+                    {/* Smart Hospital Suggestions */}
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                        <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', letterSpacing: '0.1em' }}>
+                          📡 SMART SUGGESTIONS
+                        </div>
+                        <div style={{ fontSize: 8, background: '#00c8ff', color: '#000', padding: '1px 4px', borderRadius: 2, fontWeight: 'bold' }}>AI</div>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto' }}>
+                        {(() => {
+                          const incidentAnchor = assignedUser?.userLocation || location;
+                          const realHospitals = Object.values(networkHospitals);
+                          const list = realHospitals.length > 0 ? realHospitals : generateGlobalHospitals(incidentAnchor);
+
+                          return list.map(h => {
+                            const dist = incidentAnchor && (h.pos || h.location || h) ? calcDist(incidentAnchor, h.pos || h.location || h) : 0;
+                            const { score, breakdown, eta } = calculateHRI(dist, h);
+                            return { ...h, dist, eta, hriScore: score, hriBreakdown: breakdown };
+                          })
+                          .sort((a, b) => b.hriScore - a.hriScore)
+                          .slice(0, 3)
+                          .map(h => {
+                            const isSelected = selectedHospital?.id === h.id || selectedHospital?.hospitalId === h.id;
+                            return (
+                              <div key={h.id} style={{ 
+                                background: isSelected ? 'rgba(0,255,136,0.1)' : 'rgba(255,255,255,0.02)',
+                                border: `1px solid ${isSelected ? '#00ff88' : 'rgba(255,255,255,0.1)'}`,
+                                borderRadius: 6, padding: '8px 10px', cursor: h.isBusy ? 'not-allowed' : 'pointer',
+                                position: 'relative'
+                              }} onClick={() => !h.isBusy && setRerouteTarget(h)}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, alignItems: 'center' }}>
+                                  <span style={{ fontWeight: 'bold', color: '#fff' }}>{h.name.split(' ')[0]}...</span>
+                                  <span style={{ color: h.isBusy ? '#ff4444' : '#00ff88', fontSize: 10 }}>{h.eta}m ETA</span>
+                                </div>
+                                
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
+                                  <div style={{ display: 'flex', gap: 4 }}>
+                                    {Object.entries(h.simulatedResources || h.resources || {}).slice(0, 2).map(([key, val]) => (
+                                      <div key={key} style={{ fontSize: 7, color: val ? '#00ff88' : '#ff4444' }}>
+                                        {val ? '✓' : '✗'} {key.replace('Ready', '').replace('Prepared', '').toUpperCase()}
+                                      </div>
+                                    ))}
+                                  </div>
+                                  
+                                  <div className="hri-tooltip" style={{
+                                    fontSize: 8, padding: '1px 5px', borderRadius: 3,
+                                    background: h.hriScore > 75 ? 'rgba(0,255,136,0.15)' : h.hriScore > 40 ? 'rgba(255,184,0,0.15)' : 'rgba(255,68,68,0.15)',
+                                    color: h.hriScore > 75 ? '#00ff88' : h.hriScore > 40 ? '#ffb800' : '#ff4444',
+                                    border: `1px solid ${h.hriScore > 75 ? '#00ff8844' : h.hriScore > 40 ? '#ffb80044' : '#ff444444'}`,
+                                    fontFamily: "'Orbitron'", fontWeight: 'bold'
+                                  }}>
+                                    {h.hriScore}% MATCH
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+              {/* TAB 2: PATIENT VITALS (Telemetry cards, Waveforms, Ble, and manual entry forms) */}
+              {activeTab === 'vitals' && (
+                <div style={{ padding: 24, overflowY: 'auto', background: 'rgba(0,0,0,0.1)', flex: 1 }}>
+                  
+                  {/* Patient Enrollment / Scan Card */}
+                  <div style={{ background: 'rgba(5,20,45,0.8)', border: '1px solid rgba(0,200,255,0.15)', borderRadius: 10, padding: 20, marginBottom: 20 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                      <div style={{ fontFamily: "'Orbitron'", fontSize: 12, color: '#00c8ff', letterSpacing: '0.1em' }}>
+                        PATIENT IDENTITY VERIFICATION
+                      </div>
+                      
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <select
+                          onChange={(e) => {
+                            if (e.target.value) setSelectedPatient(e.target.value);
+                          }}
+                          value={selectedPatient || ''}
+                          style={{
+                            background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(160,200,255,0.2)',
+                            borderRadius: 4, padding: '4px 12px', color: 'rgba(160,200,255,0.8)',
+                            fontFamily: "'Share Tech Mono'", fontSize: 11, cursor: 'pointer', outline: 'none'
+                          }}
+                        >
+                          <option value="">-- MANUAL SELECT --</option>
+                          {Object.entries(PATIENT_NAMES).map(([id, name]) => (
+                            <option key={id} value={id}>{name} (ID: {id})</option>
+                          ))}
+                        </select>
+
+                        <button
+                          onClick={simulateIdScan}
+                          disabled={isScanning || !requestAccepted}
+                          style={{
+                            background: isScanning ? 'rgba(0,255,136,0.2)' : 'rgba(0,255,136,0.1)',
+                            border: '1px solid #00ff88', borderRadius: 4, padding: '6px 16px', color: '#00ff88',
+                            fontFamily: "'Share Tech Mono'", fontSize: 11, cursor: (isScanning || !requestAccepted) ? 'not-allowed' : 'pointer',
+                            fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 8
+                          }}
+                        >
+                          {isScanning ? 'PROCESSING AI CLOUD-ID...' : '📷 SCAN ID / AADHAR'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {selectedPatient && (
+                      <div style={{ padding: '12px', background: 'rgba(0,200,255,0.06)', borderRadius: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <span style={{ color: 'rgba(160,200,255,0.5)', fontSize: 12, fontFamily: "'Share Tech Mono'" }}>ACTIVE PATIENT: </span>
+                          <span style={{ color: '#00c8ff', fontSize: 13, fontWeight: 600 }}>{PATIENT_NAMES[selectedPatient]}</span>
+                        </div>
+                        
+                        <div style={{
+                          padding: '6px 12px', borderRadius: 4,
+                          background: `${calculateTriage(vitals).color}22`,
+                          border: `1px solid ${calculateTriage(vitals).color}66`,
+                          color: calculateTriage(vitals).color,
+                          fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700
+                        }}>
+                          {calculateTriage(vitals).label}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Vitals Telemetry */}
+                  {selectedPatient ? (
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
+                        <div style={{ fontFamily: "'Orbitron'", fontSize: 12, color: '#88ff88', letterSpacing: '0.1em' }}>
+                          PATIENT VITALS {streaming && <span style={{ color: '#ff4444', animation: 'blink 1s step-end infinite' }}>● REC</span>}
+                        </div>
+
+                        {/* Telemetry Input sources selection */}
+                        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                          <span style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Orbitron'" }}>SOURCE:</span>
+                          <select
+                            value={vitalsSource}
+                            onChange={(e) => {
+                              const nextSource = e.target.value;
+                              setVitalsSource(nextSource);
+                              if (nextSource === 'LIVE') {
+                                setStreaming(true);
+                                setVitals(prev => ({ ...prev, source: 'LIVE' }));
+                              } else if (nextSource === 'SIMULATED') {
+                                setStreaming(true);
+                                setVitals(prev => ({ ...prev, source: 'SIMULATED' }));
+                              } else if (nextSource === 'MANUAL') {
+                                setStreaming(true);
+                                setVitals(prev => ({ ...prev, source: 'MANUAL' }));
+                              } else if (nextSource === 'BLUETOOTH') {
+                                connectBluetoothHRM();
+                              }
+                            }}
+                            style={{
+                              background: 'rgba(0,0,0,0.4)',
+                              color: vitalsSource === 'LIVE' ? '#00ff88' : vitalsSource === 'MANUAL' ? '#ffb800' : '#00c8ff',
+                              border: `1px solid ${vitalsSource === 'LIVE' ? '#00ff88' : vitalsSource === 'MANUAL' ? '#ffb800' : '#00c8ff'}`,
+                              borderRadius: 4, padding: '4px 8px', fontSize: 10, fontFamily: "'Orbitron'", fontWeight: 'bold', cursor: 'pointer', outline: 'none'
+                            }}
+                          >
+                            <option value="SIMULATED">SIMULATED</option>
+                            <option value="MANUAL">MANUAL (FORM)</option>
+                            <option value="LIVE">LIVE (IOT / GATEWAY)</option>
+                            <option value="BLUETOOTH">📡 BLUETOOTH HRM</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* BLE drawer */}
+                      {vitalsSource === 'BLUETOOTH' && (
+                        <div style={{ background: 'rgba(0,200,255,0.05)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 10, padding: 15, marginBottom: 15 }}>
+                          <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', marginBottom: 10, letterSpacing: '0.1em', fontWeight: 'bold' }}>
+                            📡 WEB BLUETOOTH INTEGRATION
+                          </div>
+                          {bleDevice ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                              <div style={{ fontSize: 12, color: '#00ff88', fontFamily: "'Share Tech Mono'" }}>
+                                🟢 CONNECTED: {bleDevice.name || 'Bluetooth HRM'}
+                              </div>
+                              <button onClick={disconnectBluetoothHRM} style={{ padding: '8px 12px', background: 'rgba(255,68,68,0.15)', border: '1px solid #ff4444', borderRadius: 6, color: '#ff4444', fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer' }}>
+                                DISCONNECT DEVICE
+                              </button>
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                              <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', lineHeight: 1.4 }}>
+                                Connect a standard BLE Heart Rate Monitor device to stream live ECG pulse directly to this terminal.
+                              </div>
+                              <div style={{ display: 'flex', gap: 10 }}>
+                                <button onClick={connectBluetoothHRM} disabled={bleConnecting} style={{ flex: 1, padding: '10px 16px', background: 'rgba(0,200,255,0.15)', border: '1px solid #00c8ff', borderRadius: 6, color: '#00c8ff', fontFamily: "'Orbitron'", fontSize: 12, cursor: 'pointer', fontWeight: 'bold' }}>
+                                  {bleConnecting ? 'SCANNING...' : '🔌 CONNECT REAL BLE'}
+                                </button>
+                                <button 
+                                  onClick={() => {
+                                    setBleDevice({ name: 'Simulated HRM Watch' });
+                                    setVitalsSource('BLUETOOTH');
+                                    const interval = setInterval(() => {
+                                      setVitals(prev => {
+                                        const updated = { ...prev, heartRate: Math.round(70 + Math.random() * 15) };
+                                        if (socket && connected && assignedUserRef.current) {
+                                          socket.emit('vitals-update', { ...updated, reqId: assignedUserRef.current.id });
+                                        }
+                                        return updated;
+                                      });
+                                    }, 1000);
+                                    bleIntervalRef.current = interval;
+                                  }}
+                                  style={{ flex: 1, padding: '10px 16px', background: 'rgba(0,255,136,0.1)', border: '1px solid #00ff88', borderRadius: 6, color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 12, cursor: 'pointer', fontWeight: 'bold' }}
+                                >
+                                  ⚙️ MOCK BLE DEVICE
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Manual vital entry form */}
+                      {vitalsSource === 'MANUAL' && patientLoaded && (
+                        <div style={{ background: 'rgba(255,184,0,0.05)', border: '1px solid rgba(255,184,0,0.2)', borderRadius: 10, padding: 15, marginBottom: 15 }}>
+                          <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#ffb800', marginBottom: 10, letterSpacing: '0.1em', fontWeight: 'bold' }}>
+                            ✍️ MANUAL VITAL SIGNS ENTRY FORM
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10 }}>
+                            {[
+                              { key: 'heartRate', label: 'HEART RATE (BPM)', min: 30, max: 200 },
+                              { key: 'spo2', label: 'SpO2 (%)', min: 50, max: 100 },
+                              { key: 'systolic', label: 'BP SYSTOLIC (MMHG)', min: 60, max: 220 },
+                              { key: 'diastolic', label: 'BP DIASTOLIC (MMHG)', min: 30, max: 130 },
+                              { key: 'temperature', label: 'TEMP (°C)', min: 34, max: 42, step: 0.1 },
+                              { key: 'respRate', label: 'RESP RATE (MIN)', min: 8, max: 40 },
+                              { key: 'bloodGlucose', label: 'GLUCOSE (MG/DL)', min: 40, max: 400 }
+                            ].map(field => (
+                              <div key={field.key}>
+                                <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", display: 'block', marginBottom: 3 }}>{field.label}</label>
+                                <input
+                                  type="number" min={field.min} max={field.max} step={field.step || 1}
+                                  value={vitals[field.key] || ''}
+                                  onChange={(e) => handleManualVitalChange(field.key, e.target.value)}
+                                  style={{ width: '100%', padding: '6px 8px', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,184,0,0.3)', borderRadius: 4, color: '#fff', fontSize: 12, fontFamily: "'Share Tech Mono'", outline: 'none', boxSizing: 'border-box' }}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Vital Cards Grid */}
+                      {!patientLoaded ? (
+                        <div style={{ padding: '40px 20px', textAlign: 'center', background: 'rgba(0,255,136,0.05)', borderRadius: 10, border: '1px dashed rgba(0,255,136,0.3)', marginBottom: 20 }}>
+                          <div style={{ fontSize: 30, marginBottom: 10 }}>📥</div>
+                          <div style={{ fontFamily: "'Orbitron'", fontSize: 13, color: '#00ff88', fontWeight: 700, letterSpacing: 1 }}>PATIENT CONTACT ESTABLISHED</div>
+                          <div style={{ fontFamily: "'Share Tech Mono'", fontSize: 11, color: 'rgba(0,255,136,0.6)', margin: '8px 0 20px' }}>CONNECT OPERATION SENSORS TO STANDBY TRANSMIT</div>
+                          <button 
+                            onClick={() => {
+                              setPatientLoaded(true);
+                              setStreaming(true);
+                              if (socket && assignedUser) {
+                                socket.emit('patient-onboard', { reqId: assignedUser.id });
+                              }
+                            }}
+                            style={{ padding: '12px 24px', background: 'rgba(0,255,136,0.2)', border: '1px solid #00ff88', borderRadius: 8, color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                          >
+                            🚀 PATIENT ONBOARD & MONITOR
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 16 }}>
+                            <VitalCard label="HEART RATE" value={vitals.heartRate} unit="bpm" color="#ff6b6b" icon="❤️" critical={vitals.heartRate > 110 || vitals.heartRate < 50} />
+                            <VitalCard label="SpO2" value={vitals.spo2} unit="%" color="#00c8ff" icon="💧" critical={vitals.spo2 < 92} />
+                            <VitalCard label="BLOOD PRESSURE" value={`${vitals.systolic}/${vitals.diastolic}`} unit="mmHg" color="#ffb800" icon="🩸" critical={vitals.systolic > 150} />
+                            <VitalCard label="TEMPERATURE" value={vitals.temperature} unit="°C" color="#ff88aa" icon="🌡️" critical={vitals.temperature > 38.5} />
+                            <VitalCard label="RESP RATE" value={vitals.respRate} unit="br/min" color="#88ff88" icon="🫁" critical={vitals.respRate > 25 || vitals.respRate < 12} />
+                            <VitalCard label="BLOOD GLUCOSE" value={vitals.bloodGlucose || vitals.glucose} unit="mg/dL" color="#aa88ff" icon="🔬" critical={(vitals.bloodGlucose || vitals.glucose) > 200 || (vitals.bloodGlucose || vitals.glucose) < 70} />
+                          </div>
+
+                          {/* waveforms */}
+                          <div style={{ marginTop: 16 }}>
+                            <PhysiologicalWaveforms vitals={vitals} news2Score={
+                              (() => {
+                                let score = 0;
+                                if (vitals.heartRate <= 40 || vitals.heartRate >= 131) score += 3;
+                                else if (vitals.heartRate >= 111) score += 2;
+                                else if (vitals.heartRate <= 50 || vitals.heartRate >= 91) score += 1;
+                              
+                                if (vitals.spo2 <= 91) score += 3;
+                                else if (vitals.spo2 === 92 || vitals.spo2 === 93) score += 2;
+                                else if (vitals.spo2 === 94 || vitals.spo2 === 95) score += 1;
+                              
+                                if (vitals.systolic <= 90) score += 3;
+                                else if (vitals.systolic <= 100) score += 2;
+                                else if (vitals.systolic <= 110) score += 1;
+                                else if (vitals.systolic >= 220) score += 3;
+                                return score;
+                              })()
+                            } />
+                          </div>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    <div style={{ padding: '60px 20px', textAlign: 'center', background: 'rgba(0,0,0,0.2)', borderRadius: 10, border: '1px dashed rgba(160,200,255,0.2)' }}>
+                      <div style={{ fontSize: 35, marginBottom: 15 }}>📋</div>
+                      <div style={{ fontFamily: "'Orbitron'", fontSize: 13, color: 'rgba(160,200,255,0.4)', fontWeight: 'bold' }}>
+                        AWAITING PATIENT ENROLLMENT
+                      </div>
+                      <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.3)', marginTop: 8 }}>
+                        Please scan an ID card or choose a patient name from the selector above to enroll diagnostic workflows.
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 3: COMMS & CHAT (Side-by-side telemedicine call and chat pane) */}
+              {activeTab === 'comms' && (
+                <div style={{ display: 'flex', flexDirection: 'row', flex: 1, overflow: 'hidden' }}>
+                  
+                  {/* Telemedicine call panel */}
+                  <div style={{ flex: 1, padding: 24, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
+                    <div style={{ background: 'rgba(5,20,45,0.8)', border: '1px solid rgba(0,200,255,0.15)', borderRadius: 10, padding: 20 }}>
+                      <div style={{ fontFamily: "'Orbitron'", fontSize: 12, color: '#00c8ff', letterSpacing: '0.1em', marginBottom: 15 }}>
+                        CLINICAL TELEMEDICINE COMM LINK
+                      </div>
+                      <p style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', lineHeight: 1.5, marginBottom: 20 }}>
+                        Establish a high-bandwidth WebRTC video connection to the receiving emergency wing or patient duty doctors.
+                      </p>
+                      
+                      {assignedUser && (
+                        <VideoCall 
+                          socket={socket} 
+                          role="paramedic" 
+                          missionId={assignedUser?.id} 
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Chat Panel */}
+                  <div style={{ width: 380, background: 'rgba(3,10,28,0.95)', borderLeft: '1px solid rgba(0,200,255,0.1)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    <div style={{ padding: '14px', borderBottom: '1px solid rgba(0,200,255,0.1)', fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', fontWeight: 'bold' }}>
+                      💬 WAR ROOM CHAT LINK
+                    </div>
+                    <div style={{ flex: 1, padding: '12px 16px 40px 16px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                      <ChatPanel socket={socket} messages={messages} />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 4: CONSOLE SETTINGS (God Mode, Traffic, Breaks, identity switch) */}
+              {activeTab === 'settings' && (
+                <div style={{ padding: 24, overflowY: 'auto', background: 'rgba(0,0,0,0.1)', flex: 1, display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+                  {/* PROFILE SETTINGS SECTION */}
+                  {(() => {
+                    const AmbProfileSettings = () => {
+                      const [unitForm, setUnitForm] = React.useState({
+                        driverName: authUnit?.driverName || '',
+                        type: authUnit?.type || 'BLS',
+                        contactInfo: authUnit?.contactInfo || '',
+                        vehicleNo: authUnit?.vehicleNo || '',
+                        hospitalId: '',
+                        equipmentChecklist: [],
+                        crewMembers: '',
+                        licenseNumber: '',
+                        licenseExpiry: '',
+                        isSystemStandard: true,
+                        oxygenCapacityLiters: 0
+                      });
+                      const [unitStatus, setUnitStatus] = React.useState(null);
+                      const [unitLoading, setUnitLoading] = React.useState(false);
+                      const [pwForm, setPwForm] = React.useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                      const [pwStatus, setPwStatus] = React.useState(null);
+                      const [pwLoading, setPwLoading] = React.useState(false);
+                      const [mfaQR, setMfaQR] = React.useState(null);
+                      const [mfaStatus, setMfaStatus] = React.useState(null);
+                      const [mfaLoading, setMfaLoading] = React.useState(false);
+                      const [disable2FAConfirmAmb, setDisable2FAConfirmAmb] = React.useState(false);
+                      const [hospitalsList, setHospitalsList] = React.useState([]);
+
+                      const token = sessionStorage.getItem('rescuelink_token') || '';
+                      const ambId = authUnit?.id || authUnit?.unitId;
+                      const hdrs = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+
+                      React.useEffect(() => {
+                        const fetchHospitals = async () => {
+                          try {
+                            const res = await fetch('/api/hospitals');
+                            if (res.ok) {
+                              const data = await res.json();
+                              setHospitalsList(data || []);
+                            }
+                          } catch (e) {
+                            console.error("Failed to fetch hospitals list", e);
+                          }
+                        };
+                        fetchHospitals();
+                      }, []);
+
+                      React.useEffect(() => {
+                        const fetchUnitDetails = async () => {
+                          if (!ambId) return;
+                          try {
+                            const res = await fetch(`/api/ambulances/${ambId}`, { headers: hdrs });
+                            if (res.ok) {
+                              const data = await res.json();
+                              let checklist = [];
+                              try {
+                                checklist = data.equipment_checklist ? JSON.parse(data.equipment_checklist) : [];
+                              } catch (e) {
+                                checklist = data.equipment_checklist || [];
+                              }
+                              let crew = '';
+                              try {
+                                const parsedCrew = data.crew_members ? JSON.parse(data.crew_members) : [];
+                                crew = Array.isArray(parsedCrew) ? parsedCrew.join(', ') : parsedCrew;
+                              } catch (e) {
+                                crew = data.crew_members || '';
+                              }
+                              setUnitForm({
+                                driverName: data.driverName || '',
+                                type: data.type || 'BLS',
+                                contactInfo: data.contactInfo || '',
+                                vehicleNo: data.vehicleNo || '',
+                                hospitalId: data.hospital_id || '',
+                                equipmentChecklist: checklist,
+                                crewMembers: crew,
+                                licenseNumber: data.license_number || '',
+                                licenseExpiry: data.license_expiry || '',
+                                isSystemStandard: data.is_system_standard !== undefined ? data.is_system_standard : true,
+                                oxygenCapacityLiters: data.oxygen_capacity_liters || 0
+                              });
+                            }
+                          } catch (e) {
+                            console.error("Failed to fetch full ambulance details", e);
+                          }
+                        };
+                        fetchUnitDetails();
+                      }, [ambId]);
+
+                      const S = {
+                        card: { background: 'rgba(5,15,40,0.85)', border: '1px solid rgba(0,200,255,0.15)', borderRadius: 10, padding: 20 },
+                        label: { display: 'block', fontSize: 10, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.55)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em' },
+                        input: { width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: '10px 12px', color: '#fff', outline: 'none', fontSize: 12, boxSizing: 'border-box', fontFamily: "'Share Tech Mono'" },
+                        btn: (color) => ({ padding: '9px 20px', background: `rgba(${color},0.14)`, border: `1px solid rgba(${color},0.4)`, borderRadius: 8, color: `rgb(${color})`, fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer' }),
+                        sectionTitle: { fontFamily: "'Orbitron'", fontSize: 12, color: '#00c8ff', fontWeight: 700, marginBottom: 14 },
+                        statusMsg: (ok) => ({ marginTop: 8, padding: '7px 12px', borderRadius: 6, background: ok ? 'rgba(0,255,136,0.1)' : 'rgba(255,68,68,0.1)', border: `1px solid ${ok ? '#00ff88' : '#ff4444'}`, color: ok ? '#00ff88' : '#ff4444', fontSize: 11, fontFamily: "'Share Tech Mono'" })
+                      };
+
+                      const handleSaveUnit = async () => {
+                        if (!ambId) { setUnitStatus({ ok: false, msg: 'Unit ID not found in session' }); return; }
+                        setUnitLoading(true);
+                        try {
+                          const crewArray = unitForm.crewMembers.split(',').map(s => s.trim()).filter(Boolean);
+                          const body = {
+                            ...unitForm,
+                            crewMembers: crewArray
+                          };
+                          const res = await fetch(`/api/ambulances/${ambId}/settings`, { method: 'PUT', headers: hdrs, body: JSON.stringify(body) });
+                          const d = await res.json();
+                          setUnitStatus({ ok: res.ok, msg: res.ok ? 'Unit profile updated!' : (d.error || 'Update failed') });
+                          if (res.ok) {
+                            const userStr = sessionStorage.getItem('rescuelink_user');
+                            if (userStr) {
+                              const u = JSON.parse(userStr);
+                              u.name = d.driverName;
+                              u.email = d.vehicleNo;
+                              u.mobile = d.contactInfo;
+                              sessionStorage.setItem('rescuelink_user', JSON.stringify(u));
+                            }
+                            setAuthUnit({
+                              unitId: d.id,
+                              driverName: d.driverName,
+                              vehicleNo: d.vehicleNo,
+                              type: d.type
+                            });
+                          }
+                        } catch (err) { setUnitStatus({ ok: false, msg: 'Connection error' }); }
+                        setUnitLoading(false);
+                        setTimeout(() => setUnitStatus(null), 4000);
+                      };
+
+                      const handleChangePw = async () => {
+                        if (pwForm.newPassword !== pwForm.confirmPassword) { setPwStatus({ ok: false, msg: 'Passwords do not match' }); return; }
+                        if (pwForm.newPassword.length < 6) { setPwStatus({ ok: false, msg: 'Min. 6 characters required' }); return; }
+                        setPwLoading(true);
+                        try {
+                          const res = await fetch(`/api/ambulances/${ambId}/change-password`, { method: 'POST', headers: hdrs, body: JSON.stringify({ currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword }) });
+                          const d = await res.json();
+                          setPwStatus({ ok: res.ok, msg: d.message || d.error });
+                          if (res.ok) setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                        } catch (err) { setPwStatus({ ok: false, msg: 'Connection error' }); }
+                        setPwLoading(false);
+                        setTimeout(() => setPwStatus(null), 5000);
+                      };
+
+                      const handleSetup2FA = async () => {
+                        setMfaLoading(true);
+                        try {
+                          const res = await fetch('/api/mfa/setup', { method: 'POST', headers: hdrs });
+                          const d = await res.json();
+                          if (res.ok) setMfaQR(d.qrCode);
+                          else setMfaStatus({ ok: false, msg: d.error || 'Setup failed' });
+                        } catch { setMfaStatus({ ok: false, msg: 'Connection error' }); }
+                        setMfaLoading(false);
+                      };
+
+                      const handleDisable2FA = async () => {
+                        setDisable2FAConfirmAmb(false);
+                        setMfaLoading(true);
+                        try {
+                          const res = await fetch('/api/mfa/disable', { method: 'POST', headers: hdrs });
+                          const d = await res.json();
+                          setMfaStatus({ ok: res.ok, msg: d.message || d.error });
+                          setMfaQR(null);
+                        } catch { setMfaStatus({ ok: false, msg: 'Connection error' }); }
+                        setMfaLoading(false);
+                        setTimeout(() => setMfaStatus(null), 5000);
+                      };
+
+                      return (
+                        <>
+                          {/* 2FA Disable Confirm Modal */}
+                          {disable2FAConfirmAmb && (
+                            <div style={{ position: 'fixed', inset: 0, zIndex: 9999999, background: 'rgba(0,3,12,0.88)', backdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setDisable2FAConfirmAmb(false)}>
+                              <div style={{ background: 'rgba(8,18,42,0.98)', border: '1px solid rgba(255,68,68,0.4)', borderRadius: 14, padding: 30, maxWidth: 420, width: '90%', boxShadow: '0 0 40px rgba(255,68,68,0.1)' }} onClick={e => e.stopPropagation()}>
+                                <div style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#ff4444', fontWeight: 900, marginBottom: 8 }}>🔓 DISABLE 2FA</div>
+                                <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'", marginBottom: 20, lineHeight: 1.65 }}>
+                                  Removing 2FA will leave your account protected only by your password.<br /><br />
+                                  <strong style={{ color: '#ffb800' }}>This reduces your unit security significantly.</strong>
+                                </div>
+                                <div style={{ display: 'flex', gap: 12 }}>
+                                  <button onClick={handleDisable2FA} style={{ flex: 1, padding: '10px', background: 'rgba(255,40,40,0.14)', border: '1px solid rgba(255,40,40,0.5)', borderRadius: 8, color: '#ff4444', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>
+                                    🔓 YES, DISABLE 2FA
+                                  </button>
+                                  <button onClick={() => setDisable2FAConfirmAmb(false)} style={{ flex: 1, padding: '10px', background: 'transparent', border: '1px solid rgba(160,200,255,0.15)', borderRadius: 8, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer' }}>
+                                    CANCEL
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          {/* 1. Edit Unit Profile */}
+                          <div style={S.card}>
+                            <div style={S.sectionTitle}>🚑 UNIT PROFILE SETTINGS</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                              <div style={{ gridColumn: '1 / -1' }}>
+                                <label style={S.label}>Driver / Paramedic Name</label>
+                                <input style={S.input} value={unitForm.driverName} onChange={e => setUnitForm(p => ({ ...p, driverName: e.target.value }))} />
+                              </div>
+                              <div>
+                                <label style={S.label}>Vehicle Plate Number</label>
+                                <input style={S.input} value={unitForm.vehicleNo} onChange={e => setUnitForm(p => ({ ...p, vehicleNo: e.target.value }))} placeholder="MH-12-QW-5678" />
+                              </div>
+                              <div>
+                                <label style={S.label}>Unit Type</label>
+                                <select value={unitForm.type} onChange={e => setUnitForm(p => ({ ...p, type: e.target.value }))} style={{ ...S.input, appearance: 'none' }}>
+                                  <option value="BLS">BLS — Basic Life Support</option>
+                                  <option value="ALS">ALS — Advanced Life Support</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label style={S.label}>Contact Number</label>
+                                <input style={S.input} value={unitForm.contactInfo} onChange={e => setUnitForm(p => ({ ...p, contactInfo: e.target.value }))} placeholder="+91 XXXXXXXXXX" />
+                              </div>
+                              <div>
+                                <label style={S.label}>Hospital Affiliation</label>
+                                <select value={unitForm.hospitalId} onChange={e => setUnitForm(p => ({ ...p, hospitalId: e.target.value }))} style={{ ...S.input, appearance: 'none' }}>
+                                  <option value="">No Affiliation (Independent)</option>
+                                  {hospitalsList.map(h => (
+                                    <option key={h.id} value={h.id}>{h.name}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div style={{ gridColumn: '1 / -1' }}>
+                                <label style={S.label}>Crew Members (Comma separated)</label>
+                                <input style={S.input} value={unitForm.crewMembers} onChange={e => setUnitForm(p => ({ ...p, crewMembers: e.target.value }))} placeholder="Paramedic John, Nurse Sarah" />
+                              </div>
+                              <div>
+                                <label style={S.label}>Lead License Number</label>
+                                <input style={S.input} value={unitForm.licenseNumber} onChange={e => setUnitForm(p => ({ ...p, licenseNumber: e.target.value }))} placeholder="e.g. EMT-99211" />
+                              </div>
+                              <div>
+                                <label style={S.label}>License Expiry</label>
+                                <input type="date" style={S.input} value={unitForm.licenseExpiry} onChange={e => setUnitForm(p => ({ ...p, licenseExpiry: e.target.value }))} />
+                              </div>
+                              <div style={{ gridColumn: '1 / -1' }}>
+                                <label style={S.label}>Oxygen Capacity (Liters)</label>
+                                <input type="number" style={S.input} value={unitForm.oxygenCapacityLiters} onChange={e => setUnitForm(p => ({ ...p, oxygenCapacityLiters: Number(e.target.value) }))} />
+                              </div>
+                              <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+                                <label style={S.label}>Onboard Equipment Checklist</label>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                                  {['Defibrillator', 'Ventilator', 'Oxygen Cylinder', 'ECG Monitor'].map(eq => {
+                                    const checked = unitForm.equipmentChecklist.includes(eq);
+                                    return (
+                                      <label key={eq} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#e0eaff', cursor: 'pointer' }}>
+                                        <input 
+                                          type="checkbox" 
+                                          checked={checked} 
+                                          onChange={() => {
+                                            if (checked) {
+                                              setUnitForm(p => ({ ...p, equipmentChecklist: p.equipmentChecklist.filter(item => item !== eq) }));
+                                            } else {
+                                              setUnitForm(p => ({ ...p, equipmentChecklist: [...p.equipmentChecklist, eq] }));
+                                            }
+                                          }} 
+                                        />
+                                        {eq}
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                              <div style={{ gridColumn: '1 / -1', marginTop: 8 }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#e0eaff', cursor: 'pointer' }}>
+                                  <input type="checkbox" checked={unitForm.isSystemStandard} onChange={(e) => setUnitForm(p => ({ ...p, isSystemStandard: e.target.checked }))} style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#00c8ff' }} />
+                                  <span>Certified under Standard EMS safety metrics.</span>
+                                </label>
+                              </div>
+                            </div>
+                            <div style={{ marginTop: 14, display: 'flex', gap: 12, alignItems: 'center' }}>
+                              <button onClick={handleSaveUnit} disabled={unitLoading} style={{ ...S.btn('0,200,255'), opacity: unitLoading ? 0.5 : 1 }}>
+                                {unitLoading ? 'SAVING…' : '💾 SAVE UNIT PROFILE'}
+                              </button>
+                              {unitStatus && <div style={S.statusMsg(unitStatus.ok)}>{unitStatus.ok ? '✅' : '❌'} {unitStatus.msg}</div>}
+                            </div>
+                          </div>
+
+                          {/* 2. Change Password */}
+                          <div style={S.card}>
+                            <div style={S.sectionTitle}>🔑 CHANGE LOGIN PASSWORD</div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 420 }}>
+                              {[['currentPassword', 'Current Password'], ['newPassword', 'New Password (min. 6 chars)'], ['confirmPassword', 'Confirm New Password']].map(([key, lbl]) => (
+                                <div key={key}>
+                                  <label style={S.label}>{lbl}</label>
+                                  <input type="password" style={S.input} value={pwForm[key]} onChange={e => setPwForm(p => ({ ...p, [key]: e.target.value }))} placeholder="••••••••" />
+                                </div>
+                              ))}
+                              <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 4 }}>
+                                <button onClick={handleChangePw} disabled={pwLoading} style={{ ...S.btn('255,184,0'), opacity: pwLoading ? 0.5 : 1 }}>
+                                  {pwLoading ? 'UPDATING…' : '🔐 UPDATE PASSWORD'}
+                                </button>
+                                {pwStatus && <div style={S.statusMsg(pwStatus.ok)}>{pwStatus.ok ? '✅' : '❌'} {pwStatus.msg}</div>}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 3. Two-Factor Authentication */}
+                          <div style={S.card}>
+                            <div style={S.sectionTitle}>🛡️ TWO-FACTOR AUTHENTICATION</div>
+                            <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.5)', marginBottom: 14, fontFamily: "'Share Tech Mono'", lineHeight: 1.6 }}>
+                              Secure your unit login with TOTP. Use Google Authenticator or Authy to scan the QR code.
+                            </div>
+                            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                              <button onClick={handleSetup2FA} disabled={mfaLoading} style={{ ...S.btn('0,255,136'), opacity: mfaLoading ? 0.5 : 1 }}>
+                                {mfaLoading ? '⏳ LOADING…' : '🔒 ENABLE 2FA'}
+                              </button>
+                              <button onClick={() => setDisable2FAConfirmAmb(true)} disabled={mfaLoading} style={{ ...S.btn('255,68,68'), opacity: mfaLoading ? 0.5 : 1 }}>
+                                🔓 DISABLE 2FA
+                              </button>
+                            </div>
+                            {mfaQR && (
+                              <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                <div style={{ fontSize: 9, color: '#00ff88', fontFamily: "'Orbitron'", letterSpacing: '0.1em' }}>SCAN QR CODE WITH AUTHENTICATOR APP</div>
+                                <img src={mfaQR} alt="MFA QR" style={{ width: 160, height: 160, background: '#fff', borderRadius: 6, padding: 4, border: '2px solid rgba(0,255,136,0.3)' }} />
+                              </div>
+                            )}
+                            {mfaStatus && <div style={{ ...S.statusMsg(mfaStatus.ok), marginTop: 12 }}>{mfaStatus.ok ? '✅' : '❌'} {mfaStatus.msg}</div>}
+                          </div>
+                        </>
+                      );
+                    };
+                    return <AmbProfileSettings key="amb-profile-settings" />;
+                  })()}
+
+                  {/* Simulation / God Mode panel */}
+                  <div style={{ background: 'rgba(10, 0, 20, 0.4)', border: '1px solid rgba(204,0,255,0.2)', borderRadius: 10, padding: 20 }}>
+                    <div style={{ fontFamily: "'Orbitron'", fontSize: 13, color: '#cc00ff', fontWeight: 700, letterSpacing: '0.1em', marginBottom: 15 }}>
+                      🛠️ GOD MODE & SIMULATION ENGINE
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+                      <button
+                        onClick={() => setSimulateCrisis(!simulateCrisis)}
+                        style={{
+                          background: simulateCrisis ? 'rgba(255,40,40,0.2)' : 'rgba(255,255,255,0.05)',
+                          border: `1px solid ${simulateCrisis ? '#ff4444' : 'rgba(255,255,255,0.2)'}`,
+                          padding: 12, borderRadius: 6, color: simulateCrisis ? '#ff4444' : '#fff',
+                          fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer'
+                        }}
+                      >
+                        {simulateCrisis ? '🛑 CANCEL CRISIS' : '⚠️ TRIGGER CARDIAC ARREST'}
+                      </button>
+
+                      <button
+                        onClick={() => setSimulateTraffic(!simulateTraffic)}
+                        style={{
+                          background: simulateTraffic ? 'rgba(255,184,0,0.2)' : 'rgba(255,255,255,0.05)',
+                          border: `1px solid ${simulateTraffic ? '#ffb800' : 'rgba(255,255,255,0.2)'}`,
+                          padding: 12, borderRadius: 6, color: simulateTraffic ? '#ffb800' : '#fff',
+                          fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer'
+                        }}
+                      >
+                        {simulateTraffic ? '🛣️ CLEAR TRAFFIC' : '🚧 SIMULATE TRAFFIC JAM'}
+                      </button>
+
+                      <button
+                        onClick={() => setIsOffline(!isOffline)}
+                        style={{
+                          background: isOffline ? 'rgba(100,100,100,0.4)' : 'rgba(255,255,255,0.05)',
+                          border: `1px solid ${isOffline ? '#aaa' : 'rgba(255,255,255,0.2)'}`,
+                          padding: 12, borderRadius: 6, color: isOffline ? '#aaa' : '#fff',
+                          fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer'
+                        }}
+                      >
+                        {isOffline ? '📡 RESTORE SIGNAL' : '📡 FORCE OFFLINE (BLACKOUT)'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Manual Identity reset controls */}
+                  <div style={{ background: 'rgba(5,20,45,0.8)', border: '1px solid rgba(0,200,255,0.15)', borderRadius: 10, padding: 20 }}>
+                    <div style={{ fontFamily: "'Orbitron'", fontSize: 12, color: '#00c8ff', letterSpacing: '0.1em', marginBottom: 15 }}>
+                      ⚙️ CONSOLE IDENTITY RESET
+                    </div>
+                    <p style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', lineHeight: 1.5, marginBottom: 20 }}>
+                      Resetting the console will clear local cache profiles and return the terminal to the operational gateway login page.
+                    </p>
+                    <button
+                      onClick={() => {
+                        setSwitchUnitConfirm(true);
+                      }}
+                      style={{
+                        padding: '10px 20px', background: 'rgba(255,68,68,0.15)', border: '1px solid #ff4444',
+                        borderRadius: 6, color: '#ff4444', fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 'bold', cursor: 'pointer'
+                      }}
+                    >
+                      💥 SWITCH IDENTITY / RESET TERMINAL
+                    </button>
+                  </div>
+                </div>
+              )}
+
           {/* Reroute Confirmation Modal */}
           {rerouteTarget && (
-            <div style={{
-              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: 20
-            }}>
-              <div style={{
-                width: '100%', maxWidth: 450, background: '#050d1a', border: '1px solid #ff4444',
-                borderRadius: 12, padding: 24, boxShadow: '0 0 50px rgba(255,0,0,0.2)'
-              }}>
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: 20 }}>
+              <div style={{ width: '100%', maxWidth: 450, background: '#050d1a', border: '1px solid #ff4444', borderRadius: 12, padding: 24, boxShadow: '0 0 50px rgba(255,0,0,0.2)' }}>
                 <div style={{ fontFamily: "'Orbitron'", color: '#ff4444', fontSize: 16, marginBottom: 16 }}>⚠️ CONFIRM REROUTE</div>
                 <div style={{ fontSize: 14, color: '#e0eaff', marginBottom: 20, lineHeight: 1.5 }}>
                   You are changing destination to <span style={{ color: '#00c8ff', fontWeight: 'bold' }}>{rerouteTarget?.name}</span>.<br />
                   Current connected hospital: <span style={{ color: '#ffb800' }}>{selectedHospital?.name || 'None'}</span>.
                 </div>
 
-                {/* Service Verification Checklist */}
-                <div style={{
-                  background: 'rgba(0,200,255,0.05)', padding: 15, borderRadius: 8, marginBottom: 20,
-                  border: '1px solid rgba(0,200,255,0.2)'
-                }}>
+                <div style={{ background: 'rgba(0,200,255,0.05)', padding: 15, borderRadius: 8, marginBottom: 20, border: '1px solid rgba(0,200,255,0.2)' }}>
                   <div style={{ fontSize: 10, color: '#00c8ff', fontFamily: "'Orbitron'", marginBottom: 10 }}>CAPABILITY VERIFICATION</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                     <div style={{ fontSize: 11, color: rerouteTarget?.simulatedResources?.ventilatorReady ? '#00ff88' : '#ff4444' }}>
@@ -3850,180 +3929,97 @@ export default function AmbulanceStreamer({ socket, connected }) {
                     <div style={{ fontSize: 11, color: rerouteTarget?.simulatedResources?.otPrepared ? '#00ff88' : '#ff4444' }}>
                       {rerouteTarget?.simulatedResources?.otPrepared ? '✓' : '✗'} OT PREPARED
                     </div>
-                    <div style={{ fontSize: 11, color: rerouteTarget?.simulatedResources?.cardiologistAssigned ? '#00ff88' : '#ff4444' }}>
-                      {rerouteTarget?.simulatedResources?.cardiologistAssigned ? '✓' : '✗'} CARDIOLOGY
-                    </div>
-                    <div style={{ fontSize: 11, color: rerouteTarget?.simulatedResources?.bloodBankAlerted ? '#00ff88' : '#ff4444' }}>
-                      {rerouteTarget?.simulatedResources?.bloodBankAlerted ? '✓' : '✗'} BLOOD BANK
-                    </div>
-                  </div>
-                  {((assignedUser?.patientDetails?.condition === 'Cardiac Arrest' && !rerouteTarget?.simulatedResources?.ventilatorReady) || 
-                    (assignedUser?.patientDetails?.riskLevel === 'CRITICAL' && !rerouteTarget?.simulatedResources?.otPrepared)) && (
-                    <div style={{ marginTop: 10, fontSize: 10, color: '#ff4444', background: 'rgba(255,68,68,0.1)', padding: '6px 10px', borderRadius: 4, fontWeight: 'bold', border: '1px solid #ff4444' }}>
-                      ⚠️ WARNING: TARGET HOSPITAL LACKS CRITICAL SERVICES FOR THIS CASE
-                    </div>
-                  )}
-                </div>
-
-                <div style={{
-                  background: 'rgba(255,255,255,0.05)', padding: 16, borderRadius: 8, marginBottom: 24,
-                  border: '1px solid rgba(255,255,255,0.1)'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }} onClick={() => setShareHistory(!shareHistory)}>
-                    <div style={{
-                      width: 20, height: 20, border: '2px solid #00c8ff', borderRadius: 4,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: shareHistory ? '#00c8ff' : 'transparent'
-                    }}>
-                      {shareHistory && <span style={{ color: '#050d1a', fontWeight: 'bold' }}>✓</span>}
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 13, color: '#fff', fontWeight: 600 }}>Share Clinical History?</div>
-                      <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)' }}>Transmits previous hospital's reports & triage notes.</div>
-                    </div>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: 12 }}>
-                  <button onClick={() => setRerouteTarget(null)} style={{
-                    flex: 1, padding: 12, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.2)',
-                    color: '#fff', borderRadius: 6, cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 12
-                  }}>CANCEL</button>
-                  <button onClick={() => {
-                    const hosp = rerouteTarget;
-                    if (selectedHospital) {
-                      const triage = vitalsRef.current;
-                      const snapshot = {
-                        hospitalName: selectedHospital?.name || 'Emergency Center',
-                        timestamp: new Date().toLocaleString(),
-                        triageColor: triage.spo2 < 92 || triage.heartRate > 130 ? '#ff4444' : triage.spo2 < 94 || triage.heartRate > 110 ? '#ffb800' : '#00ff88',
-                        triageLabel: triage.spo2 < 92 || triage.heartRate > 130 ? 'IMMEDIATE (RED)' : triage.spo2 < 94 || triage.heartRate > 110 ? 'URGENT (YELLOW)' : 'STABLE (GREEN)',
-                        vitals: { ...triage },
-                        notes: `Rerouted from ${selectedHospital?.name || 'Unknown'} to ${hosp?.name || 'Target'}. Reason: Tactical reroute.`
-                      };
-                      const updatedReports = [...previousReports, snapshot];
-                      setPreviousReports(updatedReports);
-
-                      // Notify network
-                      const netHosp = Object.entries(networkHospitals).find(([_, h]) => h.id === hosp.id);
+                <div style={{ display: 'flex', gap: 15, justifyContent: 'flex-end' }}>
+                  <button onClick={() => setRerouteTarget(null)} style={{ padding: '8px 16px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, color: '#aaa', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 11 }}>CANCEL</button>
+                  <button 
+                    onClick={() => {
                       if (socket && assignedUser) {
-                        if (netHosp) {
-                          socket.emit('request-hospital', {
-                            reqId: assignedUser.id,
-                            hospitalSocketId: netHosp[1]?.socketId,
-                            fieldReport: snapshot,
-                            previousReports: shareHistory ? updatedReports : undefined,
-                            arrivedAtUser: true
-                          });
-                        }
-                        socket.emit('reroute-hospital', {
-                          reqId: assignedUser.id,
-                          newHospitalId: hosp?.id,
-                          newHospitalName: hosp?.name,
-                          fieldReport: snapshot,
-                          previousReports: shareHistory ? updatedReports : undefined
-                        });
+                        socket.emit('paramedic-request-reroute', { reqId: assignedUser.id, hospitalId: rerouteTarget.id });
+                        setSelectedHospital(rerouteTarget);
+                        setRerouteTarget(null);
+                        showAlert('🔄 Reroute request sent to central coordination.');
                       }
-                    }
-                    setSelectedHospital(hosp);
-                    setRoutePath(null);
-                    setRerouteTarget(null);
-                  }} style={{
-                    flex: 2, padding: 12, background: '#ff4444', border: 'none',
-                    color: '#fff', borderRadius: 6, cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 12, fontWeight: 'bold'
-                  }}>CONFIRM REROUTE</button>
+                    }}
+                    style={{ padding: '8px 16px', background: '#ff4444', border: 'none', borderRadius: 6, color: '#fff', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 'bold' }}
+                  >CONFIRM REROUTE</button>
                 </div>
               </div>
             </div>
           )}
-          {/* Ambulance Settings Modal */}
-          {showSettingsModal && (
-            <div style={{
-              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: 20
-            }}>
-              <div style={{
-                width: '100%', maxWidth: 450, background: '#051226', border: '1px solid #00ff88',
-                borderRadius: 12, padding: 24, boxShadow: '0 0 50px rgba(0,255,136,0.15)'
-              }}>
-                <div style={{ fontFamily: "'Orbitron'", color: '#00ff88', fontSize: 16, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span>⚙️</span> AMBULANCE SETTINGS & CAPABILITY
+
+          {/* Incoming Dispatch Request Alert Modal */}
+          {incomingRequest && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(15px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 11000, padding: 20 }}>
+              <div style={{ width: '100%', maxWidth: 500, background: 'linear-gradient(135deg, #07152e 0%, #030a1c 100%)', border: '1px solid #ffb800', borderRadius: 12, padding: 30, boxShadow: '0 0 50px rgba(255,184,0,0.15)', display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid rgba(255,184,0,0.2)', paddingBottom: 15 }}>
+                  <span style={{ fontSize: 32, animation: 'pulse 1s infinite' }}>🚨</span>
+                  <div>
+                    <div style={{ fontFamily: "'Orbitron'", color: '#ffb800', fontSize: 18, fontWeight: 'bold', letterSpacing: '0.1em' }}>INCOMING EMERGENCY DISPATCH</div>
+                    <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'", marginTop: 2 }}>MISSION ID: {incomingRequest.id}</div>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 10, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.6)', marginBottom: 6 }}>DRIVER/PARAMEDIC NAME</label>
-                    <input 
-                      value={authUnit?.driverName || ''} 
-                      onChange={(e) => setAuthUnit({ ...authUnit, driverName: e.target.value })}
-                      style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }} 
-                    />
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
+                  {/* Patient Info Card */}
+                  <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: 16 }}>
+                    <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Orbitron'", marginBottom: 10 }}>PATIENT EMERGENCY DETAILS</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>NAME</div>
+                        <div style={{ fontSize: 13, color: '#fff', fontWeight: 'bold' }}>{incomingRequest.patientDetails?.name || 'Emergency Patient'}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>CONDITION / CHIEF COMPLAINT</div>
+                        <div style={{ fontSize: 13, color: '#ff4444', fontWeight: 'bold' }}>{incomingRequest.patientDetails?.condition || 'Unknown / SOS'}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>AGE / GENDER</div>
+                        <div style={{ fontSize: 13, color: '#fff' }}>{incomingRequest.patientDetails?.age || 'N/A'} yrs / {incomingRequest.patientDetails?.gender || 'N/A'}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>TRIAGE LEVEL</div>
+                        <div style={{ 
+                          display: 'inline-block', fontSize: 11, padding: '2px 8px', borderRadius: 4, fontWeight: 'bold', marginTop: 4,
+                          background: incomingRequest.patientDetails?.riskLevel === 'HIGH' || incomingRequest.fallbackBLS ? 'rgba(255,68,68,0.15)' : 'rgba(0,255,136,0.15)',
+                          color: incomingRequest.patientDetails?.riskLevel === 'HIGH' || incomingRequest.fallbackBLS ? '#ff4444' : '#00ff88',
+                          border: `1px solid ${incomingRequest.patientDetails?.riskLevel === 'HIGH' || incomingRequest.fallbackBLS ? '#ff4444' : '#00ff88'}`
+                        }}>
+                          {incomingRequest.patientDetails?.riskLevel || (incomingRequest.fallbackBLS ? 'HIGH' : 'STANDARD')}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 10, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.6)', marginBottom: 6 }}>CONTACT INFO</label>
-                    <input 
-                      value={authUnit?.contactInfo || ''} 
-                      onChange={(e) => setAuthUnit({ ...authUnit, contactInfo: e.target.value })}
-                      style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }} 
-                    />
+
+                  {/* Location Card */}
+                  <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: 16 }}>
+                    <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Orbitron'", marginBottom: 6 }}>PICKUP ADDRESS / LOCATION</div>
+                    <div style={{ fontSize: 12, color: '#fff', lineHeight: 1.4 }}>{incomingRequest.patientDetails?.address || 'GPS Location Coordinates'}</div>
+                    <div style={{ fontSize: 10, color: '#00c8ff', fontFamily: "'Share Tech Mono'", marginTop: 6 }}>
+                      Coords: {incomingRequest.userLocation?.lat?.toFixed(4)}, {incomingRequest.userLocation?.lng?.toFixed(4)}
+                    </div>
                   </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 10, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.6)', marginBottom: 6 }}>UNIT CAPABILITY TYPE</label>
-                    <select 
-                      value={authUnit?.type || 'BLS'} 
-                      onChange={(e) => setAuthUnit({ ...authUnit, type: e.target.value })}
-                      style={{ width: '100%', background: '#051226', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none' }}
-                    >
-                      <option value="BLS">Basic Life Support (BLS)</option>
-                      <option value="ALS">Advanced Life Support (ALS)</option>
-                    </select>
-                  </div>
-                  <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
-                    <button onClick={() => setShowSettingsModal(false)} style={{
-                      flex: 1, padding: 12, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.2)',
-                      color: '#fff', borderRadius: 6, cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 12
-                    }}>CANCEL</button>
-                    <button 
-                      onClick={async () => {
-                        try {
-                          const res = await fetch(`/api/ambulances/${authUnit.id || authUnit.unitId}/settings`, {
-                            method: 'PUT',
-                            headers: {
-                              'Content-Type': 'application/json',
-                              'Authorization': `Bearer ${sessionStorage.getItem('rescuelink_token')}`
-                            },
-                            body: JSON.stringify({
-                              driverName: authUnit.driverName,
-                              contactInfo: authUnit.contactInfo,
-                              type: authUnit.type
-                            })
-                          });
-                          if (res.ok) {
-                            window.alert('🚑 Settings updated and broadcasted!');
-                            if (socket) {
-                              socket.emit('register-ambulance', { 
-                                location: location || null, 
-                                available: true, 
-                                unitId: authUnit.unitId || authUnit.id, 
-                                driverName: authUnit.driverName, 
-                                vehicleNo: authUnit.vehicleNo || authUnit.unitId, 
-                                type: authUnit.type,
-                                token: sessionStorage.getItem('rescuelink_token')
-                              });
-                            }
-                            setShowSettingsModal(false);
-                          } else {
-                            window.alert('⚠️ Settings update failed.');
-                          }
-                        } catch (err) {
-                          window.alert('⚠️ Error connecting to server.');
-                        }
-                      }}
-                      style={{
-                        flex: 1, padding: 12, background: 'rgba(0,255,136,0.15)', border: '1px solid #00ff88',
-                        color: '#00ff88', borderRadius: 6, cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 12, fontWeight: 'bold'
-                      }}
-                    >SAVE CHANGES</button>
-                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 15, marginTop: 10 }}>
+                  <button 
+                    onClick={rejectRequest} 
+                    style={{ flex: 1, padding: '12px', background: 'rgba(255,68,68,0.1)', border: '1px solid #ff4444', borderRadius: 6, color: '#ff4444', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 'bold', transition: 'background 0.2s' }}
+                    onMouseEnter={e => e.target.style.background = 'rgba(255,68,68,0.2)'}
+                    onMouseLeave={e => e.target.style.background = 'rgba(255,68,68,0.1)'}
+                  >
+                    DECLINE REQUEST
+                  </button>
+                  <button 
+                    onClick={acceptRequest} 
+                    style={{ flex: 1, padding: '12px', background: 'linear-gradient(135deg, #00ff88 0%, #00b359 100%)', border: 'none', borderRadius: 6, color: '#000', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 'bold', boxShadow: '0 0 20px rgba(0,255,136,0.3)', transition: 'transform 0.2s' }}
+                    onMouseEnter={e => e.target.style.transform = 'scale(1.02)'}
+                    onMouseLeave={e => e.target.style.transform = 'scale(1)'}
+                  >
+                    ACCEPT DISPATCH
+                  </button>
                 </div>
               </div>
             </div>
@@ -4033,7 +4029,6 @@ export default function AmbulanceStreamer({ socket, connected }) {
     </div>
   );
 }
-
 function ClinicalAIDiagnosticAdvisor({ vitals, patient }) {
   const [advisorState, setAdvisorState] = useState({ diff: [], meds: [], warning: '' });
 

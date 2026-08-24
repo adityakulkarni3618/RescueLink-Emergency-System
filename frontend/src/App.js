@@ -9,6 +9,7 @@ import CustomAlert from './components/CustomAlert';
 import axios from 'axios';
 import PatientPortal from './components/PatientPortal';
 import { MfaVerifyScreen } from './components/MfaVerifyScreen';
+import AIEmergencyCorridorDashboard from './components/AIEmergencyCorridorDashboard';
 
 const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
 const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
@@ -87,6 +88,42 @@ const styles = `
     0%, 49% { opacity: 1; }
     50%, 100% { opacity: 0; }
   }
+  @keyframes logo-ring-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+  @keyframes logo-ring-spin-rev {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(-360deg); }
+  }
+  @keyframes logo-pulse-glow {
+    0%, 100% { filter: drop-shadow(0 0 4px rgba(220,50,50,0.6)); }
+    50%       { filter: drop-shadow(0 0 12px rgba(255,80,80,1)); }
+  }
+  .rescue-logo-wrap {
+    position: relative;
+    width: 52px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .rescue-logo-wrap svg.logo-main {
+    animation: logo-pulse-glow 2.5s ease-in-out infinite;
+  }
+  .rescue-ring-outer {
+    position: absolute;
+    top: 0; left: 0;
+    width: 52px; height: 52px;
+    animation: logo-ring-spin 7s linear infinite;
+  }
+  .rescue-ring-inner {
+    position: absolute;
+    top: 4px; left: 4px;
+    width: 44px; height: 44px;
+    animation: logo-ring-spin-rev 4.5s linear infinite;
+  }
 
   .role-card {
     animation: fadeSlideUp 0.6s ease forwards;
@@ -152,10 +189,18 @@ const styles = `
   }
 
   /* --- Global Reset & Overrides --- */
+  body, .app-root, p, span, div, label, input, textarea, select {
+    font-weight: 600 !important;
+  }
+  h1, h2, h3, h4, h5, h6, strong, b, button {
+    font-weight: 800 !important;
+  }
   body, .app-root {
     background: var(--theme-bg) !important;
     color: var(--theme-text-primary) !important;
     transition: background 0.3s ease, color 0.3s ease;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   /* Target all radial-gradient layouts and outer container backgrounds */
@@ -332,6 +377,20 @@ const styles = `
     box-sizing: border-box !important;
     height: 38px !important;
     vertical-align: middle !important;
+  }
+
+  /* SOS Button override — must grow to fit content */
+  button.sos-emergency-btn {
+    height: auto !important;
+    min-height: 70px !important;
+    padding: 18px 20px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-transform: none !important;
+    background: linear-gradient(135deg, rgba(255,30,30,0.25), rgba(220,0,0,0.15)) !important;
+    border: 2px solid #ff2222 !important;
+    box-shadow: 0 0 20px rgba(255,30,30,0.3) !important;
   }
 
   /* Primary Button (Gradient background using active Accent theme color) */
@@ -1356,12 +1415,12 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 9999,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
       background: 'rgba(5,13,26,0.92)', backdropFilter: 'blur(8px)',
-      fontFamily: "'Rajdhani', sans-serif", padding: '20px 10px',
+      fontFamily: "'Rajdhani', sans-serif", padding: '40px 10px',
       overflowY: 'auto'
     }}>
-      <div className="rl-card rl-modal-card" style={{ width: '100%', maxWidth: 480, padding: '28px 24px 32px 24px', position: 'relative' }}>
+      <div className="rl-card rl-modal-card" style={{ width: '100%', maxWidth: 480, padding: '28px 24px 32px 24px', position: 'relative', margin: 'auto' }}>
         <button onClick={onClose} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: 'rgba(160,200,255,0.6)', fontSize: 20, cursor: 'pointer' }}>✕</button>
 
         <h2 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 22, color: '#00c8ff', textAlign: 'center', marginBottom: 4, letterSpacing: '0.1em' }}>
@@ -2077,17 +2136,35 @@ function LandingHomepage({ onSelectRole }) {
       <ParticleCanvas />
       <div className="scanline" />
 
-      {/* Main Header */}
       <header className="rl-page-header" style={{
         padding: '20px 40px', borderBottom: '1px solid rgba(0,200,255,0.15)',
         display: 'flex', justifySelf: 'stretch', justifyContent: 'space-between', alignItems: 'center',
         background: 'rgba(5,15,35,0.7)', backdropFilter: 'blur(10px)', zIndex: 10
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{
-            width: 32, height: 32, border: '2px solid #ff3333', borderRadius: '50%',
-            display: 'flex', alignItems: 'center', justifyCenter: 'center', fontSize: 18, color: '#ff3333', fontWeight: 'bold', flexShrink: 0
-          }}>🚨</div>
+          <div className="rescue-logo-wrap">
+            {/* Outer slow-rotating dashed ring */}
+            <svg className="rescue-ring-outer" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="26" cy="26" r="24" stroke="rgba(180,30,30,0.55)" strokeWidth="1.2" strokeDasharray="4 5" strokeLinecap="round"/>
+            </svg>
+            {/* Inner fast counter-rotating ring */}
+            <svg className="rescue-ring-inner" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="22" cy="22" r="20" stroke="rgba(80,160,255,0.35)" strokeWidth="1" strokeDasharray="2 8" strokeLinecap="round"/>
+            </svg>
+            {/* Static core logo */}
+            <svg className="logo-main" width="40" height="40" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              {/* Outer faint glow ring */}
+              <circle cx="24" cy="24" r="23" fill="none" stroke="rgba(255,40,40,0.12)" strokeWidth="1"/>
+              {/* Main dark circle with red border */}
+              <circle cx="24" cy="24" r="19" fill="#0a0a12" stroke="#cc2020" strokeWidth="2.2"/>
+              {/* Soft inner glow ring */}
+              <circle cx="24" cy="24" r="17.5" fill="none" stroke="rgba(255,60,60,0.2)" strokeWidth="2.5"/>
+              {/* Red cross — horizontal */}
+              <rect x="10" y="20.5" width="28" height="7" rx="2.2" fill="#dd2828"/>
+              {/* Red cross — vertical */}
+              <rect x="20.5" y="10" width="7" height="28" rx="2.2" fill="#dd2828"/>
+            </svg>
+          </div>
           <div>
             <h1 style={{ fontFamily: "'Orbitron'", fontSize: 18, letterSpacing: '0.15em', color: '#00c8ff', margin: 0 }}>RESCUELINK</h1>
             <span style={{ fontSize: 9, letterSpacing: '0.2em', color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'" }}>NATIONAL HEALTH NETWORK</span>
@@ -2677,7 +2754,7 @@ export default function App() {
     const handleHash = () => {
       const hash = window.location.hash.replace('#', '');
       const parsedRole = hash.split('/')[0];
-      if (['user', 'ambulance', 'hospital', 'admin', 'family'].includes(parsedRole)) {
+      if (['user', 'ambulance', 'hospital', 'admin', 'family', 'corridor'].includes(parsedRole)) {
         setRole(parsedRole);
         sessionStorage.setItem('rescueLinkRole', parsedRole);
       } else if (!hash) {
@@ -2944,62 +3021,81 @@ export default function App() {
       <style>{styles}</style>
       <div className="scanline" />
 
+      <ThemeSwitcher />
 
-
-      {/* Global Actions Bar (Top Right) */}
-      <div className={`global-buttons-container${emergencyBroadcast ? ' gb-banner-active' : ''}`} style={{ position: 'fixed', top: emergencyBroadcast ? 74 : 14, right: 25, zIndex: 11000, display: 'flex', gap: 12, alignItems: 'center', transition: 'top 0.25s ease' }}>
-        {/* Switch role settings button */}
-        <button
-          className="rl-btn-secondary"
-          onClick={() => {
+      {role === 'user' && (
+        <UserDashboard 
+          socket={socket} 
+          connected={connected} 
+          onLogout={handleLogout}
+          onSwitchRole={() => {
             sessionStorage.removeItem('rescueLinkRole');
             setRole(null);
             window.location.hash = '';
           }}
-          style={{
-            padding: '8px 16px',
-            fontSize: 11
-          }}
-        >
-          <span className="global-btn-label">SWITCH ROLE </span>🔄
-        </button>
-
-        {/* Security settings button */}
-        <button
-          className="rl-btn-secondary"
-          onClick={() => setShowSecurityModal(true)}
-          style={{
-            padding: '8px 16px',
-            fontSize: 11
-          }}
-        >
-          <span className="global-btn-label">SECURITY </span>🛡️
-        </button>
-
-        {/* Logout button */}
-        <button
-          className="rl-btn-primary"
-          onClick={handleLogout}
-          style={{
-            padding: '8px 16px',
-            fontSize: 11,
-            background: 'linear-gradient(135deg, #ff4444 0%, #cc0000 100%)',
-            boxShadow: '0 4px 15px rgba(255, 68, 68, 0.2)'
-          }}
-        >
-          <span className="global-btn-label">LOGOUT </span>⏻
-        </button>
-      </div>
-
-      <ThemeSwitcher />
-
-      {role === 'user' && (
-        <UserDashboard socket={socket} connected={connected} />
+          onShowSecurity={() => setShowSecurityModal(true)}
+        />
       )}
-      {role === 'ambulance' && <AmbulanceStreamer socket={socket} connected={connected} />}
-      {role === 'hospital' && <HospitalDashboard socket={socket} connected={connected} />}
-      {role === 'admin' && <WarRoom socket={socket} connected={connected} />}
-      {role === 'family' && <FamilyDashboard socket={socket} connected={connected} reqId={familyReqId} />}
+      {role === 'ambulance' && (
+        <AmbulanceStreamer 
+          socket={socket} 
+          connected={connected} 
+          onLogout={handleLogout}
+          onSwitchRole={() => {
+            sessionStorage.removeItem('rescueLinkRole');
+            setRole(null);
+            window.location.hash = '';
+          }}
+          onShowSecurity={() => setShowSecurityModal(true)}
+        />
+      )}
+      {role === 'hospital' && (
+        <HospitalDashboard 
+          socket={socket} 
+          connected={connected} 
+          onLogout={handleLogout}
+          onSwitchRole={() => {
+            sessionStorage.removeItem('rescueLinkRole');
+            setRole(null);
+            window.location.hash = '';
+          }}
+          onShowSecurity={() => setShowSecurityModal(true)}
+        />
+      )}
+      {role === 'admin' && (
+        <WarRoom 
+          socket={socket} 
+          connected={connected} 
+          onLogout={handleLogout}
+          onSwitchRole={() => {
+            sessionStorage.removeItem('rescueLinkRole');
+            setRole(null);
+            window.location.hash = '';
+          }}
+          onShowSecurity={() => setShowSecurityModal(true)}
+        />
+      )}
+      {role === 'family' && (
+        <FamilyDashboard 
+          socket={socket} 
+          connected={connected} 
+          reqId={familyReqId} 
+          onLogout={handleLogout}
+          onSwitchRole={() => {
+            sessionStorage.removeItem('rescueLinkRole');
+            setRole(null);
+            window.location.hash = '';
+          }}
+          onShowSecurity={() => setShowSecurityModal(true)}
+        />
+      )}
+      {role === 'corridor' && (
+        <AIEmergencyCorridorDashboard 
+          socket={socket} 
+          connected={connected} 
+          onLogout={handleLogout}
+        />
+      )}
 
       {emergencyBroadcast && (
         <div className="rl-emergency-banner" style={{

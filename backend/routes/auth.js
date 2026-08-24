@@ -113,11 +113,9 @@ router.post('/login', validate(loginBody), async (req, res) => {
       }
     }
 
-    // Enforce MFA setup/check in production
-    const requiresMfaEnforcement = (isAmbulanceTableLogin || ['doctor', 'hospital_admin', 'city_admin', 'paramedic'].includes(user.role)) && 
-      process.env.NODE_ENV === 'production' && 
-      process.env.DISABLE_MFA !== 'true' && 
-      req.body.bypassMFA !== true;
+    // Enforce MFA setup check for roles requiring MFA (doctor, admin, paramedic)
+    const roleRequiresMfa = (isAmbulanceTableLogin || ['doctor', 'hospital_admin', 'city_admin', 'paramedic'].includes(user.role));
+    const requiresMfaEnforcement = roleRequiresMfa && process.env.DISABLE_MFA !== 'true' && req.body.bypassMFA !== true;
     
     if (requiresMfaEnforcement && (!mfaSecret || !isMfaFullySetup)) {
       console.log(`[AUTH] MFA setup required/unverified for: ${loginIdentifier}`);
@@ -560,7 +558,7 @@ router.post('/register-ambulance', async (req, res) => {
       type: type || 'BLS',
       password: passwordHash,
       totp_secret: setupData.secret,
-      is_active: false,
+      is_active: true,
       hospital_id: hospitalId || null,
       equipment_checklist: JSON.stringify(equipmentChecklist || []),
       crew_members: JSON.stringify(crewMembers || []),
@@ -696,7 +694,7 @@ router.post('/register-hospital', async (req, res) => {
       total_beds: parseInt(totalBeds) || 50,
       icu_beds: parseInt(icuBeds) || 5,
       ventilators: parseInt(ventilators) || 2,
-      is_active: false,
+      is_active: true,
       license_number: licenseNumber || null,
       departments: JSON.stringify(departments || []),
       bay_capacity: parseInt(bayCapacity) || 5,

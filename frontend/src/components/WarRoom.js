@@ -62,7 +62,7 @@ function KpiCard({ label, value, unit, color, icon }) {
   );
 }
 
-export default function WarRoom({ socket, connected }) {
+export default function WarRoom({ socket, connected, onLogout, onSwitchRole, onShowSecurity }) {
   const [ambulances, setAmbulances] = useState({});
   const [hospitals, setHospitals] = useState({});
   const [analyticsData, setAnalyticsData] = useState([]);
@@ -71,22 +71,7 @@ export default function WarRoom({ socket, connected }) {
   const [aiAlert, setAiAlert] = useState(null);
   const [kpis, setKpis] = useState({ total: 0, completed: 0, active: 0, cancelled: 0, successRate: 0 });
   const [connectedRoles, setConnectedRoles] = useState({ user: 0, ambulance: 0, hospital: 0 });
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    if (sessionStorage.getItem('warroom_auth') === '1') return true;
-    try {
-      const userStr = sessionStorage.getItem('rescuelink_user');
-      const token = sessionStorage.getItem('rescuelink_token');
-      if (userStr && token) {
-        const user = JSON.parse(userStr);
-        if (user.role === 'city_admin') {
-          return true;
-        }
-      }
-    } catch (e) {
-      console.error('[WARROOM AUTO-AUTH] Error parsed:', e);
-    }
-    return false;
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
   const [activeTab, setActiveTab] = useState('map'); // map, mass_casualty, blood_bank
@@ -520,19 +505,32 @@ export default function WarRoom({ socket, connected }) {
       `}</style>
 
       {/* ── Header ── */}
-      <div style={{ background: 'rgba(5,20,10,0.98)', borderBottom: '1px solid rgba(0,255,136,0.2)', padding: '10px 450px 10px 24px', display: 'flex', alignItems: 'center', gap: 16, minHeight: 62, height: 'auto', flexWrap: 'wrap', flexShrink: 0 }}>
+      <div style={{ background: 'rgba(5,20,10,0.98)', borderBottom: '1px solid rgba(0,255,136,0.2)', padding: '10px 24px', display: 'flex', alignItems: 'center', gap: 16, minHeight: 62, height: 'auto', flexWrap: 'wrap', flexShrink: 0 }}>
         <div style={{ fontSize: 24 }}>🏛️</div>
         <div>
           <div style={{ fontFamily: "'Orbitron'", fontSize: 13, fontWeight: 700, color: '#88ff88', letterSpacing: '0.1em' }}>GOVERNMENT WAR ROOM — CITY ADMINISTRATION</div>
           <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>RESCUELINK ENTERPRISE v2.0 — FLEET COMMAND & ANALYTICS</div>
         </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, alignItems: 'center' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           {[['USERS', connectedRoles.user, '0,255,136'], ['AMBULANCES', connectedRoles.ambulance, '255,107,53'], ['HOSPITALS', connectedRoles.hospital, '0,200,255']].map(([label, val, c]) => (
             <div key={label} style={{ textAlign: 'center', padding: '5px 12px', background: `rgba(${c},0.07)`, border: `1px solid rgba(${c},0.2)`, borderRadius: 6 }}>
               <div style={{ fontSize: 8, color: `rgba(${c},0.6)`, fontFamily: "'Orbitron'", letterSpacing: '0.08em' }}>{label}</div>
               <div style={{ fontSize: 18, fontWeight: 900, color: `rgb(${c})`, fontFamily: "'Orbitron'" }}>{val}</div>
             </div>
           ))}
+          
+          {/* Action buttons embedded natively in the flex layout */}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 15 }}>
+            <button onClick={onSwitchRole} className="rl-btn-secondary" style={{ height: 32, padding: '0 12px', fontSize: 10, borderColor: 'rgba(0,255,136,0.3)', color: '#00ff88' }}>
+              ROLE 🔄
+            </button>
+            <button onClick={onShowSecurity} className="rl-btn-secondary" style={{ height: 32, padding: '0 12px', fontSize: 10, borderColor: 'rgba(0,255,136,0.3)', color: '#00ff88' }}>
+              SECURITY 🛡️
+            </button>
+            <button onClick={onLogout} className="rl-btn-primary" style={{ height: 32, padding: '0 12px', fontSize: 10, background: 'linear-gradient(135deg, #ff4444 0%, #cc0000 100%)', border: 'none', color: '#fff' }}>
+              LOGOUT ⏻
+            </button>
+          </div>
         </div>
       </div>
 
@@ -563,7 +561,8 @@ export default function WarRoom({ socket, connected }) {
                 { id: 'privacy', label: '🔐 PRIVACY & ERASURE (DPDP)' },
                 { id: 'approvals', label: '🛡️ REGISTRATION APPROVALS' },
                 { id: 'authority', label: '👥 REGISTER AUTHORITY' },
-                { id: 'ledger', label: '⛓️ CRYPTOGRAPHIC AUDIT LEDGER' }
+                { id: 'ledger', label: '⛓️ CRYPTOGRAPHIC AUDIT LEDGER' },
+                { id: 'registry', label: '📋 ENTITY REGISTRY' }
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -595,7 +594,8 @@ export default function WarRoom({ socket, connected }) {
                     { id: 'privacy', label: '🔐 PRIVACY & ERASURE (DPDP)' },
                     { id: 'approvals', label: '🛡️ REGISTRATION APPROVALS' },
                     { id: 'authority', label: '👥 REGISTER AUTHORITY' },
-                    { id: 'ledger', label: '⛓️ CRYPTOGRAPHIC AUDIT LEDGER' }
+                    { id: 'ledger', label: '⛓️ CRYPTOGRAPHIC AUDIT LEDGER' },
+                    { id: 'registry', label: '📋 ENTITY REGISTRY' }
                   ].map(tab => (
                     <button
                       key={tab.id}
@@ -781,6 +781,10 @@ export default function WarRoom({ socket, connected }) {
 
           {activeTab === 'approvals' && (
             <RegistrationApprovals />
+          )}
+
+          {activeTab === 'registry' && (
+            <RegistryPanel />
           )}
 
           {activeTab === 'authority' && (() => {
@@ -1090,9 +1094,460 @@ export default function WarRoom({ socket, connected }) {
   );
 }
 
+function RegistryPanel() {
+  const [entityTab, setEntityTab] = useState('hospitals'); // hospitals, ambulances, patients
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [viewModal, setViewModal] = useState(null);
+  const [editModal, setEditModal] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  const [actionLoading, setActionLoading] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState(null); // {row, action: 'suspend'|'delete'}
+
+  const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
+  const token = sessionStorage.getItem('rescuelink_token') || '';
+  const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3500);
+  };
+
+  const fetchData = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      let url = '';
+      if (entityTab === 'hospitals') url = '/api/hospitals/all';
+      else if (entityTab === 'ambulances') url = '/api/ambulances';
+      else url = '/api/users';
+
+      const res = await fetch(url, { headers });
+      if (!res.ok) throw new Error('Fetch failed');
+      let list = await res.json();
+
+      // Filter patients only
+      if (entityTab === 'patients') {
+        list = list.filter(u => u.role === 'patient');
+      }
+
+      setData(list);
+    } catch (err) {
+      console.error('[REGISTRY] Fetch error:', err);
+      showToast('Failed to load data', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [entityTab]);
+
+  React.useEffect(() => {
+    fetchData();
+    const interval = setInterval(fetchData, 30000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
+
+  // Filtering
+  const filtered = data.filter(row => {
+    const name = (row.name || row.vehicleNo || row.driverName || '').toLowerCase();
+    const id = (row.id || '').toLowerCase();
+    const email = (row.email || row.contactInfo || '').toLowerCase();
+    const q = searchQuery.toLowerCase();
+    const matchSearch = !q || name.includes(q) || id.includes(q) || email.includes(q);
+
+    const created = row.createdAt ? new Date(row.createdAt) : null;
+    const matchFrom = !dateFrom || (created && created >= new Date(dateFrom));
+    const matchTo = !dateTo || (created && created <= new Date(dateTo + 'T23:59:59'));
+
+    return matchSearch && matchFrom && matchTo;
+  });
+
+  const handleSuspend = async (row) => {
+    setActionLoading(row.id + '-suspend');
+    try {
+      let url = '';
+      if (entityTab === 'hospitals') url = `/api/hospitals/${row.id}/suspend`;
+      else if (entityTab === 'ambulances') url = `/api/ambulances/${row.id}/suspend`;
+      else url = `/api/users/${row.id}/suspend`;
+      const res = await fetch(url, { method: 'PUT', headers });
+      if (!res.ok) throw new Error('Suspend failed');
+      // Optimistic update
+      setData(prev => prev.map(r => r.id === row.id ? { ...r, is_active: false } : r));
+      showToast(`${row.name || row.vehicleNo} suspended`);
+      setDeleteConfirmModal(null);
+    } catch (err) { showToast('Suspend failed', 'error'); }
+    finally { setActionLoading(null); }
+  };
+
+  const handleRestore = async (row) => {
+    setActionLoading(row.id + '-restore');
+    try {
+      let url = '';
+      if (entityTab === 'hospitals') url = `/api/hospitals/${row.id}/restore`;
+      else if (entityTab === 'ambulances') url = `/api/ambulances/${row.id}/restore`;
+      else url = `/api/users/${row.id}/restore`;
+      const res = await fetch(url, { method: 'PUT', headers });
+      if (!res.ok) throw new Error('Restore failed');
+      setData(prev => prev.map(r => r.id === row.id ? { ...r, is_active: true } : r));
+      showToast(`${row.name || row.vehicleNo} restored`);
+    } catch (err) { showToast('Restore failed', 'error'); }
+    finally { setActionLoading(null); }
+  };
+
+  const handleRemove = async (row) => {
+    setActionLoading(row.id + '-remove');
+    const label = row.name || row.vehicleNo || row.email;
+    try {
+      let url = '';
+      if (entityTab === 'hospitals') url = `/api/hospitals/${row.id}`;
+      else if (entityTab === 'ambulances') url = `/api/ambulances/${row.id}`;
+      else url = `/api/users/${row.id}`;
+      const res = await fetch(url, { method: 'DELETE', headers });
+      if (!res.ok) throw new Error('Delete failed');
+      // Optimistic removal — immediately remove from UI
+      setData(prev => prev.filter(r => r.id !== row.id));
+      showToast(`${label} permanently deleted`);
+      setDeleteConfirmModal(null);
+    } catch (err) { showToast('Permanent delete failed', 'error'); }
+    finally { setActionLoading(null); }
+  };
+
+  const handleEdit = async () => {
+    if (!editModal) return;
+    setActionLoading('edit');
+    try {
+      let url = '';
+      let method = 'PUT';
+      if (entityTab === 'hospitals') url = `/api/hospitals/${editModal.id}`;
+      else if (entityTab === 'ambulances') { url = `/api/ambulances/${editModal.id}/settings`; method = 'PUT'; }
+      else url = `/api/users/${editModal.id}`;
+      const res = await fetch(url, { method, headers, body: JSON.stringify(editForm) });
+      if (!res.ok) throw new Error('Update failed');
+      showToast('Updated successfully');
+      setEditModal(null);
+      fetchData();
+    } catch (err) { showToast('Update failed', 'error'); }
+    finally { setActionLoading(null); }
+  };
+
+  const exportPDF = () => {
+    try {
+      const { jsPDF } = require('jspdf');
+      const autoTable = require('jspdf-autotable').default;
+      const doc = new jsPDF({ orientation: 'landscape' });
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.text(`RescueLink — ${entityTab.toUpperCase()} REGISTRY`, 14, 16);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Exported: ${new Date().toLocaleString()} | Search: "${searchQuery}" | Range: ${dateFrom || 'all'} – ${dateTo || 'now'}`, 14, 23);
+
+      let columns, rows;
+      if (entityTab === 'hospitals') {
+        columns = ['ID', 'Name', 'City', 'State', 'ICU Beds', 'Status', 'Registered'];
+        rows = filtered.map(r => [r.id?.slice(-8), r.name, r.city, r.state, r.icu_beds, r.is_active ? 'ACTIVE' : 'SUSPENDED', r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '-']);
+      } else if (entityTab === 'ambulances') {
+        columns = ['ID', 'Vehicle No', 'Driver', 'Type', 'Contact', 'Status', 'Registered'];
+        rows = filtered.map(r => [r.id?.slice(-8), r.vehicleNo, r.driverName, r.type, r.contactInfo, r.is_active ? 'ACTIVE' : 'SUSPENDED', r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '-']);
+      } else {
+        columns = ['ID', 'Name', 'Email', 'Blood Group', 'Status', 'Registered'];
+        rows = filtered.map(r => [r.id?.slice(-8), r.name, r.email, r.blood_group || '-', r.is_active ? 'ACTIVE' : 'SUSPENDED', r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '-']);
+      }
+
+      autoTable(doc, {
+        startY: 28,
+        head: [columns],
+        body: rows,
+        theme: 'grid',
+        headStyles: { fillColor: [0, 40, 80], textColor: [0, 200, 255], fontSize: 8 },
+        bodyStyles: { fontSize: 8 },
+        alternateRowStyles: { fillColor: [240, 245, 255] }
+      });
+      doc.save(`rescuelink_${entityTab}_${Date.now()}.pdf`);
+    } catch (err) {
+      console.error('[REGISTRY] PDF export failed:', err);
+      showToast('PDF export failed', 'error');
+    }
+  };
+
+  const exportExcel = () => {
+    try {
+      const XLSX = require('xlsx');
+      let rows;
+      if (entityTab === 'hospitals') {
+        rows = filtered.map(r => ({ ID: r.id, Name: r.name, City: r.city, State: r.state, ICU_Beds: r.icu_beds, Total_Beds: r.total_beds, Ventilators: r.ventilators, Status: r.is_active ? 'ACTIVE' : 'SUSPENDED', Registered: r.createdAt }));
+      } else if (entityTab === 'ambulances') {
+        rows = filtered.map(r => ({ ID: r.id, VehicleNo: r.vehicleNo, Driver: r.driverName, Type: r.type, Contact: r.contactInfo, Status: r.is_active ? 'ACTIVE' : 'SUSPENDED', Registered: r.createdAt }));
+      } else {
+        rows = filtered.map(r => ({ ID: r.id, Name: r.name, Email: r.email, BloodGroup: r.blood_group, Gender: r.gender, Status: r.is_active ? 'ACTIVE' : 'SUSPENDED', Registered: r.createdAt }));
+      }
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, entityTab.charAt(0).toUpperCase() + entityTab.slice(1));
+      XLSX.writeFile(wb, `rescuelink_${entityTab}_${Date.now()}.xlsx`);
+    } catch (err) {
+      console.error('[REGISTRY] Excel export failed:', err);
+      showToast('Excel export failed', 'error');
+    }
+  };
+
+  const S = {
+    card: { background: 'rgba(5,15,40,0.9)', border: '1px solid rgba(0,200,255,0.15)', borderRadius: 10, padding: 20 },
+    btn: (color) => ({ padding: '6px 14px', background: `rgba(${color},0.12)`, border: `1px solid rgba(${color},0.4)`, borderRadius: 6, color: `rgb(${color})`, fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.05em' }),
+    input: { background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(0,200,255,0.25)', borderRadius: 6, padding: '7px 12px', color: '#e0eaff', fontSize: 12, fontFamily: "'Share Tech Mono'", outline: 'none' },
+    th: { padding: '8px 10px', fontFamily: "'Orbitron'", fontSize: 9, color: 'rgba(0,200,255,0.7)', fontWeight: 700, letterSpacing: '0.08em', borderBottom: '1px solid rgba(0,200,255,0.1)', textAlign: 'left', whiteSpace: 'nowrap' },
+    td: { padding: '9px 10px', fontSize: 11, color: '#e0eaff', borderBottom: '1px solid rgba(0,200,255,0.05)', verticalAlign: 'middle' },
+    badge: (active) => ({ padding: '2px 8px', borderRadius: 10, fontSize: 9, fontWeight: 700, background: active ? 'rgba(0,255,136,0.15)' : 'rgba(255,68,68,0.15)', color: active ? '#00ff88' : '#ff4444', display: 'inline-block' }),
+  };
+
+  const getColumns = () => {
+    if (entityTab === 'hospitals') return ['#', 'NAME', 'CITY', 'STATE', 'ICU BEDS', 'TOTAL BEDS', 'STATUS', 'REGISTERED', 'ACTIONS'];
+    if (entityTab === 'ambulances') return ['#', 'VEHICLE NO', 'DRIVER', 'TYPE', 'CONTACT', 'STATUS', 'REGISTERED', 'ACTIONS'];
+    return ['#', 'NAME', 'EMAIL', 'BLOOD GRP', 'GENDER', 'STATUS', 'REGISTERED', 'ACTIONS'];
+  };
+
+  const renderRow = (row, idx) => {
+    const isActive = row.is_active !== false;
+    const regDate = row.createdAt ? new Date(row.createdAt).toLocaleDateString() : '—';
+    const isLoadingS = actionLoading === row.id + '-suspend';
+    const isLoadingR = actionLoading === row.id + '-restore';
+    const isLoadingD = actionLoading === row.id + '-remove';
+
+    const cells = entityTab === 'hospitals' ? [
+      <span style={{ color: '#00c8ff', fontFamily: "'Share Tech Mono'" }}>{row.id?.slice(-8)}</span>,
+      <strong>{row.name}</strong>,
+      row.city || '—',
+      row.state || '—',
+      <span style={{ color: '#ffb800', fontWeight: 700 }}>{row.icu_beds || 0}</span>,
+      row.total_beds || 0,
+    ] : entityTab === 'ambulances' ? [
+      <span style={{ color: '#00c8ff', fontFamily: "'Share Tech Mono'" }}>{row.vehicleNo}</span>,
+      <strong>{row.driverName}</strong>,
+      <span style={{ padding: '2px 6px', borderRadius: 4, background: row.type === 'ALS' ? 'rgba(180,100,255,0.15)' : 'rgba(0,200,255,0.1)', color: row.type === 'ALS' ? '#cc88ff' : '#00c8ff', fontSize: 9, fontWeight: 700 }}>{row.type}</span>,
+      row.contactInfo || '—',
+    ] : [
+      <span style={{ color: '#00c8ff', fontFamily: "'Share Tech Mono'", fontSize: 10 }}>{row.id?.slice(-8)}</span>,
+      <strong>{row.name}</strong>,
+      <span style={{ fontSize: 10, color: 'rgba(160,200,255,0.7)' }}>{row.email}</span>,
+      row.blood_group || '—',
+      row.gender || '—',
+    ];
+
+    return (
+      <tr key={row.id} style={{ transition: 'background 0.15s' }}
+        onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,200,255,0.04)'}
+        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+      >
+        <td style={{ ...S.td, color: 'rgba(160,200,255,0.4)', fontSize: 10, textAlign: 'center' }}>{idx + 1}</td>
+        {cells.map((cell, i) => <td key={i} style={S.td}>{cell}</td>)}
+        <td style={S.td}><span style={S.badge(isActive)}>{isActive ? '● ACTIVE' : '⏸ SUSPENDED'}</span></td>
+        <td style={{ ...S.td, fontSize: 10, color: 'rgba(160,200,255,0.5)' }}>{regDate}</td>
+        <td style={{ ...S.td, whiteSpace: 'nowrap' }}>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button onClick={() => setViewModal(row)} style={{ ...S.btn('0,200,255'), padding: '4px 8px' }} title="View">👁</button>
+            <button onClick={() => { setEditModal(row); setEditForm(entityTab === 'hospitals' ? { name: row.name, city: row.city, state: row.state, icu_beds: row.icu_beds, total_beds: row.total_beds, ventilators: row.ventilators, contact_number: row.contact_number } : entityTab === 'ambulances' ? { driverName: row.driverName, type: row.type, contactInfo: row.contactInfo } : { name: row.name, mobile: row.mobile, blood_group: row.blood_group, gender: row.gender }); }} style={{ ...S.btn('255,184,0'), padding: '4px 8px' }} title="Edit">✏️</button>
+            {isActive
+              ? <button disabled={isLoadingS} onClick={() => handleSuspend(row)} style={{ ...S.btn('255,68,68'), padding: '4px 8px', opacity: isLoadingS ? 0.5 : 1 }} title="Suspend">⏸</button>
+              : <button disabled={isLoadingR} onClick={() => handleRestore(row)} style={{ ...S.btn('0,255,136'), padding: '4px 8px', opacity: isLoadingR ? 0.5 : 1 }} title="Restore">▶</button>
+            }
+            <button onClick={() => setDeleteConfirmModal(row)} style={{ ...S.btn('255,40,40'), padding: '4px 8px', opacity: isLoadingD ? 0.5 : 1, fontSize: 13 }} title="Suspend / Delete">🗑</button>
+          </div>
+        </td>
+      </tr>
+    );
+  };
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16, padding: '0 0 20px' }}>
+
+      {/* ═══ Delete / Suspend Choice Modal ═══ */}
+      {deleteConfirmModal && (() => {
+        const row = deleteConfirmModal;
+        const label = row.name || row.vehicleNo || row.email || 'this entity';
+        const isActive = row.is_active !== false;
+        const isLoadingS = actionLoading === row.id + '-suspend';
+        const isLoadingD = actionLoading === row.id + '-remove';
+        return (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 999999, background: 'rgba(0,5,20,0.88)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setDeleteConfirmModal(null)}>
+            <div style={{ background: 'rgba(8,18,42,0.98)', border: '1px solid rgba(255,60,60,0.3)', borderRadius: 14, padding: 32, maxWidth: 440, width: '90%', boxShadow: '0 0 50px rgba(255,40,40,0.15)' }} onClick={e => e.stopPropagation()}>
+              <div style={{ fontFamily: "'Orbitron'", fontSize: 15, color: '#ff4444', fontWeight: 900, marginBottom: 8, letterSpacing: '0.06em' }}>⚠️ ACTION REQUIRED</div>
+              <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'", marginBottom: 24, lineHeight: 1.6 }}>
+                Choose what to do with:<br />
+                <span style={{ color: '#fff', fontWeight: 700, fontSize: 13 }}>「 {label} 」</span>
+              </div>
+
+              {/* Option 1: Suspend (only if currently active) */}
+              {isActive && (
+                <div style={{ background: 'rgba(255,184,0,0.07)', border: '1px solid rgba(255,184,0,0.25)', borderRadius: 10, padding: '16px 18px', marginBottom: 12 }}>
+                  <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#ffb800', fontWeight: 700, marginBottom: 6 }}>⏸ SUSPEND ACCOUNT</div>
+                  <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'", marginBottom: 12, lineHeight: 1.5 }}>Blocks login access. Account data is preserved. Reversible at any time.</div>
+                  <button onClick={() => handleSuspend(row)} disabled={isLoadingS} style={{ padding: '9px 20px', background: 'rgba(255,184,0,0.14)', border: '1px solid rgba(255,184,0,0.5)', borderRadius: 8, color: '#ffb800', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer', opacity: isLoadingS ? 0.5 : 1 }}>
+                    {isLoadingS ? '⏳ SUSPENDING...' : '⏸ SUSPEND'}
+                  </button>
+                </div>
+              )}
+
+              {/* Option 2: Permanent Delete */}
+              <div style={{ background: 'rgba(255,40,40,0.07)', border: '1px solid rgba(255,40,40,0.3)', borderRadius: 10, padding: '16px 18px', marginBottom: 20 }}>
+                <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#ff4444', fontWeight: 700, marginBottom: 6 }}>🗑 DELETE PERMANENTLY</div>
+                <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'", marginBottom: 12, lineHeight: 1.5 }}>All data, records, and credentials for this entity will be erased. This action <strong style={{ color: '#ff4444' }}>cannot be undone</strong>.</div>
+                <button onClick={() => handleRemove(row)} disabled={isLoadingD} style={{ padding: '9px 20px', background: 'rgba(255,40,40,0.14)', border: '1px solid rgba(255,40,40,0.5)', borderRadius: 8, color: '#ff4444', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer', opacity: isLoadingD ? 0.5 : 1 }}>
+                  {isLoadingD ? '⏳ DELETING...' : '🗑 PERMANENTLY DELETE'}
+                </button>
+              </div>
+
+              <button onClick={() => setDeleteConfirmModal(null)} style={{ width: '100%', padding: '9px', background: 'transparent', border: '1px solid rgba(160,200,255,0.15)', borderRadius: 8, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 10, cursor: 'pointer' }}>CANCEL</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Toast */}
+      {toast && (
+        <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 99999, background: toast.type === 'error' ? 'rgba(255,40,40,0.15)' : 'rgba(0,255,136,0.12)', border: `1px solid ${toast.type === 'error' ? '#ff4444' : '#00ff88'}`, borderRadius: 8, padding: '12px 20px', color: toast.type === 'error' ? '#ff4444' : '#00ff88', fontFamily: "'Orbitron'", fontSize: 12, fontWeight: 700, backdropFilter: 'blur(10px)' }}>
+          {toast.type === 'error' ? '❌' : '✅'} {toast.msg}
+        </div>
+      )}
+
+      {/* View Modal */}
+      {viewModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: 20 }}>
+          <div style={{ width: '100%', maxWidth: 560, background: '#050d1a', border: '1px solid rgba(0,200,255,0.3)', borderRadius: 12, padding: 28, maxHeight: '85vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+              <div style={{ fontFamily: "'Orbitron'", fontSize: 13, color: '#00c8ff', fontWeight: 700 }}>👁 ENTITY DETAILS</div>
+              <button onClick={() => setViewModal(null)} style={{ background: 'transparent', border: 'none', color: '#00c8ff', fontSize: 20, cursor: 'pointer' }}>×</button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px' }}>
+              {Object.entries(viewModal).filter(([k]) => !['password', 'totp_secret', 'backup_codes', 'refresh_token', 'fcm_token'].includes(k)).map(([k, v]) => (
+                <div key={k} style={{ borderBottom: '1px solid rgba(0,200,255,0.06)', paddingBottom: 8 }}>
+                  <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Orbitron'", letterSpacing: '0.08em', textTransform: 'uppercase' }}>{k.replace(/_/g, ' ')}</div>
+                  <div style={{ fontSize: 12, color: '#e0eaff', marginTop: 2, wordBreak: 'break-all' }}>
+                    {typeof v === 'boolean' ? (v ? '✅ Yes' : '❌ No') : (v === null || v === undefined || v === '') ? <span style={{ color: 'rgba(160,200,255,0.3)' }}>—</span> : String(v).length > 80 ? String(v).slice(0, 80) + '…' : String(v)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: 20 }}>
+          <div style={{ width: '100%', maxWidth: 500, background: '#050d1a', border: '1px solid rgba(255,184,0,0.3)', borderRadius: 12, padding: 28, maxHeight: '85vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+              <div style={{ fontFamily: "'Orbitron'", fontSize: 13, color: '#ffb800', fontWeight: 700 }}>✏️ EDIT RECORD</div>
+              <button onClick={() => setEditModal(null)} style={{ background: 'transparent', border: 'none', color: '#ffb800', fontSize: 20, cursor: 'pointer' }}>×</button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {Object.entries(editForm).map(([k, v]) => (
+                <div key={k}>
+                  <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", display: 'block', marginBottom: 4, textTransform: 'uppercase' }}>{k.replace(/_/g, ' ')}</label>
+                  <input
+                    value={v ?? ''}
+                    onChange={e => setEditForm(prev => ({ ...prev, [k]: e.target.value }))}
+                    style={{ ...S.input, width: '100%', boxSizing: 'border-box' }}
+                  />
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 12, marginTop: 20, justifyContent: 'flex-end' }}>
+              <button onClick={() => setEditModal(null)} style={S.btn('160,200,255')}>CANCEL</button>
+              <button onClick={handleEdit} disabled={actionLoading === 'edit'} style={{ ...S.btn('255,184,0'), opacity: actionLoading === 'edit' ? 0.5 : 1 }}>
+                {actionLoading === 'edit' ? 'SAVING...' : '💾 SAVE CHANGES'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
+      <div style={S.card}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#00c8ff', fontWeight: 700, marginBottom: 4 }}>📋 ENTITY REGISTRY</div>
+            <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'" }}>View, manage, suspend, or remove all registered entities. Refreshes every 30s.</div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={exportPDF} style={S.btn('0,200,255')}>📄 PDF</button>
+            <button onClick={exportExcel} style={S.btn('255,184,0')}>📊 Excel</button>
+            <button onClick={fetchData} style={S.btn('0,255,136')}>🔄 Refresh</button>
+          </div>
+        </div>
+
+        {/* Sub-tabs */}
+        <div style={{ display: 'flex', gap: 8, marginTop: 16, borderBottom: '1px solid rgba(0,200,255,0.1)', paddingBottom: 12 }}>
+          {[['hospitals', '🏥 HOSPITALS'], ['ambulances', '🚑 AMBULANCES'], ['patients', '🧍 PATIENTS']].map(([id, label]) => (
+            <button key={id} onClick={() => { setEntityTab(id); setSearchQuery(''); }} style={{
+              padding: '7px 16px', borderRadius: 6, fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.05em',
+              background: entityTab === id ? 'rgba(0,200,255,0.18)' : 'transparent',
+              border: `1px solid ${entityTab === id ? '#00c8ff' : 'rgba(255,255,255,0.1)'}`,
+              color: entityTab === id ? '#00c8ff' : 'rgba(160,200,255,0.5)',
+              transition: 'all 0.2s'
+            }}>{label}</button>
+          ))}
+          <span style={{ marginLeft: 'auto', fontSize: 10, color: 'rgba(160,200,255,0.4)', alignSelf: 'center', fontFamily: "'Share Tech Mono'" }}>
+            {filtered.length} of {data.length} results
+          </span>
+        </div>
+
+        {/* Search + Date Filters */}
+        <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+          <input
+            style={{ ...S.input, minWidth: 220, flex: 1 }}
+            placeholder={`Search ${entityTab} by name, ID, email…`}
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Orbitron'" }}>FROM</span>
+            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={{ ...S.input, padding: '6px 10px' }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Orbitron'" }}>TO</span>
+            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={{ ...S.input, padding: '6px 10px' }} />
+          </div>
+          {(dateFrom || dateTo || searchQuery) && (
+            <button onClick={() => { setSearchQuery(''); setDateFrom(''); setDateTo(''); }} style={{ ...S.btn('255,68,68'), padding: '6px 10px' }}>✕ CLEAR</button>
+          )}
+        </div>
+      </div>
+
+      {/* Table */}
+      <div style={{ ...S.card, padding: 0, overflow: 'hidden' }}>
+        {loading ? (
+          <div style={{ padding: 40, textAlign: 'center', color: 'rgba(0,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 12 }}>
+            ⏳ LOADING REGISTRY DATA…
+          </div>
+        ) : filtered.length === 0 ? (
+          <div style={{ padding: 40, textAlign: 'center', color: 'rgba(160,200,255,0.3)', fontFamily: "'Orbitron'", fontSize: 12 }}>
+            NO RECORDS FOUND — TRY ADJUSTING YOUR SEARCH OR DATE RANGE
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+              <thead style={{ background: 'rgba(0,0,0,0.4)', position: 'sticky', top: 0, zIndex: 2 }}>
+                <tr>
+                  {getColumns().map(col => <th key={col} style={S.th}>{col}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((row, idx) => renderRow(row, idx))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function PendingErasureReviews({ SERVER_URL_CONST }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [purgeConfirmId, setPurgeConfirmId] = useState(null);
 
   const fetchPending = async () => {
     setLoading(true);
@@ -1117,6 +1572,7 @@ function PendingErasureReviews({ SERVER_URL_CONST }) {
   }, []);
 
   const handleReview = async (id, status, notes) => {
+    setPurgeConfirmId(null);
     try {
       const token = sessionStorage.getItem('rescuelink_token') || '';
       const response = await fetch(`/api/erasure/review/${id}`, {
@@ -1128,19 +1584,40 @@ function PendingErasureReviews({ SERVER_URL_CONST }) {
         body: JSON.stringify({ status, review_notes: notes })
       });
       if (response.ok) {
-        alert(`Request ${status === 'APPROVED' ? 'Approved' : 'Rejected'} successfully.`);
         fetchPending();
       } else {
         const err = await response.json();
-        alert(err.error || "Failed to process review");
+        console.error(err.error || "Failed to process review");
       }
     } catch (err) {
-      alert("Error: " + err.message);
+      console.error("Error: " + err.message);
     }
   };
 
   return (
     <div style={{ background: 'rgba(0,0,0,0.2)', padding: 16, borderRadius: 8, border: '1px solid rgba(0,200,255,0.1)' }}>
+
+      {/* ── Purge Confirmation Modal ── */}
+      {purgeConfirmId && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 999999, background: 'rgba(0,5,20,0.88)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setPurgeConfirmId(null)}>
+          <div style={{ background: 'rgba(8,18,42,0.98)', border: '1px solid rgba(255,60,60,0.35)', borderRadius: 14, padding: 32, maxWidth: 440, width: '90%', boxShadow: '0 0 50px rgba(255,40,40,0.12)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#ff4444', fontWeight: 900, marginBottom: 8 }}>⚠️ IRREVERSIBLE DPDP PURGE</div>
+            <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'", marginBottom: 20, lineHeight: 1.65 }}>
+              This action will <strong style={{ color: '#ff4444' }}>permanently delete</strong> all patient PII and cascade-remove all linked incident records from the system.<br /><br />
+              This operation complies with DPDP Act 2023 Section 12. It <strong style={{ color: '#ff4444' }}>cannot be undone</strong>.
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button onClick={() => handleReview(purgeConfirmId, 'APPROVED', 'DPDP Compliance Purge')} style={{ flex: 1, padding: '10px 16px', background: 'rgba(0,255,136,0.14)', border: '1px solid rgba(0,255,136,0.5)', borderRadius: 8, color: '#00ff88', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>
+                ✅ CONFIRM PURGE
+              </button>
+              <button onClick={() => setPurgeConfirmId(null)} style={{ flex: 1, padding: '10px 16px', background: 'transparent', border: '1px solid rgba(160,200,255,0.2)', borderRadius: 8, color: 'rgba(160,200,255,0.6)', fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer' }}>
+                CANCEL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#ffb800' }}>⚠️ PENDING ERASURE REQUESTS (SECTION 12)</div>
         <button onClick={fetchPending} style={{ padding: '4px 8px', background: 'rgba(0,200,255,0.15)', border: '1px solid #00c8ff', color: '#00c8ff', borderRadius: 4, fontSize: 9, cursor: 'pointer', fontFamily: "'Orbitron'" }}>REFRESH</button>
@@ -1162,19 +1639,15 @@ function PendingErasureReviews({ SERVER_URL_CONST }) {
               <div style={{ display: 'flex', gap: 8 }}>
                 <button 
                   onClick={() => {
-                    const notes = prompt("Enter rejection notes:");
-                    if (notes !== null) handleReview(req.id, 'REJECTED', notes);
+                    const notes = window.prompt("Enter rejection notes (required):");
+                    if (notes !== null && notes.trim()) handleReview(req.id, 'REJECTED', notes.trim());
                   }}
                   style={{ padding: '6px 12px', background: 'rgba(255,68,68,0.15)', border: '1px solid #ff4444', borderRadius: 4, color: '#ff4444', fontSize: 10, fontWeight: 'bold', cursor: 'pointer' }}
                 >
                   REJECT
                 </button>
                 <button 
-                  onClick={() => {
-                    if (window.confirm("Are you sure you want to approve? This will permanently wipe patient PII and cascade delete all incidents.")) {
-                      handleReview(req.id, 'APPROVED', 'DPDP Compliance Purge');
-                    }
-                  }}
+                  onClick={() => setPurgeConfirmId(req.id)}
                   style={{ padding: '6px 12px', background: 'rgba(0,255,136,0.15)', border: '1px solid #00ff88', borderRadius: 4, color: '#00ff88', fontSize: 10, fontWeight: 'bold', cursor: 'pointer' }}
                 >
                   APPROVE & PURGE
@@ -1490,6 +1963,9 @@ function RegistrationApprovals() {
   const [hospitals, setHospitals] = useState([]);
   const [ambulances, setAmbulances] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [actionModal, setActionModal] = useState(null); // { type, id, name, action: 'approve'|'reject' }
+  const [actionStatus, setActionStatus] = useState(null); // { ok, msg }
+  const [actionWorking, setActionWorking] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -1519,31 +1995,33 @@ function RegistrationApprovals() {
   }, []);
 
   const handleApprove = async (type, id) => {
+    setActionWorking(true);
     try {
       const token = sessionStorage.getItem('rescuelink_token') || '';
       const endpoint = type === 'hospital' ? `/api/hospitals/${id}` : `/api/ambulances/${id}/settings`;
       const response = await fetch(endpoint, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ is_active: true })
       });
       if (response.ok) {
-        alert('Registration approved successfully!');
+        setActionStatus({ ok: true, msg: 'Registration approved and activated successfully.' });
+        setActionModal(null);
         fetchData();
       } else {
         const err = await response.json();
-        alert(err.error || 'Failed to approve registration');
+        setActionStatus({ ok: false, msg: err.error || 'Failed to approve registration' });
       }
     } catch (err) {
-      alert('Error: ' + err.message);
+      setActionStatus({ ok: false, msg: 'Connection error: ' + err.message });
+    } finally {
+      setActionWorking(false);
+      setTimeout(() => setActionStatus(null), 4000);
     }
   };
 
   const handleReject = async (type, id) => {
-    if (!window.confirm(`Are you sure you want to REJECT and delete this ${type} registration?`)) return;
+    setActionWorking(true);
     try {
       const token = sessionStorage.getItem('rescuelink_token') || '';
       const endpoint = type === 'hospital' ? `/api/hospitals/${id}` : `/api/ambulances/${id}`;
@@ -1552,19 +2030,59 @@ function RegistrationApprovals() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
-        alert('Registration rejected and removed from system.');
+        setActionStatus({ ok: true, msg: 'Registration rejected and permanently removed.' });
+        setActionModal(null);
         fetchData();
       } else {
         const err = await response.json();
-        alert(err.error || 'Failed to reject registration');
+        setActionStatus({ ok: false, msg: err.error || 'Failed to reject registration' });
       }
     } catch (err) {
-      alert('Error: ' + err.message);
+      setActionStatus({ ok: false, msg: 'Connection error: ' + err.message });
+    } finally {
+      setActionWorking(false);
+      setTimeout(() => setActionStatus(null), 4000);
     }
   };
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', background: 'rgba(5,15,40,0.8)', borderRadius: 10, padding: 24, border: '1px solid rgba(0,255,136,0.15)', display: 'flex', flexDirection: 'column' }}>
+
+      {/* ── Approve / Reject Confirmation Modal ── */}
+      {actionModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 999999, background: 'rgba(0,5,20,0.88)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setActionModal(null)}>
+          <div style={{ background: 'rgba(8,18,42,0.98)', border: `1px solid ${actionModal.action === 'approve' ? 'rgba(0,255,136,0.3)' : 'rgba(255,60,60,0.3)'}`, borderRadius: 14, padding: 32, maxWidth: 440, width: '90%', boxShadow: '0 0 50px rgba(0,0,0,0.3)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 14, color: actionModal.action === 'approve' ? '#00ff88' : '#ff4444', fontWeight: 900, marginBottom: 8 }}>
+              {actionModal.action === 'approve' ? '✅ APPROVE REGISTRATION' : '⚠️ REJECT REGISTRATION'}
+            </div>
+            <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'", marginBottom: 20, lineHeight: 1.65 }}>
+              {actionModal.action === 'approve'
+                ? <>This will <strong style={{ color: '#00ff88' }}>activate</strong> the following {actionModal.type} and allow them to access the system:<br /><br /><span style={{ color: '#fff', fontWeight: 700 }}>「 {actionModal.name} 」</span></>
+                : <>This will <strong style={{ color: '#ff4444' }}>permanently delete</strong> the following {actionModal.type} registration from the system. <strong style={{ color: '#ff4444' }}>This cannot be undone.</strong><br /><br /><span style={{ color: '#fff', fontWeight: 700 }}>「 {actionModal.name} 」</span></>}
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                disabled={actionWorking}
+                onClick={() => actionModal.action === 'approve' ? handleApprove(actionModal.type, actionModal.id) : handleReject(actionModal.type, actionModal.id)}
+                style={{ flex: 1, padding: '10px 16px', background: actionModal.action === 'approve' ? 'rgba(0,255,136,0.14)' : 'rgba(255,40,40,0.14)', border: `1px solid ${actionModal.action === 'approve' ? 'rgba(0,255,136,0.5)' : 'rgba(255,40,40,0.5)'}`, borderRadius: 8, color: actionModal.action === 'approve' ? '#00ff88' : '#ff4444', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer', opacity: actionWorking ? 0.5 : 1 }}
+              >
+                {actionWorking ? '⏳ PROCESSING...' : (actionModal.action === 'approve' ? '✅ CONFIRM APPROVE' : '🗑 CONFIRM REJECT')}
+              </button>
+              <button onClick={() => setActionModal(null)} style={{ flex: 1, padding: '10px 16px', background: 'transparent', border: '1px solid rgba(160,200,255,0.15)', borderRadius: 8, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer' }}>
+                CANCEL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Action Status Toast ── */}
+      {actionStatus && (
+        <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 99999, background: actionStatus.ok ? 'rgba(0,255,136,0.12)' : 'rgba(255,40,40,0.15)', border: `1px solid ${actionStatus.ok ? '#00ff88' : '#ff4444'}`, borderRadius: 8, padding: '12px 20px', color: actionStatus.ok ? '#00ff88' : '#ff4444', fontFamily: "'Orbitron'", fontSize: 12, fontWeight: 700, backdropFilter: 'blur(10px)' }}>
+          {actionStatus.ok ? '✅' : '❌'} {actionStatus.msg}
+        </div>
+      )}
+
       <h3 style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#00ff88', borderBottom: '1px solid rgba(0,255,136,0.2)', paddingBottom: 10, margin: '0 0 20px', letterSpacing: '0.1em' }}>
         🛡️ REGISTRATION APPROVAL CENTER
       </h3>
@@ -1602,13 +2120,13 @@ function RegistrationApprovals() {
                     </div>
                     <div style={{ display: 'flex', gap: 10 }}>
                       <button
-                        onClick={() => handleApprove('hospital', h.id)}
+                        onClick={() => setActionModal({ type: 'hospital', id: h.id, name: h.name, action: 'approve' })}
                         style={{ padding: '8px 16px', background: 'rgba(0,255,136,0.15)', border: '1px solid #00ff88', borderRadius: 6, color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 'bold', cursor: 'pointer' }}
                       >
                         APPROVE
                       </button>
                       <button
-                        onClick={() => handleReject('hospital', h.id)}
+                        onClick={() => setActionModal({ type: 'hospital', id: h.id, name: h.name, action: 'reject' })}
                         style={{ padding: '8px 16px', background: 'rgba(255,68,68,0.1)', border: '1px solid #ff4444', borderRadius: 6, color: '#ff4444', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 'bold', cursor: 'pointer' }}
                       >
                         REJECT
@@ -1645,13 +2163,13 @@ function RegistrationApprovals() {
                     </div>
                     <div style={{ display: 'flex', gap: 10 }}>
                       <button
-                        onClick={() => handleApprove('ambulance', a.id)}
+                        onClick={() => setActionModal({ type: 'ambulance', id: a.id, name: `${a.vehicleNo} (${a.driverName})`, action: 'approve' })}
                         style={{ padding: '8px 16px', background: 'rgba(0,255,136,0.15)', border: '1px solid #00ff88', borderRadius: 6, color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 'bold', cursor: 'pointer' }}
                       >
                         APPROVE
                       </button>
                       <button
-                        onClick={() => handleReject('ambulance', a.id)}
+                        onClick={() => setActionModal({ type: 'ambulance', id: a.id, name: `${a.vehicleNo} (${a.driverName})`, action: 'reject' })}
                         style={{ padding: '8px 16px', background: 'rgba(255,68,68,0.1)', border: '1px solid #ff4444', borderRadius: 6, color: '#ff4444', fontFamily: "'Orbitron'", fontSize: 10, fontWeight: 'bold', cursor: 'pointer' }}
                       >
                         REJECT
