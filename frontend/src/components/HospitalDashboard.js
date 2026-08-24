@@ -1853,7 +1853,7 @@ const HOSPITAL_CREDENTIALS = [
   { hospitalId: 'HOSP-005', password: 'rescue123', name: 'Cardiac & Neuro Institute', adminName: 'Dr. Maria Garcia', internalId: 'cardiac-neuro', lat: 13.0116, lng: 77.5501 },
 ];
 
-export default function HospitalDashboard({ socket, connected }) {
+export default function HospitalDashboard({ socket, connected, onLogout, onSwitchRole, onShowSecurity }) {
   const [isAuthenticated, setIsAuthenticated] = useState(true);
 
   const [authHospital, setAuthHospital] = useState(() => {
