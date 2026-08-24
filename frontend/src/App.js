@@ -2758,8 +2758,15 @@ export default function App() {
         setRole(parsedRole);
         sessionStorage.setItem('rescueLinkRole', parsedRole);
       } else if (!hash) {
-        setRole(null);
-        sessionStorage.removeItem('rescueLinkRole');
+        const savedRole = sessionStorage.getItem('rescueLinkRole') || localStorage.getItem('rescueLinkRole');
+        const savedToken = sessionStorage.getItem('rescuelink_token') || localStorage.getItem('rescuelink_token');
+        if (savedRole && savedToken) {
+          window.location.hash = savedRole;
+          setRole(savedRole);
+        } else {
+          setRole(null);
+          sessionStorage.removeItem('rescueLinkRole');
+        }
       }
     };
     window.addEventListener('hashchange', handleHash);
