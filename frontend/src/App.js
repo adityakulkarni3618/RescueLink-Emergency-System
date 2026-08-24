@@ -2931,7 +2931,21 @@ export default function App() {
     );
   }
 
-  if (!token) {
+  if (!token || !role) {
+    if (currentHash === '#select-role') {
+      return (
+        <div className="app-root">
+          <style>{styles}</style>
+          <RoleSelector onSelect={(selRole) => {
+            sessionStorage.setItem('rescueLinkRole', selRole);
+            setRole(selRole);
+            window.location.hash = selRole;
+          }} />
+          <ThemeSwitcher />
+        </div>
+      );
+    }
+
     if (currentHash === '#ambulance' || loginTargetRole === 'ambulance') {
       return (
         <div className="app-root">
@@ -2997,20 +3011,6 @@ export default function App() {
             defaultIsRegister={isRegisterMode}
           />
         )}
-        <ThemeSwitcher />
-      </div>
-    );
-  }
-
-  if (!role && currentHash === '#select-role') {
-    return (
-      <div className="app-root">
-        <style>{styles}</style>
-        <RoleSelector onSelect={(selRole) => {
-          sessionStorage.setItem('rescueLinkRole', selRole);
-          setRole(selRole);
-          window.location.hash = selRole;
-        }} />
         <ThemeSwitcher />
       </div>
     );
