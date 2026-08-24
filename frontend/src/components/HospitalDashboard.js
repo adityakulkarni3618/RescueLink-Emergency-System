@@ -5167,7 +5167,11 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
                     </div>
                   );
                 };
-                return <SettingsContent key="hospital-settings-panel" />;
+                return (
+                  <div style={{ flex: 1, padding: 24, overflowY: 'auto' }}>
+                    <SettingsContent key="hospital-settings-panel" />
+                  </div>
+                );
               })()}
             
             </div>
