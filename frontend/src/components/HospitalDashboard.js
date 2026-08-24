@@ -3812,7 +3812,7 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
         )}
 
         {isAuthenticated && (
-          <div style={{ padding: '20px', height: '100vh', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ padding: '20px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
             {/* Handover Syncing Overlay */}
             {isHandoverSyncing && (
@@ -5167,7 +5167,11 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
                     </div>
                   );
                 };
-                return <SettingsContent key="hospital-settings-panel" />;
+                return (
+                  <div style={{ flex: 1, padding: 24, overflowY: 'auto' }}>
+                    <SettingsContent key="hospital-settings-panel" />
+                  </div>
+                );
               })()}
             
             </div>

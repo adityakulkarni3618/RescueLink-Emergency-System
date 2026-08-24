@@ -1871,24 +1871,25 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
         </div>
       )}
 
-      {/* Patient Health Portal */}
-      {showPatientPortal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,5,20,0.95)', backdropFilter: 'blur(10px)', overflowY: 'auto' }}>
-          <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(0,200,255,0.2)', display: 'flex', justifyContent: 'flex-start', background: '#050d1a', position: 'sticky', top: 0, zIndex: 10 }}>
-              <button onClick={() => routeTo('')} style={{ background: 'rgba(255,68,68,0.1)', border: '1px solid rgba(255,68,68,0.3)', borderRadius: 8, padding: '8px 18px', color: '#ff4444', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 'bold' }}>✕ CLOSE PORTAL</button>
-            </div>
-            <div style={{ flex: 1, paddingBottom: 40 }}>
-              <PatientPortal />
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ⚙️ PATIENT ACCOUNT SETTINGS */}
       {showAccountSettings && (() => {
         const AccountSettingsPanel = () => {
-          const [profileForm, setProfileForm] = React.useState({ name: patientData.name || '', mobile: patientData.mobile || '' });
+          const [profileForm, setProfileForm] = React.useState({
+            name: patientData.name || '',
+            mobile: patientData.mobile || '',
+            bloodGroup: patientData.bloodGroup || '',
+            allergies: patientData.allergies || '',
+            chronicConditions: patientData.chronicConditions || '',
+            dob: patientData.dob || '',
+            gender: patientData.gender || '',
+            emergencyContactName: patientData.emergencyContactName || '',
+            emergencyContactRelationship: patientData.emergencyContactRelationship || '',
+            emergencyContactPhone: patientData.emergencyContactPhone || '',
+            insuranceProvider: patientData.insuranceProvider || '',
+            policyNumber: patientData.policyNumber || '',
+            abhaNumber: patientData.abhaNumber || '',
+            abhaAddress: patientData.abhaAddress || ''
+          });
           const [profileStatus, setProfileStatus] = React.useState(null);
           const [profileLoading, setProfileLoading] = React.useState(false);
           const [pwForm, setPwForm] = React.useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
@@ -1902,6 +1903,36 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
           const token = sessionStorage.getItem('rescuelink_token') || '';
           const hdrs = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
 
+          React.useEffect(() => {
+            const fetchUserProfile = async () => {
+              try {
+                const res = await fetch('/api/auth/me', { headers: hdrs });
+                if (res.ok) {
+                  const data = await res.json();
+                  setProfileForm({
+                    name: data.name || '',
+                    mobile: data.mobile || '',
+                    bloodGroup: data.blood_group || '',
+                    allergies: data.allergies || '',
+                    chronicConditions: data.chronic_conditions || '',
+                    dob: data.dob || '',
+                    gender: data.gender || '',
+                    emergencyContactName: data.emergency_contact_name || '',
+                    emergencyContactRelationship: data.emergency_contact_relationship || '',
+                    emergencyContactPhone: data.emergency_contact_phone || '',
+                    insuranceProvider: data.insurance_provider || '',
+                    policyNumber: data.policy_number || '',
+                    abhaNumber: data.abha_number || '',
+                    abhaAddress: data.abha_address || ''
+                  });
+                }
+              } catch (e) {
+                console.error("Failed to fetch full user profile", e);
+              }
+            };
+            fetchUserProfile();
+          }, []);
+
           const S = {
             card: { background: 'rgba(5,15,40,0.85)', border: '1px solid rgba(0,200,255,0.15)', borderRadius: 12, padding: 24, marginBottom: 20 },
             label: { display: 'block', fontSize: 10, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.55)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em' },
@@ -1914,9 +1945,34 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
           const handleSaveProfile = async () => {
             setProfileLoading(true);
             try {
-              const res = await fetch(`/api/users/${userId}`, { method: 'PUT', headers: hdrs, body: JSON.stringify({ name: profileForm.name, mobile: profileForm.mobile }) });
+              const res = await fetch(`/api/auth/profile`, {
+                method: 'PUT',
+                headers: hdrs,
+                body: JSON.stringify(profileForm)
+              });
               const d = await res.json();
               setProfileStatus({ ok: res.ok, msg: res.ok ? 'Profile updated successfully!' : (d.error || 'Update failed') });
+              if (res.ok) {
+                const sessionUserStr = sessionStorage.getItem('rescuelink_user');
+                if (sessionUserStr) {
+                  const u = JSON.parse(sessionUserStr);
+                  u.name = d.name;
+                  u.mobile = d.mobile;
+                  sessionStorage.setItem('rescuelink_user', JSON.stringify(u));
+                }
+                setPatientData(prev => ({
+                  ...prev,
+                  name: d.name,
+                  mobile: d.mobile,
+                  bloodGroup: d.blood_group || '',
+                  allergies: d.allergies || '',
+                  chronicConditions: d.chronic_conditions || '',
+                  dob: d.dob || '',
+                  gender: d.gender || '',
+                  abhaAddress: d.abha_address || '',
+                  abhaNumber: d.abha_number || ''
+                }));
+              }
             } catch { setProfileStatus({ ok: false, msg: 'Connection error' }); }
             setProfileLoading(false);
             setTimeout(() => setProfileStatus(null), 4000);
@@ -2004,6 +2060,65 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
                     <div>
                       <label style={S.label}>User ID</label>
                       <input style={{ ...S.input, opacity: 0.5, cursor: 'not-allowed' }} value={userId} readOnly />
+                    </div>
+                    <div>
+                      <label style={S.label}>ABHA Card Number</label>
+                      <input style={S.input} value={profileForm.abhaNumber} onChange={e => setProfileForm(p => ({ ...p, abhaNumber: e.target.value }))} placeholder="12-3456-7890-12" />
+                    </div>
+                    <div>
+                      <label style={S.label}>ABHA Address ID</label>
+                      <input style={S.input} value={profileForm.abhaAddress} onChange={e => setProfileForm(p => ({ ...p, abhaAddress: e.target.value }))} placeholder="username@abdm" />
+                    </div>
+                    <div>
+                      <label style={S.label}>Blood Group</label>
+                      <input style={S.input} value={profileForm.bloodGroup} onChange={e => setProfileForm(p => ({ ...p, bloodGroup: e.target.value }))} placeholder="e.g. O+ve" />
+                    </div>
+                    <div>
+                      <label style={S.label}>Date of Birth</label>
+                      <input type="date" style={S.input} value={profileForm.dob} onChange={e => setProfileForm(p => ({ ...p, dob: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label style={S.label}>Gender</label>
+                      <select style={{ ...S.input, background: 'rgba(5,15,40,0.85)' }} value={profileForm.gender} onChange={e => setProfileForm(p => ({ ...p, gender: e.target.value }))}>
+                        <option value="">Select Gender</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <label style={S.label}>Known Drug & Metabolic Allergies</label>
+                      <input style={S.input} value={profileForm.allergies} onChange={e => setProfileForm(p => ({ ...p, allergies: e.target.value }))} placeholder="e.g. Penicillin, Peanuts" />
+                    </div>
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <label style={S.label}>Existing Chronic Medical Conditions</label>
+                      <input style={S.input} value={profileForm.chronicConditions} onChange={e => setProfileForm(p => ({ ...p, chronicConditions: e.target.value }))} placeholder="e.g. Asthma, Diabetes" />
+                    </div>
+                    <div style={{ gridColumn: '1 / -1', borderTop: '1px solid rgba(0,200,255,0.1)', paddingTop: 14, marginTop: 6 }}>
+                      <span style={{ fontSize: 11, fontFamily: "'Orbitron'", color: '#ffb800', fontWeight: 'bold' }}>Emergency Contact (Next of Kin)</span>
+                    </div>
+                    <div>
+                      <label style={S.label}>Contact Name</label>
+                      <input style={S.input} value={profileForm.emergencyContactName} onChange={e => setProfileForm(p => ({ ...p, emergencyContactName: e.target.value }))} placeholder="e.g. Jane Doe" />
+                    </div>
+                    <div>
+                      <label style={S.label}>Relationship</label>
+                      <input style={S.input} value={profileForm.emergencyContactRelationship} onChange={e => setProfileForm(p => ({ ...p, emergencyContactRelationship: e.target.value }))} placeholder="e.g. Spouse" />
+                    </div>
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <label style={S.label}>Contact Phone</label>
+                      <input style={S.input} value={profileForm.emergencyContactPhone} onChange={e => setProfileForm(p => ({ ...p, emergencyContactPhone: e.target.value }))} placeholder="e.g. 9876543210" />
+                    </div>
+                    <div style={{ gridColumn: '1 / -1', borderTop: '1px solid rgba(0,200,255,0.1)', paddingTop: 14, marginTop: 6 }}>
+                      <span style={{ fontSize: 11, fontFamily: "'Orbitron'", color: '#00ff88', fontWeight: 'bold' }}>Insurance Details</span>
+                    </div>
+                    <div>
+                      <label style={S.label}>Insurance Provider</label>
+                      <input style={S.input} value={profileForm.insuranceProvider} onChange={e => setProfileForm(p => ({ ...p, insuranceProvider: e.target.value }))} placeholder="e.g. Star Health" />
+                    </div>
+                    <div>
+                      <label style={S.label}>Policy Number</label>
+                      <input style={S.input} value={profileForm.policyNumber} onChange={e => setProfileForm(p => ({ ...p, policyNumber: e.target.value }))} placeholder="e.g. POL12345" />
                     </div>
                   </div>
                   <div style={{ marginTop: 16, display: 'flex', gap: 12, alignItems: 'center' }}>

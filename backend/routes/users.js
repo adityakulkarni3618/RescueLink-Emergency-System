@@ -164,11 +164,29 @@ router.put('/:id', verifyToken(), async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const { name, mobile, abha_number, is_active } = req.body;
+    const { 
+      name, mobile, abha_number, is_active, abha_address, blood_group, 
+      allergies, chronic_conditions, dob, gender, emergency_contact_name, 
+      emergency_contact_relationship, emergency_contact_phone, insurance_provider, 
+      policy_number, group_number, consent_to_share_data 
+    } = req.body;
 
     if (name) user.name = name;
     if (mobile) user.mobile = mobile;
     if (abha_number) user.abha_number = abha_number;
+    if (abha_address !== undefined) user.abha_address = abha_address;
+    if (blood_group !== undefined) user.blood_group = blood_group;
+    if (allergies !== undefined) user.allergies = allergies;
+    if (chronic_conditions !== undefined) user.chronic_conditions = chronic_conditions;
+    if (dob !== undefined) user.dob = dob;
+    if (gender !== undefined) user.gender = gender;
+    if (emergency_contact_name !== undefined) user.emergency_contact_name = emergency_contact_name;
+    if (emergency_contact_relationship !== undefined) user.emergency_contact_relationship = emergency_contact_relationship;
+    if (emergency_contact_phone !== undefined) user.emergency_contact_phone = emergency_contact_phone;
+    if (insurance_provider !== undefined) user.insurance_provider = insurance_provider;
+    if (policy_number !== undefined) user.policy_number = policy_number;
+    if (group_number !== undefined) user.group_number = group_number;
+    if (consent_to_share_data !== undefined) user.consent_to_share_data = consent_to_share_data;
     if (is_active !== undefined && req.user.role === 'city_admin') user.is_active = is_active;
 
     await user.save();
