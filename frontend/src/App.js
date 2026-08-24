@@ -1385,12 +1385,12 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 9999,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
       background: 'rgba(5,13,26,0.92)', backdropFilter: 'blur(8px)',
-      fontFamily: "'Rajdhani', sans-serif", padding: '20px 10px',
+      fontFamily: "'Rajdhani', sans-serif", padding: '40px 10px',
       overflowY: 'auto'
     }}>
-      <div className="rl-card rl-modal-card" style={{ width: '100%', maxWidth: 480, padding: '28px 24px 32px 24px', position: 'relative' }}>
+      <div className="rl-card rl-modal-card" style={{ width: '100%', maxWidth: 480, padding: '28px 24px 32px 24px', position: 'relative', margin: 'auto' }}>
         <button onClick={onClose} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: 'rgba(160,200,255,0.6)', fontSize: 20, cursor: 'pointer' }}>✕</button>
         
         <h2 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 22, color: '#00c8ff', textAlign: 'center', marginBottom: 4, letterSpacing: '0.1em' }}>
