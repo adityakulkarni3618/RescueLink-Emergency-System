@@ -4,6 +4,32 @@ const { Ambulance, AuditLog } = require('../utils/db');
 const { verifyToken } = require('../middleware/auth');
 const bcrypt = require('bcryptjs');
 
+async function findAmbulanceByPkOrUser(idOrUuid) {
+  let amb = await Ambulance.findByPk(idOrUuid);
+  if (!amb) {
+    const { User } = require('../utils/db');
+    const user = await User.findByPk(idOrUuid);
+    if (user && user.role === 'paramedic') {
+      const vehiclePrefix = user.email.split('@')[0].toUpperCase();
+      const { Op } = require('sequelize');
+      amb = await Ambulance.findOne({
+        where: {
+          vehicleNo: {
+            [Op.or]: [
+              vehiclePrefix,
+              user.email.split('@')[0]
+            ]
+          }
+        }
+      });
+    }
+  }
+  if (!amb) {
+    amb = await Ambulance.findOne({ where: { vehicleNo: idOrUuid.toUpperCase() } });
+  }
+  return amb;
+}
+
 /**
  * @route GET /api/ambulances
  * @desc Get all registered ambulances
@@ -72,7 +98,7 @@ router.put('/:id/settings', async (req, res) => {
     isSystemStandard, oxygenCapacityLiters 
   } = req.body;
   try {
-    const amb = await Ambulance.findByPk(req.params.id);
+    const amb = await findAmbulanceByPkOrUser(req.params.id);
     if (!amb) {
       return res.status(404).json({ error: 'Ambulance not found' });
     }
@@ -252,7 +278,7 @@ router.put('/:id/restore', verifyToken(['city_admin']), async (req, res) => {
  */
 router.get('/:id', async (req, res) => {
   try {
-    const amb = await Ambulance.findByPk(req.params.id);
+    const amb = await findAmbulanceByPkOrUser(req.params.id);
     if (!amb) {
       return res.status(404).json({ error: 'Ambulance not found' });
     }

@@ -558,7 +558,7 @@ router.post('/register-ambulance', async (req, res) => {
       type: type || 'BLS',
       password: passwordHash,
       totp_secret: setupData.secret,
-      is_active: true,
+      is_active: false,
       hospital_id: hospitalId || null,
       equipment_checklist: JSON.stringify(equipmentChecklist || []),
       crew_members: JSON.stringify(crewMembers || []),
@@ -575,7 +575,7 @@ router.post('/register-ambulance', async (req, res) => {
       role: 'paramedic',
       mobile: contactInfo,
       totp_secret: setupData.secret,
-      is_active: true
+      is_active: false
     });
 
     return res.json({
@@ -694,7 +694,7 @@ router.post('/register-hospital', async (req, res) => {
       total_beds: parseInt(totalBeds) || 50,
       icu_beds: parseInt(icuBeds) || 5,
       ventilators: parseInt(ventilators) || 2,
-      is_active: true,
+      is_active: false,
       license_number: licenseNumber || null,
       departments: JSON.stringify(departments || []),
       bay_capacity: parseInt(bayCapacity) || 5,
@@ -710,7 +710,7 @@ router.post('/register-hospital', async (req, res) => {
       mobile: contactInfo,
       hospital_id: newHospital.id,
       totp_secret: setupData.secret,
-      is_active: true
+      is_active: false
     });
     try {
       const cache = require('../utils/cache');
