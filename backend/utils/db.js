@@ -204,11 +204,14 @@ async function syncDatabase() {
     // Run SQL DDL Migrations
     const runMigrations = require('../scripts/run-migrations');
     await runMigrations();
-    console.log('[DB] Database synchronized.');
-
-
-
-
+    console.log('[DB] Database synchronized.');    // Automatically activate any existing registered hospitals/ambulances
+    try {
+      await Hospital.update({ is_active: true }, { where: { is_active: false } });
+      await Ambulance.update({ is_active: true }, { where: { is_active: false } });
+      console.log('[DB PATCH] Existing inactive hospitals and ambulances activated.');
+    } catch (patchErr) {
+      console.error('[DB PATCH WARNING] Failed to activate existing records:', patchErr.message);
+    }
   } catch (err) {
     const { triggerCriticalAlert } = require('./alerting');
     await triggerCriticalAlert('DATABASE_CONNECT_FAIL', {
