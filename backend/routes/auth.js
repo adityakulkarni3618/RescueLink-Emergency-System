@@ -35,7 +35,7 @@ router.post('/login', validate(loginBody), async (req, res) => {
       ? loginIdentifier.toLowerCase()
       : `${loginIdentifier.replace(/[\s\-]+/g, '').toLowerCase()}@rescuelink.com`;
 
-    let user = await User.findOne({ where: { email: loginEmail, is_active: true } });
+    let user = await User.findOne({ where: { email: loginEmail } });
     if (!user && loginEmail === 'patient@rescuelink.com') {
       const hashedPassword = await bcrypt.hash('password123', 10);
       user = await User.create({
@@ -58,8 +58,7 @@ router.post('/login', validate(loginBody), async (req, res) => {
               loginIdentifier,
               loginIdentifier.replace(/[\s\-]+/g, '').toUpperCase()
             ]
-          },
-          is_active: true
+          }
         }
       });
       if (ambulanceUnit) {
@@ -111,6 +110,12 @@ router.post('/login', validate(loginBody), async (req, res) => {
           isMfaFullySetup = true;
         }
       }
+    }
+
+    const isActive = isAmbulanceTableLogin ? ambulanceUnit.is_active : user.is_active;
+    if (!isActive && isMfaFullySetup) {
+      console.log(`[AUTH] Login blocked: Account pending approval for ${loginIdentifier}`);
+      return res.status(403).json({ error: 'PENDING_APPROVAL: Account registration is pending administrative approval.' });
     }
 
     // Enforce MFA setup check for roles requiring MFA (doctor, admin, paramedic)
