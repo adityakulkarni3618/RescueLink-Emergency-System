@@ -72,7 +72,7 @@ router.post('/register', async (req, res) => {
       contactInfo: contactInfo || '',
       password: hashedPassword,
       ownerId: ownerId || null,
-      is_active: true
+      is_active: false
     });
 
     console.log(`[REGISTRY] New ambulance registered manually: ${ambulance.vehicleNo} (${ambulance.id})`);
