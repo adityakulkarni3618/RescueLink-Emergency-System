@@ -12,6 +12,8 @@ import { generateMonthlyReport } from '../utils/reportGenerator';
 import { exportMetricsToExcel } from '../utils/excelExporter';
 import PhysiologicalWaveforms from './PhysiologicalWaveforms';
 
+const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
+
 try {
   if (typeof window !== 'undefined' && L && L.Icon && L.Icon.Default) {
     delete L.Icon.Default.prototype._getIconUrl;
@@ -1121,9 +1123,9 @@ function RegistryPanel() {
     setLoading(true);
     try {
       let url = '';
-      if (entityTab === 'hospitals') url = '/api/hospitals/all';
-      else if (entityTab === 'ambulances') url = '/api/ambulances';
-      else url = '/api/users';
+      if (entityTab === 'hospitals') url = `${SERVER_URL}/api/hospitals/all`;
+      else if (entityTab === 'ambulances') url = `${SERVER_URL}/api/ambulances`;
+      else url = `${SERVER_URL}/api/users`;
 
       const res = await fetch(url, { headers });
       if (!res.ok) throw new Error('Fetch failed');
@@ -1168,9 +1170,9 @@ function RegistryPanel() {
     setActionLoading(row.id + '-suspend');
     try {
       let url = '';
-      if (entityTab === 'hospitals') url = `/api/hospitals/${row.id}/suspend`;
-      else if (entityTab === 'ambulances') url = `/api/ambulances/${row.id}/suspend`;
-      else url = `/api/users/${row.id}/suspend`;
+      if (entityTab === 'hospitals') url = `${SERVER_URL}/api/hospitals/${row.id}/suspend`;
+      else if (entityTab === 'ambulances') url = `${SERVER_URL}/api/ambulances/${row.id}/suspend`;
+      else url = `${SERVER_URL}/api/users/${row.id}/suspend`;
       const res = await fetch(url, { method: 'PUT', headers });
       if (!res.ok) throw new Error('Suspend failed');
       // Optimistic update
@@ -1185,9 +1187,9 @@ function RegistryPanel() {
     setActionLoading(row.id + '-restore');
     try {
       let url = '';
-      if (entityTab === 'hospitals') url = `/api/hospitals/${row.id}/restore`;
-      else if (entityTab === 'ambulances') url = `/api/ambulances/${row.id}/restore`;
-      else url = `/api/users/${row.id}/restore`;
+      if (entityTab === 'hospitals') url = `${SERVER_URL}/api/hospitals/${row.id}/restore`;
+      else if (entityTab === 'ambulances') url = `${SERVER_URL}/api/ambulances/${row.id}/restore`;
+      else url = `${SERVER_URL}/api/users/${row.id}/restore`;
       const res = await fetch(url, { method: 'PUT', headers });
       if (!res.ok) throw new Error('Restore failed');
       setData(prev => prev.map(r => r.id === row.id ? { ...r, is_active: true } : r));
@@ -1201,9 +1203,9 @@ function RegistryPanel() {
     const label = row.name || row.vehicleNo || row.email;
     try {
       let url = '';
-      if (entityTab === 'hospitals') url = `/api/hospitals/${row.id}`;
-      else if (entityTab === 'ambulances') url = `/api/ambulances/${row.id}`;
-      else url = `/api/users/${row.id}`;
+      if (entityTab === 'hospitals') url = `${SERVER_URL}/api/hospitals/${row.id}`;
+      else if (entityTab === 'ambulances') url = `${SERVER_URL}/api/ambulances/${row.id}`;
+      else url = `${SERVER_URL}/api/users/${row.id}`;
       const res = await fetch(url, { method: 'DELETE', headers });
       if (!res.ok) throw new Error('Delete failed');
       // Optimistic removal — immediately remove from UI
@@ -1220,9 +1222,9 @@ function RegistryPanel() {
     try {
       let url = '';
       let method = 'PUT';
-      if (entityTab === 'hospitals') url = `/api/hospitals/${editModal.id}`;
-      else if (entityTab === 'ambulances') { url = `/api/ambulances/${editModal.id}/settings`; method = 'PUT'; }
-      else url = `/api/users/${editModal.id}`;
+      if (entityTab === 'hospitals') url = `${SERVER_URL}/api/hospitals/${editModal.id}`;
+      else if (entityTab === 'ambulances') { url = `${SERVER_URL}/api/ambulances/${editModal.id}/settings`; method = 'PUT'; }
+      else url = `${SERVER_URL}/api/users/${editModal.id}`;
       const res = await fetch(url, { method, headers, body: JSON.stringify(editForm) });
       if (!res.ok) throw new Error('Update failed');
       showToast('Updated successfully');
@@ -1973,8 +1975,8 @@ function RegistrationApprovals() {
       const token = sessionStorage.getItem('rescuelink_token') || '';
       const headers = { 'Authorization': `Bearer ${token}` };
       const [hospRes, ambRes] = await Promise.all([
-        fetch('/api/hospitals/all', { headers }),
-        fetch('/api/ambulances', { headers })
+        fetch(`${SERVER_URL}/api/hospitals/all`, { headers }),
+        fetch(`${SERVER_URL}/api/ambulances`, { headers })
       ]);
       
       if (hospRes.ok && ambRes.ok) {
@@ -1998,7 +2000,7 @@ function RegistrationApprovals() {
     setActionWorking(true);
     try {
       const token = sessionStorage.getItem('rescuelink_token') || '';
-      const endpoint = type === 'hospital' ? `/api/hospitals/${id}` : `/api/ambulances/${id}/settings`;
+      const endpoint = type === 'hospital' ? `${SERVER_URL}/api/hospitals/${id}` : `${SERVER_URL}/api/ambulances/${id}/settings`;
       const response = await fetch(endpoint, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -2024,7 +2026,7 @@ function RegistrationApprovals() {
     setActionWorking(true);
     try {
       const token = sessionStorage.getItem('rescuelink_token') || '';
-      const endpoint = type === 'hospital' ? `/api/hospitals/${id}` : `/api/ambulances/${id}`;
+      const endpoint = type === 'hospital' ? `${SERVER_URL}/api/hospitals/${id}` : `${SERVER_URL}/api/ambulances/${id}`;
       const response = await fetch(endpoint, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
