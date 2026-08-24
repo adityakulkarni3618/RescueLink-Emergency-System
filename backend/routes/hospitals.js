@@ -307,7 +307,7 @@ router.post('/register', async (req, res) => {
       total_beds: total_beds || 50,
       icu_beds: icu_beds || 10,
       ventilators: ventilators || 5,
-      is_active: true
+      is_active: false
     });
 
     await cache.del(ALL_HOSPITALS_CACHE_KEY);
