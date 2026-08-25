@@ -24,7 +24,7 @@ if (!useSqlite && !process.env.DATABASE_URL) {
 const sequelize = useSqlite
   ? new Sequelize({
       dialect: 'sqlite',
-      storage: './data/rescuelink.sqlite',
+      storage: require('path').resolve(__dirname, '../data/rescuelink.sqlite'),
       logging: process.env.NODE_ENV === 'development' ? (msg) => console.log(`[DB LOG] ${msg}`) : false,
       pool: {
         max: 5,
