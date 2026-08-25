@@ -52,6 +52,8 @@ services:
       - DAILY_CO_API_KEY=mock_daily_co_key
     ports:
       - "5000:5000"
+    volumes:
+      - ./data:/usr/src/app/data
     depends_on:
       - postgres
       - redis
