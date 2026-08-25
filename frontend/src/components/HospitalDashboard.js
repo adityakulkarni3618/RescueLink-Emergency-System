@@ -180,7 +180,9 @@ const CLINICAL_PROTOCOLS = {
 function MapUpdater({ center }) {
   const map = useMap();
   useEffect(() => {
-    if (center) map.panTo([center.lat, center.lng], { animate: true, duration: 1 });
+    if (center && center.lat !== undefined && center.lng !== undefined && !isNaN(center.lat) && !isNaN(center.lng)) {
+      map.panTo([center.lat, center.lng], { animate: true, duration: 1 });
+    }
   }, [center, map]);
   return null;
 }
@@ -191,9 +193,15 @@ function SmartMapController({ ambulanceLoc, userLoc, hospitalLoc }) {
 
   useEffect(() => {
     const points = [];
-    if (ambulanceLoc && ambulanceLoc.lat) points.push([ambulanceLoc.lat, ambulanceLoc.lng]);
-    if (userLoc && userLoc.lat) points.push([userLoc.lat, userLoc.lng]);
-    if (hospitalLoc && hospitalLoc.lat) points.push([hospitalLoc.lat, hospitalLoc.lng]);
+    if (ambulanceLoc && ambulanceLoc.lat !== undefined && ambulanceLoc.lng !== undefined && !isNaN(ambulanceLoc.lat) && !isNaN(ambulanceLoc.lng)) {
+      points.push([ambulanceLoc.lat, ambulanceLoc.lng]);
+    }
+    if (userLoc && userLoc.lat !== undefined && userLoc.lng !== undefined && !isNaN(userLoc.lat) && !isNaN(userLoc.lng)) {
+      points.push([userLoc.lat, userLoc.lng]);
+    }
+    if (hospitalLoc && hospitalLoc.lat !== undefined && hospitalLoc.lng !== undefined && !isNaN(hospitalLoc.lat) && !isNaN(hospitalLoc.lng)) {
+      points.push([hospitalLoc.lat, hospitalLoc.lng]);
+    }
 
     if (points.length >= 2) {
       const bounds = L.latLngBounds(points);
@@ -1869,7 +1877,8 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
           adminName: user.name || 'Dr. Command',
           internalId: (user.hospital_id || 'manipal-trauma').toLowerCase(),
           lat: user.lat || 12.9592,
-          lng: user.lng || 77.6444
+          lng: user.lng || 77.6444,
+          ...user
         };
       }
     }

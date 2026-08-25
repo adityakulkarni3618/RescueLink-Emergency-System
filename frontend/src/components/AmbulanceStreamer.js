@@ -535,12 +535,15 @@ function SmartMapController({ ambulanceLoc, userLoc, manualCenter }) {
   const lastBoundsRef = useRef(null);
 
   useEffect(() => {
-    if (manualCenter) {
+    if (manualCenter && manualCenter.lat !== undefined && manualCenter.lng !== undefined && !isNaN(manualCenter.lat) && !isNaN(manualCenter.lng)) {
       map.setView([manualCenter.lat, manualCenter.lng], 13, { animate: true });
       return;
     }
 
-    if (ambulanceLoc && userLoc) {
+    const hasAmb = ambulanceLoc && ambulanceLoc.lat !== undefined && ambulanceLoc.lng !== undefined && !isNaN(ambulanceLoc.lat) && !isNaN(ambulanceLoc.lng);
+    const hasUser = userLoc && userLoc.lat !== undefined && userLoc.lng !== undefined && !isNaN(userLoc.lat) && !isNaN(userLoc.lng);
+
+    if (hasAmb && hasUser) {
       const bounds = L.latLngBounds([
         [ambulanceLoc.lat, ambulanceLoc.lng],
         [userLoc.lat, userLoc.lng]
@@ -550,7 +553,7 @@ function SmartMapController({ ambulanceLoc, userLoc, manualCenter }) {
         map.fitBounds(bounds, { padding: [50, 50], animate: true });
         lastBoundsRef.current = boundsStr;
       }
-    } else if (ambulanceLoc) {
+    } else if (hasAmb) {
       map.panTo([ambulanceLoc.lat, ambulanceLoc.lng], { animate: true });
     }
   }, [ambulanceLoc, userLoc, manualCenter, map]);
@@ -561,7 +564,7 @@ function SmartMapController({ ambulanceLoc, userLoc, manualCenter }) {
 function MapUpdater({ center }) {
   const map = useMap();
   useEffect(() => {
-    if (center && center.lat) {
+    if (center && center.lat !== undefined && center.lng !== undefined && !isNaN(center.lat) && !isNaN(center.lng)) {
       map.panTo([center.lat, center.lng], { animate: true });
     }
   }, [center, map]);
@@ -580,10 +583,20 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
       const found = AMBULANCE_CREDENTIALS.find(c => c.unitId === emailUpper) || {
         unitId: user.id || 'AMB-101',
         driverName: user.name || 'Unit 101 Lead Paramedic',
-        vehicleNo: user.email?.includes('@') ? user.email.split('@')[0].toUpperCase() : (user.email || 'EMG-RL-0101'),
-        type: 'ALS'
+        vehicleNo: user.vehicleNo || (user.email?.includes('@') ? user.email.split('@')[0].toUpperCase() : (user.email || 'EMG-RL-0101')),
+        type: user.type || 'ALS',
+        equipment_checklist: user.equipment_checklist,
+        crew_members: user.crew_members,
+        license_number: user.license_number,
+        license_expiry: user.license_expiry,
+        is_system_standard: user.is_system_standard,
+        oxygen_capacity_liters: user.oxygen_capacity_liters
       };
-      return found;
+      return {
+        ...found,
+        ...user,
+        unitId: found.unitId || user.id
+      };
     }
     // Fallback default so it doesn't crash
     return {
