@@ -2261,56 +2261,61 @@ function LandingHomepage({ onSelectRole }) {
       <ParticleCanvas />
       <div className="scanline" />
 
-      <header className="rl-page-header" style={{
-        padding: '20px 40px', borderBottom: '1px solid rgba(0,200,255,0.15)',
-        display: 'flex', justifySelf: 'stretch', justifyContent: 'space-between', alignItems: 'center',
-        background: 'rgba(5,15,35,0.7)', backdropFilter: 'blur(10px)', zIndex: 10
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div className="rescue-logo-wrap">
-            {/* Outer slow-rotating dashed ring */}
-            <svg className="rescue-ring-outer" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="26" cy="26" r="24" stroke="rgba(180,30,30,0.55)" strokeWidth="1.2" strokeDasharray="4 5" strokeLinecap="round"/>
-            </svg>
-            {/* Inner fast counter-rotating ring */}
-            <svg className="rescue-ring-inner" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="22" cy="22" r="20" stroke="rgba(80,160,255,0.35)" strokeWidth="1" strokeDasharray="2 8" strokeLinecap="round"/>
-            </svg>
-            {/* Static core logo */}
-            <svg className="logo-main" width="40" height="40" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-              {/* Outer faint glow ring */}
-              <circle cx="24" cy="24" r="23" fill="none" stroke="rgba(255,40,40,0.12)" strokeWidth="1"/>
-              {/* Main dark circle with red border */}
-              <circle cx="24" cy="24" r="19" fill="#0a0a12" stroke="#cc2020" strokeWidth="2.2"/>
-              {/* Soft inner glow ring */}
-              <circle cx="24" cy="24" r="17.5" fill="none" stroke="rgba(255,60,60,0.2)" strokeWidth="2.5"/>
-              {/* Red cross — horizontal */}
-              <rect x="10" y="20.5" width="28" height="7" rx="2.2" fill="#dd2828"/>
-              {/* Red cross — vertical */}
-              <rect x="20.5" y="10" width="7" height="28" rx="2.2" fill="#dd2828"/>
-            </svg>
-          </div>
-          <div>
-            <h1 style={{ fontFamily: "'Orbitron'", fontSize: 18, letterSpacing: '0.15em', color: '#00c8ff', margin: 0 }}>RESCUELINK</h1>
-            <span style={{ fontSize: 9, letterSpacing: '0.2em', color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'" }}>NATIONAL HEALTH NETWORK</span>
+      {/* Centered cross emblem */}
+      <div style={{ position: 'relative', width: 96, height: 96, margin: '40px auto 20px', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}>
+        <div style={{
+          width: 80, height: 80,
+          border: '2px solid rgba(255,60,60,0.6)',
+          borderRadius: '50%',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 0 30px rgba(255,60,60,0.3), inset 0 0 20px rgba(255,60,60,0.1)',
+        }}>
+          <div style={{ position: 'relative', width: 36, height: 36 }}>
+            <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: 8, background: 'rgba(255,60,60,0.9)', transform: 'translateY(-50%)', borderRadius: 2 }} />
+            <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 8, background: 'rgba(255,60,60,0.9)', transform: 'translateX(-50%)', borderRadius: 2 }} />
           </div>
         </div>
-        <div className="rl-page-header-right" style={{ display: 'flex', gap: 15 }}>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>CENTRAL SERVER</div>
-            <div style={{ fontSize: 12, color: '#00ff88', fontWeight: 'bold', fontFamily: "'Share Tech Mono'" }}>ACTIVE // ONLINE</div>
-          </div>
-        </div>
-      </header>
+        <div style={{
+          position: 'absolute', inset: 0,
+          border: '1px solid rgba(0,200,255,0.2)',
+          borderRadius: '50%',
+          animation: 'holo-rotate 8s linear infinite',
+          borderTop: '1px solid rgba(0,200,255,0.6)',
+        }} />
+      </div>
 
       {/* Hero section */}
-      <div style={{ textShadow: '0 0 10px rgba(0,0,0,0.5)', padding: '50px 20px 30px', textAlign: 'center', zIndex: 1 }}>
-        <h2 style={{ fontFamily: "'Orbitron'", fontSize: 'clamp(24px, 5vw, 36px)', color: '#fff', letterSpacing: '0.2em', margin: '0 0 12px' }}>
-          SECURE DISPATCH & RESOURCE GATEWAY
-        </h2>
-        <p style={{ color: 'rgba(160,200,255,0.6)', maxWidth: 700, margin: '0 auto 40px', fontSize: 14, lineHeight: 1.6 }}>
-          Real-time end-to-end medical response coordinator linking patients, paramedics, trauma centers, and government commanders under an encrypted national ledger.
+      <div style={{ textShadow: '0 0 10px rgba(0,0,0,0.5)', padding: '10px 20px 30px', textAlign: 'center', zIndex: 1 }}>
+        <h1 style={{
+          fontFamily: "'Orbitron', monospace", fontSize: 'clamp(18px, 4vw, 28px)',
+          fontWeight: 900, letterSpacing: '0.15em',
+          color: '#00c8ff',
+          textShadow: '0 0 20px rgba(0,200,255,0.6)',
+          margin: '0 0 12px'
+        }}>
+          RESCUELINK EMERGENCY CARE SYSTEM
+        </h1>
+        <p style={{ color: 'rgba(160,200,255,0.5)', fontSize: 13, letterSpacing: '0.3em', marginTop: 8, fontFamily: "'Share Tech Mono'", textTransform: 'uppercase', marginBottom: 20 }}>
+          NATIONAL HEALTH MISSION — EMERGENCY CONNECTIVITY
         </p>
+
+        {/* Status bar */}
+        <div style={{
+          display: 'flex', gap: 24, margin: '0 auto 40px', padding: '8px 24px',
+          border: '1px solid rgba(0,200,255,0.15)', borderRadius: 4,
+          background: 'rgba(0,200,255,0.03)', width: 'fit-content', justifyContent: 'center'
+        }}>
+          {[
+            ['SYSTEM', 'ONLINE', '#00ff88'],
+            ['NETWORK', 'ACTIVE', '#00c8ff'],
+            ['ALERT', 'STANDBY', '#ffb800']
+          ].map(([label, val, color]) => (
+            <div key={label} style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', letterSpacing: '0.2em', fontFamily: "'Share Tech Mono'" }}>{label}</div>
+              <div style={{ fontSize: 13, color, fontWeight: 700, fontFamily: "'Share Tech Mono'", animation: 'pulse-glow 2s ease infinite' }}>{val}</div>
+            </div>
+          ))}
+        </div>
 
         {/* Gateways Grid */}
         <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 1200, margin: '0 auto 40px' }}>
