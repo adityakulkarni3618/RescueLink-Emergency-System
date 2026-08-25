@@ -588,11 +588,12 @@ const styles = `
 
   button.theme-switcher-btn,
   .theme-switcher-btn {
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-    width: 32px !important;
-    height: 32px !important;
+    background: var(--theme-card-bg) !important;
+    border: 1.5px solid var(--theme-border) !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+    width: 38px !important;
+    height: 38px !important;
+    min-height: 38px !important;
     padding: 0 !important;
     border-radius: 50% !important;
     color: var(--theme-accent) !important;
@@ -602,10 +603,12 @@ const styles = `
     cursor: pointer !important;
     transform: none !important;
     box-sizing: border-box !important;
+    transition: all 0.2s ease !important;
   }
   .theme-switcher-btn:hover {
-    background: rgba(255, 255, 255, 0.08) !important;
-    transform: scale(1.1) !important;
+    border-color: var(--theme-accent) !important;
+    box-shadow: 0 4px 16px var(--theme-accent-glow) !important;
+    transform: scale(1.05) !important;
   }
   [data-theme^='light'] .theme-switcher-btn:hover {
     background: rgba(0, 0, 0, 0.05) !important;
@@ -3011,13 +3014,12 @@ export default function App() {
       className="theme-switcher-container"
       style={{
         position: 'fixed', bottom: 25, right: 25, zIndex: 11000,
-        display: 'flex', alignItems: 'center', gap: 10,
-        background: theme.startsWith('light') ? '#ffffff' : 'rgba(10, 20, 45, 0.85)',
-        border: `1px solid ${theme.startsWith('light') ? '#cbd5e0' : 'rgba(0, 200, 255, 0.3)'}`,
-        padding: '6px 12px',
-        borderRadius: '30px',
-        boxShadow: theme.startsWith('light') ? '0 4px 12px rgba(0,0,0,0.1)' : '0 8px 24px rgba(0,0,0,0.5)',
-        backdropFilter: 'blur(8px)',
+        display: 'flex', alignItems: 'center',
+        background: 'transparent',
+        border: 'none',
+        padding: 0,
+        boxShadow: 'none',
+        backdropFilter: 'none',
         transition: 'all 0.3s ease',
         height: '38px',
         boxSizing: 'border-box'
@@ -3030,24 +3032,6 @@ export default function App() {
           setTheme(theme === 'dark-sky-breeze' ? 'light-sky-breeze' : 'dark-sky-breeze');
         }}
         title={`Switch to ${theme.startsWith('dark') ? 'Light' : 'Dark'} Mode`}
-        style={{
-          width: 32, height: 32, borderRadius: '50%',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          cursor: 'pointer', transition: 'all 0.2s',
-          background: 'transparent',
-          border: 'none',
-          color: theme.startsWith('light') ? 'var(--theme-accent)' : '#00c8ff',
-          padding: 0,
-          outline: 'none',
-          minWidth: 'auto',
-          height: '32px'
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'scale(1.1)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'scale(1)';
-        }}
       >
         {theme.startsWith('dark') ? (
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
