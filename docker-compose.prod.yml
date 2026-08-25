@@ -55,6 +55,8 @@ services:
       - DAILY_CO_API_KEY=${DAILY_CO_API_KEY}
     ports:
       - "5000:5000"
+    volumes:
+      - ./data:/usr/src/app/data
     depends_on:
       - postgres
       - redis
