@@ -137,6 +137,9 @@ function MapCenterer({ center }) {
       }
     }
   }, [center, map]);
+  return null;
+}
+
 const isValidLatLng = (loc) => {
   if (!loc) return false;
   const lat = loc.lat !== undefined ? loc.lat : (Array.isArray(loc) ? loc[0] : undefined);
