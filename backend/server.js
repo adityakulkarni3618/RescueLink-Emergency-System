@@ -833,7 +833,7 @@ const spawnVirtualAmbulances = (centerLoc) => {
 };
 
 const getCombinedAmbulances = () => {
-  return { ...virtualAmbulances, ...ambulances };
+  return ambulances;
 };
 
 const activeSimulations = {};

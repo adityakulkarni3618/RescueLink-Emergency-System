@@ -137,9 +137,12 @@ function MapCenterer({ center }) {
       }
     }
   }, [center, map]);
-  return null;
-}
-
+const isValidLatLng = (loc) => {
+  if (!loc) return false;
+  const lat = loc.lat !== undefined ? loc.lat : (Array.isArray(loc) ? loc[0] : undefined);
+  const lng = loc.lng !== undefined ? loc.lng : (Array.isArray(loc) ? loc[1] : undefined);
+  return lat !== undefined && lng !== undefined && !isNaN(lat) && !isNaN(lng);
+};
 
 let audioCtx = null;
 function playAlertBeep() {
@@ -866,7 +869,7 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
     const list = Object.entries(ambulances);
     if (list.length === 0) {
       if (dbAmbulances && dbAmbulances.length > 0) {
-        const center = userLocation || { lat: 12.9716, lng: 77.5946 };
+        const center = isValidLatLng(userLocation) ? userLocation : { lat: 12.9716, lng: 77.5946 };
         return dbAmbulances.map((amb, index) => {
           const offsetLat = (index % 2 === 0 ? 1 : -1) * (0.003 + (index * 0.0015));
           const offsetLng = (index % 3 === 0 ? 1 : -1) * (0.004 + (index * 0.0012));
@@ -1558,7 +1561,7 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
               </button>
             </div>
             {/* User Location Marker */}
-            {userLocation && (
+            {isValidLatLng(userLocation) && (
               <Marker position={userLocation} icon={userIcon}>
                 <Popup>
                   <div style={{ color: '#333' }}>
@@ -1577,7 +1580,7 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
             {Object.values(getHospitalsData()).map(h => {
               const pos = h.pos || h.location || { lat: h.lat, lng: h.lng };
               const isOnline = h.isOnline || !!h.socketId;
-              if (!pos.lat) return null;
+              if (!isValidLatLng(pos)) return null;
               
               return (
                 <Marker key={h.id} position={[pos.lat, pos.lng]} icon={hospitalIcon}>
@@ -1601,9 +1604,8 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
               );
             })}
 
-            {/* Available Ambulance Markers - Only shown when idle */}
             {requestStatus === 'idle' && topAmbs.map((amb) => {
-              if (!amb.location) return null;
+              if (!isValidLatLng(amb.location)) return null;
               return (
                 <Marker key={amb.id} position={amb.location} icon={ambulanceIcon}>
                   <Popup>
@@ -1623,7 +1625,7 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
             })}
 
             {/* Live Assigned Ambulance Marker */}
-            {assignedAmbulanceId && liveAmbulanceLoc && requestStatus !== 'idle' && (
+            {assignedAmbulanceId && isValidLatLng(liveAmbulanceLoc) && requestStatus !== 'idle' && (
               <Marker position={liveAmbulanceLoc} icon={ambulanceIcon}>
                 <Popup>
                   <div style={{ color: '#333' }}>
@@ -1637,7 +1639,7 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
 
             {/* OTHER ACTIVE AMBULANCES (City Overview) */}
             {Object.entries(ambulances).map(([id, amb]) => {
-              if (!amb.location || id === assignedAmbulanceId) return null;
+              if (!isValidLatLng(amb.location) || id === assignedAmbulanceId) return null;
               return (
                 <Marker key={id} position={amb.location} icon={ambulanceIcon} opacity={0.4}>
                   <Popup>
@@ -1656,7 +1658,7 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
 
             {/* Hospital Markers */}
             {Object.entries(getHospitalsData()).map(([id, hosp]) => {
-              if (!hosp.location) return null;
+              if (!isValidLatLng(hosp.location)) return null;
               if (isAmbulanceArrived && assignedHospitalId && assignedHospitalId !== id) return null;
               
               return (
