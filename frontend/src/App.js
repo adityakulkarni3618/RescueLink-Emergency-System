@@ -375,7 +375,7 @@ const styles = `
     justify-content: center !important;
     gap: 8px !important;
     box-sizing: border-box !important;
-    height: 38px !important;
+    min-height: 38px !important;
     vertical-align: middle !important;
   }
 
