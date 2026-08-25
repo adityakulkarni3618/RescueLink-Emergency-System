@@ -833,7 +833,13 @@ const spawnVirtualAmbulances = (centerLoc) => {
 };
 
 const getCombinedAmbulances = () => {
-  return ambulances;
+  const filtered = {};
+  Object.entries(ambulances).forEach(([key, value]) => {
+    if (!value.isSimulated && (!value.vehicleNo || !value.vehicleNo.startsWith('SIM-FLEET-'))) {
+      filtered[key] = value;
+    }
+  });
+  return filtered;
 };
 
 const activeSimulations = {};
@@ -2010,7 +2016,7 @@ io.on('connection', (socket) => {
     const { userId, location } = data;
     users[userId] = socket.id;
     role = 'user';
-    spawnVirtualAmbulances(location);
+    // spawnVirtualAmbulances(location); // disabled simulated fleet to show only registered database units
     spawnIncidentZones(location);
     io.emit('ambulances-update', getCombinedAmbulances());
     io.emit('traffic-incidents-update', activeIncidentZones);
@@ -2275,6 +2281,8 @@ io.on('connection', (socket) => {
     if (data.incidentLocation) {
       req.incidentLocation = data.incidentLocation;
     }
+    // Attach ambulance socket id to request
+    req.ambulanceSocket = socket.id;
 
     // Log currently registered hospitals on socket
     console.log(`[SOCKET_LOG] Currently registered hospitals count: ${Object.keys(hospitals).length}`);

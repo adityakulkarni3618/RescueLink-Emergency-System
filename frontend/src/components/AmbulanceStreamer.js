@@ -582,22 +582,20 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
     if (userStr) {
       const user = JSON.parse(userStr);
       const emailUpper = (user.email || user.username || user.id || '').toUpperCase();
-      const found = AMBULANCE_CREDENTIALS.find(c => c.unitId === emailUpper) || {
-        unitId: user.id || 'AMB-101',
-        driverName: user.name || 'Unit 101 Lead Paramedic',
-        vehicleNo: user.vehicleNo || (user.email?.includes('@') ? user.email.split('@')[0].toUpperCase() : (user.email || 'EMG-RL-0101')),
-        type: user.type || 'ALS',
+      const found = AMBULANCE_CREDENTIALS.find(c => c.unitId === emailUpper) || {};
+      return {
+        unitId: user.id || found.unitId || 'AMB-101',
+        driverName: user.name || found.driverName || 'Unit 101 Lead Paramedic',
+        vehicleNo: user.vehicleNo || found.vehicleNo || (user.email?.includes('@') ? user.email.split('@')[0].toUpperCase() : (user.email || 'EMG-RL-0101')),
+        type: user.type || found.type || 'ALS',
+        contactInfo: user.mobile || user.contactInfo || '',
         equipment_checklist: user.equipment_checklist,
         crew_members: user.crew_members,
         license_number: user.license_number,
         license_expiry: user.license_expiry,
         is_system_standard: user.is_system_standard,
-        oxygen_capacity_liters: user.oxygen_capacity_liters
-      };
-      return {
-        ...found,
-        ...user,
-        unitId: found.unitId || user.id
+        oxygen_capacity_liters: user.oxygen_capacity_liters,
+        ...user
       };
     }
     // Fallback default so it doesn't crash
@@ -3503,13 +3501,13 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
                         type: authUnit?.type || 'BLS',
                         contactInfo: authUnit?.contactInfo || '',
                         vehicleNo: authUnit?.vehicleNo || '',
-                        hospitalId: '',
-                        equipmentChecklist: [],
-                        crewMembers: '',
-                        licenseNumber: '',
-                        licenseExpiry: '',
-                        isSystemStandard: true,
-                        oxygenCapacityLiters: 0
+                        hospitalId: authUnit?.hospital_id || '',
+                        equipmentChecklist: authUnit?.equipment_checklist ? (typeof authUnit.equipment_checklist === 'string' ? JSON.parse(authUnit.equipment_checklist) : authUnit.equipment_checklist) : [],
+                        crewMembers: authUnit?.crew_members ? (typeof authUnit.crew_members === 'string' ? JSON.parse(authUnit.crew_members).join(', ') : authUnit.crew_members.join(', ')) : '',
+                        licenseNumber: authUnit?.license_number || '',
+                        licenseExpiry: authUnit?.license_expiry || '',
+                        isSystemStandard: authUnit?.is_system_standard !== undefined ? authUnit.is_system_standard : true,
+                        oxygenCapacityLiters: authUnit?.oxygen_capacity_liters || 0
                       });
                       const [unitStatus, setUnitStatus] = React.useState(null);
                       const [unitLoading, setUnitLoading] = React.useState(false);
