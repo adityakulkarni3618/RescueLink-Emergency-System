@@ -573,7 +573,7 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
   // ── Auth State ──
   const [isAuthenticated, setIsAuthenticated] = useState(true);
   const [authUnit, setAuthUnit] = useState(() => {
-    const userStr = sessionStorage.getItem('rescuelink_user');
+    const userStr = sessionStorage.getItem('rescuelink_user') || localStorage.getItem('rescuelink_user');
     if (userStr) {
       const user = JSON.parse(userStr);
       const emailUpper = (user.email || user.username || user.id || '').toUpperCase();
@@ -3629,13 +3629,14 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
                           const d = await res.json();
                           setUnitStatus({ ok: res.ok, msg: res.ok ? 'Unit profile updated!' : (d.error || 'Update failed') });
                           if (res.ok) {
-                            const userStr = sessionStorage.getItem('rescuelink_user');
+                            const userStr = sessionStorage.getItem('rescuelink_user') || localStorage.getItem('rescuelink_user');
                             if (userStr) {
                               const u = JSON.parse(userStr);
                               u.name = d.driverName;
                               u.email = d.vehicleNo;
                               u.mobile = d.contactInfo;
                               sessionStorage.setItem('rescuelink_user', JSON.stringify(u));
+                              localStorage.setItem('rescuelink_user', JSON.stringify(u));
                             }
                             setAuthUnit({
                               unitId: d.id,

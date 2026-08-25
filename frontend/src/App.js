@@ -2682,7 +2682,22 @@ export default function App() {
       localStorage.setItem('rescuelink_token', urlToken);
       return urlToken;
     }
-    return sessionStorage.getItem('rescuelink_token') || localStorage.getItem('rescuelink_token') || null;
+    const savedToken = sessionStorage.getItem('rescuelink_token') || localStorage.getItem('rescuelink_token');
+    const savedUser = sessionStorage.getItem('rescuelink_user') || localStorage.getItem('rescuelink_user');
+    if (savedToken && savedUser) {
+      if (!sessionStorage.getItem('rescuelink_token')) {
+        sessionStorage.setItem('rescuelink_token', savedToken);
+      }
+      if (!sessionStorage.getItem('rescuelink_user')) {
+        sessionStorage.setItem('rescuelink_user', savedUser);
+      }
+      return savedToken;
+    }
+    sessionStorage.removeItem('rescuelink_token');
+    sessionStorage.removeItem('rescuelink_user');
+    localStorage.removeItem('rescuelink_token');
+    localStorage.removeItem('rescuelink_user');
+    return null;
   });
 
   const [role, setRole] = useState(() => {
@@ -2692,6 +2707,21 @@ export default function App() {
       sessionStorage.setItem('rescueLinkRole', urlRole);
       localStorage.setItem('rescueLinkRole', urlRole);
       return urlRole;
+    }
+    const savedUserStr = sessionStorage.getItem('rescuelink_user') || localStorage.getItem('rescuelink_user');
+    if (savedUserStr) {
+      try {
+        const u = JSON.parse(savedUserStr);
+        let derivedRole = 'user';
+        if (u.role === 'doctor' || u.role === 'hospital_admin') derivedRole = 'hospital';
+        else if (u.role === 'paramedic') derivedRole = 'ambulance';
+        else if (u.role === 'city_admin') derivedRole = 'admin';
+        else if (u.role === 'family') derivedRole = 'family';
+        else if (u.role === 'patient') derivedRole = 'user';
+        sessionStorage.setItem('rescueLinkRole', derivedRole);
+        localStorage.setItem('rescueLinkRole', derivedRole);
+        return derivedRole;
+      } catch (e) {}
     }
     return sessionStorage.getItem('rescueLinkRole') || localStorage.getItem('rescueLinkRole') || null;
   });
