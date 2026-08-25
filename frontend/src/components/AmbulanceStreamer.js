@@ -11,6 +11,7 @@ import autoTable from 'jspdf-autotable';
 import PhysiologicalWaveforms from './PhysiologicalWaveforms';
 import EmergencyCorridorPanel from './EmergencyCorridorPanel';
 import OfflineTileLayer from './OfflineTileLayer';
+import AIEmergencyCorridorView from './AIEmergencyCorridorView';
 let audioCtx = null;
 
 /* ─── Alert beep using Web Audio API ─────────────────────────────────────── */
@@ -2510,6 +2511,7 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '15px 0' }}>
           {[
             { id: 'mission', label: 'LIVE DISPATCH', icon: '🗺️' },
+            { id: 'corridor', label: 'AI CORRIDOR', icon: '🚥' },
             { id: 'vitals', label: 'PATIENT VITALS', icon: '📈' },
             { id: 'comms', label: 'COMMS & CHAT', icon: '💬' },
             { id: 'settings', label: 'CONSOLE SETTINGS', icon: '⚙️' },
@@ -3236,6 +3238,23 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
                 </div>
               )}
             </>
+          )}
+ 
+          {activeTab === 'corridor' && (
+            <AIEmergencyCorridorView
+              socket={socket}
+              connected={connected}
+              activeMissionId={assignedUser?.id}
+              patientLoc={assignedUser?.userLocation}
+              ambulanceLoc={location}
+              hospitalLoc={selectedHospital}
+              hospitalName={selectedHospital?.name || 'Destination Hospital'}
+              routePath={routePath}
+              etaSeconds={arrivalCountdown}
+              distanceKm={assignedUser ? parseFloat(calcDist(location, selectedHospital || assignedUser.userLocation).toFixed(2)) : 1.8}
+              speedKmh={gpsSpeed || 62}
+              onBack={() => setActiveTab('mission')}
+            />
           )}
 
               {/* TAB 2: PATIENT VITALS (Telemetry cards, Waveforms, Ble, and manual entry forms) */}
