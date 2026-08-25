@@ -17,6 +17,7 @@ import HospitalAnalytics from './HospitalAnalytics';
 import BloodEmergencyNetwork from './BloodEmergencyNetwork';
 import { MfaVerifyScreen } from './MfaVerifyScreen';
 import OfflineTileLayer from './OfflineTileLayer';
+import AIEmergencyCorridorView from './AIEmergencyCorridorView';
 // THREE is dynamically imported inside ThreeDResuscitationMonitor to prevent TDZ crash
 
 
@@ -3154,6 +3155,7 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '15px 0' }}>
             {[
               { id: 'triage', label: 'LIVE TRIAGE', icon: '🚑' },
+              { id: 'corridor', label: 'AI CORRIDOR', icon: '🚥' },
               { id: 'er_queue', label: 'ER QUEUE & BEDS', icon: '⏳' },
               { id: 'blood_bank', label: 'BLOOD BANK', icon: '🩸' },
               { id: 'insurance', label: 'INSURANCE CLAIM', icon: '🛡️' },
@@ -4648,6 +4650,30 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
                       <ChatPanel socket={socket} messages={messages} activeMissionId={activeMissionId} />
                     </div>
                   </div>
+                </div>
+              )}
+
+              {activeTab === 'corridor' && (
+                <div style={{ flex: 1, display: 'flex', overflow: 'hidden', width: '100%' }}>
+                  {(() => {
+                    const mission = activeMissions[activeMissionId];
+                    return (
+                      <AIEmergencyCorridorView
+                        socket={socket}
+                        connected={connected}
+                        activeMissionId={activeMissionId}
+                        patientLoc={mission?.patient?.userLocation || incidentLocation}
+                        ambulanceLoc={mission?.location}
+                        hospitalLoc={hospitalGps || authHospital}
+                        hospitalName={authHospital?.name || 'Your Trauma Center'}
+                        routePath={mission?.routePath}
+                        etaSeconds={mission?.etaSeconds || 180}
+                        distanceKm={mission?.distanceRemaining || 1.8}
+                        speedKmh={mission?.speedKmh || 55}
+                        onBack={() => handleTabChange('triage')}
+                      />
+                    );
+                  })()}
                 </div>
               )}
 
