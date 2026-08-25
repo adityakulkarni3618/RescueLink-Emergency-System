@@ -12,6 +12,7 @@ import PhysiologicalWaveforms from './PhysiologicalWaveforms';
 import EmergencyCorridorPanel from './EmergencyCorridorPanel';
 import OfflineTileLayer from './OfflineTileLayer';
 import AIEmergencyCorridorView from './AIEmergencyCorridorView';
+import LiveRouteMap from './LiveRouteMap';
 let audioCtx = null;
 
 /* ─── Alert beep using Web Audio API ─────────────────────────────────────── */
@@ -3035,114 +3036,16 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
                       </div>
                     </div>
 
-                    {/* Leaflet Live Map Widget */}
+                    {/* Mapbox GL Live Map Widget */}
                     <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(0,200,255,0.2)', height: 350, position: 'relative' }}>
-                      <div style={{ position: 'absolute', top: 10, left: 10, right: 10, zIndex: 1000, display: 'flex', gap: 6 }}>
-                        <input 
-                          value={searchQuery}
-                          onChange={e => setSearchQuery(e.target.value)}
-                          onKeyDown={e => e.key === 'Enter' && handleManualSearch()}
-                          placeholder="Search incident city/area..."
-                          style={{
-                            flex: 1, padding: '6px 10px', background: 'rgba(5,20,40,0.9)', 
-                            border: '1px solid rgba(0,200,255,0.4)', borderRadius: 4, 
-                            color: '#fff', fontSize: 11, outline: 'none'
-                          }}
-                        />
-                        <button onClick={handleManualSearch} style={{ padding: '6px 10px', background: 'rgba(0,200,255,0.2)', border: '1px solid #00c8ff', borderRadius: 4, color: '#00c8ff', cursor: 'pointer', fontSize: 10 }}>📍</button>
-                      </div>
-                      
-                      <MapContainer
-                        center={location ? [location.lat, location.lng] : [12.9716, 77.5946]}
-                        zoom={location ? 12 : 2}
-                        style={{ height: '100%', width: '100%', background: '#050d1a' }}
-                        zoomControl={false}
-                      >
-                        <OfflineTileLayer
-                          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                          attribution='&copy; OpenStreetMap'
-                        />
-                        <SmartMapController 
-                          ambulanceLoc={location} 
-                          userLoc={assignedUser?.userLocation} 
-                          manualCenter={manualCenter} 
-                        />
-                        {location && location.lat && (
-                          <>
-                            <Marker position={[location.lat, location.lng]} icon={ambulanceIcon}>
-                              <Popup><strong>🚑 Ambulance</strong><br />Lat: {location.lat.toFixed(4)}<br />Lng: {location.lng.toFixed(4)}</Popup>
-                            </Marker>
-                            <MapUpdater center={location} />
-                          </>
-                        )}
-                        {assignedUser && assignedUser.userLocation && (
-                          <Marker position={[assignedUser.userLocation.lat, assignedUser.userLocation.lng]} icon={userIcon}>
-                            <Popup><strong>🧍 Emergency Location</strong></Popup>
-                          </Marker>
-                        )}
-                        {selectedHospital && (
-                          <Marker
-                            position={[
-                              selectedHospital.pos ? selectedHospital.pos.lat : (selectedHospital.location?.lat || 0),
-                              selectedHospital.pos ? selectedHospital.pos.lng : (selectedHospital.location?.lng || 0)
-                            ]}
-                            icon={hospitalIcon}
-                          >
-                            <Popup><strong>🏥 {selectedHospital?.name || 'Hospital'}</strong></Popup>
-                          </Marker>
-                        )}
-                        {Object.entries(networkHospitals).map(([id, hosp]) => {
-                          const pos = hosp.location || hosp.pos;
-                          if (!pos || (selectedHospital && (selectedHospital.id === hosp.id || selectedHospital.hospitalId === hosp.id))) return null;
-                          return (
-                            <Marker key={id} position={[pos.lat, pos.lng]} icon={hospitalIcon} opacity={0.6}>
-                              <Popup>
-                                <strong>🏥 {hosp.name}</strong><br />
-                                {hosp.isOnline ? '🟢 Online' : '⚪ Offline'}<br />
-                                {hosp.isBusy ? '🔴 Busy' : '🟢 Ready'}
-                              </Popup>
-                            </Marker>
-                          );
-                        })}
-                        {routePath && (
-                          greenCorridorActive ? (
-                            <>
-                              <Polyline positions={routePath} color="#00ff88" weight={12} opacity={0.25} />
-                              <Polyline positions={routePath} color="#00ff88" weight={8} opacity={0.5} />
-                              <Polyline positions={routePath} color="#00ff88" weight={4} opacity={0.9} />
-                            </>
-                          ) : (
-                            <Polyline positions={routePath} color="#00ff88" weight={5} opacity={0.7} dashArray="10, 10" />
-                          )
-                        )}
-                        {locationHistory.length > 1 && (
-                          <Polyline positions={locationHistory} color={simulateTraffic ? "#ffb800" : "#00c8ff"} weight={3} opacity={0.5} />
-                        )}
-
-                        {/* Traffic circles */}
-                        {Object.values(trafficIncidents).map((incident) => (
-                          <React.Fragment key={incident.id}>
-                            <Circle
-                              center={[incident.lat, incident.lng]}
-                              radius={incident.radius || 300}
-                              pathOptions={{
-                                color: '#ff3333',
-                                fillColor: '#ff3333',
-                                fillOpacity: 0.15,
-                                dashArray: '5, 10',
-                                weight: 2
-                              }}
-                            >
-                              <Popup>
-                                <div style={{ color: '#333', fontFamily: 'sans-serif' }}>
-                                  <strong style={{ color: '#ff3333' }}>⚠️ Traffic Blockage</strong>
-                                  <p style={{ margin: '5px 0 0 0', fontSize: '11px' }}>{incident.reason}</p>
-                                </div>
-                              </Popup>
-                            </Circle>
-                          </React.Fragment>
-                        ))}
-                      </MapContainer>
+                      <LiveRouteMap
+                        routeGeometry={routePath ? { type: 'LineString', coordinates: routePath.map(p => [p[1] || p.lng, p[0] || p.lat]) } : null}
+                        ambulancePosition={location ? { lat: location.lat, lng: location.lng, heading: gpsHeading } : null}
+                        originMarker={assignedUser?.userLocation}
+                        destinationMarker={selectedHospital?.pos ? { lat: selectedHospital.pos.lat, lng: selectedHospital.pos.lng } : (selectedHospital?.location ? { lat: selectedHospital.location.lat, lng: selectedHospital.location.lng } : null)}
+                        junctions={[]}
+                        mode="driver"
+                      />
                     </div>
                   </div>
 
