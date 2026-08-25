@@ -53,7 +53,7 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - ./data:/usr/src/app/data
+      - ./backend/data:/usr/src/app/data
     depends_on:
       - postgres
       - redis
