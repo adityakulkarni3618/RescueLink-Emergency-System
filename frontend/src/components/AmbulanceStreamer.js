@@ -2513,6 +2513,8 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
             { id: 'mission', label: 'LIVE DISPATCH', icon: '🗺️' },
             { id: 'corridor', label: 'AI CORRIDOR', icon: '🚥' },
             { id: 'vitals', label: 'PATIENT VITALS', icon: '📈' },
+            { id: 'ai_tools', label: 'AI CLINICAL TOOLS', icon: '🤖' },
+            { id: 'protocol', label: 'PROTOCOLS & DRUGS', icon: '📋' },
             { id: 'comms', label: 'COMMS & CHAT', icon: '💬' },
             { id: 'settings', label: 'CONSOLE SETTINGS', icon: '⚙️' },
           ].map(tab => (
@@ -3509,6 +3511,44 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
                       </div>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* TAB: AI CLINICAL TOOLS */}
+              {activeTab === 'ai_tools' && (
+                <div style={{ padding: 24, overflowY: 'auto', background: 'rgba(0,0,0,0.1)', flex: 1, display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  <div style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#00c8ff', fontWeight: 900, letterSpacing: '0.1em', marginBottom: 4 }}>
+                    🤖 AI CLINICAL TOOLS
+                  </div>
+                  <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.5)', marginBottom: 10, fontFamily: "'Share Tech Mono'" }}>
+                    Real-time AI-assisted diagnostics, neurological assessment, and voice telemetry dispatch.
+                    {!assignedUser && <span style={{ color: '#ffb800' }}> Assign a patient to unlock all tools.</span>}
+                  </div>
+
+                  {/* Clinical AI Diagnostic Advisor */}
+                  <ClinicalAIDiagnosticAdvisor vitals={vitals} patient={assignedUser?.patientDetails || null} />
+
+                  {/* AI Stroke Copilot */}
+                  <AIStrokeCopilot />
+
+                  {/* AI Voice Dispatcher */}
+                  <AIVoiceDispatcher vitals={vitals} patient={assignedUser?.patientDetails || null} />
+                </div>
+              )}
+
+              {/* TAB: PROTOCOLS & DRUG CALCULATOR */}
+              {activeTab === 'protocol' && (
+                <div style={{ padding: 24, overflowY: 'auto', background: 'rgba(0,0,0,0.1)', flex: 1, display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  <div style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#00c8ff', fontWeight: 900, letterSpacing: '0.1em', marginBottom: 4 }}>
+                    📋 PARAMEDIC PROTOCOLS & DRUG CALCULATOR
+                  </div>
+                  <ParamedicToolkit
+                    socket={socket}
+                    reqId={assignedUser?.id}
+                    patientDetails={assignedUser?.patientDetails}
+                    checklist={clinicalChecklist}
+                    setChecklist={setClinicalChecklist}
+                  />
                 </div>
               )}
 
