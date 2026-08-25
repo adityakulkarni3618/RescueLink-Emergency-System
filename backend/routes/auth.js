@@ -1019,37 +1019,7 @@ router.get('/my-fleet', verifyToken(), async (req, res) => {
  * @desc Securely wipes the database tables for clean testing (Free Tier utility)
  */
 router.get('/clear-db-securely', async (req, res) => {
-  const { secret } = req.query;
-  if (secret !== 'RescueLinkSecureClear2026') {
-    return res.status(403).json({ error: 'Forbidden: Invalid security clear token' });
-  }
-
-  try {
-    const { User, Hospital, Patient, Incident, AuditLog, PendingErasure, VitalsHistory, BloodRequest, InsuranceClaim, Consent, Ambulance, DoctorHospital, ChronicLog } = require('../utils/db');
-    
-    // Delete all tables to prevent constraint violations and ensure a clean reset
-    await VitalsHistory.destroy({ where: {} });
-    await InsuranceClaim.destroy({ where: {} });
-    await Incident.destroy({ where: {} });
-    await BloodRequest.destroy({ where: {} });
-    await Consent.destroy({ where: {} });
-    await ChronicLog.destroy({ where: {} });
-    await PendingErasure.destroy({ where: {} });
-    if (DoctorHospital) await DoctorHospital.destroy({ where: {} });
-    await Ambulance.destroy({ where: {} });
-    await User.destroy({ where: {} });
-    await Patient.destroy({ where: {} });
-    await Hospital.destroy({ where: {} });
-    await AuditLog.destroy({ where: {}, hooks: false });
-
-    return res.json({
-      success: true,
-      message: "Database cleaned completely. All tables reset to a blank state for fresh registrations."
-    });
-  } catch (err) {
-    console.error('[CLEANDB ERROR] Secure database wipe failed:', err);
-    return res.status(500).json({ error: `Wipe failed: ${err.message}` });
-  }
+  return res.status(403).json({ error: 'Database wipe is disabled to prevent loss of registered entities.' });
 });
 
 /**
