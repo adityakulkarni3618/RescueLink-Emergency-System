@@ -1061,7 +1061,15 @@ function MfaSetupScreen({ setupToken, onComplete, onCancel }) {
 
 /* ─── Login & Registration Screen Component with 2FA ───────────────────── */
 function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onClose, defaultIsRegister }) {
-  const [isRegister, setIsRegister] = useState(defaultIsRegister || false);
+  const [isRegister, setIsRegister] = useState(() => {
+    const saved = localStorage.getItem(`draft_${defaultRole}_isRegister`);
+    return saved !== null ? saved === 'true' : (defaultIsRegister || false);
+  });
+  
+  useEffect(() => {
+    localStorage.setItem(`draft_${defaultRole}_isRegister`, isRegister);
+  }, [isRegister, defaultRole]);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -1128,6 +1136,92 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
   // List of active hospitals for dropdown selection
   const [hospitalsList, setHospitalsList] = useState([]);
 
+  // Load draft values on mount
+  useEffect(() => {
+    try {
+      const draft = localStorage.getItem(`draft_${defaultRole}_registration`);
+      if (draft) {
+        const d = JSON.parse(draft);
+        if (d.email) setEmail(d.email);
+        if (d.password) setPassword(d.password);
+        if (d.driverName) setDriverName(d.driverName);
+        if (d.vehicleNo) setVehicleNo(d.vehicleNo);
+        if (d.contactInfo) setContactInfo(d.contactInfo);
+        if (d.type) setType(d.type);
+        if (d.hospitalName) setHospitalName(d.hospitalName);
+        if (d.hospitalContact) setHospitalContact(d.hospitalContact);
+        if (d.lat) setLat(d.lat);
+        if (d.lng) setLng(d.lng);
+        if (d.totalBeds) setTotalBeds(d.totalBeds);
+        if (d.icuBeds) setIcuBeds(d.icuBeds);
+        if (d.ventilators) setVentilators(d.ventilators);
+        if (d.licenseNumber) setLicenseNumber(d.licenseNumber);
+        if (d.departments) setDepartments(d.departments);
+        if (d.bayCapacity) setBayCapacity(d.bayCapacity);
+        if (d.adminEmail) setAdminEmail(d.adminEmail);
+        if (d.hospitalId) setHospitalId(d.hospitalId);
+        if (d.equipmentChecklist) setEquipmentChecklist(d.equipmentChecklist);
+        if (d.crewMembers) setCrewMembers(d.crewMembers);
+        if (d.abhaAddress) setAbhaAddress(d.abhaAddress);
+        if (d.bloodGroup) setBloodGroup(d.bloodGroup);
+        if (d.allergies) setAllergies(d.allergies);
+        if (d.chronicConditions) setChronicConditions(d.chronicConditions);
+        if (d.dob) setDob(d.dob);
+        if (d.gender) setGender(d.gender);
+        if (d.emergencyContactName) setEmergencyContactName(d.emergencyContactName);
+        if (d.emergencyContactRelationship) setEmergencyContactRelationship(d.emergencyContactRelationship);
+        if (d.emergencyContactPhone) setEmergencyContactPhone(d.emergencyContactPhone);
+        if (d.insuranceProvider) setInsuranceProvider(d.insuranceProvider);
+        if (d.policyNumber) setPolicyNumber(d.policyNumber);
+        if (d.groupNumber) setGroupNumber(d.groupNumber);
+        if (d.consentToShareData) setConsentToShareData(d.consentToShareData);
+        if (d.licenseExpiry) setLicenseExpiry(d.licenseExpiry);
+        if (d.isSystemStandard !== undefined) setIsSystemStandard(d.isSystemStandard);
+        if (d.oxygenCapacityLiters) setOxygenCapacityLiters(d.oxygenCapacityLiters);
+        if (d.traumaTier) setTraumaTier(d.traumaTier);
+        if (d.accreditationId) setAccreditationId(d.accreditationId);
+      }
+    } catch (e) {
+      console.warn('Failed to parse draft registration values', e);
+    }
+  }, [defaultRole]);
+
+  // Persist draft values on change
+  useEffect(() => {
+    const data = {
+      email, password, driverName, vehicleNo, contactInfo, type, hospitalName, hospitalContact, lat, lng,
+      totalBeds, icuBeds, ventilators, licenseNumber, departments, bayCapacity, adminEmail,
+      hospitalId, equipmentChecklist, crewMembers, abhaAddress, bloodGroup, allergies,
+      chronicConditions, dob, gender, emergencyContactName, emergencyContactRelationship,
+      emergencyContactPhone, insuranceProvider, policyNumber, groupNumber, consentToShareData,
+      licenseExpiry, isSystemStandard, oxygenCapacityLiters, traumaTier, accreditationId
+    };
+    localStorage.setItem(`draft_${defaultRole}_registration`, JSON.stringify(data));
+  }, [
+    email, password, driverName, vehicleNo, contactInfo, type, hospitalName, hospitalContact, lat, lng,
+    totalBeds, icuBeds, ventilators, licenseNumber, departments, bayCapacity, adminEmail,
+    hospitalId, equipmentChecklist, crewMembers, abhaAddress, bloodGroup, allergies,
+    chronicConditions, dob, gender, emergencyContactName, emergencyContactRelationship,
+    emergencyContactPhone, insuranceProvider, policyNumber, groupNumber, consentToShareData,
+    licenseExpiry, isSystemStandard, oxygenCapacityLiters, traumaTier, accreditationId,
+    defaultRole
+  ]);
+
+  // Clean draft function
+  const clearDraft = () => {
+    localStorage.removeItem(`draft_${defaultRole}_registration`);
+    localStorage.removeItem(`draft_${defaultRole}_regQrCode`);
+    localStorage.removeItem(`draft_${defaultRole}_regTempSecret`);
+    localStorage.removeItem(`draft_${defaultRole}_isRegister`);
+    setEmail('');
+    setPassword('');
+    setDriverName('');
+    setVehicleNo('');
+    setContactInfo('');
+    setHospitalName('');
+    setHospitalContact('');
+  };
+
   useEffect(() => {
     fetch(`${SERVER_URL}/api/hospitals`)
       .then(res => res.json())
@@ -1154,10 +1248,19 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
       });
   }, []);
 
-  // Registration 2FA Setup state
-  const [regQrCode, setRegQrCode] = useState('');
-  const [regTempSecret, setRegTempSecret] = useState('');
+  const [regQrCode, setRegQrCode] = useState(() => localStorage.getItem(`draft_${defaultRole}_regQrCode`) || '');
+  const [regTempSecret, setRegTempSecret] = useState(() => localStorage.getItem(`draft_${defaultRole}_regTempSecret`) || '');
   const [regVerifyCode, setRegVerifyCode] = useState('');
+
+  useEffect(() => {
+    if (regQrCode) localStorage.setItem(`draft_${defaultRole}_regQrCode`, regQrCode);
+    else localStorage.removeItem(`draft_${defaultRole}_regQrCode`);
+  }, [regQrCode, defaultRole]);
+
+  useEffect(() => {
+    if (regTempSecret) localStorage.setItem(`draft_${defaultRole}_regTempSecret`, regTempSecret);
+    else localStorage.removeItem(`draft_${defaultRole}_regTempSecret`);
+  }, [regTempSecret, defaultRole]);
 
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -1372,8 +1475,7 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
       if (!resEnable.ok) throw new Error(enableData.error || 'Failed to verify 2FA token');
 
       setMessage('2FA setup complete! You can now log in securely.');
-      setRegQrCode('');
-      setRegTempSecret('');
+      clearDraft();
       setIsRegister(false);
     } catch (err) {
       setError(err.message);
@@ -2740,8 +2842,17 @@ export default function App() {
   const [globalAlertData, setGlobalAlertData] = useState(null);
   const [emergencyBroadcast, setEmergencyBroadcast] = useState(null);
   const [showSecurityModal, setShowSecurityModal] = useState(false);
-  const [loginTargetRole, setLoginTargetRole] = useState(null);
-  const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const [loginTargetRole, setLoginTargetRole] = useState(() => localStorage.getItem('loginTargetRole') || null);
+  const [isRegisterMode, setIsRegisterMode] = useState(() => localStorage.getItem('isRegisterMode') === 'true');
+
+  useEffect(() => {
+    if (loginTargetRole) localStorage.setItem('loginTargetRole', loginTargetRole);
+    else localStorage.removeItem('loginTargetRole');
+  }, [loginTargetRole]);
+
+  useEffect(() => {
+    localStorage.setItem('isRegisterMode', isRegisterMode);
+  }, [isRegisterMode]);
 
   const [currentHash, setCurrentHash] = useState(() => window.location.hash);
 
@@ -2879,7 +2990,7 @@ export default function App() {
     <div
       className="theme-switcher-container"
       style={{
-        position: 'fixed', bottom: 25, left: 25, zIndex: 11000,
+        position: 'fixed', bottom: 25, right: 25, zIndex: 11000,
         display: 'flex', alignItems: 'center', gap: 10,
         background: theme.startsWith('light') ? '#ffffff' : 'rgba(10, 20, 45, 0.85)',
         border: `1px solid ${theme.startsWith('light') ? '#cbd5e0' : 'rgba(0, 200, 255, 0.3)'}`,
