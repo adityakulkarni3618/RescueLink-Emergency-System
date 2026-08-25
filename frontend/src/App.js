@@ -1088,6 +1088,7 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
     const saved = localStorage.getItem(`draft_${defaultRole}_isRegister`);
     return saved !== null ? saved === 'true' : (defaultIsRegister || false);
   });
+  const [isSignupSuccess, setIsSignupSuccess] = useState(false);
   
   useEffect(() => {
     localStorage.setItem(`draft_${defaultRole}_isRegister`, isRegister);
@@ -1499,7 +1500,10 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
 
       setMessage('2FA setup complete! You can now log in securely.');
       clearDraft();
-      setIsRegister(false);
+      setRegQrCode('');
+      setRegTempSecret('');
+      setRegVerifyCode('');
+      setIsSignupSuccess(true);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -1562,7 +1566,27 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
           <div style={{ padding: 10, background: 'rgba(0,255,136,0.1)', border: '1px solid rgba(0,255,136,0.4)', borderRadius: 6, color: '#00ff88', marginBottom: 16, fontSize: 12, textAlign: 'center', fontFamily: "'Share Tech Mono'" }}>{message}</div>
         )}
 
-        {regQrCode ? (
+        {isSignupSuccess ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center', textAlign: 'center' }}>
+            <div style={{ fontSize: 48, marginBottom: 8 }}>✅</div>
+            <h3 style={{ fontFamily: "'Orbitron'", color: '#00ff88', fontSize: 16, margin: '8px 0', fontWeight: 'bold' }}>REGISTRATION SUCCESSFUL</h3>
+            <p style={{ color: 'rgba(160,200,255,0.8)', fontSize: 12, lineHeight: 1.5, marginBottom: 12 }}>
+              Your two-factor authentication has been successfully configured.
+            </p>
+            <button
+              onClick={() => {
+                setIsSignupSuccess(false);
+                setIsRegister(false);
+                setMessage('');
+                setError('');
+              }}
+              className="rl-btn-primary"
+              style={{ width: '100%' }}
+            >
+              GO TO LOGIN
+            </button>
+          </div>
+        ) : regQrCode ? (
           <form onSubmit={handleRegMfaVerify} style={{ display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center' }}>
             <p style={{ color: 'rgba(160,200,255,0.8)', fontSize: 12, textAlign: 'center' }}>
               Scan this QR code with your authenticator app to enable mandatory 2FA security:

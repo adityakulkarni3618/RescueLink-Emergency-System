@@ -100,12 +100,15 @@ function SmartMapController({ userLoc, ambulanceLoc, manualCenter }) {
   const lastBoundsRef = useRef(null);
 
   useEffect(() => {
-    if (manualCenter) {
+    if (manualCenter && manualCenter.lat !== undefined && manualCenter.lng !== undefined && !isNaN(manualCenter.lat) && !isNaN(manualCenter.lng)) {
       map.setView(manualCenter, 13, { animate: true });
       return;
     }
 
-    if (userLoc && ambulanceLoc) {
+    const hasUser = userLoc && userLoc.lat !== undefined && userLoc.lng !== undefined && !isNaN(userLoc.lat) && !isNaN(userLoc.lng);
+    const hasAmb = ambulanceLoc && ambulanceLoc.lat !== undefined && ambulanceLoc.lng !== undefined && !isNaN(ambulanceLoc.lat) && !isNaN(ambulanceLoc.lng);
+
+    if (hasUser && hasAmb) {
       const bounds = L.latLngBounds([
         [userLoc.lat, userLoc.lng],
         [ambulanceLoc.lat, ambulanceLoc.lng]
@@ -115,7 +118,7 @@ function SmartMapController({ userLoc, ambulanceLoc, manualCenter }) {
         map.fitBounds(bounds, { padding: [50, 50], animate: true });
         lastBoundsRef.current = boundsStr;
       }
-    } else if (userLoc) {
+    } else if (hasUser) {
       map.panTo([userLoc.lat, userLoc.lng], { animate: true });
     }
   }, [userLoc, ambulanceLoc, manualCenter, map]);
@@ -127,8 +130,11 @@ function MapCenterer({ center }) {
   const map = useMap();
   useEffect(() => {
     if (center) {
-      const pos = center.lat ? [center.lat, center.lng] : center;
-      map.setView(pos, map.getZoom(), { animate: true });
+      const lat = center.lat !== undefined ? center.lat : (Array.isArray(center) ? center[0] : undefined);
+      const lng = center.lng !== undefined ? center.lng : (Array.isArray(center) ? center[1] : undefined);
+      if (lat !== undefined && lng !== undefined && !isNaN(lat) && !isNaN(lng)) {
+        map.setView([lat, lng], map.getZoom(), { animate: true });
+      }
     }
   }, [center, map]);
   return null;
