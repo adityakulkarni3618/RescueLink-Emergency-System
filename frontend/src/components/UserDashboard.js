@@ -297,6 +297,23 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
     fetchRegisteredAmbulances();
   }, [SERVER_URL_CONST]);
 
+  const [dbHospitals, setDbHospitals] = useState([]);
+
+  useEffect(() => {
+    const fetchRegisteredHospitals = async () => {
+      try {
+        const response = await fetch(`${SERVER_URL_CONST}/api/hospitals`);
+        if (response.ok) {
+          const list = await response.json();
+          setDbHospitals(list);
+        }
+      } catch (err) {
+        console.warn('Failed to load registered hospitals:', err.message);
+      }
+    };
+    fetchRegisteredHospitals();
+  }, [SERVER_URL_CONST]);
+
   const routeTo = (subPath) => {
     window.location.hash = subPath ? `user/${subPath}` : 'user';
   };
@@ -874,6 +891,29 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
       ];
     }
     return list;
+  };
+
+  const getHospitalsData = () => {
+    if (Object.keys(hospitals).length > 0) {
+      return hospitals;
+    }
+    const formatted = {};
+    if (dbHospitals && dbHospitals.length > 0) {
+      dbHospitals.forEach(h => {
+        formatted[h.id] = {
+          id: h.id,
+          name: h.name,
+          lat: h.lat || 12.9716,
+          lng: h.lng || 77.5946,
+          location: { lat: h.lat || 12.9716, lng: h.lng || 77.5946 },
+          total_beds: h.total_beds,
+          icu_beds: h.icu_beds,
+          ventilators: h.ventilators,
+          contact_number: h.contact_number
+        };
+      });
+    }
+    return formatted;
   };
 
   const topAmbs = getAmbulanceDataList()
@@ -1534,7 +1574,7 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
             <MapCenterer center={liveAmbulanceLoc || userLocation} />
 
             {/* All Registered & Live Hospitals */}
-            {Object.values(hospitals).map(h => {
+            {Object.values(getHospitalsData()).map(h => {
               const pos = h.pos || h.location || { lat: h.lat, lng: h.lng };
               const isOnline = h.isOnline || !!h.socketId;
               if (!pos.lat) return null;
@@ -1615,7 +1655,7 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
             )}
 
             {/* Hospital Markers */}
-            {Object.entries(hospitals).map(([id, hosp]) => {
+            {Object.entries(getHospitalsData()).map(([id, hosp]) => {
               if (!hosp.location) return null;
               if (isAmbulanceArrived && assignedHospitalId && assignedHospitalId !== id) return null;
               
