@@ -73,17 +73,33 @@ async function runMigrations() {
           .replace(/CREATE INDEX IF NOT EXISTS \w+ ON \w+\([\w\s,"]+\);/gi, ''); // SQLite indexes handled simply
       }
 
-      // Execute commands split by semicolon (simple splitter)
-      const commands = sql.split(';')
-        .map(c => c.trim())
-        .filter(c => c.length > 0);
+      if (dialect === 'sqlite') {
+        // Execute commands split by semicolon (simple splitter)
+        const commands = sql.split(';')
+          .map(c => c.trim())
+          .filter(c => c.length > 0);
 
-      for (const command of commands) {
+        for (const command of commands) {
+          try {
+            await sequelize.query(command);
+          } catch (queryErr) {
+            const errMsg = queryErr.message.toLowerCase();
+            // Ignore if the column/table/index already exists
+            if (
+              !errMsg.includes('already exists') &&
+              !errMsg.includes('duplicate column') &&
+              !errMsg.includes('duplicate key')
+            ) {
+              throw queryErr;
+            }
+          }
+        }
+      } else {
+        // For PostgreSQL, execute the entire file in one go to preserve DO $$ blocks
         try {
-          await sequelize.query(command);
+          await sequelize.query(sql);
         } catch (queryErr) {
           const errMsg = queryErr.message.toLowerCase();
-          // Ignore if the column/table/index already exists
           if (
             !errMsg.includes('already exists') &&
             !errMsg.includes('duplicate column') &&

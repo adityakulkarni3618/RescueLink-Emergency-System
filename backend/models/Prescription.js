@@ -8,7 +8,7 @@ module.exports = (sequelize) => {
       primaryKey: true
     },
     incident_id: {
-      type: DataTypes.STRING,
+      type: DataTypes.UUID,
       allowNull: false
     },
     patient_id: {

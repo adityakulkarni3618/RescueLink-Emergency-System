@@ -280,6 +280,23 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
     return () => window.removeEventListener('hashchange', syncUserHash);
   }, []);
 
+  const [dbAmbulances, setDbAmbulances] = useState([]);
+
+  useEffect(() => {
+    const fetchRegisteredAmbulances = async () => {
+      try {
+        const response = await fetch(`${SERVER_URL_CONST}/api/ambulances`);
+        if (response.ok) {
+          const list = await response.json();
+          setDbAmbulances(list);
+        }
+      } catch (err) {
+        console.warn('Failed to load registered ambulances for user list view:', err.message);
+      }
+    };
+    fetchRegisteredAmbulances();
+  }, [SERVER_URL_CONST]);
+
   const routeTo = (subPath) => {
     window.location.hash = subPath ? `user/${subPath}` : 'user';
   };
@@ -831,6 +848,24 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
   const getAmbulanceDataList = () => {
     const list = Object.entries(ambulances);
     if (list.length === 0) {
+      if (dbAmbulances && dbAmbulances.length > 0) {
+        const center = userLocation || { lat: 12.9716, lng: 77.5946 };
+        return dbAmbulances.map((amb, index) => {
+          const offsetLat = (index % 2 === 0 ? 1 : -1) * (0.003 + (index * 0.0015));
+          const offsetLng = (index % 3 === 0 ? 1 : -1) * (0.004 + (index * 0.0012));
+          return [
+            amb.id || `AMB-${index}`,
+            {
+              driverName: amb.driverName || `Driver ${amb.vehicleNo}`,
+              available: amb.is_active !== false,
+              location: { lat: center.lat + offsetLat, lng: center.lng + offsetLng },
+              vehicleNo: amb.vehicleNo,
+              type: amb.type === 'ALS' ? 'Advanced Life Support' : 'Basic Life Support',
+              contactInfo: amb.contactInfo
+            }
+          ];
+        });
+      }
       const center = userLocation || { lat: 12.9716, lng: 77.5946 };
       return [
         ['VIRTUAL-AMB-001', { driverName: 'Metro Alpha (ALS)', available: true, location: { lat: center.lat + 0.005, lng: center.lng + 0.008 }, vehicleNo: 'EMG-MH-01', type: 'Advanced Life Support' }],
@@ -935,69 +970,7 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
 
       <div className="header-container" style={{ position: 'relative', background: 'rgba(5,15,40,0.97)', padding: '10px 20px', borderBottom: '1px solid rgba(0,200,255,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, zIndex: 200, flexWrap: 'wrap' }}>
 
-      {/* ── SOS DISPATCH CONFIRM MODAL ── */}
-      {sosConfirmData && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 9999999, background: 'rgba(0,3,12,0.92)', backdropFilter: 'blur(16px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setSosConfirmData(null)}>
-          <div style={{ background: 'rgba(8,18,42,0.98)', border: '2px solid rgba(255,30,30,0.5)', borderRadius: 16, padding: 36, maxWidth: 460, width: '90%', boxShadow: '0 0 80px rgba(255,30,30,0.25)', animation: 'sosGlow 1.5s ease-in-out infinite' }} onClick={e => e.stopPropagation()}>
-            <div style={{ textAlign: 'center', marginBottom: 20 }}>
-              <div style={{ fontSize: 52, marginBottom: 12 }}>🚨</div>
-              <div style={{ fontFamily: "'Orbitron'", fontSize: 18, color: '#ff4444', fontWeight: 900, letterSpacing: '0.12em' }}>CONFIRM SOS DISPATCH</div>
-              <div style={{ fontSize: 11, color: 'rgba(255,100,100,0.7)', marginTop: 6, fontFamily: "'Share Tech Mono'" }}>This will immediately alert the nearest available ambulance</div>
-            </div>
-            <div style={{ background: 'rgba(255,30,30,0.06)', border: '1px solid rgba(255,30,30,0.2)', borderRadius: 8, padding: '12px 16px', marginBottom: 24, fontFamily: "'Share Tech Mono'", fontSize: 12, color: 'rgba(220,230,255,0.8)', lineHeight: 1.7 }}>
-              <span style={{ color: '#ffb800', fontWeight: 700 }}>⚠️ ONLY USE IN A GENUINE EMERGENCY.</span><br />
-              Dispatch to: <strong style={{ color: '#00c8ff' }}>{sosConfirmData.phone}</strong><br />
-              Misuse of emergency services may result in penalties.
-            </div>
-            <div style={{ display: 'flex', gap: 14 }}>
-              <button
-                onClick={() => { const p = sosConfirmData.phone; setSosConfirmData(null); requestAmbulance(null, true, p); }}
-                style={{ flex: 1, padding: '14px 20px', background: 'linear-gradient(135deg, rgba(255,30,30,0.3), rgba(220,0,0,0.2))', border: '2px solid #ff2222', borderRadius: 10, color: '#ff4444', fontFamily: "'Orbitron'", fontWeight: 900, fontSize: 13, cursor: 'pointer', letterSpacing: '0.05em', animation: 'pulse-opacity 1.5s infinite' }}
-              >
-                🚨 YES, DISPATCH NOW
-              </button>
-              <button
-                onClick={() => setSosConfirmData(null)}
-                style={{ flex: 1, padding: '14px 20px', background: 'transparent', border: '1px solid rgba(160,200,255,0.2)', borderRadius: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Orbitron'", fontSize: 12, cursor: 'pointer' }}
-              >
-                CANCEL
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* ── ABORT MISSION CONFIRM MODAL ── */}
-      {abortConfirm && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 9999999, background: 'rgba(0,3,12,0.88)', backdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setAbortConfirm(false)}>
-          <div style={{ background: 'rgba(8,18,42,0.98)', border: '1px solid rgba(255,107,53,0.4)', borderRadius: 14, padding: 30, maxWidth: 420, width: '90%', boxShadow: '0 0 40px rgba(255,107,53,0.1)' }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontFamily: "'Orbitron'", fontSize: 15, color: '#ff6b35', fontWeight: 900, marginBottom: 10 }}>🚨 ABORT ACTIVE REQUEST</div>
-            <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'", marginBottom: 22, lineHeight: 1.7 }}>
-              This will <strong style={{ color: '#ff6b35' }}>cancel your current emergency request</strong> and dismiss any assigned ambulance.<br /><br />
-              Only cancel if you no longer require emergency assistance.
-            </div>
-            <div style={{ display: 'flex', gap: 12 }}>
-              <button
-                onClick={() => {
-                  setAbortConfirm(false);
-                  if (currentReqId && socket) socket.emit('cancel-request', { reqId: currentReqId });
-                  setRequestStatus('idle'); setCurrentReqId(null); setAssignedAmbulanceId(null);
-                  setRoutePath(null); setLiveAmbulanceLoc(null); setAssignedHospitalInfo(null);
-                  setEtaSeconds(null); setSosMode(false);
-                  localStorage.removeItem('user_currentReqId');
-                  setPatientData({ name: '', age: '', bloodGroup: 'O+', condition: '', isVerified: false });
-                }}
-                style={{ flex: 1, padding: '12px', background: 'rgba(255,107,53,0.15)', border: '1px solid rgba(255,107,53,0.5)', borderRadius: 8, color: '#ff6b35', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
-              >
-                🗑 YES, ABORT REQUEST
-              </button>
-              <button onClick={() => setAbortConfirm(false)} style={{ flex: 1, padding: '12px', background: 'transparent', border: '1px solid rgba(160,200,255,0.15)', borderRadius: 8, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 12, cursor: 'pointer' }}>
-                KEEP ACTIVE
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
@@ -1073,7 +1046,7 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
 
       <div className="main-content-layout" style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {/* Sidebar */}
-        <div className="sidebar-container" style={{ width: 350, background: 'rgba(3,10,28,0.95)', borderRight: '1px solid rgba(0,200,255,0.1)', display: 'flex', flexDirection: 'column', padding: '24px 24px 80px', overflowY: 'auto' }}>
+        <div className="sidebar-container" style={{ width: 380, background: 'rgba(3,10,28,0.95)', borderRight: '1px solid rgba(0,200,255,0.1)', display: 'flex', flexDirection: 'column', padding: '24px 24px 80px', overflowY: 'auto' }}>
           
           {/* === SOS PANIC BUTTON === */}
           {requestStatus === 'idle' && (
@@ -1138,7 +1111,7 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
                 key={i}
                 onClick={btn.action}
                 style={{
-                  padding: '12px 6px',
+                  padding: '10px 4px',
                   background: 'rgba(10, 22, 48, 0.65)',
                   border: `1px solid rgba(0, 200, 255, 0.15)`,
                   borderRadius: 10,
@@ -1164,8 +1137,8 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
                 }}
               >
                 <div style={{ fontSize: 20, marginBottom: 6 }}>{btn.icon}</div>
-                <div style={{ fontFamily: "'Orbitron'", fontSize: 10, color: '#ffffff', fontWeight: 700, letterSpacing: '0.05em' }}>{btn.label}</div>
-                <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', marginTop: 4, fontFamily: "'Share Tech Mono'", textTransform: 'uppercase' }}>{btn.sublabel}</div>
+                <div style={{ fontFamily: "'Orbitron'", fontSize: 9, color: '#ffffff', fontWeight: 700, letterSpacing: '0.05em' }}>{btn.label}</div>
+                <div style={{ fontSize: 8, color: 'rgba(160,200,255,0.6)', marginTop: 4, fontFamily: "'Share Tech Mono'", textTransform: 'uppercase' }}>{btn.sublabel}</div>
               </button>
             ))}
           </div>
@@ -1438,7 +1411,7 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
                   borderRadius: 10, padding: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                 }}>
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 'bold' }}>{amb.driverName || amb.name}</div>
+                    <div style={{ fontSize: 13, fontWeight: 'bold' }}>{amb.vehicleNo ? `${amb.vehicleNo} (${amb.driverName})` : (amb.driverName || amb.name)}</div>
                     <div style={{ fontSize: 10, color: '#00c8ff', fontFamily: "'Orbitron'" }}>AVAILABLE</div>
                   </div>
                   {requestStatus === 'idle' && (
@@ -2706,6 +2679,70 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── SOS DISPATCH CONFIRM MODAL ── */}
+      {sosConfirmData && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999999, background: 'rgba(0,3,12,0.92)', backdropFilter: 'blur(16px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setSosConfirmData(null)}>
+          <div style={{ background: 'rgba(8,18,42,0.98)', border: '2px solid rgba(255,30,30,0.5)', borderRadius: 16, padding: 36, maxWidth: 460, width: '90%', boxShadow: '0 0 80px rgba(255,30,30,0.25)', animation: 'sosGlow 1.5s ease-in-out infinite' }} onClick={e => e.stopPropagation()}>
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <div style={{ fontSize: 52, marginBottom: 12 }}>🚨</div>
+              <div style={{ fontFamily: "'Orbitron'", fontSize: 18, color: '#ff4444', fontWeight: 900, letterSpacing: '0.12em' }}>CONFIRM SOS DISPATCH</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,100,100,0.7)', marginTop: 6, fontFamily: "'Share Tech Mono'" }}>This will immediately alert the nearest available ambulance</div>
+            </div>
+            <div style={{ background: 'rgba(255,30,30,0.06)', border: '1px solid rgba(255,30,30,0.2)', borderRadius: 8, padding: '12px 16px', marginBottom: 24, fontFamily: "'Share Tech Mono'", fontSize: 12, color: 'rgba(220,230,255,0.8)', lineHeight: 1.7 }}>
+              <span style={{ color: '#ffb800', fontWeight: 700 }}>⚠️ ONLY USE IN A GENUINE EMERGENCY.</span><br />
+              Dispatch to: <strong style={{ color: '#00c8ff' }}>{sosConfirmData.phone}</strong><br />
+              Misuse of emergency services may result in penalties.
+            </div>
+            <div style={{ display: 'flex', gap: 14 }}>
+              <button
+                onClick={() => { const p = sosConfirmData.phone; setSosConfirmData(null); requestAmbulance(null, true, p); }}
+                style={{ flex: 1, padding: '14px 20px', background: 'linear-gradient(135deg, rgba(255,30,30,0.3), rgba(220,0,0,0.2))', border: '2px solid #ff2222', borderRadius: 10, color: '#ff4444', fontFamily: "'Orbitron'", fontWeight: 900, fontSize: 13, cursor: 'pointer', letterSpacing: '0.05em', animation: 'pulse-opacity 1.5s infinite' }}
+              >
+                🚨 YES, DISPATCH NOW
+              </button>
+              <button
+                onClick={() => setSosConfirmData(null)}
+                style={{ flex: 1, padding: '14px 20px', background: 'transparent', border: '1px solid rgba(160,200,255,0.2)', borderRadius: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Orbitron'", fontSize: 12, cursor: 'pointer' }}
+              >
+                CANCEL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── ABORT MISSION CONFIRM MODAL ── */}
+      {abortConfirm && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999999, background: 'rgba(0,3,12,0.88)', backdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setAbortConfirm(false)}>
+          <div style={{ background: 'rgba(8,18,42,0.98)', border: '1px solid rgba(255,107,53,0.4)', borderRadius: 14, padding: 30, maxWidth: 420, width: '90%', boxShadow: '0 0 40px rgba(255,107,53,0.1)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 15, color: '#ff6b35', fontWeight: 900, marginBottom: 10 }}>🚨 ABORT ACTIVE REQUEST</div>
+            <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'", marginBottom: 22, lineHeight: 1.7 }}>
+              This will <strong style={{ color: '#ff6b35' }}>cancel your current emergency request</strong> and dismiss any assigned ambulance.<br /><br />
+              Only cancel if you no longer require emergency assistance.
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={() => {
+                  setAbortConfirm(false);
+                  if (currentReqId && socket) socket.emit('cancel-request', { reqId: currentReqId });
+                  setRequestStatus('idle'); setCurrentReqId(null); setAssignedAmbulanceId(null);
+                  setRoutePath(null); setLiveAmbulanceLoc(null); setAssignedHospitalInfo(null);
+                  setEtaSeconds(null); setSosMode(false);
+                  localStorage.removeItem('user_currentReqId');
+                  setPatientData({ name: '', age: '', bloodGroup: 'O+', condition: '', isVerified: false });
+                }}
+                style={{ flex: 1, padding: '12px', background: 'rgba(255,107,53,0.15)', border: '1px solid rgba(255,107,53,0.5)', borderRadius: 8, color: '#ff6b35', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+              >
+                🗑 YES, ABORT REQUEST
+              </button>
+              <button onClick={() => setAbortConfirm(false)} style={{ flex: 1, padding: '12px', background: 'transparent', border: '1px solid rgba(160,200,255,0.15)', borderRadius: 8, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 12, cursor: 'pointer' }}>
+                KEEP ACTIVE
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
