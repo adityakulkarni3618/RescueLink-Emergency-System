@@ -586,6 +586,7 @@ const styles = `
     }
   }
 
+  button.theme-switcher-btn,
   .theme-switcher-btn {
     background: transparent !important;
     border: none !important;
@@ -599,6 +600,8 @@ const styles = `
     align-items: center !important;
     justify-content: center !important;
     cursor: pointer !important;
+    transform: none !important;
+    box-sizing: border-box !important;
   }
   .theme-switcher-btn:hover {
     background: rgba(255, 255, 255, 0.08) !important;
@@ -606,6 +609,23 @@ const styles = `
   }
   [data-theme^='light'] .theme-switcher-btn:hover {
     background: rgba(0, 0, 0, 0.05) !important;
+  }
+
+  /* Specific overrides for sidebar inputs and buttons to prevent overflow */
+  .sidebar button {
+    padding: 0 8px !important;
+    height: 28px !important;
+    min-height: 28px !important;
+    border-radius: 4px !important;
+    width: auto !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+  }
+
+  .sidebar input {
+    height: 28px !important;
+    box-sizing: border-box !important;
+    font-size: 10px !important;
   }
 
 `;
