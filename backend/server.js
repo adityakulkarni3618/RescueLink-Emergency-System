@@ -895,7 +895,8 @@ function startVirtualAmbulanceSimulation(reqId, virtualAmbId) {
     let currentWaypointIdx = 0;
     const totalWaypoints = route.length;
     const tickIntervalMs = 1000;
-    const numTicks = isRushHour() ? 38 : 15; // 2.5x speed reduction (more ticks) during rush hour
+    const simulatedDurationSeconds = Math.max(45, Math.min(120, Math.floor(totalWaypoints * 1.2)));
+    const numTicks = isRushHour() ? Math.floor(simulatedDurationSeconds * 1.5) : simulatedDurationSeconds;
     const stepSize = Math.max(1, Math.ceil(totalWaypoints / numTicks));
 
     console.log(`[Sim Dispatch] Starting simulation for ${virtualAmbId} to user. Waypoints: ${totalWaypoints}, step: ${stepSize}`);
@@ -1021,8 +1022,8 @@ function startVirtualAmbulanceToHospitalSimulation(reqId, hospitalSocketId) {
 
     let currentWaypointIdx = 0;
     const totalWaypoints = route.length;
-    const tickIntervalMs = 1000;
-    const numTicks = isRushHour() ? 38 : 15; // 2.5x speed reduction (more ticks) during rush hour
+    const simulatedDurationSeconds = Math.max(45, Math.min(120, Math.floor(totalWaypoints * 1.2)));
+    const numTicks = isRushHour() ? Math.floor(simulatedDurationSeconds * 1.5) : simulatedDurationSeconds;
     const stepSize = Math.max(1, Math.ceil(totalWaypoints / numTicks));
 
     const interval = setInterval(() => {
@@ -3098,6 +3099,11 @@ app.get('/api/marketplace/ambulances', (req, res) => {
     return m;
   });
   res.json(liveMerged);
+});
+
+// ─── LIVE TELEMETRY COMMAND LINK ACTIVE REQUESTS ──────────────────────────────
+app.get('/api/analytics/live-telemetry', authenticateToken, (req, res) => {
+  res.json({ activeRequests });
 });
 
 // ─── PREDICTIVE EMERGENCY HOTSPOT ANALYTICS ──────────────────────────────────
