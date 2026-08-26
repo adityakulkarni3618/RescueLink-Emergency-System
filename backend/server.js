@@ -2100,19 +2100,16 @@ io.on('connection', (socket) => {
 
     socket.emit('request-acknowledged', { id: reqId, status: 'searching' });
 
-    // Broadcast incoming request to all candidate hospitals in range
-    candidateHospitals.forEach(sid => {
-      io.to(sid).emit('incoming-hospital-request', activeRequests[reqId]);
-    });
+    // Broadcast incoming request to all connected hospitals (via global room or all keys)
+    io.to('global_hospitals').emit('incoming-hospital-request', activeRequests[reqId]);
 
-    // Broadcast incoming request to all candidate ambulances in range
-    candidateAmbulances.forEach(ambId => {
-      const isVirtual = ambId.startsWith('VIRTUAL-AMB-') || (combinedAmbulances[ambId] && combinedAmbulances[ambId].isSimulated);
+    // Broadcast incoming request to all connected ambulances
+    Object.keys(ambulances).forEach(ambSocketId => {
+      const isVirtual = ambSocketId.startsWith('VIRTUAL-AMB-') || (ambulances[ambSocketId] && ambulances[ambSocketId].isSimulated);
       if (isVirtual) {
-        // Auto-accept for simulation compatibility
-        startVirtualAmbulanceSimulation(reqId, ambId);
+        startVirtualAmbulanceSimulation(reqId, ambSocketId);
       } else {
-        io.to(ambId).emit('incoming-ambulance-request', activeRequests[reqId]);
+        io.to(ambSocketId).emit('incoming-ambulance-request', activeRequests[reqId]);
       }
     });
 
