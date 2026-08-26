@@ -229,7 +229,12 @@ export default function AIEmergencyCorridorView({
           50% { box-shadow: 0 0 20px rgba(255, 51, 51, 0.9); }
           100% { box-shadow: 0 0 5px rgba(255, 51, 51, 0.4); }
         }
-        .rl-metric-val { font-size: 22px; font-weight: bold; fontFamily: "'Orbitron'"; color: #fff; margin-top: 4px; }
+        @keyframes blink-alert {
+          0% { opacity: 0.3; }
+          50% { opacity: 1; }
+          100% { opacity: 0.3; }
+        }
+        .rl-metric-val { font-size: 20px; font-weight: bold; fontFamily: "'Orbitron'"; color: #fff; margin-top: 4px; }
       `}</style>
 
       {/* HEADER */}
@@ -239,8 +244,8 @@ export default function AIEmergencyCorridorView({
         borderBottom: '1px solid rgba(0, 200, 255, 0.25)'
       }}>
         <div>
-          <div style={{ fontSize: 14, fontFamily: "'Orbitron'", color: '#00c8ff', letterSpacing: '0.12em', fontWeight: 900 }}>
-            🛰️ AI EMERGENCY CORRIDOR ACTIVE
+          <div style={{ fontSize: 14, fontFamily: "'Orbitron'", color: '#ff3333', letterSpacing: '0.12em', fontWeight: 900 }}>
+            🚨 AI EMERGENCY CORRIDOR CONTROLLER
           </div>
           <span style={{ fontSize: 9, color: '#00ff88', fontFamily: "'Share Tech Mono'" }}>
             DYNAMIC PREEMPTION ENGINE ON (REGION: {cityName})
@@ -250,9 +255,10 @@ export default function AIEmergencyCorridorView({
         <div style={{ display: 'flex', gap: 10 }}>
           <div style={{
             background: 'rgba(255,51,51,0.15)', border: '1px solid #ff3333', color: '#ff3333',
-            fontSize: 9, fontWeight: 700, padding: '4px 10px', borderRadius: 4, fontFamily: "'Orbitron'"
+            fontSize: 9, fontWeight: 700, padding: '4px 10px', borderRadius: 4, fontFamily: "'Orbitron'",
+            animation: 'blink-alert 1.5s ease-in-out infinite'
           }}>
-            MISSION: ACTIVE
+            MISSION STATUS: ACTIVE - CRITICAL
           </div>
         </div>
       </div>
@@ -265,8 +271,8 @@ export default function AIEmergencyCorridorView({
           width: 250, background: 'rgba(6,12,28,0.95)', borderRight: '1px solid rgba(0,200,255,0.15)',
           display: 'flex', flexDirection: 'column', padding: 12, overflowY: 'auto'
         }}>
-          <h4 style={{ fontFamily: "'Orbitron'", fontSize: 10, color: '#00c8ff', letterSpacing: '0.05em', marginBottom: 12, marginTop: 0 }}>
-            🚥 JUNCTION PREEMPTION STATUS
+          <h4 style={{ fontFamily: "'Orbitron'", fontSize: 10, color: 'rgba(160,200,255,0.6)', letterSpacing: '0.07em', marginBottom: 12, marginTop: 0 }}>
+            🚥 UPCOMING CARD
           </h4>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -274,40 +280,47 @@ export default function AIEmergencyCorridorView({
               let statusBg = 'rgba(255,255,255,0.02)';
               let statusBorder = 'rgba(255,255,255,0.06)';
               let statusText = '#888';
-              let lightColor = '#555';
+              let lightColor = '#ff3333';
+              let lightIndicator = '🔴';
+              let actionDesc = 'TRAFFIC REDIRECTED';
 
               if (j.status === 'PASSED') {
                 statusBg = 'rgba(160,200,255,0.03)';
                 statusBorder = 'rgba(160,200,255,0.15)';
                 statusText = 'rgba(160,200,255,0.5)';
                 lightColor = '#00c8ff';
-              } else if (j.status === 'PREEMPTING') {
-                statusBg = 'rgba(255,184,0,0.08)';
-                statusBorder = 'rgba(255,184,0,0.3)';
-                statusText = '#ffb800';
-                lightColor = '#ffb800';
-              } else if (j.status === 'CORRIDOR_ACTIVE') {
+                lightIndicator = '🔵';
+                actionDesc = 'CLEARED / PASSED';
+              } else if (j.status === 'PREEMPTING' || idx === 1) {
+                statusBg = 'rgba(255,107,53,0.08)';
+                statusBorder = 'rgba(255,107,53,0.3)';
+                statusText = '#ff6b35';
+                lightColor = '#ff6b35';
+                lightIndicator = '🟠';
+                actionDesc = 'TRAFFIC REDIRECTING...';
+              } else if (j.status === 'CORRIDOR_ACTIVE' || idx === 0) {
                 statusBg = 'rgba(0,255,136,0.08)';
                 statusBorder = 'rgba(0,255,136,0.35)';
                 statusText = '#00ff88';
                 lightColor = '#00ff88';
+                lightIndicator = '🟢';
+                actionDesc = 'AI CONTROL ACTIVE';
               }
 
               return (
                 <div key={j.id} style={{
-                  padding: 8, background: statusBg, border: `1px solid ${statusBorder}`,
+                  padding: 10, background: statusBg, border: `1px solid ${statusBorder}`,
                   borderRadius: 6, display: 'flex', alignItems: 'center', gap: 10
                 }}>
-                  <div style={{
-                    width: 8, height: 8, borderRadius: '50%', background: lightColor,
-                    boxShadow: j.status === 'CORRIDOR_ACTIVE' ? '0 0 8px #00ff88' : 'none'
-                  }} />
+                  <div style={{ fontSize: 18 }}>{lightIndicator}</div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#fff' }}>{j.name}</div>
-                    <div style={{ fontSize: 8, fontFamily: "'Share Tech Mono'", color: statusText }}>
-                      {j.status || 'SCHEDULED'}
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#fff' }}>Junction {idx + 1}</div>
+                    <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'" }}>{j.name || 'Broadway & Oak'}</div>
+                    <div style={{ fontSize: 8, fontFamily: "'Share Tech Mono'", color: statusText, fontWeight: 'bold', marginTop: 2 }}>
+                      {actionDesc}
                     </div>
                   </div>
+                  <div style={{ fontSize: 8, color: 'rgba(0,255,136,0.8)', fontFamily: "'Orbitron'" }}>●●●●</div>
                 </div>
               );
             })}
@@ -315,15 +328,26 @@ export default function AIEmergencyCorridorView({
 
           {/* TRAFFIC TREND CHART */}
           <div style={{ marginTop: 'auto', paddingTop: 15, borderTop: '1px solid rgba(0,200,255,0.1)' }}>
-            <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'", marginBottom: 6 }}>TRAFFIC DENSITY TREND</div>
-            <svg viewBox="0 0 100 35" style={{ width: '100%', overflow: 'visible' }}>
-              <path d="M 0 30 Q 25 10, 50 25 T 100 12 L 100 35 L 0 35 Z" fill="rgba(0,200,255,0.12)" stroke="#00c8ff" strokeWidth="1.5" />
+            <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'", marginBottom: 6 }}>TRAFFIC DENSITY TRENDS</div>
+            <svg viewBox="0 0 100 45" style={{ width: '100%', overflow: 'visible' }}>
+              <defs>
+                <linearGradient id="grad1" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#ff3333" stopOpacity="0.25"/>
+                  <stop offset="100%" stopColor="#ff3333" stopOpacity="0"/>
+                </linearGradient>
+                <linearGradient id="grad2" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#ffb800" stopOpacity="0.15"/>
+                  <stop offset="100%" stopColor="#ffb800" stopOpacity="0"/>
+                </linearGradient>
+              </defs>
+              <path d="M 0 40 Q 25 15, 50 30 T 100 15 L 100 45 L 0 45 Z" fill="url(#grad1)" stroke="#ff3333" strokeWidth="1.5" />
+              <path d="M 0 35 Q 30 10, 60 25 T 100 20 L 100 45 L 0 45 Z" fill="url(#grad2)" stroke="#ffb800" strokeWidth="1" strokeDasharray="2,2" />
             </svg>
           </div>
         </div>
 
-        {/* MIDDLE MAP (Mapbox GL LiveRouteMap) */}
-        <div style={{ flex: 1, position: 'relative', background: '#0a0d1a' }}>
+        {/* MIDDLE MAP */}
+        <div style={{ flex: 1, position: 'relative', background: '#040814' }}>
           {isValidLatLng(ambulanceLoc) || isValidLatLng(patientLoc) || isValidLatLng(hospitalLoc) ? (
             <LiveRouteMap
               routeGeometry={routePath ? { type: 'LineString', coordinates: routePath.map(p => [p.lng || p[1], p.lat || p[0]]) } : (realRoutePath ? { type: 'LineString', coordinates: realRoutePath.map(p => [p[1], p[0]]) } : null)}
@@ -335,7 +359,7 @@ export default function AIEmergencyCorridorView({
             />
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-              <span style={{ fontSize: 14, fontFamily: "'Orbitron'", color: '#00c8ff' }}>LOADING MAP TELEMETRY...</span>
+              <span style={{ fontSize: 14, fontFamily: "'Orbitron'", color: '#ff3333' }}>LOADING MAP TELEMETRY...</span>
             </div>
           )}
 
@@ -343,86 +367,114 @@ export default function AIEmergencyCorridorView({
           {!routePath && !realRoutePath && isValidLatLng(ambulanceLoc) && (
             <div style={{
               position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)',
-              background: 'rgba(4,8,20,0.9)', border: '1px solid rgba(0,200,255,0.3)',
+              background: 'rgba(4,8,20,0.9)', border: '1px solid rgba(255,51,51,0.3)',
               borderRadius: 6, padding: '6px 14px', fontSize: 10,
-              color: '#00c8ff', fontFamily: "'Share Tech Mono'", zIndex: 1000
+              color: '#ff3333', fontFamily: "'Share Tech Mono'", zIndex: 1000
             }}>
-              🗺️ Fetching real road route...
+              🗺️ Calculating Green Corridor...
             </div>
           )}
         </div>
 
         {/* RIGHT PANEL */}
         <div style={{
-          width: 250, background: 'rgba(6,12,28,0.95)', borderLeft: '1px solid rgba(0,200,255,0.15)',
-          display: 'flex', flexDirection: 'column', padding: 12, overflowY: 'auto'
+          width: 260, background: 'rgba(6,12,28,0.95)', borderLeft: '1px solid rgba(0,200,255,0.15)',
+          display: 'flex', flexDirection: 'column', padding: 14, overflowY: 'auto'
         }}>
-          <h4 style={{ fontFamily: "'Orbitron'", fontSize: 10, color: '#00c8ff', letterSpacing: '0.05em', marginBottom: 12, marginTop: 0 }}>
-            📊 DYNAMIC TELEMETRY
+          <h4 style={{ fontFamily: "'Orbitron'", fontSize: 10, color: 'rgba(160,200,255,0.6)', letterSpacing: '0.07em', marginBottom: 12, marginTop: 0 }}>
+            🛰️ DYNAMIC TELEMETRY
           </h4>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
+            {/* Big ETA Display */}
             <div>
               <div style={{ fontSize: 8, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>ESTIMATED ARRIVAL (ETA)</div>
-              <div className="rl-metric-val">
-                {Math.floor(etaSeconds / 60)}m {etaSeconds % 60}s
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 2, marginTop: 4 }}>
+                <span style={{ fontSize: 28, fontWeight: 900, color: '#fff', fontFamily: "'Orbitron'" }}>
+                  {String(Math.floor(etaSeconds / 60)).padStart(2, '0')}
+                </span>
+                <span style={{ fontSize: 9, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", marginRight: 6 }}>MIN</span>
+                <span style={{ fontSize: 28, fontWeight: 900, color: '#fff', fontFamily: "'Orbitron'" }}>
+                  {String(etaSeconds % 60).padStart(2, '0')}
+                </span>
+                <span style={{ fontSize: 9, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'" }}>SEC</span>
               </div>
             </div>
 
             <div>
-              <div style={{ fontSize: 8, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>DISTANCE REMAINING</div>
+              <div style={{ fontSize: 8, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>REMAINING DISTANCE</div>
               <div className="rl-metric-val">{distanceKm} KM</div>
             </div>
 
             <div>
               <div style={{ fontSize: 8, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>HOSPITAL DESTINATION</div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#00ff88', marginTop: 3 }}>
-                {hospitalName}
+              <div style={{ border: '1px solid rgba(0,200,255,0.15)', borderRadius: 6, padding: 8, marginTop: 4, background: 'rgba(5,15,35,0.4)' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#00ff88' }}>{hospitalName}</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8, color: 'rgba(160,200,255,0.4)', marginTop: 4 }}>
+                  <span>ER Capacity: 75%</span>
+                  <span style={{ color: '#00ff88' }}>Ready</span>
+                </div>
               </div>
             </div>
 
-            <div style={{ borderTop: '1px solid rgba(0,200,255,0.1)', paddingTop: 10 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'", marginBottom: 4 }}>
-                <span>CORRIDOR PROGRESS</span>
-                <span>{progressPercentage}%</span>
+            {/* Corridor Segment Progress */}
+            <div>
+              <div style={{ fontSize: 8, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'", marginBottom: 6 }}>EMERGENCY CORRIDOR PROGRESS</div>
+              <div style={{ display: 'flex', gap: 4, height: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden' }}>
+                <div style={{ flex: 1, background: '#00ff88', borderRadius: 2 }} />
+                <div style={{ flex: 1, background: '#00ff88', borderRadius: 2 }} />
+                <div style={{ flex: 1, background: '#ff9900', borderRadius: 2, animation: 'blink-alert 1s infinite' }} />
+                <div style={{ flex: 1, background: 'rgba(255,255,255,0.1)', borderRadius: 2 }} />
               </div>
-              <div style={{ height: 5, background: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden' }}>
-                <div style={{ width: `${progressPercentage}%`, height: '100%', background: 'linear-gradient(90deg, #ff3333, #00ff88)', borderRadius: 3 }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 7, color: 'rgba(160,200,255,0.4)', marginTop: 4, fontFamily: 'monospace' }}>
+                <span>Established</span>
+                <span>Clear Path</span>
+                <span>Signals Synced</span>
               </div>
             </div>
 
             <div>
-              <div style={{ fontSize: 8, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>TRAFFIC DENSITY ENGINE</div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#ffb800', marginTop: 3 }}>
-                HEAVY (ROUTE CLEARED)
+              <div style={{ fontSize: 8, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>CURRENT TRAFFIC STATUS</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#ff3333' }}>HEAVY (ROUTE CLEARED)</span>
+              </div>
+              {/* Traffic color bar */}
+              <div style={{ display: 'flex', height: 4, borderRadius: 2, overflow: 'hidden', marginTop: 4 }}>
+                <div style={{ flex: 1, background: '#00ff88' }} />
+                <div style={{ flex: 1, background: '#ffea00' }} />
+                <div style={{ flex: 2, background: '#ff3333' }} />
               </div>
             </div>
 
             <div>
-              <div style={{ fontSize: 8, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>VEHICLE SPEED</div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#00ff88', marginTop: 3 }}>
-                {speedKmh} KM/H
+              <div style={{ fontSize: 8, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>EMERGENCY VEHICLE STATUS</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#ff3333', marginTop: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ff3333', display: 'inline-block', animation: 'blink-alert 0.8s step-end infinite' }} />
+                EN ROUTE - SPEED {speedKmh} KPH
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* FOOTER LOGS */}
+      {/* SYSTEM LOGS & ALERTS */}
       <div style={{
-        height: 110, background: '#03060f', borderTop: '1px solid rgba(0,200,255,0.25)',
+        height: 120, background: '#03060f', borderTop: '1px solid rgba(0,200,255,0.25)',
         display: 'flex', flexDirection: 'column', padding: 8, boxSizing: 'border-box'
       }}>
-        <div style={{ fontSize: 9, fontFamily: "'Orbitron'", color: '#00c8ff', letterSpacing: '0.1em', marginBottom: 4 }}>
-          ⌨ PREEMPTION SYSTEM LOGS & TELEMETRY
+        <div style={{ fontSize: 9, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.6)', letterSpacing: '0.15em', marginBottom: 4 }}>
+          SYSTEM LOGS & ALERTS
         </div>
         <div style={{
-          flex: 1, overflowY: 'auto', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,200,255,0.1)',
-          borderRadius: 4, padding: 6, fontFamily: "'Share Tech Mono'", fontSize: 10, color: 'rgba(0,255,136,0.85)',
-          display: 'flex', flexDirection: 'column', gap: 2
+          flex: 1, overflowY: 'auto', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.1)',
+          borderRadius: 4, padding: 8, fontFamily: "'Share Tech Mono'", fontSize: 9, color: '#ffb800',
+          display: 'flex', flexDirection: 'column', gap: 3
         }}>
           {logs.map((log, idx) => (
-            <div key={idx}>{log}</div>
+            <div key={idx} style={{ display: 'flex', gap: 8 }}>
+              <span style={{ color: 'rgba(160,200,255,0.4)' }}>[LOG]</span>
+              <span style={{ color: log.includes('🚨') || log.includes('warning') ? '#ff3333' : '#00ff88' }}>{log}</span>
+            </div>
           ))}
         </div>
       </div>
