@@ -5,7 +5,13 @@ let useSqlite = process.env.FORCE_SQLITE === 'true';
 const dbHost = process.env.DB_HOST || 'localhost';
 const dbPort = process.env.DB_PORT || 5432;
 
-if (!useSqlite && !process.env.DATABASE_URL) {
+// Fallback to the persistent Neon PostgreSQL database URL if no DATABASE_URL is set on the hosting environment (Render)
+let databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl && !useSqlite) {
+  databaseUrl = "postgresql://neondb_owner:npg_YlSeb1kgv6PB@ep-shiny-dust-axomvx38-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
+}
+
+if (!useSqlite && !databaseUrl) {
   try {
     // Run a quick synchronous TCP socket check to verify database connectivity
     const checkCmd = `node -e "
@@ -33,8 +39,8 @@ const sequelize = useSqlite
         idle: 10000
       }
     })
-  : (process.env.DATABASE_URL
-      ? new Sequelize(process.env.DATABASE_URL, {
+  : (databaseUrl
+      ? new Sequelize(databaseUrl, {
           dialect: 'postgres',
           dialectOptions: {
             ssl: {
