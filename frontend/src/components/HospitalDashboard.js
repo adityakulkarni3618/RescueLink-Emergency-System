@@ -3147,6 +3147,12 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
 
       {/* SIDEBAR NAVIGATION & MISSION SELECTOR */}
       {isAuthenticated && (
+        <div 
+          className={`sidebar-backdrop ${sidebarOpen ? 'open' : 'closed'}`} 
+          onClick={() => setSidebarOpen(false)} 
+        />
+      )}
+      {isAuthenticated && (
         <div className={`sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
           <div style={{ padding: '20px 10px 10px 10px', borderBottom: '1px solid rgba(0,200,255,0.1)', textAlign: 'center' }}>
             <div style={{ fontSize: 18, color: '#00c8ff', fontFamily: "'Orbitron'", fontWeight: 'bold' }}>RESCUELINK</div>
@@ -3335,7 +3341,19 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
           }
         }
 
+        .sidebar-backdrop {
+          display: none;
+        }
+
         @media (max-width: 768px) {
+          .sidebar-backdrop.open {
+            display: block;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 3, 12, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 998;
+          }
           .sidebar {
             position: absolute;
             left: 0;

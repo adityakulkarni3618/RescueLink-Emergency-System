@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Polyline, Popup, Circle, useMap } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import LiveRouteMap from './LiveRouteMap';
 
 // Helper to validate coordinates safely before passing to Leaflet
 const isValidLatLng = (loc) => {
@@ -31,61 +29,6 @@ const fetchRealRoute = async (origin, dest) => {
   }
   return null;
 };
-
-// Custom glowing HTML markers for Leaflet map
-const createAmbulanceIcon = () => L.divIcon({
-  className: 'glowing-ambulance-marker',
-  html: `<div style="
-    width: 20px;
-    height: 20px;
-    background: #ff3333;
-    border: 3px solid #fff;
-    border-radius: 50%;
-    box-shadow: 0 0 15px #ff3333, 0 0 25px #ff3333;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #fff;
-    font-size: 10px;
-    font-weight: bold;
-    animation: pulse 1.2s infinite;
-  ">🚑</div>`,
-  iconSize: [20, 20],
-  iconAnchor: [10, 10]
-});
-
-const createPatientIcon = () => L.divIcon({
-  className: 'glowing-patient-marker',
-  html: `<div style="
-    width: 16px;
-    height: 16px;
-    background: #ffe600;
-    border: 2px solid #000;
-    border-radius: 50%;
-    box-shadow: 0 0 10px #ffe600, 0 0 20px #ffe600;
-    animation: pulse 1.5s infinite;
-  ">👤</div>`,
-  iconSize: [16, 16],
-  iconAnchor: [8, 8]
-});
-
-const createHospitalIcon = () => L.divIcon({
-  className: 'glowing-hospital-marker',
-  html: `<div style="
-    width: 22px;
-    height: 22px;
-    background: #00ff88;
-    border: 2px solid #fff;
-    border-radius: 50%;
-    box-shadow: 0 0 15px #00ff88, 0 0 25px #00ff88;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-  ">🏥</div>`,
-  iconSize: [22, 22],
-  iconAnchor: [11, 11]
-});
 
 // Dynamic junction solver based on coordinates
 const getCityJunctions = (lat, lng) => {
@@ -147,24 +90,6 @@ const getCityJunctions = (lat, lng) => {
   };
 };
 
-// Map controller to adjust bounds dynamically
-function SmartMapController({ userLoc, ambulanceLoc, hospitalLoc }) {
-  const map = useMap();
-  useEffect(() => {
-    const coords = [];
-    if (isValidLatLng(userLoc)) coords.push([userLoc.lat || userLoc[0], userLoc.lng || userLoc[1]]);
-    if (isValidLatLng(ambulanceLoc)) coords.push([ambulanceLoc.lat || ambulanceLoc[0], ambulanceLoc.lng || ambulanceLoc[1]]);
-    if (isValidLatLng(hospitalLoc)) coords.push([hospitalLoc.lat || hospitalLoc[0], hospitalLoc.lng || hospitalLoc[1]]);
-
-    if (coords.length > 1) {
-      const bounds = L.latLngBounds(coords);
-      map.fitBounds(bounds, { padding: [50, 50], animate: true });
-    } else if (coords.length === 1) {
-      map.setView(coords[0], 15, { animate: true });
-    }
-  }, [userLoc, ambulanceLoc, hospitalLoc, map]);
-  return null;
-}
 
 export default function AIEmergencyCorridorView({
   socket,
@@ -188,6 +113,26 @@ export default function AIEmergencyCorridorView({
   const addLog = (text) => {
     const timestamp = new Date().toLocaleTimeString();
     setLogs(prev => [`[${timestamp}] ${text}`, ...prev.slice(0, 24)]);
+  };
+
+  const getMappedJunctions = () => {
+    const activePath = (routePath && routePath.length > 0)
+      ? routePath.map(p => ({ lat: p.lat || p[0], lng: p.lng || p[1] }))
+      : (realRoutePath ? realRoutePath.map(p => ({ lat: p[0], lng: p[1] })) : []);
+
+    if (activePath.length < 5 || junctions.length === 0) return junctions;
+
+    // Map each junction to a spaced waypoint on the real route
+    return junctions.map((j, idx) => {
+      const fraction = (idx + 1) / (junctions.length + 1);
+      const ptIdx = Math.floor(activePath.length * fraction);
+      const coord = activePath[ptIdx] || activePath[activePath.length - 1];
+      return {
+        ...j,
+        lat: j.latitude || j.lat || coord.lat,
+        lng: j.longitude || j.lng || coord.lng
+      };
+    });
   };
 
   // Auto-fetch real-world route from OSRM if no routePath provided
@@ -377,108 +322,22 @@ export default function AIEmergencyCorridorView({
           </div>
         </div>
 
-        {/* MIDDLE MAP */}
+        {/* MIDDLE MAP (Mapbox GL LiveRouteMap) */}
         <div style={{ flex: 1, position: 'relative', background: '#0a0d1a' }}>
-          <MapContainer
-            center={isValidLatLng(ambulanceLoc) ? [ambulanceLoc.lat, ambulanceLoc.lng] : (isValidLatLng(patientLoc) ? [patientLoc.lat, patientLoc.lng] : [16.5062, 80.6480])}
-            zoom={14}
-            style={{ height: '100%', width: '100%' }}
-            zoomControl={true}
-          >
-            <TileLayer
-              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-              attribution='&copy; CARTO &copy; OpenStreetMap contributors'
+          {isValidLatLng(ambulanceLoc) || isValidLatLng(patientLoc) || isValidLatLng(hospitalLoc) ? (
+            <LiveRouteMap
+              routeGeometry={routePath ? { type: 'LineString', coordinates: routePath.map(p => [p.lng || p[1], p.lat || p[0]]) } : (realRoutePath ? { type: 'LineString', coordinates: realRoutePath.map(p => [p[1], p[0]]) } : null)}
+              ambulancePosition={isValidLatLng(ambulanceLoc) ? { lat: ambulanceLoc.lat || ambulanceLoc[0], lng: ambulanceLoc.lng || ambulanceLoc[1] } : null}
+              originMarker={isValidLatLng(patientLoc) ? { lat: patientLoc.lat || patientLoc[0], lng: patientLoc.lng || patientLoc[1] } : null}
+              destinationMarker={isValidLatLng(hospitalLoc) ? { lat: hospitalLoc.lat || hospitalLoc[0], lng: hospitalLoc.lng || hospitalLoc[1] } : null}
+              junctions={getMappedJunctions()}
+              mode="hospital"
             />
-            
-            <SmartMapController 
-              userLoc={patientLoc} 
-              ambulanceLoc={ambulanceLoc} 
-              hospitalLoc={hospitalLoc} 
-            />
-
-            {/* Real-world route from OSRM (ambulance→patient→hospital) */}
-            {(() => {
-              const activePath = (routePath && routePath.length > 0)
-                ? routePath.map(p => [p.lat || p[0], p.lng || p[1]])
-                : realRoutePath;
-              if (!activePath || activePath.length < 2) return null;
-              return (
-                <>
-                  {/* Glowing outer route line */}
-                  <Polyline 
-                    positions={activePath} 
-                    pathOptions={{ color: 'rgba(255,51,51,0.25)', weight: 12, opacity: 0.4 }} 
-                  />
-                  {/* Primary route line */}
-                  <Polyline 
-                    positions={activePath} 
-                    pathOptions={{ color: '#ff3333', weight: 4, opacity: 0.9, dashArray: routePath ? null : '6 4' }} 
-                  />
-                </>
-              );
-            })()}
-
-            {isValidLatLng(ambulanceLoc) && (
-              <>
-                <Circle
-                  center={[ambulanceLoc.lat || ambulanceLoc[0], ambulanceLoc.lng || ambulanceLoc[1]]}
-                  radius={80}
-                  pathOptions={{ color: '#ff3333', fillColor: 'rgba(255,51,51,0.15)', fillOpacity: 0.5, weight: 1 }}
-                />
-                <Marker position={[ambulanceLoc.lat || ambulanceLoc[0], ambulanceLoc.lng || ambulanceLoc[1]]} icon={createAmbulanceIcon()}>
-                  <Popup>
-                    <div style={{ background: '#040814', color: '#fff', padding: '6px 10px', borderRadius: 6, minWidth: 120 }}>
-                      <div style={{ fontWeight: 'bold', color: '#ff3333', fontSize: 12 }}>🚑 AMBULANCE</div>
-                      <div style={{ fontSize: 10, color: '#aaa', marginTop: 2 }}>Live GPS Position</div>
-                      <div style={{ fontSize: 9, fontFamily: 'monospace', color: '#00ff88', marginTop: 2 }}>
-                        {(ambulanceLoc.lat || ambulanceLoc[0])?.toFixed(5)}, {(ambulanceLoc.lng || ambulanceLoc[1])?.toFixed(5)}
-                      </div>
-                    </div>
-                  </Popup>
-                </Marker>
-              </>
-            )}
-            {isValidLatLng(patientLoc) && (
-              <>
-                <Circle
-                  center={[patientLoc.lat || patientLoc[0], patientLoc.lng || patientLoc[1]]}
-                  radius={50}
-                  pathOptions={{ color: '#ffe600', fillColor: 'rgba(255,230,0,0.2)', fillOpacity: 0.5, weight: 1 }}
-                />
-                <Marker position={[patientLoc.lat || patientLoc[0], patientLoc.lng || patientLoc[1]]} icon={createPatientIcon()}>
-                  <Popup>
-                    <div style={{ background: '#040814', color: '#fff', padding: '6px 10px', borderRadius: 6, minWidth: 120 }}>
-                      <div style={{ fontWeight: 'bold', color: '#ffe600', fontSize: 12 }}>👤 PATIENT</div>
-                      <div style={{ fontSize: 10, color: '#aaa', marginTop: 2 }}>Emergency Location</div>
-                      <div style={{ fontSize: 9, fontFamily: 'monospace', color: '#00ff88', marginTop: 2 }}>
-                        {(patientLoc.lat || patientLoc[0])?.toFixed(5)}, {(patientLoc.lng || patientLoc[1])?.toFixed(5)}
-                      </div>
-                    </div>
-                  </Popup>
-                </Marker>
-              </>
-            )}
-            {isValidLatLng(hospitalLoc) && (
-              <>
-                <Circle
-                  center={[hospitalLoc.lat || hospitalLoc[0], hospitalLoc.lng || hospitalLoc[1]]}
-                  radius={120}
-                  pathOptions={{ color: '#00ff88', fillColor: 'rgba(0,255,136,0.12)', fillOpacity: 0.5, weight: 1 }}
-                />
-                <Marker position={[hospitalLoc.lat || hospitalLoc[0], hospitalLoc.lng || hospitalLoc[1]]} icon={createHospitalIcon()}>
-                  <Popup>
-                    <div style={{ background: '#040814', color: '#fff', padding: '6px 10px', borderRadius: 6, minWidth: 120 }}>
-                      <div style={{ fontWeight: 'bold', color: '#00ff88', fontSize: 12 }}>🏥 {hospitalName}</div>
-                      <div style={{ fontSize: 10, color: '#aaa', marginTop: 2 }}>Receiving Hospital</div>
-                      <div style={{ fontSize: 9, fontFamily: 'monospace', color: '#00ff88', marginTop: 2 }}>
-                        {(hospitalLoc.lat || hospitalLoc[0])?.toFixed(5)}, {(hospitalLoc.lng || hospitalLoc[1])?.toFixed(5)}
-                      </div>
-                    </div>
-                  </Popup>
-                </Marker>
-              </>
-            )}
-          </MapContainer>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+              <span style={{ fontSize: 14, fontFamily: "'Orbitron'", color: '#00c8ff' }}>LOADING MAP TELEMETRY...</span>
+            </div>
+          )}
 
           {/* Route loading overlay */}
           {!routePath && !realRoutePath && isValidLatLng(ambulanceLoc) && (
