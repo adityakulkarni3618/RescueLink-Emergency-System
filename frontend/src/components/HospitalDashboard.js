@@ -2141,14 +2141,20 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
         sessionStorage.setItem('rescuelink_token', data.token);
 
         // Find in local registry for UI metadata or fallback to response
-        const found = HOSPITAL_CREDENTIALS.find(c => c.hospitalId === inputId) || {
-          hospitalId: data.user?.hospital_id || inputId,
-          name: data.user?.role === 'doctor' ? 'Manipal Global Trauma Center' : 'Emergency Center',
-          adminName: data.user?.name || 'Dr. Command',
-          internalId: (data.user?.hospital_id || inputId).toLowerCase(),
-          lat: data.lat || 18.5204,
-          lng: data.lng || 73.8567
+        const found = {
+          ...(HOSPITAL_CREDENTIALS.find(c => c.hospitalId === inputId) || {
+            name: data.user?.role === 'doctor' ? 'Manipal Global Trauma Center' : 'Emergency Center',
+            adminName: data.user?.name || 'Dr. Command',
+            internalId: (data.user?.hospital_id || inputId).toLowerCase(),
+            lat: data.lat || 18.5204,
+            lng: data.lng || 73.8567
+          })
         };
+
+        // Always overwrite hospitalId with the real database UUID returned by the server
+        if (data.user?.hospital_id) {
+          found.hospitalId = data.user.hospital_id;
+        }
 
         setAuthHospital(found);
         setIsAuthenticated(true);
@@ -2218,14 +2224,20 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
 
     const finalInputId = loginId || user.hospital_id || 'HOSP-GENERIC';
 
-    const found = HOSPITAL_CREDENTIALS.find(c => c.hospitalId === finalInputId) || {
-      hospitalId: finalInputId,
-      name: user.role === 'doctor' ? 'Manipal Global Trauma Center' : 'Emergency Center',
-      adminName: user.name || 'Dr. Command',
-      internalId: finalInputId.toLowerCase(),
-      lat: user.lat || 18.5204,
-      lng: user.lng || 73.8567
+    const found = {
+      ...(HOSPITAL_CREDENTIALS.find(c => c.hospitalId === finalInputId) || {
+        name: user.role === 'doctor' ? 'Manipal Global Trauma Center' : 'Emergency Center',
+        adminName: user.name || 'Dr. Command',
+        internalId: finalInputId.toLowerCase(),
+        lat: user.lat || 18.5204,
+        lng: user.lng || 73.8567
+      })
     };
+
+    // Always overwrite hospitalId with the real database UUID returned by the server
+    if (user.hospital_id) {
+      found.hospitalId = user.hospital_id;
+    }
 
     setAuthHospital(found);
     setIsAuthenticated(true);
