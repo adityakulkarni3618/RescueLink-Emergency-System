@@ -980,12 +980,31 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
       if (res.ok && data.token) {
         // Securely store JWT for future API calls
         sessionStorage.setItem('rescuelink_token', data.token);
+        
+        // Always store user details for session persistence upon refresh
+        if (data.user) {
+          sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
+          localStorage.setItem('rescuelink_user', JSON.stringify(data.user));
+        }
+        
         console.log('[ENTERPRISE SEC] JWT Successfully obtained and stored in session.');
         
         // Hydrate frontend profile (Fallback to mock details if purely DB-driven)
-        const found = AMBULANCE_CREDENTIALS.find(c => c.unitId === loginId.toUpperCase()) || { 
-          unitId: cleanId, driverName: data.user?.name || 'Paramedic Lead', vehicleNo: 'MH-14-EM-0001', type: 'ALS Unit' 
+        const found = {
+          ...(AMBULANCE_CREDENTIALS.find(c => c.unitId === loginId.toUpperCase()) || { 
+            driverName: data.user?.name || 'Paramedic Lead', 
+            vehicleNo: 'MH-14-EM-0001', 
+            type: 'ALS Unit' 
+          })
         };
+        
+        // Always use the real database UUID returned by the server for API requests
+        if (data.user?.id) {
+          found.id = data.user.id;
+          found.unitId = data.user.id;
+        } else {
+          found.unitId = cleanId;
+        }
         
         setAuthUnit(found);
         setIsAuthenticated(true);
