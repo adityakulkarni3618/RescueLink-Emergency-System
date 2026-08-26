@@ -407,7 +407,7 @@ app.get('/api/db-status', async (req, res) => {
       renderEnv: process.env.RENDER,
       nodeEnv: process.env.NODE_ENV,
       databaseUrlSet: !!process.env.DATABASE_URL,
-      databaseUrlMasked,
+      databaseUrlMasked: dbUrlMasked,
       counts: {
         hospitals: hospitalCount,
         ambulances: ambulanceCount,
