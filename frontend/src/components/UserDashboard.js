@@ -1908,13 +1908,18 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
       )}
 
       {/* ⚙️ PATIENT ACCOUNT SETTINGS */}
-
-              </div>
-            </div>
-          );
-        };
-        return <AccountSettingsPanel />;
-      })()}
+      {showAccountSettings && (
+        <AccountSettingsPanel
+          patientData={patientData}
+          setPatientData={setPatientData}
+          userId={userId}
+          onLogout={onLogout}
+          SERVER_URL_CONST={SERVER_URL_CONST}
+          routeTo={routeTo}
+          consentGranted={consentGranted}
+          setConsentGranted={setConsentGranted}
+        />
+      )}
 
       {/* 🔐 DPDP ACT 2023 - PRIVACY & CONSENT CENTER */}
       {showPrivacyModal && (
