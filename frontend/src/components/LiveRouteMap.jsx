@@ -26,7 +26,14 @@ export default function LiveRouteMap({
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
       style: 'mapbox://styles/mapbox/dark-v11', // Glowing futuristic dark style
-      center: ambulancePosition ? [ambulancePosition.lng, ambulancePosition.lat] : [77.5946, 12.9716],
+    const initialCenter = ambulancePosition && typeof ambulancePosition.lng === 'number' && !isNaN(ambulancePosition.lng) && typeof ambulancePosition.lat === 'number' && !isNaN(ambulancePosition.lat)
+      ? [ambulancePosition.lng, ambulancePosition.lat]
+      : [77.5946, 12.9716];
+
+    const map = new mapboxgl.Map({
+      container: mapContainerRef.current,
+      style: 'mapbox://styles/mapbox/dark-v11', // Glowing futuristic dark style
+      center: initialCenter,
       zoom: 14,
       pitch: 45, // futuristic 3D perspective angle
       antialias: true
@@ -127,7 +134,7 @@ export default function LiveRouteMap({
     if (!map) return;
 
     // 1. Ambulance Marker
-    if (ambulancePosition && ambulancePosition.lat && ambulancePosition.lng) {
+    if (ambulancePosition && typeof ambulancePosition.lng === 'number' && !isNaN(ambulancePosition.lng) && typeof ambulancePosition.lat === 'number' && !isNaN(ambulancePosition.lat)) {
       if (!ambulanceMarkerRef.current) {
         const el = document.createElement('div');
         el.className = 'mapbox-ambulance-marker';
@@ -154,7 +161,7 @@ export default function LiveRouteMap({
     }
 
     // 2. Origin/Patient Marker
-    if (originMarker && originMarker.lat && originMarker.lng) {
+    if (originMarker && typeof originMarker.lng === 'number' && !isNaN(originMarker.lng) && typeof originMarker.lat === 'number' && !isNaN(originMarker.lat)) {
       if (!originMarkerRef.current) {
         const el = document.createElement('div');
         el.innerHTML = '<div style="font-size: 24px; filter: drop-shadow(0 0 6px #ffe600);">🧍</div>';
@@ -167,7 +174,7 @@ export default function LiveRouteMap({
     }
 
     // 3. Destination/Hospital Marker
-    if (destinationMarker && destinationMarker.lat && destinationMarker.lng) {
+    if (destinationMarker && typeof destinationMarker.lng === 'number' && !isNaN(destinationMarker.lng) && typeof destinationMarker.lat === 'number' && !isNaN(destinationMarker.lat)) {
       if (!destinationMarkerRef.current) {
         const el = document.createElement('div');
         el.innerHTML = '<div style="font-size: 26px; filter: drop-shadow(0 0 8px #00ff88);">🏥</div>';
@@ -182,9 +189,15 @@ export default function LiveRouteMap({
     // Camera fitting bounds in Hospital or War Room modes
     if (mode !== 'driver') {
       const coords = [];
-      if (ambulancePosition) coords.push([ambulancePosition.lng, ambulancePosition.lat]);
-      if (originMarker) coords.push([originMarker.lng, originMarker.lat]);
-      if (destinationMarker) coords.push([destinationMarker.lng, destinationMarker.lat]);
+      if (ambulancePosition && typeof ambulancePosition.lng === 'number' && !isNaN(ambulancePosition.lng) && typeof ambulancePosition.lat === 'number' && !isNaN(ambulancePosition.lat)) {
+        coords.push([ambulancePosition.lng, ambulancePosition.lat]);
+      }
+      if (originMarker && typeof originMarker.lng === 'number' && !isNaN(originMarker.lng) && typeof originMarker.lat === 'number' && !isNaN(originMarker.lat)) {
+        coords.push([originMarker.lng, originMarker.lat]);
+      }
+      if (destinationMarker && typeof destinationMarker.lng === 'number' && !isNaN(destinationMarker.lng) && typeof destinationMarker.lat === 'number' && !isNaN(destinationMarker.lat)) {
+        coords.push([destinationMarker.lng, destinationMarker.lat]);
+      }
 
       if (coords.length > 1) {
         const bounds = coords.reduce((b, coord) => b.extend(coord), new mapboxgl.LngLatBounds(coords[0], coords[0]));
