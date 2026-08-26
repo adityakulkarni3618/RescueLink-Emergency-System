@@ -1895,6 +1895,18 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
         </div>
       )}
 
+      {/* Patient Health Portal */}
+      {showPatientPortal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,5,20,0.95)', backdropFilter: 'blur(10px)', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(0,200,255,0.2)', display: 'flex', justifyContent: 'flex-start', background: 'rgba(5, 10, 28, 0.95)' }}>
+            <button onClick={() => routeTo('')} style={{ background: 'rgba(255,68,68,0.1)', border: '1px solid rgba(255,68,68,0.3)', borderRadius: 8, padding: '6px 14px', color: '#ff4444', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 11 }}>✕ CLOSE PORTAL</button>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', background: 'rgba(0,3,12,0.95)' }}>
+            <PatientPortal />
+          </div>
+        </div>
+      )}
+
       {/* ⚙️ PATIENT ACCOUNT SETTINGS */}
       {showAccountSettings && (() => {
         const AccountSettingsPanel = () => {
