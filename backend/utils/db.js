@@ -219,17 +219,6 @@ async function syncDatabase() {
     const runMigrations = require('../scripts/run-migrations');
     await runMigrations();
     console.log('[DB] Database synchronized.');
-
-    // Auto-seed demo hospitals and ambulances into DB on every startup.
-    // This is safe — seed_db.js uses findOne checks and never deletes or duplicates.
-    // This ensures registered entities survive Render cold starts & redeployments.
-    try {
-      const seed = require('../scripts/seed_db');
-      await seed();
-      console.log('[DB] Auto-seed completed — demo entities restored if missing.');
-    } catch (seedErr) {
-      console.warn('[DB] Auto-seed warning (non-fatal):', seedErr.message);
-    }
   } catch (err) {
     const { triggerCriticalAlert } = require('./alerting');
     await triggerCriticalAlert('DATABASE_CONNECT_FAIL', {
