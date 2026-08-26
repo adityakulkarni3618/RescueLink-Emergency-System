@@ -380,6 +380,8 @@ app.get('/ready', async (req, res) => {
       error: err.message
     });
   }
+});
+
 app.get('/api/db-status', async (req, res) => {
   try {
     const { Hospital, Ambulance, User } = require('./utils/db');
