@@ -1413,7 +1413,7 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
         return;
       }
 
-      onLoginSuccess(viewRole, data.token);
+      onLoginSuccess(viewRole, data.token, data.user);
     } catch (err) {
       setError(err.message || 'Invalid credentials');
     } finally {
@@ -3008,12 +3008,16 @@ export default function App() {
     return () => newSocket.disconnect();
   }, [role, token]);
 
-  const handleLoginSuccess = (viewRole, userToken) => {
+  const handleLoginSuccess = (viewRole, userToken, user) => {
     setToken(userToken);
     setRole(viewRole);
     sessionStorage.setItem('rescueLinkRole', viewRole);
     localStorage.setItem('rescueLinkRole', viewRole);
     localStorage.setItem('rescuelink_token', userToken);
+    if (user) {
+      sessionStorage.setItem('rescuelink_user', JSON.stringify(user));
+      localStorage.setItem('rescuelink_user', JSON.stringify(user));
+    }
     setMfaVerifyToken(null);
     window.location.hash = viewRole;
   };
