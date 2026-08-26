@@ -5,10 +5,18 @@ let useSqlite = process.env.FORCE_SQLITE === 'true';
 const dbHost = process.env.DB_HOST || 'localhost';
 const dbPort = process.env.DB_PORT || 5432;
 
-// Fallback to the persistent Neon PostgreSQL database URL if no DATABASE_URL is set on the hosting environment (Render)
-let databaseUrl = process.env.DATABASE_URL;
-if (!databaseUrl && !useSqlite) {
-  databaseUrl = "postgresql://neondb_owner:npg_YlSeb1kgv6PB@ep-shiny-dust-axomvx38-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
+// ── Persistent Neon Cloud PostgreSQL ──────────────────────────────────────────
+// This is the AUTHORITATIVE production database. All registered entities
+// (hospitals, ambulances, users) live here and survive server restarts.
+// The DATABASE_URL env variable on Render/Vercel, if set, will be used instead.
+// If not set, we fall back to the hardcoded Neon URL so data is NEVER lost.
+const NEON_URL = "postgresql://neondb_owner:npg_YlSeb1kgv6PB@ep-shiny-dust-axomvx38-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
+let databaseUrl = process.env.DATABASE_URL || NEON_URL;
+
+// Safety: If DATABASE_URL was set but is a non-Postgres local URL, prefer Neon
+if (databaseUrl && !databaseUrl.startsWith('postgresql') && !databaseUrl.startsWith('postgres')) {
+  console.warn('[DB] DATABASE_URL does not appear to be a PostgreSQL URL. Overriding with Neon PostgreSQL.');
+  databaseUrl = NEON_URL;
 }
 
 if (!useSqlite && !databaseUrl) {
@@ -211,6 +219,17 @@ async function syncDatabase() {
     const runMigrations = require('../scripts/run-migrations');
     await runMigrations();
     console.log('[DB] Database synchronized.');
+
+    // Auto-seed demo hospitals and ambulances into DB on every startup.
+    // This is safe — seed_db.js uses findOne checks and never deletes or duplicates.
+    // This ensures registered entities survive Render cold starts & redeployments.
+    try {
+      const seed = require('../scripts/seed_db');
+      await seed();
+      console.log('[DB] Auto-seed completed — demo entities restored if missing.');
+    } catch (seedErr) {
+      console.warn('[DB] Auto-seed warning (non-fatal):', seedErr.message);
+    }
   } catch (err) {
     const { triggerCriticalAlert } = require('./alerting');
     await triggerCriticalAlert('DATABASE_CONNECT_FAIL', {

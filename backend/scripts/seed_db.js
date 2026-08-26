@@ -14,7 +14,7 @@ const {
 } = require('../utils/db');
 const bcrypt = require('bcryptjs');
 
-async function seed() {
+async function seed(skipSync = false) {
   try {
     console.log('[SEED] Running safe database seeding (no tables dropped, no data deleted)...');
 
