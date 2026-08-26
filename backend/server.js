@@ -366,26 +366,6 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Secure one-time seed endpoint — restores demo entities to Neon PostgreSQL
-// Requires ?key=rescuelink-admin-seed-2024 query param (never exposed to frontend)
-app.post('/admin/seed', async (req, res) => {
-  const { key } = req.query;
-  const SEED_SECRET = process.env.ADMIN_SEED_KEY || 'rescuelink-admin-seed-2024';
-  if (key !== SEED_SECRET) {
-    return res.status(403).json({ error: 'Forbidden: Invalid seed key' });
-  }
-  try {
-    const seed = require('./scripts/seed_db');
-    await seed();
-    const { Hospital, Ambulance } = require('./utils/db');
-    const hospitals = await Hospital.count();
-    const ambulances = await Ambulance.count();
-    res.json({ success: true, message: 'Seed completed', hospitals, ambulances });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 app.get('/ready', async (req, res) => {
   try {
     await sequelize.authenticate();
