@@ -23,9 +23,6 @@ export default function LiveRouteMap({
 
   useEffect(() => {
     // Initialize Mapbox map
-    const map = new mapboxgl.Map({
-      container: mapContainerRef.current,
-      style: 'mapbox://styles/mapbox/dark-v11', // Glowing futuristic dark style
     const initialCenter = ambulancePosition && typeof ambulancePosition.lng === 'number' && !isNaN(ambulancePosition.lng) && typeof ambulancePosition.lat === 'number' && !isNaN(ambulancePosition.lat)
       ? [ambulancePosition.lng, ambulancePosition.lat]
       : [77.5946, 12.9716];

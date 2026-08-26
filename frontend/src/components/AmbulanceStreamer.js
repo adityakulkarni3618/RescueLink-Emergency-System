@@ -3512,18 +3512,14 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
               {activeTab === 'settings' && (
                 <div style={{ padding: 24, overflowY: 'auto', background: 'rgba(0,0,0,0.1)', flex: 1, display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-                  {/* PROFILE SETTINGS SECTION */}
-                                <div style={{ fontSize: 9, color: '#00ff88', fontFamily: "'Orbitron'", letterSpacing: '0.1em' }}>SCAN QR CODE WITH AUTHENTICATOR APP</div>
-                                <img src={mfaQR} alt="MFA QR" style={{ width: 160, height: 160, background: '#fff', borderRadius: 6, padding: 4, border: '2px solid rgba(0,255,136,0.3)' }} />
-                              </div>
-                            )}
-                            {mfaStatus && <div style={{ ...S.statusMsg(mfaStatus.ok), marginTop: 12 }}>{mfaStatus.ok ? '✅' : '❌'} {mfaStatus.msg}</div>}
-                          </div>
-                        </>
-                      );
-                    };
-                    return <AmbProfileSettings key="amb-profile-settings" />;
-                  })()}
+                  <AmbProfileSettings
+                    authUnit={authUnit}
+                    setAuthUnit={setAuthUnit}
+                    socket={socket}
+                    connected={connected}
+                    simulateCrisis={simulateCrisis}
+                    setSimulateCrisis={setSimulateCrisis}
+                  />
 
                   {/* Simulation / God Mode panel */}
                   <div style={{ background: 'rgba(10, 0, 20, 0.4)', border: '1px solid rgba(204,0,255,0.2)', borderRadius: 10, padding: 20 }}>
