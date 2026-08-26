@@ -135,13 +135,8 @@ export default function AIEmergencyCorridorView({
     });
   };
 
-  // Auto-fetch real-world route from OSRM if no routePath provided
+  // Auto-fetch real-world route from OSRM to map full path: ambulance -> patient -> hospital
   useEffect(() => {
-    // Use provided routePath if available
-    if (routePath && routePath.length > 1) {
-      setRealRoutePath(null); // use prop directly
-      return;
-    }
     if (!isValidLatLng(ambulanceLoc)) return;
 
     const fetchRoute = async () => {
@@ -164,6 +159,11 @@ export default function AIEmergencyCorridorView({
       if (segments.length > 0) {
         setRealRoutePath(segments);
         addLog(`✅ Real-world route loaded: ${segments.length} road waypoints`);
+      } else if (routePath && routePath.length > 1) {
+        // Fallback to prop routePath if OSRM fetch failed
+        const coords = routePath.map(p => [p.lat || p[0] || p.x, p.lng || p[1] || p.y]);
+        setRealRoutePath(coords);
+        addLog(`✅ Loaded fallback route geometry`);
       } else {
         addLog('⚠️ OSRM routing unavailable. Using straight-line fallback.');
       }
@@ -346,34 +346,217 @@ export default function AIEmergencyCorridorView({
           </div>
         </div>
 
-        {/* MIDDLE MAP */}
-        <div style={{ flex: 1, position: 'relative', background: '#040814' }}>
-          {isValidLatLng(ambulanceLoc) || isValidLatLng(patientLoc) || isValidLatLng(hospitalLoc) ? (
-            <LiveRouteMap
-              routeGeometry={routePath ? { type: 'LineString', coordinates: routePath.map(p => [p.lng || p[1], p.lat || p[0]]) } : (realRoutePath ? { type: 'LineString', coordinates: realRoutePath.map(p => [p[1], p[0]]) } : null)}
-              ambulancePosition={isValidLatLng(ambulanceLoc) ? { lat: ambulanceLoc.lat || ambulanceLoc[0], lng: ambulanceLoc.lng || ambulanceLoc[1] } : null}
-              originMarker={isValidLatLng(patientLoc) ? { lat: patientLoc.lat || patientLoc[0], lng: patientLoc.lng || patientLoc[1] } : null}
-              destinationMarker={isValidLatLng(hospitalLoc) ? { lat: hospitalLoc.lat || hospitalLoc[0], lng: hospitalLoc.lng || hospitalLoc[1] } : null}
-              junctions={getMappedJunctions()}
-              mode="hospital"
-            />
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-              <span style={{ fontSize: 14, fontFamily: "'Orbitron'", color: '#ff3333' }}>LOADING MAP TELEMETRY...</span>
-            </div>
-          )}
+        {/* MIDDLE COLUMN: MAP & SIMULATOR */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', position: 'relative' }}>
+          
+          {/* TOP: Map Panel */}
+          <div style={{ flex: 3, position: 'relative', background: '#040814' }}>
+            {isValidLatLng(ambulanceLoc) || isValidLatLng(patientLoc) || isValidLatLng(hospitalLoc) ? (
+              <LiveRouteMap
+                routeGeometry={routePath ? { type: 'LineString', coordinates: routePath.map(p => [p.lng || p[1], p.lat || p[0]]) } : (realRoutePath ? { type: 'LineString', coordinates: realRoutePath.map(p => [p[1], p[0]]) } : null)}
+                ambulancePosition={isValidLatLng(ambulanceLoc) ? { lat: ambulanceLoc.lat || ambulanceLoc[0], lng: ambulanceLoc.lng || ambulanceLoc[1] } : null}
+                originMarker={isValidLatLng(patientLoc) ? { lat: patientLoc.lat || patientLoc[0], lng: patientLoc.lng || patientLoc[1] } : null}
+                destinationMarker={isValidLatLng(hospitalLoc) ? { lat: hospitalLoc.lat || hospitalLoc[0], lng: hospitalLoc.lng || hospitalLoc[1] } : null}
+                junctions={getMappedJunctions()}
+                mode="hospital"
+              />
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                <span style={{ fontSize: 14, fontFamily: "'Orbitron'", color: '#ff3333' }}>LOADING MAP TELEMETRY...</span>
+              </div>
+            )}
 
-          {/* Route loading overlay */}
-          {!routePath && !realRoutePath && isValidLatLng(ambulanceLoc) && (
-            <div style={{
-              position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)',
-              background: 'rgba(4,8,20,0.9)', border: '1px solid rgba(255,51,51,0.3)',
-              borderRadius: 6, padding: '6px 14px', fontSize: 10,
-              color: '#ff3333', fontFamily: "'Share Tech Mono'", zIndex: 1000
-            }}>
-              🗺️ Calculating Green Corridor...
+            {/* Route loading overlay */}
+            {!routePath && !realRoutePath && isValidLatLng(ambulanceLoc) && (
+              <div style={{
+                position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)',
+                background: 'rgba(4,8,20,0.9)', border: '1px solid rgba(255,51,51,0.3)',
+                borderRadius: 6, padding: '6px 14px', fontSize: 10,
+                color: '#ff3333', fontFamily: "'Share Tech Mono'", zIndex: 1000
+              }}>
+                🗺️ Calculating Green Corridor...
+              </div>
+            )}
+          </div>
+
+          {/* BOTTOM: 3D Moving Ambulance Simulation HUD Feed */}
+          <div style={{
+            height: 190,
+            background: 'linear-gradient(180deg, #020512 0%, #060d26 100%)',
+            borderTop: '2px solid rgba(0, 200, 255, 0.25)',
+            position: 'relative',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'flex-end',
+            boxSizing: 'border-box'
+          }}>
+            <style>{`
+              @keyframes road-line-move {
+                0% { background-position-y: 0px; }
+                100% { background-position-y: 400px; }
+              }
+              @keyframes amb-sway {
+                0% { transform: translateY(0px) rotate(0deg); }
+                50% { transform: translateY(-3px) rotate(0.8deg); }
+                100% { transform: translateY(0px) rotate(0deg); }
+              }
+              @keyframes siren-flash-blue {
+                0%, 100% { filter: drop-shadow(0 0 2px rgba(0, 100, 255, 0.4)); background: #0064ff; }
+                50% { filter: drop-shadow(0 0 15px rgba(0, 200, 255, 1)); background: #00c8ff; }
+              }
+              @keyframes siren-flash-red {
+                0%, 100% { filter: drop-shadow(0 0 2px rgba(255, 0, 0, 0.4)); background: #990000; }
+                50% { filter: drop-shadow(0 0 15px rgba(255, 51, 51, 1)); background: #ff3333; }
+              }
+              @keyframes gantry-slide {
+                0% { transform: translate(-50%, -100px) scale(0.2); opacity: 0; }
+                10% { opacity: 1; }
+                90% { opacity: 1; }
+                100% { transform: translate(-50%, 250px) scale(1.6); opacity: 0; }
+              }
+              .road-container {
+                width: 100%;
+                height: 100%;
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                transform: perspective(250px) rotateX(45deg);
+                transform-origin: center bottom;
+                background: #0d1222;
+                overflow: hidden;
+              }
+              .road-lane-divider {
+                width: 6px;
+                height: 100%;
+                position: absolute;
+                left: 50%;
+                transform: translateX(-50%);
+                background: repeating-linear-gradient(
+                  to bottom,
+                  transparent,
+                  transparent 25px,
+                  #00ff88 25px,
+                  #00ff88 65px
+                );
+                background-size: 100% 90px;
+                animation: road-line-move 0.75s linear infinite;
+              }
+              .road-edge-left {
+                width: 4px;
+                height: 100%;
+                position: absolute;
+                left: 20%;
+                background: #ff5500;
+                box-shadow: 0 0 10px #ff5500;
+              }
+              .road-edge-right {
+                width: 4px;
+                height: 100%;
+                position: absolute;
+                right: 20%;
+                background: #ff5500;
+                box-shadow: 0 0 10px #ff5500;
+              }
+              .sim-sign-gantry {
+                position: absolute;
+                left: 50%;
+                transform: translateX(-50%);
+                top: 15px;
+                background: rgba(3, 10, 24, 0.9);
+                border: 1px solid #00c8ff;
+                box-shadow: 0 0 12px rgba(0, 200, 255, 0.4);
+                border-radius: 4px;
+                padding: 4px 12px;
+                font-family: 'Share Tech Mono', monospace;
+                font-size: 10px;
+                color: #00ff88;
+                text-align: center;
+                animation: gantry-slide 6s linear infinite;
+                z-index: 10;
+                pointer-events: none;
+              }
+              .hud-overlay-text {
+                position: absolute;
+                font-family: 'Orbitron', sans-serif;
+                font-size: 8px;
+                font-weight: bold;
+                letter-spacing: 0.05em;
+                color: #00c8ff;
+                z-index: 20;
+                background: rgba(4, 9, 24, 0.75);
+                border: 1px solid rgba(0, 200, 255, 0.2);
+                border-radius: 3px;
+                padding: 3px 6px;
+            `}</style>
+
+            {/* Simulated perspective road */}
+            <div className="road-container">
+              <div className="road-lane-divider" />
+              <div className="road-edge-left" />
+              <div className="road-edge-right" />
             </div>
-          )}
+
+            {/* Flying Overhead Gantry Sign */}
+            <div className="sim-sign-gantry">
+              🚨 EMERGENCY CORRIDOR ACTIVE - YIELD 🚨
+              <div style={{ fontSize: 8, color: '#ffea00', marginTop: 2 }}>AI ROUTING ENABLED / MUNICIPAL SYNCED</div>
+            </div>
+
+            {/* Moving Swaying Ambulance graphic */}
+            <div style={{
+              position: 'absolute',
+              bottom: 12,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: 140,
+              height: 70,
+              animation: 'amb-sway 0.25s ease-in-out infinite',
+              zIndex: 30,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              {/* Siren lights flashing */}
+              <div style={{ display: 'flex', gap: 14, marginBottom: -2 }}>
+                <div style={{ width: 12, height: 5, borderRadius: '2px 2px 0 0', animation: 'siren-flash-red 0.15s step-end infinite' }} />
+                <div style={{ width: 12, height: 5, borderRadius: '2px 2px 0 0', animation: 'siren-flash-blue 0.15s step-end infinite' }} />
+              </div>
+              
+              {/* Back profile SVG ambulance cabin cabin */}
+              <svg width="85" height="54" viewBox="0 0 85 54" fill="none">
+                <rect x="2" y="2" width="81" height="50" rx="6" fill="#fcfcfc" stroke="#e0e0e0" strokeWidth="3" />
+                <rect x="10" y="10" width="28" height="18" rx="2" fill="#111c2e" />
+                <rect x="47" y="10" width="28" height="18" rx="2" fill="#111c2e" />
+                {/* Red paramedic stripes */}
+                <rect x="2" y="34" width="81" height="8" fill="#ff3333" />
+                <rect x="34" y="30" width="16" height="16" rx="8" fill="#ffffff" />
+                {/* Cross symbol */}
+                <path d="M 42 34 L 42 42 M 38 38 L 46 38" stroke="#ff3333" strokeWidth="2.5" strokeLinecap="round" />
+              </svg>
+
+              {/* Tires swaying */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', width: 68, marginTop: -2 }}>
+                <div style={{ width: 15, height: 6, background: '#111', borderRadius: '0 0 3px 3px' }} />
+                <div style={{ width: 15, height: 6, background: '#111', borderRadius: '0 0 3px 3px' }} />
+              </div>
+            </div>
+
+            {/* HUD text labels */}
+            <div className="hud-overlay-text" style={{ top: 8, left: 8 }}>
+              FEED: FRONT_CAM_AI
+            </div>
+            <div className="hud-overlay-text" style={{ top: 8, right: 8, color: '#00ff88' }}>
+              GPS: LOCKED (METRO)
+            </div>
+            <div className="hud-overlay-text" style={{ bottom: 8, left: 8, color: '#ff3333' }}>
+              LANE LIGHTS: ON_DUTY
+            </div>
+            <div className="hud-overlay-text" style={{ bottom: 8, right: 8, color: '#ffea00' }}>
+              SPEED: {speedKmh} KM/H
+            </div>
+          </div>
         </div>
 
         {/* RIGHT PANEL */}
