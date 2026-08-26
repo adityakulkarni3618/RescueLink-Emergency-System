@@ -380,7 +380,43 @@ app.get('/ready', async (req, res) => {
       error: err.message
     });
   }
+app.get('/api/db-status', async (req, res) => {
+  try {
+    const { Hospital, Ambulance, User } = require('./utils/db');
+    const dialect = sequelize.getDialect();
+    
+    // Mask sensitive DB URL
+    let dbUrlMasked = 'none';
+    const dbUrlRaw = process.env.DATABASE_URL || '';
+    if (dbUrlRaw) {
+      const parts = dbUrlRaw.split('@');
+      dbUrlMasked = parts.length > 1 ? `postgres://****@${parts[1]}` : 'postgres://****';
+    }
+
+    const hospitalCount = await Hospital.count();
+    const ambulanceCount = await Ambulance.count();
+    const userCount = await User.count();
+
+    res.json({
+      status: 'online',
+      dialect,
+      useSqlite: sequelize.options.dialect === 'sqlite',
+      forceSqliteEnv: process.env.FORCE_SQLITE,
+      renderEnv: process.env.RENDER,
+      nodeEnv: process.env.NODE_ENV,
+      databaseUrlSet: !!process.env.DATABASE_URL,
+      databaseUrlMasked,
+      counts: {
+        hospitals: hospitalCount,
+        ambulances: ambulanceCount,
+        users: userCount
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
+
 
 const setupSwagger = require('./utils/swagger');
 setupSwagger(app);
