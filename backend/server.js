@@ -2025,9 +2025,15 @@ io.on('connection', (socket) => {
       contactInfo: account.contact_number
     };
 
-    hospitals[socket.id] = { ...data, ...registryData, pos: { lat: data.lat || data.pos?.lat || account?.lat, lng: data.lng || data.pos?.lng || account?.lng }, socketId: socket.id, isBusy: false };
+    hospitals[socket.id] = { ...data, ...registryData, pos: { lat: data.lat || data.pos?.lat || account?.lat, lng: data.lng || data.pos?.lng || account?.lng }, socketId: socket.id, isBusy: false, isOnline: true, _isRegistryEntry: false };
     socket.join('global_hospitals');
     socket.join(`hospital:${id}`);
+    // Remove pre-loaded registry entry since this hospital is now live
+    const registryKey = `registry_${id}`;
+    if (hospitals[registryKey]) {
+      delete hospitals[registryKey];
+    }
+
 
     // Recovery for already accepted active missions
     const activeMissions = Object.values(activeRequests).filter(r => r.hospitalId === id && r.status !== 'completed' && r.status !== 'admission_request' && r.status !== 'advance_notice');
@@ -2140,6 +2146,18 @@ io.on('connection', (socket) => {
 
     // Broadcast incoming request to all connected hospitals (via global room or all keys)
     io.to('global_hospitals').emit('incoming-hospital-request', activeRequests[reqId]);
+
+    // CRITICAL FIX: Also broadcast via hospital:<id> rooms to reach hospital staff
+    // who connected via JWT (auto-joined hospital rooms) but may not have fired register-hospital yet.
+    try {
+      const allActiveHospitals = await Hospital.findAll({ where: { is_active: true }, attributes: ['id'] });
+      allActiveHospitals.forEach(h => {
+        io.to(`hospital:${h.id}`).emit('incoming-hospital-request', activeRequests[reqId]);
+      });
+      console.log(`[DISPATCH] Broadcast patient request to ${allActiveHospitals.length} registered hospital rooms.`);
+    } catch (hospBroadcastErr) {
+      console.error('[DISPATCH] Failed to broadcast to hospital rooms from DB:', hospBroadcastErr.message);
+    }
 
     // Broadcast incoming request to all connected ambulances
     Object.keys(ambulances).forEach(ambSocketId => {
@@ -2926,7 +2944,8 @@ io.on('connection', (socket) => {
   // ── Reroute Hospital (ambulance switches destination) ───────────────────
 
   // ── Disconnect ─────────────────────────────────────────────────────────────
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
+
     if (role === 'user') connectedRoles.user = Math.max(0, connectedRoles.user - 1);
 
     if (role === 'ambulance') {
@@ -2949,9 +2968,30 @@ io.on('connection', (socket) => {
         }
       });
 
+      const disconnectedAmbId = ambulances[socket.id]?.unitId || ambulances[socket.id]?.vehicleNo;
+      const disconnectedAmbDbId = ambulances[socket.id]?.id;
       delete ambulances[socket.id];
-      io.emit('ambulances-update', ambulances);
+      // Restore registry placeholder for this ambulance
+      try {
+        const { Ambulance: AmbMod } = require('./utils/db');
+        const dbAmb = disconnectedAmbDbId
+          ? await AmbMod.findByPk(disconnectedAmbDbId)
+          : await AmbMod.findOne({ where: { vehicleNo: disconnectedAmbId } });
+        if (dbAmb && dbAmb.is_active) {
+          ambulances[`registry_amb_${dbAmb.id}`] = {
+            unitId: dbAmb.vehicleNo || dbAmb.id, vehicleNo: dbAmb.vehicleNo,
+            driverName: dbAmb.driver_name || dbAmb.name, type: dbAmb.type || 'BLS',
+            location: { lat: dbAmb.lat || 17.3850, lng: dbAmb.lng || 78.4867 },
+            available: true, isOnline: false, _isRegistryEntry: true,
+            socketId: `registry_amb_${dbAmb.id}`
+          };
+        }
+      } catch (ambRestoreErr) {
+        console.error('[DISCONNECT] Failed to restore ambulance registry entry:', ambRestoreErr.message);
+      }
+      io.emit('ambulances-update', getCombinedAmbulances());
     }
+
 
     if (role === 'hospital') {
       connectedRoles.hospital = Math.max(0, connectedRoles.hospital - 1);
@@ -2985,9 +3025,31 @@ io.on('connection', (socket) => {
         }
       });
 
+      const disconnectedHospitalId = hospitals[socket.id]?.id || hospitals[socket.id]?.hospitalId;
       delete hospitals[socket.id];
+
+      // Restore registry entry for this hospital so it stays visible in dashboards
+      if (disconnectedHospitalId) {
+        try {
+          const { Hospital: HospMod } = require('./utils/db');
+          const dbH = await HospMod.findByPk(disconnectedHospitalId);
+          if (dbH && dbH.is_active) {
+            hospitals[`registry_${disconnectedHospitalId}`] = {
+              id: dbH.id, hospitalId: dbH.id, name: dbH.name,
+              lat: dbH.lat, lng: dbH.lng, pos: { lat: dbH.lat, lng: dbH.lng },
+              location: { lat: dbH.lat, lng: dbH.lng },
+              contactInfo: dbH.contact_number, total_beds: dbH.total_beds,
+              icu_beds: dbH.icu_beds, ventilators: dbH.ventilators,
+              isOnline: false, _isRegistryEntry: true, socketId: `registry_${dbH.id}`
+            };
+          }
+        } catch (restoreErr) {
+          console.error('[DISCONNECT] Failed to restore hospital registry entry:', restoreErr.message);
+        }
+      }
       io.emit('hospitals-update', hospitals);
     }
+
     io.emit('roles-update', connectedRoles);
     console.log(`[DISCONNECT] ${role.toUpperCase()} disconnected — ${socket.id}`);
   });
@@ -3423,6 +3485,61 @@ async function startServer() {
       };
     });
     console.log(`[ENTERPRISE DB] Restored ${persisted.length} active incidents into memory.`);
+
+    // ── Pre-load registered hospitals from DB into in-memory registry ──────────
+    // This ensures hospitals show in dashboards after restarts, even without an active socket
+    try {
+      const { Hospital: HospitalModel, Ambulance: AmbulanceModel } = require('./utils/db');
+      const dbHospitals = await HospitalModel.findAll({ where: { is_active: true } });
+      dbHospitals.forEach(h => {
+        const registryKey = `registry_${h.id}`;
+        // Only create registry entry if no live socket is already registered for this hospital
+        const alreadyLive = Object.values(hospitals).some(lh => lh.id === h.id && !lh._isRegistryEntry);
+        if (!alreadyLive) {
+          hospitals[registryKey] = {
+            id: h.id,
+            hospitalId: h.id,
+            name: h.name,
+            lat: h.lat,
+            lng: h.lng,
+            pos: { lat: h.lat, lng: h.lng },
+            location: { lat: h.lat, lng: h.lng },
+            contactInfo: h.contact_number,
+            total_beds: h.total_beds,
+            icu_beds: h.icu_beds,
+            ventilators: h.ventilators,
+            isOnline: false,
+            _isRegistryEntry: true,
+            socketId: registryKey
+          };
+        }
+      });
+      console.log(`[ENTERPRISE DB] Pre-loaded ${dbHospitals.length} registered hospitals into memory registry.`);
+
+      const dbAmbulances = await AmbulanceModel.findAll({ where: { is_active: true } });
+      dbAmbulances.forEach(a => {
+        const registryKey = `registry_amb_${a.id}`;
+        const alreadyLive = Object.values(ambulances).some(la => la.unitId === a.vehicleNo && !la._isRegistryEntry);
+        if (!alreadyLive) {
+          ambulances[registryKey] = {
+            unitId: a.vehicleNo || a.id,
+            vehicleNo: a.vehicleNo,
+            driverName: a.driver_name || a.name,
+            type: a.type || 'BLS',
+            location: { lat: a.lat || 17.3850, lng: a.lng || 78.4867 },
+            available: true,
+            isOnline: false,
+            _isRegistryEntry: true,
+            socketId: registryKey
+          };
+        }
+      });
+      console.log(`[ENTERPRISE DB] Pre-loaded ${dbAmbulances.length} registered ambulances into memory registry.`);
+    } catch (preloadErr) {
+      console.error('[BOOT PRELOAD ERROR] Failed to preload entities from DB:', preloadErr.message);
+    }
+
+
 
     // 3. Open port to incoming connections
     const PORT = process.env.PORT || 5000;
