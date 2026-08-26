@@ -2980,7 +2980,7 @@ io.on('connection', (socket) => {
         if (dbAmb && dbAmb.is_active) {
           ambulances[`registry_amb_${dbAmb.id}`] = {
             unitId: dbAmb.vehicleNo || dbAmb.id, vehicleNo: dbAmb.vehicleNo,
-            driverName: dbAmb.driver_name || dbAmb.name, type: dbAmb.type || 'BLS',
+            driverName: dbAmb.driverName || dbAmb.name, type: dbAmb.type || 'BLS',
             location: { lat: dbAmb.lat || 17.3850, lng: dbAmb.lng || 78.4867 },
             available: true, isOnline: false, _isRegistryEntry: true,
             socketId: `registry_amb_${dbAmb.id}`
@@ -3524,7 +3524,7 @@ async function startServer() {
           ambulances[registryKey] = {
             unitId: a.vehicleNo || a.id,
             vehicleNo: a.vehicleNo,
-            driverName: a.driver_name || a.name,
+            driverName: a.driverName || a.name,
             type: a.type || 'BLS',
             location: { lat: a.lat || 17.3850, lng: a.lng || 78.4867 },
             available: true,
