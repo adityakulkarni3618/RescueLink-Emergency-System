@@ -9,13 +9,38 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-      body { background: #050d1a; color: #e0eaff; font-family: 'Rajdhani', sans-serif; }
+      body {
+        background: #050d1a;
+        color: #e0eaff;
+        font-family: 'Rajdhani', sans-serif;
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+      }
       ::-webkit-scrollbar { width: 6px; }
       ::-webkit-scrollbar-track { background: #0a1628; }
       ::-webkit-scrollbar-thumb { background: #1e4080; border-radius: 3px; }
+      
+      /* Mobile responsiveness utilities */
+      button, .btn-touch-target {
+        min-height: 44px;
+        min-width: 44px;
+      }
+      @media (max-width: 768px) {
+        .responsive-grid {
+          grid-template-columns: 1fr !important;
+        }
+        .responsive-flex {
+          flex-direction: column !important;
+        }
+        .responsive-width {
+          width: 100% !important;
+          max-width: 100% !important;
+        }
+      }
     </style>
   </head>
   
