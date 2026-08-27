@@ -922,22 +922,27 @@ function startVirtualAmbulanceSimulation(reqId, virtualAmbId) {
     patientDetails: req.patientDetails,
   });
 
-  getSmartRoute(amb.location, req.userLocation).then(route => {
+  getSmartRoute(amb.location, req.userLocation).then(async (route) => {
     if (!route || route.length === 0) {
-      route = [amb.location, req.userLocation];
+      route = [[amb.location.lat, amb.location.lng], [req.userLocation.lat, req.userLocation.lng]];
     }
 
-    req.routePath = route;
-    io.to(req.userSocket).emit('route-update', { reqId: req.id, routePath: route });
+    req.routePath = route.map(p => ({ lat: p[0], lng: p[1] }));
+    io.to(req.userSocket).emit('route-update', { reqId: req.id, routePath: req.routePath });
 
     let currentWaypointIdx = 0;
     const totalWaypoints = route.length;
-    const tickIntervalMs = 1000;
-    const simulatedDurationSeconds = Math.max(45, Math.min(120, Math.floor(totalWaypoints * 1.2)));
-    const numTicks = isRushHour() ? Math.floor(simulatedDurationSeconds * 1.5) : simulatedDurationSeconds;
-    const stepSize = Math.max(1, Math.ceil(totalWaypoints / numTicks));
+    
+    // Calculate realistic ETA and Duration
+    const etaData = await getETA(amb.location.lat, amb.location.lng, req.userLocation.lat, req.userLocation.lng);
+    const etaMinutes = etaData ? etaData.etaMinutes : 3;
+    const totalDurationSeconds = Math.max(30, Math.round(etaMinutes * 60)); // at least 30 seconds for visual flow
+    
+    const tickIntervalMs = 2000;
+    const totalTicks = totalDurationSeconds / (tickIntervalMs / 1000);
+    const stepSize = Math.max(1, Math.ceil(totalWaypoints / totalTicks));
 
-    console.log(`[Sim Dispatch] Starting simulation for ${virtualAmbId} to user. Waypoints: ${totalWaypoints}, step: ${stepSize}`);
+    console.log(`[Sim Dispatch] Starting real-time simulation for ${virtualAmbId} to user. Total Duration: ${totalDurationSeconds}s, tick: ${tickIntervalMs}ms`);
 
     const interval = setInterval(() => {
       if (!activeRequests[reqId] || activeRequests[reqId].status === 'cancelled') {
@@ -955,17 +960,31 @@ function startVirtualAmbulanceSimulation(reqId, virtualAmbId) {
       }
 
       const currentLoc = route[currentWaypointIdx];
-      amb.location = currentLoc;
+      const lat = currentLoc[0];
+      const lng = currentLoc[1];
+      amb.location = { lat, lng };
+
+      // Calculate exact remaining distance & ETA dynamically along the route
+      let remainingDist = 0;
+      for (let i = currentWaypointIdx; i < route.length - 1; i++) {
+        remainingDist += haversineDistance(route[i][0], route[i][1], route[i+1][0], route[i+1][1]);
+      }
+      const speedKmh = isRushHour() ? 30 : 50;
+      const remainingEtaMinutes = remainingDist > 0 ? (remainingDist / speedKmh) * 60 : 0;
 
       const locationPayload = {
         reqId: req.id,
-        lat: currentLoc.lat,
-        lng: currentLoc.lng,
+        lat,
+        lng,
         ambulanceSocket: virtualAmbId,
-        arrivedAtUser: currentWaypointIdx === totalWaypoints - 1
+        arrivedAtUser: currentWaypointIdx === totalWaypoints - 1,
+        speed: speedKmh,
+        etaMinutes: remainingEtaMinutes,
+        distanceRemaining: remainingDist
       };
 
       io.to(req.userSocket).emit('location-update', locationPayload);
+      io.to(`mission_${req.id}`).emit('location-update', locationPayload);
       io.emit('ambulances-update', getCombinedAmbulances());
 
       if (currentWaypointIdx === totalWaypoints - 1) {
@@ -979,6 +998,7 @@ function startVirtualAmbulanceSimulation(reqId, virtualAmbId) {
           if (!activeRequests[reqId]) return;
           req.status = 'patient_onboard';
           io.to(req.userSocket).emit('patient-onboard', { reqId: req.id });
+          io.to(`mission_${req.id}`).emit('patient-onboard', { reqId: req.id });
           console.log(`[Sim Dispatch] Patient onboard for request ${reqId}. Waiting for hospital response.`);
 
           const availableHospitalSockets = Object.keys(hospitals).filter(sid => {
@@ -995,12 +1015,11 @@ function startVirtualAmbulanceSimulation(reqId, virtualAmbId) {
           });
           console.log(`[Sim Dispatch] Broadcasted admission request to ${availableHospitalSockets.length} hospitals.`);
 
-          // SIMULATION AUTO-ACCEPT: If no human clicks accept in 8 seconds, the simulation forces a mock hospital to accept it.
+          // SIMULATION AUTO-ACCEPT: If no human clicks accept in 4 seconds, the simulation forces a mock hospital to accept it.
           setTimeout(() => {
             const currentReq = activeRequests[reqId];
             if (currentReq && currentReq.status === 'admission_request') {
               console.log(`[Sim Dispatch] Auto-accepting request ${reqId} for simulation.`);
-              // Find first available mock hospital, or any available
               let mockSid = Object.keys(hospitals).find(sid => hospitals[sid].id && hospitals[sid].id.startsWith('mock_'));
               if (!mockSid && availableHospitalSockets.length > 0) mockSid = availableHospitalSockets[0];
 
@@ -1024,8 +1043,8 @@ function startVirtualAmbulanceSimulation(reqId, virtualAmbId) {
                 startVirtualAmbulanceToHospitalSimulation(reqId, mockSid);
               }
             }
-          }, 8000);
-        }, 5000);
+          }, 4000);
+        }, 3000);
       }
     }, tickIntervalMs);
 
@@ -1050,19 +1069,25 @@ function startVirtualAmbulanceToHospitalSimulation(reqId, hospitalSocketId) {
 
   console.log(`[Sim Dispatch] Starting leg 2 of simulation for ${amb.unitId} to hospital ${hosp.name}.`);
 
-  getSmartRoute(req.userLocation, hospLoc).then(route => {
+  getSmartRoute(req.userLocation, hospLoc).then(async (route) => {
     if (!route || route.length === 0) {
-      route = [req.userLocation, hospLoc];
+      route = [[req.userLocation.lat, req.userLocation.lng], [hospLoc.lat, hospLoc.lng]];
     }
 
-    req.routePath = route;
-    io.to(`mission_${req.id}`).emit('route-update', { reqId: req.id, routePath: route, from: 'incident', to: 'hospital' });
+    req.routePath = route.map(p => ({ lat: p[0], lng: p[1] }));
+    io.to(`mission_${req.id}`).emit('route-update', { reqId: req.id, routePath: req.routePath, from: 'incident', to: 'hospital' });
 
     let currentWaypointIdx = 0;
     const totalWaypoints = route.length;
-    const simulatedDurationSeconds = Math.max(45, Math.min(120, Math.floor(totalWaypoints * 1.2)));
-    const numTicks = isRushHour() ? Math.floor(simulatedDurationSeconds * 1.5) : simulatedDurationSeconds;
-    const stepSize = Math.max(1, Math.ceil(totalWaypoints / numTicks));
+
+    // Calculate real-time duration and ETA
+    const etaData = await getETA(req.userLocation.lat, req.userLocation.lng, hospLoc.lat, hospLoc.lng);
+    const etaMinutes = etaData ? etaData.etaMinutes : 4;
+    const totalDurationSeconds = Math.max(30, Math.round(etaMinutes * 60));
+
+    const tickIntervalMs = 2000;
+    const totalTicks = totalDurationSeconds / (tickIntervalMs / 1000);
+    const stepSize = Math.max(1, Math.ceil(totalWaypoints / totalTicks));
 
     const interval = setInterval(() => {
       if (!activeRequests[reqId] || activeRequests[reqId].status === 'cancelled') {
@@ -1080,15 +1105,62 @@ function startVirtualAmbulanceToHospitalSimulation(reqId, hospitalSocketId) {
       }
 
       const currentLoc = route[currentWaypointIdx];
-      amb.location = currentLoc;
+      const lat = currentLoc[0];
+      const lng = currentLoc[1];
+      amb.location = { lat, lng };
 
-      io.to(`mission_${req.id}`).emit('location-update', {
-        reqId: req.id,
-        lat: currentLoc.lat,
-        lng: currentLoc.lng,
-        ambulanceSocket: amb.unitId,
-        destinationId: hosp.id
+      // Calculate exact remaining distance & ETA dynamically along the route
+      let remainingDist = 0;
+      for (let i = currentWaypointIdx; i < route.length - 1; i++) {
+        remainingDist += haversineDistance(route[i][0], route[i][1], route[i+1][0], route[i+1][1]);
+      }
+      const speedKmh = isRushHour() ? 30 : 50;
+      const remainingEtaMinutes = remainingDist > 0 ? (remainingDist / speedKmh) * 60 : 0;
+
+      // Coordination agent: dynamically find other registered hospitals based on coordinates and traffic
+      const otherHospitals = [];
+      Object.keys(hospitals).forEach(sid => {
+        const h = hospitals[sid];
+        if (h.id && h.id !== req.hospitalId) {
+          const hPos = h.pos || h.location || h;
+          if (hPos && hPos.lat) {
+            const d = haversineDistance(lat, lng, hPos.lat, hPos.lng);
+            const eta = Math.ceil((d / 50) * 60);
+            const score = Math.max(0, Math.min(100, Math.round(-1.2 * eta + 3.0 * (h.icu_beds || 10) + 50)));
+            otherHospitals.push({
+              id: h.id,
+              name: h.name,
+              lat: hPos.lat,
+              lng: hPos.lng,
+              contactInfo: h.contactInfo,
+              eta,
+              hriScore: score
+            });
+          }
+        }
       });
+      otherHospitals.sort((a, b) => b.hriScore - a.hriScore);
+      req.waitingList = otherHospitals.slice(0, 5);
+
+      io.to(`mission_${req.id}`).emit('mission-coordination-update', {
+        assignedHospital: req.assignedHospital,
+        waitingList: req.waitingList
+      });
+
+      const locationPayload = {
+        reqId: req.id,
+        lat,
+        lng,
+        ambulanceSocket: amb.unitId,
+        destinationId: hosp.id,
+        arrivedAtUser: false,
+        speed: speedKmh,
+        etaMinutes: remainingEtaMinutes,
+        distanceRemaining: remainingDist
+      };
+
+      io.to(`mission_${req.id}`).emit('location-update', locationPayload);
+      io.to(req.userSocket).emit('location-update', locationPayload);
       io.emit('ambulances-update', getCombinedAmbulances());
 
       if (currentWaypointIdx === totalWaypoints - 1) {
@@ -2161,13 +2233,23 @@ io.on('connection', (socket) => {
 
     // Broadcast incoming request to all connected ambulances
     Object.keys(ambulances).forEach(ambSocketId => {
-      const isVirtual = ambSocketId.startsWith('VIRTUAL-AMB-') || (ambulances[ambSocketId] && ambulances[ambSocketId].isSimulated);
-      if (isVirtual) {
-        startVirtualAmbulanceSimulation(reqId, ambSocketId);
-      } else {
-        io.to(ambSocketId).emit('incoming-ambulance-request', activeRequests[reqId]);
-      }
+      io.to(ambSocketId).emit('incoming-ambulance-request', activeRequests[reqId]);
     });
+
+    // Simulated Ambulance Auto-Accept: if no real/virtual ambulance has accepted within 3.5 seconds, auto-accept
+    setTimeout(() => {
+      const currentReq = activeRequests[reqId];
+      if (currentReq && currentReq.status === 'pending_ambulance') {
+        const virtualAmbId = Object.keys(ambulances).find(sid => {
+          const amb = ambulances[sid];
+          return amb.available && (sid.startsWith('registry_amb_') || sid.startsWith('VIRTUAL-AMB-') || amb.isSimulated);
+        });
+        if (virtualAmbId) {
+          console.log(`[Sim Dispatch] Auto-accepting ambulance request ${reqId} by virtual unit ${virtualAmbId}`);
+          startVirtualAmbulanceSimulation(reqId, virtualAmbId);
+        }
+      }
+    }, 3500);
 
     // FCM Push Notifications & Topic notifications
     if (data.userId) {

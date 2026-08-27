@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Polyline } from 'react-leaflet';
+import LiveRouteMap from './LiveRouteMap';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -425,40 +425,24 @@ export default function AIEmergencyCorridorDashboard({ socket, connected, onLogo
                 Trigger an Emergency SOS from the patient portal or dispatch a unit to activate live preemption route tracking.
               </p>
             </div>
-          ) : (ambulancePos || patientPos || hospitalPos ? (
-            <MapContainer
-              center={ambulancePos || patientPos || [16.5062, 80.6480]}
-              zoom={14}
-              style={{ height: '100%', width: '100%' }}
-              zoomControl={false}
-            >
-              <TileLayer
-                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-              />
-              
-              {routePath && Array.isArray(routePath) && (
-                <Polyline 
-                  positions={routePath.filter(p => Array.isArray(p) && p.length >= 2 && typeof p[0] === 'number' && !isNaN(p[0]) && typeof p[1] === 'number' && !isNaN(p[1]))} 
-                  pathOptions={{ color: '#ff3333', weight: 6, opacity: 0.8, lineCap: 'round' }} 
-                />
-              )}
-
-              {ambulancePos && (
-                <Marker position={ambulancePos} icon={createAmbulanceIcon()} />
-              )}
-              {patientPos && (
-                <Marker position={patientPos} icon={createPatientIcon()} />
-              )}
-              {hospitalPos && (
-                <Marker position={hospitalPos} icon={createHospitalIcon()} />
-              )}
-            </MapContainer>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-              <span style={{ fontSize: 14, fontFamily: "'Orbitron'", color: '#00c8ff' }}>LOADING MAP TELEMETRY...</span>
-            </div>
-          ))}
+            <LiveRouteMap
+              routeGeometry={routePath ? { type: 'LineString', coordinates: routePath.map(p => [p.lng || p.x || p[1], p.lat || p.y || p[0]]) } : null}
+              ambulancePosition={ambulancePos ? { lat: ambulancePos[0], lng: ambulancePos[1] } : null}
+              originMarker={patientPos ? { lat: patientPos[0], lng: patientPos[1] } : null}
+              destinationMarker={hospitalPos ? { lat: hospitalPos[0], lng: hospitalPos[1] } : null}
+              junctions={junctions.map((j, idx) => {
+                if (routePath && routePath.length > 0) {
+                  const fraction = (idx + 1) / (junctions.length + 1);
+                  const ptIdx = Math.floor(routePath.length * fraction);
+                  const coord = routePath[ptIdx] || routePath[routePath.length - 1];
+                  return { ...j, lat: coord.lat || coord[0], lng: coord.lng || coord[1] };
+                }
+                return j;
+              })}
+              mode="hospital"
+            />
+          )}
         </main>
 
         {/* RIGHT SIDEBAR: METRICS */}
