@@ -1,33 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import LiveRouteMap from './LiveRouteMap';
 
 const getServerUrl = () => process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
 
-try {
-  if (typeof window !== 'undefined' && L && L.Icon && L.Icon.Default) {
-    delete L.Icon.Default.prototype._getIconUrl;
-    L.Icon.Default.mergeOptions({
-      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-    });
-  }
-} catch (e) {
-  console.warn('[LEAFLET ICON PATCH ERROR]', e);
-}
-
-let ambulanceIcon = null;
-try {
-  if (typeof window !== 'undefined' && L && L.divIcon) {
-    ambulanceIcon = L.divIcon({
-      className: '',
-      html: `<div style="width:40px;height:40px;background:rgba(255,100,50,0.95);border:2px solid #ff6b35;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 25px rgba(255,100,50,0.8);animation:pulse 1s ease infinite">🚑</div><style>@keyframes pulse{0%,100%{box-shadow:0 0 15px rgba(255,100,50,0.5)}50%{box-shadow:0 0 30px rgba(255,100,50,1)}}</style>`,
-      iconSize: [40, 40], iconAnchor: [20, 20],
-    });
-  }
-} catch (e) {}
+// Leaflet config removed
 
 export default function AmbulanceMarketplace({ socket, userLocation, onBookAmbulance }) {
   const [ambulances, setAmbulances] = useState([]);
@@ -201,24 +177,23 @@ export default function AmbulanceMarketplace({ socket, userLocation, onBookAmbul
             const rawLng = userLocation?.lng || mapCenter?.lng || 77.5946;
             const safeLat = isNaN(parseFloat(rawLat)) ? 12.9716 : parseFloat(rawLat);
             const safeLng = isNaN(parseFloat(rawLng)) ? 77.5946 : parseFloat(rawLng);
+            const ambMap = filtered.filter(a => a.available && a.lat && a.lng && !isNaN(parseFloat(a.lat)) && !isNaN(parseFloat(a.lng))).reduce((acc, amb) => {
+              acc[amb.id] = {
+                id: amb.id,
+                unitId: amb.name,
+                location: { lat: parseFloat(amb.lat), lng: parseFloat(amb.lng) },
+                available: true,
+                driverName: amb.provider
+              };
+              return acc;
+            }, {});
             return (
-              <MapContainer center={[safeLat, safeLng]} zoom={13} style={{ width: '100%', height: '100%' }}>
-                <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
-                {filtered.filter(a => a.available && a.lat && a.lng && !isNaN(parseFloat(a.lat)) && !isNaN(parseFloat(a.lng))).map(amb => (
-                  <Marker key={amb.id} position={[parseFloat(amb.lat), parseFloat(amb.lng)]} icon={ambulanceIcon}>
-                <Popup>
-                  <div style={{ background: '#050f28', padding: 10, color: '#e0eaff', fontFamily: "'Rajdhani'", minWidth: 160 }}>
-                    <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#ff6b35', marginBottom: 4 }}>{amb.name}</div>
-                    <div style={{ fontSize: 12 }}>⭐ {amb.rating} • {amb.responseTime} min ETA</div>
-                    <div style={{ fontSize: 11, color: '#00ff88', marginTop: 4 }}>₹{amb.basePrice} base</div>
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
-                {userLocation && userLocation.lat && userLocation.lng && (
-                  <Circle center={[userLocation.lat, userLocation.lng]} radius={500} color="#00ff88" fillOpacity={0.1} />
-                )}
-              </MapContainer>
+              <LiveRouteMap
+                ambulancePosition={{ lat: safeLat, lng: safeLng }}
+                extraAmbulances={ambMap}
+                theme="dark"
+                mode="marketplace"
+              />
             );
           })()}
         </div>

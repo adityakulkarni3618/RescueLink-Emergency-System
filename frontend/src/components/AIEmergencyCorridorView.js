@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import LiveRouteMap from './LiveRouteMap';
 
-// Helper to validate coordinates safely before passing to Leaflet
 const isValidLatLng = (loc) => {
   if (!loc) return false;
   const lat = loc.lat !== undefined ? loc.lat : (Array.isArray(loc) ? loc[0] : undefined);

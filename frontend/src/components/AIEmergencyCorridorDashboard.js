@@ -1,62 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import LiveRouteMap from './LiveRouteMap';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 
-// Custom glowing HTML markers for Leaflet map
-const createAmbulanceIcon = () => L.divIcon({
-  className: 'glowing-ambulance-marker',
-  html: `<div style="
-    width: 20px;
-    height: 20px;
-    background: #ff3333;
-    border: 3px style solid #fff;
-    border-radius: 50%;
-    box-shadow: 0 0 15px #ff3333, 0 0 25px #ff3333;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #fff;
-    font-size: 10px;
-    font-weight: bold;
-    animation: pulse 1.2s infinite;
-  ">🚑</div>`,
-  iconSize: [20, 20],
-  iconAnchor: [10, 10]
-});
-
-const createPatientIcon = () => L.divIcon({
-  className: 'glowing-patient-marker',
-  html: `<div style="
-    width: 16px;
-    height: 16px;
-    background: #ffe600;
-    border: 2px solid #000;
-    border-radius: 50%;
-    box-shadow: 0 0 10px #ffe600, 0 0 20px #ffe600;
-    animation: pulse 1.5s infinite;
-  ">👤</div>`,
-  iconSize: [16, 16],
-  iconAnchor: [8, 8]
-});
-
-const createHospitalIcon = () => L.divIcon({
-  className: 'glowing-hospital-marker',
-  html: `<div style="
-    width: 22px;
-    height: 22px;
-    background: #00ff88;
-    border: 2px solid #fff;
-    border-radius: 50%;
-    box-shadow: 0 0 15px #00ff88, 0 0 25px #00ff88;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-  ">🏥</div>`,
-  iconSize: [22, 22],
-  iconAnchor: [11, 11]
-});
 
 // Dynamic junction solver based on coordinates
 const getCityJunctions = (lat, lng) => {
@@ -425,12 +369,12 @@ export default function AIEmergencyCorridorDashboard({ socket, connected, onLogo
                 Trigger an Emergency SOS from the patient portal or dispatch a unit to activate live preemption route tracking.
               </p>
             </div>
-          ) : (
+          ) : (ambulancePos || patientPos || hospitalPos ? (
             <LiveRouteMap
-              routeGeometry={routePath ? { type: 'LineString', coordinates: routePath.map(p => [p.lng || p.x || p[1], p.lat || p.y || p[0]]) } : null}
-              ambulancePosition={ambulancePos ? { lat: ambulancePos[0], lng: ambulancePos[1] } : null}
-              originMarker={patientPos ? { lat: patientPos[0], lng: patientPos[1] } : null}
-              destinationMarker={hospitalPos ? { lat: hospitalPos[0], lng: hospitalPos[1] } : null}
+              routeGeometry={routePath ? { type: 'LineString', coordinates: routePath.map(p => [p[1], p[0]]) } : null}
+              ambulancePosition={ambulancePos}
+              originMarker={patientPos}
+              destinationMarker={hospitalPos}
               junctions={junctions.map((j, idx) => {
                 if (routePath && routePath.length > 0) {
                   const fraction = (idx + 1) / (junctions.length + 1);
@@ -440,9 +384,14 @@ export default function AIEmergencyCorridorDashboard({ socket, connected, onLogo
                 }
                 return j;
               })}
-              mode="hospital"
+              theme="dark"
+              mode="corridor"
             />
-          )}
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+              <span style={{ fontSize: 14, fontFamily: "'Orbitron'", color: '#00c8ff' }}>LOADING MAP TELEMETRY...</span>
+            </div>
+          ))}
         </main>
 
         {/* RIGHT SIDEBAR: METRICS */}
