@@ -55,8 +55,18 @@ export default function LiveRouteMap({
 }) {
   // Parse route geometry coordinates into [lat, lng] array for Leaflet Polyline
   let polylineCoords = [];
-  if (routeGeometry && routeGeometry.coordinates) {
-    polylineCoords = routeGeometry.coordinates.map(coord => [coord[1], coord[0]]);
+  if (routeGeometry && Array.isArray(routeGeometry.coordinates)) {
+    polylineCoords = routeGeometry.coordinates
+      .map(coord => {
+        if (!Array.isArray(coord) || coord.length < 2) return null;
+        const lat = coord[1];
+        const lng = coord[0];
+        if (typeof lat === 'number' && !isNaN(lat) && typeof lng === 'number' && !isNaN(lng)) {
+          return [lat, lng];
+        }
+        return null;
+      })
+      .filter(c => c !== null);
   }
 
   // Create custom icons using DivIcon for beautiful, token-free, glowing markers
@@ -107,11 +117,27 @@ export default function LiveRouteMap({
     : [12.9716, 77.5946];
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: '300px' }}>
+    <div style={{ 
+      position: 'relative', 
+      width: '100%', 
+      height: '100%', 
+      minHeight: '300px',
+      overflow: 'hidden',
+      background: '#040814'
+    }}>
       <MapContainer
         center={initialCenter}
         zoom={14}
-        style={{ width: '100%', height: '100%', position: 'absolute', top: 0, bottom: 0 }}
+        style={{ 
+          width: '100%', 
+          height: '120%', // slightly taller to compensate for tilt clipping
+          position: 'absolute', 
+          top: '-10%', 
+          bottom: 0,
+          transform: 'perspective(1000px) rotateX(28deg) translateY(20px)',
+          transformOrigin: 'center bottom',
+          background: '#040814'
+        }}
         zoomControl={false}
       >
         <TileLayer
@@ -126,16 +152,20 @@ export default function LiveRouteMap({
           mode={mode}
         />
 
-        {/* Route Line with double layers for glowing effect */}
+        {/* Triple-layer polyline for neon tube light glow effect */}
         {polylineCoords.length > 0 && (
           <>
             <Polyline
               positions={polylineCoords}
-              pathOptions={{ color: '#ff3333', weight: 8, opacity: 0.3 }}
+              pathOptions={{ color: '#ff1a1a', weight: 16, opacity: 0.15, lineCap: 'round', lineJoin: 'round' }}
             />
             <Polyline
               positions={polylineCoords}
-              pathOptions={{ color: '#ff3333', weight: 4, opacity: 0.9 }}
+              pathOptions={{ color: '#ff3333', weight: 8, opacity: 0.45, lineCap: 'round', lineJoin: 'round' }}
+            />
+            <Polyline
+              positions={polylineCoords}
+              pathOptions={{ color: '#ffffff', weight: 3, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }}
             />
           </>
         )}

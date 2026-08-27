@@ -1655,8 +1655,8 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
               );
             })}
 
-            {locationHistory.length > 1 && (
-              <Polyline positions={locationHistory} color="#00c8ff" weight={3} opacity={0.5} />
+            {locationHistory.filter(isValidLatLng).length > 1 && (
+              <Polyline positions={locationHistory.filter(isValidLatLng)} color="#00c8ff" weight={3} opacity={0.5} />
             )}
 
             {/* Hospital Markers */}
