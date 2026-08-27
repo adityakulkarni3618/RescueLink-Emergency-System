@@ -1186,6 +1186,11 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
         setHospitalRecommendations(data.recommendations);
       }
     });
+    socket.on('hospital:recommendations-updated', (data) => {
+      if (data && data.top) {
+        setHospitalRecommendations(data.top);
+      }
+    });
     socket.on('ambulances-update', (data) => setAmbulances(data));
     socket.on('route-update', (data) => {
       if (data.routePath) setRoutePath(data.routePath.map(pos => [pos.lat, pos.lng]));
@@ -1301,6 +1306,7 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
       socket.off('patient-onboard');
     socket.off('mission-coordination-update');
       socket.off('hospital-facility-recommendations');
+      socket.off('hospital:recommendations-updated');
       socket.off('patient-data', onPatientData);
       socket.off('hospital-resources-locked', onResourcesLocked);
       socket.off('traffic-incidents-update');

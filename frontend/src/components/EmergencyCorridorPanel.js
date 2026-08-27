@@ -150,16 +150,31 @@ export default function EmergencyCorridorPanel({ socket, incidentId, isControlPa
       }
     };
 
+    const onCorridorActivated = (data) => {
+      addLog(`🟢 AI Green wave corridor activated towards destination: ${data.hospital?.name || 'Hospital'}`);
+      if (data.route && data.route.steps) {
+        const routeJunctions = data.route.steps.map((step, idx) => ({
+          id: `junc_${idx}`,
+          name: step.name || `Intersection #${idx + 1}`,
+          status: 'SCHEDULED',
+          eta: step.duration || 0
+        }));
+        setJunctions(routeJunctions);
+      }
+    };
+
     socket.on('corridor:status_update', onStatusUpdate);
     socket.on('corridor:preempt_junction', onPreemptJunction);
     socket.on('corridor:route_cleared', onRouteCleared);
     socket.on('location-update', onLocationUpdate);
+    socket.on('corridor:activated', onCorridorActivated);
 
     return () => {
       socket.off('corridor:status_update', onStatusUpdate);
       socket.off('corridor:preempt_junction', onPreemptJunction);
       socket.off('corridor:route_cleared', onRouteCleared);
       socket.off('location-update', onLocationUpdate);
+      socket.off('corridor:activated', onCorridorActivated);
     };
   }, [socket, incidentId]);
 

@@ -1740,6 +1740,8 @@ io.on('connection', (socket) => {
       console.log(`[MAP] Enriched Location update routed to mission_${reqId}`);
       syncMissionToDB(reqId);
       evaluatePreemption(reqId, data, io).catch(err => console.error('[PREEMPTION ERROR]', err));
+      const { checkForBetterHospitalMidTransport } = require('./services/hospitalMatchingAgent');
+      checkForBetterHospitalMidTransport(reqId, data.lat, data.lng, io, activeRequests).catch(err => console.error('[MID-TRANS CHECK ERROR]', err));
     } else {
       if (reqId) {
         io.to(`mission_${reqId}`).emit('location-update', data);
@@ -2231,25 +2233,9 @@ io.on('connection', (socket) => {
       console.error('[DISPATCH] Failed to broadcast to hospital rooms from DB:', hospBroadcastErr.message);
     }
 
-    // Broadcast incoming request to all connected ambulances
-    Object.keys(ambulances).forEach(ambSocketId => {
-      io.to(ambSocketId).emit('incoming-ambulance-request', activeRequests[reqId]);
-    });
-
-    // Simulated Ambulance Auto-Accept: if no real/virtual ambulance has accepted within 3.5 seconds, auto-accept
-    setTimeout(() => {
-      const currentReq = activeRequests[reqId];
-      if (currentReq && currentReq.status === 'pending_ambulance') {
-        const virtualAmbId = Object.keys(ambulances).find(sid => {
-          const amb = ambulances[sid];
-          return amb.available && (sid.startsWith('registry_amb_') || sid.startsWith('VIRTUAL-AMB-') || amb.isSimulated);
-        });
-        if (virtualAmbId) {
-          console.log(`[Sim Dispatch] Auto-accepting ambulance request ${reqId} by virtual unit ${virtualAmbId}`);
-          startVirtualAmbulanceSimulation(reqId, virtualAmbId);
-        }
-      }
-    }, 3500);
+    // Call tiered dispatch agent
+    const { dispatchTiered } = require('./services/dispatchAgent');
+    dispatchTiered(reqId, userLocation.lat, userLocation.lng, io, ambulances, activeRequests);
 
     // FCM Push Notifications & Topic notifications
     if (data.userId) {
@@ -2294,18 +2280,35 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('patient-onboard', (data) => {
+  socket.on('patient-onboard', async (data) => {
     const { reqId } = data;
     const req = activeRequests[reqId];
     if (req) {
-      req.status = 'patient_onboard';
-      io.to(`mission_${reqId}`).emit('patient-onboard', data);
-      console.log(`[DISPATCH] Patient onboard for request ${reqId}`);
+      if (!req.hospitalId) {
+        return socket.emit('error-alert', { message: 'Cannot mark patient onboard without a confirmed hospital.' });
+      }
 
-      // Emit initial hospital facility recommendations
-      getHospitalRecommendations(req).then(recommendations => {
-        io.to(`mission_${reqId}`).emit('hospital-facility-recommendations', { recommendations });
-      });
+      req.status = 'en_route_to_hospital';
+
+      // Lock the preemption corridor route to the hospital
+      const { getRealRoute } = require('./services/routing');
+      const routeData = await getRealRoute(
+        (ambulances[req.ambulanceSocket]?.location?.lat) || req.userLocation.lat,
+        (ambulances[req.ambulanceSocket]?.location?.lng) || req.userLocation.lng,
+        req.assignedHospital.lat,
+        req.assignedHospital.lng
+      );
+
+      if (routeData) {
+        req.routePath = routeData.geometry.coordinates.map(c => ({ lat: c[1], lng: c[0] }));
+        req.corridor_junctions = routeData.steps;
+        
+        io.to(`mission_${reqId}`).emit('route-update', { reqId, routePath: req.routePath });
+        io.to(`mission_${reqId}`).emit('corridor:activated', { route: routeData, hospital: req.assignedHospital });
+      }
+
+      io.to(`mission_${reqId}`).emit('patient-onboard', data);
+      console.log(`[CORRIDOR LOCK] Corridor locked for request ${reqId} to hospital ${req.assignedHospital.name}`);
     }
   });
 
@@ -2356,6 +2359,8 @@ io.on('connection', (socket) => {
         io.to(req.ambulanceSocket).emit('route-update', { reqId: req.id, routePath: route });
       }
       initializeCorridorForRoute(req.id, route || []).catch(err => console.error('[PREEMPTION INIT ERROR]', err));
+      const { startHospitalMatchingAgent } = require('./services/hospitalMatchingAgent');
+      startHospitalMatchingAgent(req.id, io, activeRequests);
     } else {
       req.status = 'ambulance_rejected';
       io.to(req.userSocket).emit('ambulance-request-response', { ...req, accepted: false });
