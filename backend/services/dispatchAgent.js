@@ -62,7 +62,12 @@ async function dispatchTiered(requestId, pickupLat, pickupLng, io, ambulances, a
   }
 
   console.log(`[DISPATCH TIER EXHAUSTED] No ambulance accepted request ${requestId}. Escalating...`);
-  io.to('admin_warroom').emit('warroom:no-ambulance-accepted', { requestId });
+  const driverContacts = Object.values(ambulances).map(amb => ({
+    driverName: amb.driverName || 'Paramedic Unit',
+    contactInfo: amb.contactInfo || 'Not Listed',
+    vehicleNo: amb.vehicleNo || 'EMS Unit'
+  }));
+  io.to('admin_warroom').emit('warroom:no-ambulance-accepted', { requestId, driverContacts });
   const { Incident } = require('../utils/db');
   await Incident.update({ status: 'cancelled' }, { where: { id: requestId } }).catch(() => {});
   if (activeRequests[requestId]) {
