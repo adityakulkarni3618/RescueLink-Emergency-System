@@ -141,6 +141,7 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
   const [manualCenter, setManualCenter] = useState(null);
 
   const [pendingConsentRequest, setPendingConsentRequest] = useState(null);
+  const [isSOSRequestSending, setIsSOSRequestSending] = useState(false);
 
   // ─── Enterprise Features State ──────────────────────────────────────────────
   const [showAICopilot, setShowAICopilot] = useState(false);
@@ -724,6 +725,7 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
       showAlert("⚠️ A valid phone number is required in the Patient Information form to request dispatch.");
       setRequestStatus('idle');
       if (isSOS) setSosMode(false);
+      setIsSOSRequestSending(false);
       return;
     }
 
@@ -738,6 +740,7 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
   };
 
   const requestSOSDispatch = () => {
+    if (isSOSRequestSending) return;
     if (!socket || !userLocation) { showAlert('Location not ready. Please wait a moment.'); return; }
     
     let defaultPhone = patientData.mobile || '';
@@ -757,14 +760,17 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
     );
     
     if (promptedPhone === null) {
-      // User clicked Cancel on the prompt
+      setIsSOSRequestSending(false);
       return;
     }
 
     if (!promptedPhone.trim()) {
       showAlert("⚠️ A valid phone number is required to trigger SOS.");
+      setIsSOSRequestSending(false);
       return;
     }
+
+    setIsSOSRequestSending(true);
 
     const userPhone = promptedPhone.trim();
     setPatientData(prev => ({ ...prev, mobile: userPhone }));
@@ -1002,20 +1008,25 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
             <button
               onClick={requestSOSDispatch}
               className="sos-emergency-btn"
+              disabled={isSOSRequestSending}
               style={{
                 width: '100%',
                 marginBottom: 16,
-                background: 'linear-gradient(135deg, rgba(255,30,30,0.25), rgba(220,0,0,0.15))',
-                border: '2px solid #ff2222', borderRadius: 10, cursor: 'pointer',
+                background: isSOSRequestSending ? 'rgba(255,184,0,0.1)' : 'linear-gradient(135deg, rgba(255,30,30,0.25), rgba(220,0,0,0.15))',
+                border: isSOSRequestSending ? '2px solid #ffb800' : '2px solid #ff2222', borderRadius: 10, cursor: isSOSRequestSending ? 'not-allowed' : 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-                animation: 'sosGlow 1.5s ease-in-out infinite', boxShadow: '0 0 20px rgba(255,30,30,0.3)',
+                animation: isSOSRequestSending ? 'pulse 2s infinite' : 'sosGlow 1.5s ease-in-out infinite', boxShadow: isSOSRequestSending ? 'none' : '0 0 20px rgba(255,30,30,0.3)',
                 transition: 'all 0.2s', padding: '12px 14px', height: 'auto', minHeight: 64
               }}
             >
-              <span style={{ fontSize: 24, flexShrink: 0 }}>🆘</span>
+              <span style={{ fontSize: 24, flexShrink: 0 }}>{isSOSRequestSending ? '📡' : '🆘'}</span>
               <div style={{ textAlign: 'left', flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#ff4444', fontWeight: 900, letterSpacing: '0.05em', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>SOS EMERGENCY</div>
-                <div style={{ fontSize: 9.5, color: 'rgba(255,100,100,0.7)', marginTop: 1, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>Instantly alerts nearest ambulance</div>
+                <div style={{ fontFamily: "'Orbitron'", fontSize: 14, color: isSOSRequestSending ? '#ffb800' : '#ff4444', fontWeight: 900, letterSpacing: '0.05em', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                  {isSOSRequestSending ? 'FINDING AMBULANCE...' : 'SOS EMERGENCY'}
+                </div>
+                <div style={{ fontSize: 9.5, color: isSOSRequestSending ? 'rgba(255,184,0,0.7)' : 'rgba(255,100,100,0.7)', marginTop: 1, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                  {isSOSRequestSending ? 'Connecting you to city response network...' : 'Instantly alerts nearest ambulance'}
+                </div>
               </div>
             </button>
           )}

@@ -2183,6 +2183,24 @@ io.on('connection', (socket) => {
     }
 
     const { patientDetails, userLocation } = data;
+
+    // Idempotency check: see if there is an active request in the last 10 minutes
+    const tenMinutesAgo = Date.now() - 10 * 60 * 1000;
+    const existingActive = Object.values(activeRequests).find(r => 
+      (r.userSocketId === (data.userId || socket.id) || r.userSocket === socket.id) &&
+      !['completed', 'cancelled', 'escalated'].includes(r.status) &&
+      r.createdAt > tenMinutesAgo
+    );
+
+    if (existingActive) {
+      console.log(`[IDEMPOTENCY] Re-routing user to existing active request ${existingActive.id}`);
+      socket.emit('request-acknowledged', { id: existingActive.id, status: existingActive.status });
+      if (existingActive.routePath) {
+        socket.emit('route-update', { reqId: existingActive.id, routePath: existingActive.routePath });
+      }
+      return;
+    }
+
     const reqId = require('crypto').randomUUID();
 
     // 15 km range check helper (15000 meters)
