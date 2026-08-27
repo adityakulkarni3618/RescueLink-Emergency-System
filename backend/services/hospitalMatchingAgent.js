@@ -55,6 +55,13 @@ function startHospitalMatchingAgent(missionId, io, activeRequests) {
     }
     try {
       const ranked = await rankHospitals(req.userLocation.lat, req.userLocation.lng);
+      
+      const hasBeds = ranked.some(r => r.icuBeds > 0 || r.ventilators > 0);
+      if (!hasBeds) {
+        console.warn(`[CAPACITY EXHAUSTED] No hospitals with available ICU beds/ventilators for mission ${missionId}`);
+        io.to('admin_warroom').emit('warroom:no-hospital-capacity', { missionId });
+      }
+
       io.to(`mission_${missionId}`).emit('hospital:recommendations-updated', {
         top: ranked.slice(0, 3).map(r => ({
           hospitalId: r.hospital.id,

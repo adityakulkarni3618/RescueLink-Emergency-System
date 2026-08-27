@@ -2183,6 +2183,24 @@ io.on('connection', (socket) => {
     }
 
     const { patientDetails, userLocation } = data;
+
+    // Idempotency check: see if there is an active request in the last 10 minutes
+    const tenMinutesAgo = Date.now() - 10 * 60 * 1000;
+    const existingActive = Object.values(activeRequests).find(r => 
+      (r.userSocketId === (data.userId || socket.id) || r.userSocket === socket.id) &&
+      !['completed', 'cancelled', 'escalated'].includes(r.status) &&
+      r.createdAt > tenMinutesAgo
+    );
+
+    if (existingActive) {
+      console.log(`[IDEMPOTENCY] Re-routing user to existing active request ${existingActive.id}`);
+      socket.emit('request-acknowledged', { id: existingActive.id, status: existingActive.status });
+      if (existingActive.routePath) {
+        socket.emit('route-update', { reqId: existingActive.id, routePath: existingActive.routePath });
+      }
+      return;
+    }
+
     const reqId = require('crypto').randomUUID();
 
     // 15 km range check helper (15000 meters)
@@ -2328,6 +2346,7 @@ io.on('connection', (socket) => {
       }
       req._ambulanceAcceptLock = true;
       req.status = 'ambulance_accepted';
+      req.acceptedAt = Date.now();
       req.ambulanceSocket = socket.id;
       req.unitId = ambulances[socket.id]?.unitId;
       req.userSocket = data.userSocket || req.userSocket;
@@ -2508,6 +2527,7 @@ io.on('connection', (socket) => {
         contactInfo: primaryHosp.contactInfo,
         isOnline: true
       };
+      req.hospitalConfirmedAt = Date.now();
 
       // ICU beds hold logic on closest accepting hospital
       try {
@@ -2820,6 +2840,20 @@ io.on('connection', (socket) => {
     const req = activeRequests[reqId];
     if (req) {
       console.log(`[FINALIZE] Mission ${reqId} completed.`);
+      
+      // Calculate and log response time analytics
+      const timeToAccept = req.acceptedAt ? (req.acceptedAt - req.createdAt) / 1000 : null;
+      const timeToHospitalConfirm = req.hospitalConfirmedAt ? (req.hospitalConfirmedAt - req.createdAt) / 1000 : null;
+      
+      logAudit(
+        'MISSION_ANALYTICS',
+        `Mission finalized. Time-to-accept: ${timeToAccept || 'N/A'}s, Time-to-hospital-confirm: ${timeToHospitalConfirm || 'N/A'}s`,
+        { reqId, timeToAccept, timeToHospitalConfirm },
+        'INFO',
+        null,
+        socket.handshake.address
+      ).catch(err => console.error('[ANALYTICS LOG ERROR]', err.message));
+
       try {
         if (dbWriteTimers[reqId]) {
           clearTimeout(dbWriteTimers[reqId]);
