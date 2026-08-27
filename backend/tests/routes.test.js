@@ -23,7 +23,13 @@ const mockDb = {
     findOne: jest.fn().mockResolvedValue({ id: 'user-uuid-12345', role: 'city_admin' })
   },
   Hospital: {
-    findByPk: jest.fn().mockResolvedValue(mockHospital)
+    findByPk: jest.fn().mockResolvedValue(mockHospital),
+    findAll: jest.fn().mockResolvedValue([])
+  },
+  Ambulance: {
+    findOne: jest.fn(),
+    findByPk: jest.fn(),
+    findAll: jest.fn().mockResolvedValue([])
   },
   Patient: {
     findByPk: jest.fn().mockResolvedValue(mockPatient),
@@ -34,7 +40,8 @@ const mockDb = {
   Incident: {
     findOne: jest.fn().mockResolvedValue(mockIncident),
     findAll: jest.fn().mockResolvedValue([mockIncident]),
-    create: jest.fn().mockResolvedValue(mockIncident)
+    create: jest.fn().mockResolvedValue(mockIncident),
+    update: jest.fn().mockResolvedValue([0])
   },
   BloodRequest: {
     create: jest.fn().mockResolvedValue({ id: 'blood-1', blood_type: 'O+', units: 5 }),

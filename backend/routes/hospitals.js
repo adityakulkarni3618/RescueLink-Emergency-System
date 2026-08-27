@@ -63,8 +63,9 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Hospital not found' });
     }
 
-    await cache.set(cacheKey, hospital, 60); // Cache for 60 seconds
-    return res.json(hospital);
+    const hospitalData = hospital.toJSON ? hospital.toJSON() : hospital;
+    await cache.set(cacheKey, hospitalData, 60); // Cache for 60 seconds
+    return res.json(hospitalData);
   } catch (err) {
     console.error('[HOSPITALS API] Fetch hospital by ID error:', err.message);
     return res.status(500).json({ error: 'Failed to fetch hospital details' });

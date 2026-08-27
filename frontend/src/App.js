@@ -11,8 +11,8 @@ import PatientPortal from './components/PatientPortal';
 import { MfaVerifyScreen } from './components/MfaVerifyScreen';
 import AIEmergencyCorridorDashboard from './components/AIEmergencyCorridorDashboard';
 
-const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
-const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
+const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system-4d85.onrender.com');
+const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system-4d85.onrender.com');
 
 // Global fetch request interceptor for JWT auth
 const originalFetch = window.fetch;
@@ -1413,7 +1413,7 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
         return;
       }
 
-      onLoginSuccess(viewRole, data.token);
+      onLoginSuccess(viewRole, data.token, data.user);
     } catch (err) {
       setError(err.message || 'Invalid credentials');
     } finally {
@@ -3008,12 +3008,16 @@ export default function App() {
     return () => newSocket.disconnect();
   }, [role, token]);
 
-  const handleLoginSuccess = (viewRole, userToken) => {
+  const handleLoginSuccess = (viewRole, userToken, user) => {
     setToken(userToken);
     setRole(viewRole);
     sessionStorage.setItem('rescueLinkRole', viewRole);
     localStorage.setItem('rescueLinkRole', viewRole);
     localStorage.setItem('rescuelink_token', userToken);
+    if (user) {
+      sessionStorage.setItem('rescuelink_user', JSON.stringify(user));
+      localStorage.setItem('rescuelink_user', JSON.stringify(user));
+    }
     setMfaVerifyToken(null);
     window.location.hash = viewRole;
   };

@@ -578,22 +578,20 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
     if (userStr) {
       const user = JSON.parse(userStr);
       const emailUpper = (user.email || user.username || user.id || '').toUpperCase();
-      const found = AMBULANCE_CREDENTIALS.find(c => c.unitId === emailUpper) || {
-        unitId: user.id || 'AMB-101',
-        driverName: user.name || 'Unit 101 Lead Paramedic',
-        vehicleNo: user.vehicleNo || (user.email?.includes('@') ? user.email.split('@')[0].toUpperCase() : (user.email || 'EMG-RL-0101')),
-        type: user.type || 'ALS',
+      const found = AMBULANCE_CREDENTIALS.find(c => c.unitId === emailUpper) || {};
+      return {
+        unitId: user.id || found.unitId || 'AMB-101',
+        driverName: user.name || found.driverName || 'Unit 101 Lead Paramedic',
+        vehicleNo: user.vehicleNo || found.vehicleNo || (user.email?.includes('@') ? user.email.split('@')[0].toUpperCase() : (user.email || 'EMG-RL-0101')),
+        type: user.type || found.type || 'ALS',
+        contactInfo: user.mobile || user.contactInfo || '',
         equipment_checklist: user.equipment_checklist,
         crew_members: user.crew_members,
         license_number: user.license_number,
         license_expiry: user.license_expiry,
         is_system_standard: user.is_system_standard,
-        oxygen_capacity_liters: user.oxygen_capacity_liters
-      };
-      return {
-        ...found,
-        ...user,
-        unitId: found.unitId || user.id
+        oxygen_capacity_liters: user.oxygen_capacity_liters,
+        ...user
       };
     }
     // Fallback default so it doesn't crash
@@ -978,12 +976,31 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
       if (res.ok && data.token) {
         // Securely store JWT for future API calls
         sessionStorage.setItem('rescuelink_token', data.token);
+        
+        // Always store user details for session persistence upon refresh
+        if (data.user) {
+          sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
+          localStorage.setItem('rescuelink_user', JSON.stringify(data.user));
+        }
+        
         console.log('[ENTERPRISE SEC] JWT Successfully obtained and stored in session.');
         
         // Hydrate frontend profile (Fallback to mock details if purely DB-driven)
-        const found = AMBULANCE_CREDENTIALS.find(c => c.unitId === loginId.toUpperCase()) || { 
-          unitId: cleanId, driverName: data.user?.name || 'Paramedic Lead', vehicleNo: 'MH-14-EM-0001', type: 'ALS Unit' 
+        const found = {
+          ...(AMBULANCE_CREDENTIALS.find(c => c.unitId === loginId.toUpperCase()) || { 
+            driverName: data.user?.name || 'Paramedic Lead', 
+            vehicleNo: 'MH-14-EM-0001', 
+            type: 'ALS Unit' 
+          })
         };
+        
+        // Always use the real database UUID returned by the server for API requests
+        if (data.user?.id) {
+          found.id = data.user.id;
+          found.unitId = data.user.id;
+        } else {
+          found.unitId = cleanId;
+        }
         
         setAuthUnit(found);
         setIsAuthenticated(true);
@@ -3491,329 +3508,14 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
               {activeTab === 'settings' && (
                 <div style={{ padding: 24, overflowY: 'auto', background: 'rgba(0,0,0,0.1)', flex: 1, display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-                  {/* PROFILE SETTINGS SECTION */}
-                  {(() => {
-                    const AmbProfileSettings = () => {
-                      const [unitForm, setUnitForm] = React.useState({
-                        driverName: authUnit?.driverName || '',
-                        type: authUnit?.type || 'BLS',
-                        contactInfo: authUnit?.contactInfo || '',
-                        vehicleNo: authUnit?.vehicleNo || '',
-                        hospitalId: '',
-                        equipmentChecklist: [],
-                        crewMembers: '',
-                        licenseNumber: '',
-                        licenseExpiry: '',
-                        isSystemStandard: true,
-                        oxygenCapacityLiters: 0
-                      });
-                      const [unitStatus, setUnitStatus] = React.useState(null);
-                      const [unitLoading, setUnitLoading] = React.useState(false);
-                      const [pwForm, setPwForm] = React.useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
-                      const [pwStatus, setPwStatus] = React.useState(null);
-                      const [pwLoading, setPwLoading] = React.useState(false);
-                      const [mfaQR, setMfaQR] = React.useState(null);
-                      const [mfaStatus, setMfaStatus] = React.useState(null);
-                      const [mfaLoading, setMfaLoading] = React.useState(false);
-                      const [disable2FAConfirmAmb, setDisable2FAConfirmAmb] = React.useState(false);
-                      const [hospitalsList, setHospitalsList] = React.useState([]);
-
-                      const token = sessionStorage.getItem('rescuelink_token') || '';
-                      const ambId = authUnit?.id || authUnit?.unitId;
-                      const hdrs = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
-
-                      React.useEffect(() => {
-                        const fetchHospitals = async () => {
-                          try {
-                            const res = await fetch('/api/hospitals');
-                            if (res.ok) {
-                              const data = await res.json();
-                              setHospitalsList(data || []);
-                            }
-                          } catch (e) {
-                            console.error("Failed to fetch hospitals list", e);
-                          }
-                        };
-                        fetchHospitals();
-                      }, []);
-
-                      React.useEffect(() => {
-                        const fetchUnitDetails = async () => {
-                          if (!ambId) return;
-                          try {
-                            const res = await fetch(`/api/ambulances/${ambId}`, { headers: hdrs });
-                            if (res.ok) {
-                              const data = await res.json();
-                              let checklist = [];
-                              try {
-                                checklist = data.equipment_checklist ? JSON.parse(data.equipment_checklist) : [];
-                              } catch (e) {
-                                checklist = data.equipment_checklist || [];
-                              }
-                              let crew = '';
-                              try {
-                                const parsedCrew = data.crew_members ? JSON.parse(data.crew_members) : [];
-                                crew = Array.isArray(parsedCrew) ? parsedCrew.join(', ') : parsedCrew;
-                              } catch (e) {
-                                crew = data.crew_members || '';
-                              }
-                              setUnitForm({
-                                driverName: data.driverName || '',
-                                type: data.type || 'BLS',
-                                contactInfo: data.contactInfo || '',
-                                vehicleNo: data.vehicleNo || '',
-                                hospitalId: data.hospital_id || '',
-                                equipmentChecklist: checklist,
-                                crewMembers: crew,
-                                licenseNumber: data.license_number || '',
-                                licenseExpiry: data.license_expiry || '',
-                                isSystemStandard: data.is_system_standard !== undefined ? data.is_system_standard : true,
-                                oxygenCapacityLiters: data.oxygen_capacity_liters || 0
-                              });
-                            }
-                          } catch (e) {
-                            console.error("Failed to fetch full ambulance details", e);
-                          }
-                        };
-                        fetchUnitDetails();
-                      }, [ambId]);
-
-                      const S = {
-                        card: { background: 'rgba(5,15,40,0.85)', border: '1px solid rgba(0,200,255,0.15)', borderRadius: 10, padding: 20 },
-                        label: { display: 'block', fontSize: 10, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.55)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em' },
-                        input: { width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: '10px 12px', color: '#fff', outline: 'none', fontSize: 12, boxSizing: 'border-box', fontFamily: "'Share Tech Mono'" },
-                        btn: (color) => ({ padding: '9px 20px', background: `rgba(${color},0.14)`, border: `1px solid rgba(${color},0.4)`, borderRadius: 8, color: `rgb(${color})`, fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer' }),
-                        sectionTitle: { fontFamily: "'Orbitron'", fontSize: 12, color: '#00c8ff', fontWeight: 700, marginBottom: 14 },
-                        statusMsg: (ok) => ({ marginTop: 8, padding: '7px 12px', borderRadius: 6, background: ok ? 'rgba(0,255,136,0.1)' : 'rgba(255,68,68,0.1)', border: `1px solid ${ok ? '#00ff88' : '#ff4444'}`, color: ok ? '#00ff88' : '#ff4444', fontSize: 11, fontFamily: "'Share Tech Mono'" })
-                      };
-
-                      const handleSaveUnit = async () => {
-                        if (!ambId) { setUnitStatus({ ok: false, msg: 'Unit ID not found in session' }); return; }
-                        setUnitLoading(true);
-                        try {
-                          const crewArray = unitForm.crewMembers.split(',').map(s => s.trim()).filter(Boolean);
-                          const body = {
-                            ...unitForm,
-                            crewMembers: crewArray
-                          };
-                          const res = await fetch(`/api/ambulances/${ambId}/settings`, { method: 'PUT', headers: hdrs, body: JSON.stringify(body) });
-                          const d = await res.json();
-                          setUnitStatus({ ok: res.ok, msg: res.ok ? 'Unit profile updated!' : (d.error || 'Update failed') });
-                          if (res.ok) {
-                            const userStr = sessionStorage.getItem('rescuelink_user') || localStorage.getItem('rescuelink_user');
-                            if (userStr) {
-                              const u = JSON.parse(userStr);
-                              u.name = d.driverName;
-                              u.email = d.vehicleNo;
-                              u.mobile = d.contactInfo;
-                              sessionStorage.setItem('rescuelink_user', JSON.stringify(u));
-                              localStorage.setItem('rescuelink_user', JSON.stringify(u));
-                            }
-                            setAuthUnit({
-                              unitId: d.id,
-                              driverName: d.driverName,
-                              vehicleNo: d.vehicleNo,
-                              type: d.type
-                            });
-                          }
-                        } catch (err) { setUnitStatus({ ok: false, msg: 'Connection error' }); }
-                        setUnitLoading(false);
-                        setTimeout(() => setUnitStatus(null), 4000);
-                      };
-
-                      const handleChangePw = async () => {
-                        if (pwForm.newPassword !== pwForm.confirmPassword) { setPwStatus({ ok: false, msg: 'Passwords do not match' }); return; }
-                        if (pwForm.newPassword.length < 6) { setPwStatus({ ok: false, msg: 'Min. 6 characters required' }); return; }
-                        setPwLoading(true);
-                        try {
-                          const res = await fetch(`/api/ambulances/${ambId}/change-password`, { method: 'POST', headers: hdrs, body: JSON.stringify({ currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword }) });
-                          const d = await res.json();
-                          setPwStatus({ ok: res.ok, msg: d.message || d.error });
-                          if (res.ok) setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-                        } catch (err) { setPwStatus({ ok: false, msg: 'Connection error' }); }
-                        setPwLoading(false);
-                        setTimeout(() => setPwStatus(null), 5000);
-                      };
-
-                      const handleSetup2FA = async () => {
-                        setMfaLoading(true);
-                        try {
-                          const res = await fetch('/api/mfa/setup', { method: 'POST', headers: hdrs });
-                          const d = await res.json();
-                          if (res.ok) setMfaQR(d.qrCode);
-                          else setMfaStatus({ ok: false, msg: d.error || 'Setup failed' });
-                        } catch { setMfaStatus({ ok: false, msg: 'Connection error' }); }
-                        setMfaLoading(false);
-                      };
-
-                      const handleDisable2FA = async () => {
-                        setDisable2FAConfirmAmb(false);
-                        setMfaLoading(true);
-                        try {
-                          const res = await fetch('/api/mfa/disable', { method: 'POST', headers: hdrs });
-                          const d = await res.json();
-                          setMfaStatus({ ok: res.ok, msg: d.message || d.error });
-                          setMfaQR(null);
-                        } catch { setMfaStatus({ ok: false, msg: 'Connection error' }); }
-                        setMfaLoading(false);
-                        setTimeout(() => setMfaStatus(null), 5000);
-                      };
-
-                      return (
-                        <>
-                          {/* 2FA Disable Confirm Modal */}
-                          {disable2FAConfirmAmb && (
-                            <div style={{ position: 'fixed', inset: 0, zIndex: 9999999, background: 'rgba(0,3,12,0.88)', backdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setDisable2FAConfirmAmb(false)}>
-                              <div style={{ background: 'rgba(8,18,42,0.98)', border: '1px solid rgba(255,68,68,0.4)', borderRadius: 14, padding: 30, maxWidth: 420, width: '90%', boxShadow: '0 0 40px rgba(255,68,68,0.1)' }} onClick={e => e.stopPropagation()}>
-                                <div style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#ff4444', fontWeight: 900, marginBottom: 8 }}>🔓 DISABLE 2FA</div>
-                                <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'", marginBottom: 20, lineHeight: 1.65 }}>
-                                  Removing 2FA will leave your account protected only by your password.<br /><br />
-                                  <strong style={{ color: '#ffb800' }}>This reduces your unit security significantly.</strong>
-                                </div>
-                                <div style={{ display: 'flex', gap: 12 }}>
-                                  <button onClick={handleDisable2FA} style={{ flex: 1, padding: '10px', background: 'rgba(255,40,40,0.14)', border: '1px solid rgba(255,40,40,0.5)', borderRadius: 8, color: '#ff4444', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>
-                                    🔓 YES, DISABLE 2FA
-                                  </button>
-                                  <button onClick={() => setDisable2FAConfirmAmb(false)} style={{ flex: 1, padding: '10px', background: 'transparent', border: '1px solid rgba(160,200,255,0.15)', borderRadius: 8, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer' }}>
-                                    CANCEL
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                          {/* 1. Edit Unit Profile */}
-                          <div style={S.card}>
-                            <div style={S.sectionTitle}>🚑 UNIT PROFILE SETTINGS</div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                              <div style={{ gridColumn: '1 / -1' }}>
-                                <label style={S.label}>Driver / Paramedic Name</label>
-                                <input style={S.input} value={unitForm.driverName} onChange={e => setUnitForm(p => ({ ...p, driverName: e.target.value }))} />
-                              </div>
-                              <div>
-                                <label style={S.label}>Vehicle Plate Number</label>
-                                <input style={S.input} value={unitForm.vehicleNo} onChange={e => setUnitForm(p => ({ ...p, vehicleNo: e.target.value }))} placeholder="MH-12-QW-5678" />
-                              </div>
-                              <div>
-                                <label style={S.label}>Unit Type</label>
-                                <select value={unitForm.type} onChange={e => setUnitForm(p => ({ ...p, type: e.target.value }))} style={{ ...S.input, appearance: 'none' }}>
-                                  <option value="BLS">BLS — Basic Life Support</option>
-                                  <option value="ALS">ALS — Advanced Life Support</option>
-                                </select>
-                              </div>
-                              <div>
-                                <label style={S.label}>Contact Number</label>
-                                <input style={S.input} value={unitForm.contactInfo} onChange={e => setUnitForm(p => ({ ...p, contactInfo: e.target.value }))} placeholder="+91 XXXXXXXXXX" />
-                              </div>
-                              <div>
-                                <label style={S.label}>Hospital Affiliation</label>
-                                <select value={unitForm.hospitalId} onChange={e => setUnitForm(p => ({ ...p, hospitalId: e.target.value }))} style={{ ...S.input, appearance: 'none' }}>
-                                  <option value="">No Affiliation (Independent)</option>
-                                  {hospitalsList.map(h => (
-                                    <option key={h.id} value={h.id}>{h.name}</option>
-                                  ))}
-                                </select>
-                              </div>
-                              <div style={{ gridColumn: '1 / -1' }}>
-                                <label style={S.label}>Crew Members (Comma separated)</label>
-                                <input style={S.input} value={unitForm.crewMembers} onChange={e => setUnitForm(p => ({ ...p, crewMembers: e.target.value }))} placeholder="Paramedic John, Nurse Sarah" />
-                              </div>
-                              <div>
-                                <label style={S.label}>Lead License Number</label>
-                                <input style={S.input} value={unitForm.licenseNumber} onChange={e => setUnitForm(p => ({ ...p, licenseNumber: e.target.value }))} placeholder="e.g. EMT-99211" />
-                              </div>
-                              <div>
-                                <label style={S.label}>License Expiry</label>
-                                <input type="date" style={S.input} value={unitForm.licenseExpiry} onChange={e => setUnitForm(p => ({ ...p, licenseExpiry: e.target.value }))} />
-                              </div>
-                              <div style={{ gridColumn: '1 / -1' }}>
-                                <label style={S.label}>Oxygen Capacity (Liters)</label>
-                                <input type="number" style={S.input} value={unitForm.oxygenCapacityLiters} onChange={e => setUnitForm(p => ({ ...p, oxygenCapacityLiters: Number(e.target.value) }))} />
-                              </div>
-                              <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
-                                <label style={S.label}>Onboard Equipment Checklist</label>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                                  {['Defibrillator', 'Ventilator', 'Oxygen Cylinder', 'ECG Monitor'].map(eq => {
-                                    const checked = unitForm.equipmentChecklist.includes(eq);
-                                    return (
-                                      <label key={eq} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#e0eaff', cursor: 'pointer' }}>
-                                        <input 
-                                          type="checkbox" 
-                                          checked={checked} 
-                                          onChange={() => {
-                                            if (checked) {
-                                              setUnitForm(p => ({ ...p, equipmentChecklist: p.equipmentChecklist.filter(item => item !== eq) }));
-                                            } else {
-                                              setUnitForm(p => ({ ...p, equipmentChecklist: [...p.equipmentChecklist, eq] }));
-                                            }
-                                          }} 
-                                        />
-                                        {eq}
-                                      </label>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                              <div style={{ gridColumn: '1 / -1', marginTop: 8 }}>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#e0eaff', cursor: 'pointer' }}>
-                                  <input type="checkbox" checked={unitForm.isSystemStandard} onChange={(e) => setUnitForm(p => ({ ...p, isSystemStandard: e.target.checked }))} style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#00c8ff' }} />
-                                  <span>Certified under Standard EMS safety metrics.</span>
-                                </label>
-                              </div>
-                            </div>
-                            <div style={{ marginTop: 14, display: 'flex', gap: 12, alignItems: 'center' }}>
-                              <button onClick={handleSaveUnit} disabled={unitLoading} style={{ ...S.btn('0,200,255'), opacity: unitLoading ? 0.5 : 1 }}>
-                                {unitLoading ? 'SAVING…' : '💾 SAVE UNIT PROFILE'}
-                              </button>
-                              {unitStatus && <div style={S.statusMsg(unitStatus.ok)}>{unitStatus.ok ? '✅' : '❌'} {unitStatus.msg}</div>}
-                            </div>
-                          </div>
-
-                          {/* 2. Change Password */}
-                          <div style={S.card}>
-                            <div style={S.sectionTitle}>🔑 CHANGE LOGIN PASSWORD</div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 420 }}>
-                              {[['currentPassword', 'Current Password'], ['newPassword', 'New Password (min. 6 chars)'], ['confirmPassword', 'Confirm New Password']].map(([key, lbl]) => (
-                                <div key={key}>
-                                  <label style={S.label}>{lbl}</label>
-                                  <input type="password" style={S.input} value={pwForm[key]} onChange={e => setPwForm(p => ({ ...p, [key]: e.target.value }))} placeholder="••••••••" />
-                                </div>
-                              ))}
-                              <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 4 }}>
-                                <button onClick={handleChangePw} disabled={pwLoading} style={{ ...S.btn('255,184,0'), opacity: pwLoading ? 0.5 : 1 }}>
-                                  {pwLoading ? 'UPDATING…' : '🔐 UPDATE PASSWORD'}
-                                </button>
-                                {pwStatus && <div style={S.statusMsg(pwStatus.ok)}>{pwStatus.ok ? '✅' : '❌'} {pwStatus.msg}</div>}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* 3. Two-Factor Authentication */}
-                          <div style={S.card}>
-                            <div style={S.sectionTitle}>🛡️ TWO-FACTOR AUTHENTICATION</div>
-                            <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.5)', marginBottom: 14, fontFamily: "'Share Tech Mono'", lineHeight: 1.6 }}>
-                              Secure your unit login with TOTP. Use Google Authenticator or Authy to scan the QR code.
-                            </div>
-                            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                              <button onClick={handleSetup2FA} disabled={mfaLoading} style={{ ...S.btn('0,255,136'), opacity: mfaLoading ? 0.5 : 1 }}>
-                                {mfaLoading ? '⏳ LOADING…' : '🔒 ENABLE 2FA'}
-                              </button>
-                              <button onClick={() => setDisable2FAConfirmAmb(true)} disabled={mfaLoading} style={{ ...S.btn('255,68,68'), opacity: mfaLoading ? 0.5 : 1 }}>
-                                🔓 DISABLE 2FA
-                              </button>
-                            </div>
-                            {mfaQR && (
-                              <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                <div style={{ fontSize: 9, color: '#00ff88', fontFamily: "'Orbitron'", letterSpacing: '0.1em' }}>SCAN QR CODE WITH AUTHENTICATOR APP</div>
-                                <img src={mfaQR} alt="MFA QR" style={{ width: 160, height: 160, background: '#fff', borderRadius: 6, padding: 4, border: '2px solid rgba(0,255,136,0.3)' }} />
-                              </div>
-                            )}
-                            {mfaStatus && <div style={{ ...S.statusMsg(mfaStatus.ok), marginTop: 12 }}>{mfaStatus.ok ? '✅' : '❌'} {mfaStatus.msg}</div>}
-                          </div>
-                        </>
-                      );
-                    };
-                    return <AmbProfileSettings key="amb-profile-settings" />;
-                  })()}
+                  <AmbProfileSettings
+                    authUnit={authUnit}
+                    setAuthUnit={setAuthUnit}
+                    socket={socket}
+                    connected={connected}
+                    simulateCrisis={simulateCrisis}
+                    setSimulateCrisis={setSimulateCrisis}
+                  />
 
                   {/* Simulation / God Mode panel */}
                   <div style={{ background: 'rgba(10, 0, 20, 0.4)', border: '1px solid rgba(204,0,255,0.2)', borderRadius: 10, padding: 20 }}>
@@ -4274,6 +3976,333 @@ function AIVoiceDispatcher({ vitals, patient }) {
         </div>
       )}
     </div>
+  );
+}
+
+function AmbProfileSettings({
+  authUnit,
+  setAuthUnit,
+  socket,
+  connected,
+  simulateCrisis,
+  setSimulateCrisis
+}) {
+  const [unitForm, setUnitForm] = React.useState({
+    driverName: authUnit?.driverName || '',
+    type: authUnit?.type || 'BLS',
+    contactInfo: authUnit?.contactInfo || '',
+    vehicleNo: authUnit?.vehicleNo || '',
+    hospitalId: authUnit?.hospital_id || '',
+    equipmentChecklist: authUnit?.equipment_checklist ? (typeof authUnit.equipment_checklist === 'string' ? JSON.parse(authUnit.equipment_checklist) : authUnit.equipment_checklist) : [],
+    crewMembers: authUnit?.crew_members ? (typeof authUnit.crew_members === 'string' ? JSON.parse(authUnit.crew_members).join(', ') : authUnit.crew_members.join(', ')) : '',
+    licenseNumber: authUnit?.license_number || '',
+    licenseExpiry: authUnit?.license_expiry || '',
+    isSystemStandard: authUnit?.is_system_standard !== undefined ? authUnit.is_system_standard : true,
+    oxygenCapacityLiters: authUnit?.oxygen_capacity_liters || 0
+  });
+  const [unitStatus, setUnitStatus] = React.useState(null);
+  const [unitLoading, setUnitLoading] = React.useState(false);
+  const [pwForm, setPwForm] = React.useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [pwStatus, setPwStatus] = React.useState(null);
+  const [pwLoading, setPwLoading] = React.useState(false);
+  const [mfaQR, setMfaQR] = React.useState(null);
+  const [mfaStatus, setMfaStatus] = React.useState(null);
+  const [mfaLoading, setMfaLoading] = React.useState(false);
+  const [disable2FAConfirmAmb, setDisable2FAConfirmAmb] = React.useState(false);
+  const [hospitalsList, setHospitalsList] = React.useState([]);
+
+  const token = sessionStorage.getItem('rescuelink_token') || '';
+  const ambId = authUnit?.id || authUnit?.unitId;
+  const hdrs = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+
+  React.useEffect(() => {
+    const fetchHospitals = async () => {
+      try {
+        const res = await fetch('/api/hospitals');
+        if (res.ok) {
+          const data = await res.json();
+          setHospitalsList(data || []);
+        }
+      } catch (e) {
+        console.error("Failed to fetch hospitals list", e);
+      }
+    };
+    fetchHospitals();
+  }, []);
+
+  React.useEffect(() => {
+    const fetchUnitDetails = async () => {
+      if (!ambId) return;
+      try {
+        const res = await fetch(`/api/ambulances/${ambId}`, { headers: hdrs });
+        if (res.ok) {
+          const data = await res.json();
+          let checklist = [];
+          try {
+            checklist = data.equipment_checklist ? JSON.parse(data.equipment_checklist) : [];
+          } catch (e) {
+            checklist = data.equipment_checklist || [];
+          }
+          let crew = '';
+          try {
+            const parsedCrew = data.crew_members ? JSON.parse(data.crew_members) : [];
+            crew = Array.isArray(parsedCrew) ? parsedCrew.join(', ') : parsedCrew;
+          } catch (e) {
+            crew = data.crew_members || '';
+          }
+          setUnitForm({
+            driverName: data.driverName || '',
+            type: data.type || 'BLS',
+            contactInfo: data.contactInfo || '',
+            vehicleNo: data.vehicleNo || '',
+            hospitalId: data.hospital_id || '',
+            equipmentChecklist: checklist,
+            crewMembers: crew,
+            licenseNumber: data.license_number || '',
+            licenseExpiry: data.license_expiry || '',
+            isSystemStandard: data.is_system_standard !== undefined ? data.is_system_standard : true,
+            oxygenCapacityLiters: data.oxygen_capacity_liters || 0
+          });
+        }
+      } catch (e) {
+        console.error("Failed to fetch full ambulance details", e);
+      }
+    };
+    fetchUnitDetails();
+  }, [ambId]);
+
+  const S = {
+    card: { background: 'rgba(5,15,40,0.85)', border: '1px solid rgba(0,200,255,0.15)', borderRadius: 10, padding: 20 },
+    label: { display: 'block', fontSize: 10, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.55)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em' },
+    input: { width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: '10px 12px', color: '#fff', outline: 'none', fontSize: 12, boxSizing: 'border-box', fontFamily: "'Share Tech Mono'" },
+    btn: (color) => ({ padding: '9px 20px', background: `rgba(${color},0.14)`, border: `1px solid rgba(${color},0.4)`, borderRadius: 8, color: `rgb(${color})`, fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer' }),
+    sectionTitle: { fontFamily: "'Orbitron'", fontSize: 12, color: '#00c8ff', fontWeight: 700, marginBottom: 14 },
+    statusMsg: (ok) => ({ marginTop: 8, padding: '7px 12px', borderRadius: 6, background: ok ? 'rgba(0,255,136,0.1)' : 'rgba(255,68,68,0.1)', border: `1px solid ${ok ? '#00ff88' : '#ff4444'}`, color: ok ? '#00ff88' : '#ff4444', fontSize: 11, fontFamily: "'Share Tech Mono'" })
+  };
+
+  const handleSaveUnit = async () => {
+    if (!ambId) { setUnitStatus({ ok: false, msg: 'Unit ID not found in session' }); return; }
+    setUnitLoading(true);
+    try {
+      const crewArray = unitForm.crewMembers.split(',').map(s => s.trim()).filter(Boolean);
+      const body = {
+        ...unitForm,
+        crewMembers: crewArray
+      };
+      const res = await fetch(`/api/ambulances/${ambId}/settings`, { method: 'PUT', headers: hdrs, body: JSON.stringify(body) });
+      const d = await res.json();
+      setUnitStatus({ ok: res.ok, msg: res.ok ? 'Unit profile updated!' : (d.error || 'Update failed') });
+      if (res.ok) {
+        const userStr = sessionStorage.getItem('rescuelink_user') || localStorage.getItem('rescuelink_user');
+        if (userStr) {
+          const u = JSON.parse(userStr);
+          u.name = d.driverName;
+          u.email = d.vehicleNo;
+          u.mobile = d.contactInfo;
+          sessionStorage.setItem('rescuelink_user', JSON.stringify(u));
+          localStorage.setItem('rescuelink_user', JSON.stringify(u));
+        }
+        setAuthUnit({
+          unitId: d.id,
+          driverName: d.driverName,
+          vehicleNo: d.vehicleNo,
+          type: d.type
+        });
+      }
+    } catch (err) { setUnitStatus({ ok: false, msg: 'Connection error' }); }
+    setUnitLoading(false);
+    setTimeout(() => setUnitStatus(null), 4000);
+  };
+
+  const handleChangePw = async () => {
+    if (pwForm.newPassword !== pwForm.confirmPassword) { setPwStatus({ ok: false, msg: 'Passwords do not match' }); return; }
+    if (pwForm.newPassword.length < 6) { setPwStatus({ ok: false, msg: 'Min. 6 characters required' }); return; }
+    setPwLoading(true);
+    try {
+      const res = await fetch(`/api/ambulances/${ambId}/change-password`, { method: 'POST', headers: hdrs, body: JSON.stringify({ currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword }) });
+      const d = await res.json();
+      setPwStatus({ ok: res.ok, msg: d.message || d.error });
+      if (res.ok) setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (err) { setPwStatus({ ok: false, msg: 'Connection error' }); }
+    setPwLoading(false);
+    setTimeout(() => setPwStatus(null), 5000);
+  };
+
+  const handleSetup2FA = async () => {
+    setMfaLoading(true);
+    try {
+      const res = await fetch('/api/mfa/setup', { method: 'POST', headers: hdrs });
+      const d = await res.json();
+      if (res.ok) setMfaQR(d.qrCode);
+      else setMfaStatus({ ok: false, msg: d.error || 'Setup failed' });
+    } catch { setMfaStatus({ ok: false, msg: 'Connection error' }); }
+    setMfaLoading(false);
+  };
+
+  const handleDisable2FA = async () => {
+    setDisable2FAConfirmAmb(false);
+    setMfaLoading(true);
+    try {
+      const res = await fetch('/api/mfa/disable', { method: 'POST', headers: hdrs });
+      const d = await res.json();
+      setMfaStatus({ ok: res.ok, msg: d.message || d.error });
+      setMfaQR(null);
+    } catch { setMfaStatus({ ok: false, msg: 'Connection error' }); }
+    setMfaLoading(false);
+    setTimeout(() => setMfaStatus(null), 5000);
+  };
+
+  return (
+    <>
+      {/* 2FA Disable Confirm Modal */}
+      {disable2FAConfirmAmb && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999999, background: 'rgba(0,3,12,0.88)', backdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setDisable2FAConfirmAmb(false)}>
+          <div style={{ background: 'rgba(8,18,42,0.98)', border: '1px solid rgba(255,68,68,0.4)', borderRadius: 14, padding: 30, maxWidth: 420, width: '90%', boxShadow: '0 0 40px rgba(255,68,68,0.1)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#ff4444', fontWeight: 900, marginBottom: 8 }}>🔓 DISABLE 2FA</div>
+            <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'", marginBottom: 20, lineHeight: 1.65 }}>
+              Removing 2FA will leave your account protected only by your password.<br /><br />
+              <strong style={{ color: '#ffb800' }}>This reduces your unit security significantly.</strong>
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button onClick={handleDisable2FA} style={{ flex: 1, padding: '10px', background: 'rgba(255,40,40,0.14)', border: '1px solid rgba(255,40,40,0.5)', borderRadius: 8, color: '#ff4444', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>
+                🔓 YES, DISABLE 2FA
+              </button>
+              <button onClick={() => setDisable2FAConfirmAmb(false)} style={{ flex: 1, padding: '10px', background: 'transparent', border: '1px solid rgba(160,200,255,0.15)', borderRadius: 8, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer' }}>
+                CANCEL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* 1. Edit Unit Profile */}
+      <div style={S.card}>
+        <div style={S.sectionTitle}>🚑 UNIT PROFILE SETTINGS</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <label style={S.label}>Driver / Paramedic Name</label>
+            <input style={S.input} value={unitForm.driverName} onChange={e => setUnitForm(p => ({ ...p, driverName: e.target.value }))} />
+          </div>
+          <div>
+            <label style={S.label}>Vehicle Plate Number</label>
+            <input style={S.input} value={unitForm.vehicleNo} onChange={e => setUnitForm(p => ({ ...p, vehicleNo: e.target.value }))} placeholder="MH-12-QW-5678" />
+          </div>
+          <div>
+            <label style={S.label}>Unit Type</label>
+            <select value={unitForm.type} onChange={e => setUnitForm(p => ({ ...p, type: e.target.value }))} style={{ ...S.input, appearance: 'none' }}>
+              <option value="BLS">BLS — Basic Life Support</option>
+              <option value="ALS">ALS — Advanced Life Support</option>
+            </select>
+          </div>
+          <div>
+            <label style={S.label}>Contact Number</label>
+            <input style={S.input} value={unitForm.contactInfo} onChange={e => setUnitForm(p => ({ ...p, contactInfo: e.target.value }))} placeholder="+91 XXXXXXXXXX" />
+          </div>
+          <div>
+            <label style={S.label}>Hospital Affiliation</label>
+            <select value={unitForm.hospitalId} onChange={e => setUnitForm(p => ({ ...p, hospitalId: e.target.value }))} style={{ ...S.input, appearance: 'none' }}>
+              <option value="">No Affiliation (Independent)</option>
+              {hospitalsList.map(h => (
+                <option key={h.id} value={h.id}>{h.name}</option>
+              ))}
+            </select>
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <label style={S.label}>Crew Members (Comma separated)</label>
+            <input style={S.input} value={unitForm.crewMembers} onChange={e => setUnitForm(p => ({ ...p, crewMembers: e.target.value }))} placeholder="Paramedic John, Nurse Sarah" />
+          </div>
+          <div>
+            <label style={S.label}>Lead License Number</label>
+            <input style={S.input} value={unitForm.licenseNumber} onChange={e => setUnitForm(p => ({ ...p, licenseNumber: e.target.value }))} placeholder="e.g. EMT-99211" />
+          </div>
+          <div>
+            <label style={S.label}>License Expiry</label>
+            <input type="date" style={S.input} value={unitForm.licenseExpiry} onChange={e => setUnitForm(p => ({ ...p, licenseExpiry: e.target.value }))} />
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <label style={S.label}>Oxygen Capacity (Liters)</label>
+            <input type="number" style={S.input} value={unitForm.oxygenCapacityLiters} onChange={e => setUnitForm(p => ({ ...p, oxygenCapacityLiters: Number(e.target.value) }))} />
+          </div>
+          <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+            <label style={S.label}>Onboard Equipment Checklist</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {['Defibrillator', 'Ventilator', 'Oxygen Cylinder', 'ECG Monitor'].map(eq => {
+                const checked = unitForm.equipmentChecklist.includes(eq);
+                return (
+                  <label key={eq} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#e0eaff', cursor: 'pointer' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={checked} 
+                      onChange={() => {
+                        if (checked) {
+                          setUnitForm(p => ({ ...p, equipmentChecklist: p.equipmentChecklist.filter(item => item !== eq) }));
+                        } else {
+                          setUnitForm(p => ({ ...p, equipmentChecklist: [...p.equipmentChecklist, eq] }));
+                        }
+                      }} 
+                    />
+                    {eq}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+          <div style={{ gridColumn: '1 / -1', marginTop: 8 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#e0eaff', cursor: 'pointer' }}>
+              <input type="checkbox" checked={unitForm.isSystemStandard} onChange={(e) => setUnitForm(p => ({ ...p, isSystemStandard: e.target.checked }))} style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#00c8ff' }} />
+              <span>Certified under Standard EMS safety metrics.</span>
+            </label>
+          </div>
+        </div>
+        <div style={{ marginTop: 14, display: 'flex', gap: 12, alignItems: 'center' }}>
+          <button onClick={handleSaveUnit} disabled={unitLoading} style={{ ...S.btn('0,200,255'), opacity: unitLoading ? 0.5 : 1 }}>
+            {unitLoading ? 'SAVING…' : '💾 SAVE UNIT PROFILE'}
+          </button>
+          {unitStatus && <div style={S.statusMsg(unitStatus.ok)}>{unitStatus.ok ? '✅' : '❌'} {unitStatus.msg}</div>}
+        </div>
+      </div>
+
+      {/* 2. Change Password */}
+      <div style={S.card}>
+        <div style={S.sectionTitle}>🔑 CHANGE LOGIN PASSWORD</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 420 }}>
+          {[['currentPassword', 'Current Password'], ['newPassword', 'New Password (min. 6 chars)'], ['confirmPassword', 'Confirm New Password']].map(([key, lbl]) => (
+            <div key={key}>
+              <label style={S.label}>{lbl}</label>
+              <input type="password" style={S.input} value={pwForm[key]} onChange={e => setPwForm(p => ({ ...p, [key]: e.target.value }))} placeholder="••••••••" />
+            </div>
+          ))}
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 4 }}>
+            <button onClick={handleChangePw} disabled={pwLoading} style={{ ...S.btn('255,184,0'), opacity: pwLoading ? 0.5 : 1 }}>
+              {pwLoading ? 'UPDATING…' : '🔐 UPDATE PASSWORD'}
+            </button>
+            {pwStatus && <div style={S.statusMsg(pwStatus.ok)}>{pwStatus.ok ? '✅' : '❌'} {pwStatus.msg}</div>}
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Two-Factor Authentication */}
+      <div style={S.card}>
+        <div style={S.sectionTitle}>🛡️ TWO-FACTOR AUTHENTICATION</div>
+        <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.5)', marginBottom: 14, fontFamily: "'Share Tech Mono'", lineHeight: 1.6 }}>
+          Secure your unit login with TOTP. Use Google Authenticator or Authy to scan the QR code.
+        </div>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button onClick={handleSetup2FA} disabled={mfaLoading} style={{ ...S.btn('0,255,136'), opacity: mfaLoading ? 0.5 : 1 }}>
+            {mfaLoading ? '⏳ LOADING…' : '🔒 ENABLE 2FA'}
+          </button>
+          <button onClick={() => setDisable2FAConfirmAmb(true)} disabled={mfaLoading} style={{ ...S.btn('255,68,68'), opacity: mfaLoading ? 0.5 : 1 }}>
+            🔓 DISABLE 2FA
+          </button>
+        </div>
+        {mfaQR && (
+          <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontSize: 9, color: '#00ff88', fontFamily: "'Orbitron'", letterSpacing: '0.1em' }}>SCAN QR CODE WITH AUTHENTICATOR APP</div>
+            <img src={mfaQR} alt="MFA QR" style={{ width: 160, height: 160, background: '#fff', borderRadius: 6, padding: 4, border: '2px solid rgba(0,255,136,0.3)' }} />
+          </div>
+        )}
+        {mfaStatus && <div style={{ ...S.statusMsg(mfaStatus.ok), marginTop: 12 }}>{mfaStatus.ok ? '✅' : '❌'} {mfaStatus.msg}</div>}
+      </div>
+    </>
   );
 }
 

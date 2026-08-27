@@ -81,6 +81,21 @@ async function fetchORSRoute(origin, dest) {
 async function getSmartRoute(origin, dest) {
   if (!origin || !dest) return null;
 
+  // Priority 0: Mapbox Directions API with live traffic
+  const MAPBOX_TOKEN = process.env.MAPBOX_TOKEN;
+  if (MAPBOX_TOKEN) {
+    try {
+      const { getRealRoute } = require('../services/routing');
+      const routeData = await getRealRoute(origin.lat, origin.lng, dest.lat, dest.lng);
+      if (routeData && routeData.geometry && routeData.geometry.coordinates) {
+        console.log(`[ROUTING] Route fetched from Mapbox Traffic API (${routeData.geometry.coordinates.length} waypoints)`);
+        return routeData.geometry.coordinates.map(c => [c[1], c[0]]);
+      }
+    } catch (err) {
+      console.warn('[ROUTING] Mapbox Directions failed, trying fallbacks:', err.message);
+    }
+  }
+
   // Priority 1: Self-hosted OSRM
   if (SELF_HOSTED_OSRM) {
     try {
@@ -132,6 +147,20 @@ async function getSmartRoute(origin, dest) {
 async function getSmartRouteObjects(origin, dest) {
   if (!origin || !dest) return null;
 
+  // Priority 0: Mapbox Directions API with live traffic
+  const MAPBOX_TOKEN = process.env.MAPBOX_TOKEN;
+  if (MAPBOX_TOKEN) {
+    try {
+      const { getRealRoute } = require('../services/routing');
+      const routeData = await getRealRoute(origin.lat, origin.lng, dest.lat, dest.lng);
+      if (routeData && routeData.geometry && routeData.geometry.coordinates) {
+        return routeData.geometry.coordinates.map(c => ({ lat: c[1], lng: c[0] }));
+      }
+    } catch (err) {
+      console.warn('[ROUTING] Mapbox Objects Directions failed, trying fallbacks:', err.message);
+    }
+  }
+
   if (SELF_HOSTED_OSRM) {
     try {
       const route = await fetchOsrmRoute(SELF_HOSTED_OSRM, origin, dest);
@@ -164,6 +193,23 @@ async function getSmartRouteObjects(origin, dest) {
  * Get estimated transit duration and distance from best available routing engine.
  */
 async function getETA(originLat, originLng, destLat, destLng) {
+  // Priority 0: Mapbox Directions API with live traffic
+  const MAPBOX_TOKEN = process.env.MAPBOX_TOKEN;
+  if (MAPBOX_TOKEN) {
+    try {
+      const { getRealRoute } = require('../services/routing');
+      const routeData = await getRealRoute(originLat, originLng, destLat, destLng);
+      if (routeData) {
+        return {
+          etaMinutes: parseFloat((routeData.durationSeconds / 60).toFixed(1)),
+          distanceKm: parseFloat((routeData.distanceMeters / 1000).toFixed(2))
+        };
+      }
+    } catch (err) {
+      console.warn('[ROUTING] Mapbox ETA failed, trying fallbacks:', err.message);
+    }
+  }
+
   let congestionMultiplier = 1.0;
   const originKey = `${parseFloat(originLat).toFixed(3)}_${parseFloat(originLng).toFixed(3)}`;
   const destKey = `${parseFloat(destLat).toFixed(3)}_${parseFloat(destLng).toFixed(3)}`;

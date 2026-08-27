@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import LiveRouteMap from './LiveRouteMap';
 
+
 // Dynamic junction solver based on coordinates
 const getCityJunctions = (lat, lng) => {
   if (!lat || !lng) return {
@@ -374,7 +375,15 @@ export default function AIEmergencyCorridorDashboard({ socket, connected, onLogo
               ambulancePosition={ambulancePos}
               originMarker={patientPos}
               destinationMarker={hospitalPos}
-              junctions={junctions}
+              junctions={junctions.map((j, idx) => {
+                if (routePath && routePath.length > 0) {
+                  const fraction = (idx + 1) / (junctions.length + 1);
+                  const ptIdx = Math.floor(routePath.length * fraction);
+                  const coord = routePath[ptIdx] || routePath[routePath.length - 1];
+                  return { ...j, lat: coord.lat || coord[0], lng: coord.lng || coord[1] };
+                }
+                return j;
+              })}
               theme="dark"
               mode="corridor"
             />

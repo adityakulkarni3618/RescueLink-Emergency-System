@@ -6,9 +6,10 @@ const { server, startServer } = require('../server');
 // Mock db sync and models
 jest.mock('../utils/db', () => ({
   User: { findOne: jest.fn(), findByPk: jest.fn(), create: jest.fn().mockResolvedValue({}) },
-  Hospital: { findOne: jest.fn(), findByPk: jest.fn() },
+  Hospital: { findOne: jest.fn(), findByPk: jest.fn(), findAll: jest.fn().mockResolvedValue([]) },
   Patient: { findOne: jest.fn(), findByPk: jest.fn() },
-  Incident: { findOne: jest.fn(), findByPk: jest.fn(), findAll: jest.fn().mockResolvedValue([]), upsert: jest.fn() },
+  Incident: { findOne: jest.fn(), findByPk: jest.fn(), findAll: jest.fn().mockResolvedValue([]), update: jest.fn().mockResolvedValue([0]), upsert: jest.fn() },
+  Ambulance: { findOne: jest.fn(), findByPk: jest.fn(), findAll: jest.fn().mockResolvedValue([]) },
   AuditLog: { create: jest.fn() },
   sequelize: { authenticate: jest.fn().mockResolvedValue(true) },
   syncDatabase: jest.fn().mockResolvedValue(true)

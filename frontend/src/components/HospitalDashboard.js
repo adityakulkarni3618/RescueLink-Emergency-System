@@ -14,6 +14,7 @@ import HospitalAnalytics from './HospitalAnalytics';
 import BloodEmergencyNetwork from './BloodEmergencyNetwork';
 import { MfaVerifyScreen } from './MfaVerifyScreen';
 import AIEmergencyCorridorView from './AIEmergencyCorridorView';
+import LiveRouteMap from './LiveRouteMap';
 // THREE is dynamically imported inside ThreeDResuscitationMonitor to prevent TDZ crash
 
 
@@ -2052,14 +2053,20 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
         sessionStorage.setItem('rescuelink_token', data.token);
 
         // Find in local registry for UI metadata or fallback to response
-        const found = HOSPITAL_CREDENTIALS.find(c => c.hospitalId === inputId) || {
-          hospitalId: data.user?.hospital_id || inputId,
-          name: data.user?.role === 'doctor' ? 'Manipal Global Trauma Center' : 'Emergency Center',
-          adminName: data.user?.name || 'Dr. Command',
-          internalId: (data.user?.hospital_id || inputId).toLowerCase(),
-          lat: data.lat || 18.5204,
-          lng: data.lng || 73.8567
+        const found = {
+          ...(HOSPITAL_CREDENTIALS.find(c => c.hospitalId === inputId) || {
+            name: data.user?.role === 'doctor' ? 'Manipal Global Trauma Center' : 'Emergency Center',
+            adminName: data.user?.name || 'Dr. Command',
+            internalId: (data.user?.hospital_id || inputId).toLowerCase(),
+            lat: data.lat || 18.5204,
+            lng: data.lng || 73.8567
+          })
         };
+
+        // Always overwrite hospitalId with the real database UUID returned by the server
+        if (data.user?.hospital_id) {
+          found.hospitalId = data.user.hospital_id;
+        }
 
         setAuthHospital(found);
         setIsAuthenticated(true);
@@ -2129,14 +2136,20 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
 
     const finalInputId = loginId || user.hospital_id || 'HOSP-GENERIC';
 
-    const found = HOSPITAL_CREDENTIALS.find(c => c.hospitalId === finalInputId) || {
-      hospitalId: finalInputId,
-      name: user.role === 'doctor' ? 'Manipal Global Trauma Center' : 'Emergency Center',
-      adminName: user.name || 'Dr. Command',
-      internalId: finalInputId.toLowerCase(),
-      lat: user.lat || 18.5204,
-      lng: user.lng || 73.8567
+    const found = {
+      ...(HOSPITAL_CREDENTIALS.find(c => c.hospitalId === finalInputId) || {
+        name: user.role === 'doctor' ? 'Manipal Global Trauma Center' : 'Emergency Center',
+        adminName: user.name || 'Dr. Command',
+        internalId: finalInputId.toLowerCase(),
+        lat: user.lat || 18.5204,
+        lng: user.lng || 73.8567
+      })
     };
+
+    // Always overwrite hospitalId with the real database UUID returned by the server
+    if (user.hospital_id) {
+      found.hospitalId = user.hospital_id;
+    }
 
     setAuthHospital(found);
     setIsAuthenticated(true);
@@ -2481,7 +2494,7 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
         return { ...prev, [reqId]: { ...m, chartData: newChart, vitals } };
       });
 
-      if (reqId === activeMissionId) {
+      if (reqId && activeMissionId && reqId === activeMissionId) {
         setLatestVitals(vitals);
         setChartData(prev => [...prev.slice(-(MAX_HISTORY - 1)), { ...vitals, t: Date.now() }]);
 
@@ -3058,6 +3071,12 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
 
       {/* SIDEBAR NAVIGATION & MISSION SELECTOR */}
       {isAuthenticated && (
+        <div 
+          className={`sidebar-backdrop ${sidebarOpen ? 'open' : 'closed'}`} 
+          onClick={() => setSidebarOpen(false)} 
+        />
+      )}
+      {isAuthenticated && (
         <div className={`sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
           <div style={{ padding: '20px 10px 10px 10px', borderBottom: '1px solid rgba(0,200,255,0.1)', textAlign: 'center' }}>
             <div style={{ fontSize: 18, color: '#00c8ff', fontFamily: "'Orbitron'", fontWeight: 'bold' }}>RESCUELINK</div>
@@ -3246,7 +3265,19 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
           }
         }
 
+        .sidebar-backdrop {
+          display: none;
+        }
+
         @media (max-width: 768px) {
+          .sidebar-backdrop.open {
+            display: block;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 3, 12, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 998;
+          }
           .sidebar {
             position: absolute;
             left: 0;
@@ -4777,343 +4808,18 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
                 </div>
               )}
 
-              {activeTab === 'settings' && (() => {
-                // Local settings state — held inside an IIFE-rendered component to avoid polluting parent scope
-                const SettingsContent = () => {
-                  const [pwForm, setPwForm] = React.useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
-                  const [pwStatus, setPwStatus] = React.useState(null);
-                  const [pwLoading, setPwLoading] = React.useState(false);
-                  const [mfaStatus, setMfaStatus] = React.useState(null);
-                  const [mfaQR, setMfaQR] = React.useState(null);
-                  const [mfaLoading, setMfaLoading] = React.useState(false);
-                  const [disable2FAConfirmHosp, setDisable2FAConfirmHosp] = React.useState(false);
-                  const [notifPrefs, setNotifPrefs] = React.useState({ emailAlerts: true, smsAlerts: false, criticalOnly: false });
-                  const [saveStatus, setSaveStatus] = React.useState(null);
-
-                  const token = sessionStorage.getItem('rescuelink_token');
-                  const hdrs = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
-                  const hospitalDbId = authHospital?.hospitalId;
-
-                  const [profileForm, setProfileForm] = React.useState({
-                    name: authHospital?.name || '',
-                    city: authHospital?.city || '',
-                    state: authHospital?.state || '',
-                    lat: authHospital?.lat || '',
-                    lng: authHospital?.lng || '',
-                    contact_number: authHospital?.contact_number || '',
-                    total_beds: authHospital?.total_beds || 0,
-                    icu_beds: icuBeds || authHospital?.icu_beds || 0,
-                    ventilators: authHospital?.ventilators || 0,
-                    license_number: authHospital?.license_number || '',
-                    departments: [],
-                    bay_capacity: 5,
-                    trauma_tier: '',
-                    accreditation_id: ''
-                  });
-
-                  React.useEffect(() => {
-                    const fetchHospitalDetails = async () => {
-                      if (!hospitalDbId) return;
-                      try {
-                        const res = await fetch(`/api/hospitals/${hospitalDbId}`, { headers: hdrs });
-                        if (res.ok) {
-                          const data = await res.json();
-                          let depts = [];
-                          try {
-                            depts = data.departments ? (Array.isArray(data.departments) ? data.departments : JSON.parse(data.departments)) : [];
-                          } catch (e) {
-                            depts = data.departments || [];
-                          }
-                          setProfileForm({
-                            name: data.name || '',
-                            city: data.city || '',
-                            state: data.state || '',
-                            lat: data.lat || 0.0,
-                            lng: data.lng || 0.0,
-                            contact_number: data.contact_number || '',
-                            total_beds: data.total_beds || 0,
-                            icu_beds: data.icu_beds || 0,
-                            ventilators: data.ventilators || 0,
-                            license_number: data.license_number || '',
-                            departments: depts,
-                            bay_capacity: data.bay_capacity || 5,
-                            trauma_tier: data.trauma_tier || '',
-                            accreditation_id: data.accreditation_id || ''
-                          });
-                        }
-                      } catch (e) {
-                        console.error("Failed to fetch hospital details", e);
-                      }
-                    };
-                    fetchHospitalDetails();
-                  }, [hospitalDbId]);
-
-                  const S = {
-                    card: { background: 'rgba(5,15,40,0.85)', border: '1px solid rgba(0,200,255,0.15)', borderRadius: 10, padding: 24, marginBottom: 0 },
-                    label: { display: 'block', fontSize: 10, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.55)', marginBottom: 6, letterSpacing: '0.07em', textTransform: 'uppercase' },
-                    input: { width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none', fontSize: 13, boxSizing: 'border-box', fontFamily: "'Share Tech Mono'" },
-                    btn: (color) => ({ padding: '10px 22px', background: `rgba(${color},0.14)`, border: `1px solid rgba(${color},0.4)`, borderRadius: 8, color: `rgb(${color})`, fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer', letterSpacing: '0.06em', transition: 'all 0.2s' }),
-                    sectionTitle: { fontFamily: "'Orbitron'", fontSize: 13, color: '#00c8ff', fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 },
-                    statusMsg: (ok) => ({ marginTop: 10, padding: '8px 14px', borderRadius: 6, background: ok ? 'rgba(0,255,136,0.1)' : 'rgba(255,68,68,0.1)', border: `1px solid ${ok ? '#00ff88' : '#ff4444'}`, color: ok ? '#00ff88' : '#ff4444', fontSize: 11, fontFamily: "'Share Tech Mono'" })
-                  };
-
-                  const handleSaveProfile = async () => {
-                    try {
-                      const res = await fetch(`/api/hospitals/${hospitalDbId}`, {
-                        method: 'PUT', headers: hdrs,
-                        body: JSON.stringify(profileForm)
-                      });
-                      if (res.ok) {
-                        const data = await res.json();
-                        setSaveStatus({ ok: true, msg: 'Hospital profile updated and broadcast to network!' });
-                        setAuthHospital(prev => ({
-                          ...prev,
-                          name: data.name,
-                          lat: data.lat,
-                          lng: data.lng,
-                          ventilators: data.ventilators
-                        }));
-                        setHospitalGps({ lat: data.lat, lng: data.lng });
-                        setIcuBeds(data.icu_beds);
-                        if (socket) socket.emit('register-hospital', { hospitalId: data.id, name: data.name, adminName: authHospital.adminName, id: data.id, lat: data.lat, lng: data.lng, token });
-                      } else { const d = await res.json(); setSaveStatus({ ok: false, msg: d.error || 'Update failed' }); }
-                    } catch (err) { setSaveStatus({ ok: false, msg: 'Connection error' }); }
-                    setTimeout(() => setSaveStatus(null), 4000);
-                  };
-
-                  const handleChangePassword = async () => {
-                    if (pwForm.newPassword !== pwForm.confirmPassword) { setPwStatus({ ok: false, msg: 'Passwords do not match' }); return; }
-                    if (pwForm.newPassword.length < 6) { setPwStatus({ ok: false, msg: 'Password must be at least 6 characters' }); return; }
-                    setPwLoading(true);
-                    try {
-                      const res = await fetch(`/api/hospitals/${hospitalDbId}/change-password`, {
-                        method: 'POST', headers: hdrs,
-                        body: JSON.stringify({ currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword })
-                      });
-                      const d = await res.json();
-                      setPwStatus({ ok: res.ok, msg: d.message || d.error });
-                      if (res.ok) setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-                    } catch (err) { setPwStatus({ ok: false, msg: 'Connection error' }); }
-                    setPwLoading(false);
-                    setTimeout(() => setPwStatus(null), 5000);
-                  };
-
-                  const handleSetup2FA = async () => {
-                    setMfaLoading(true);
-                    try {
-                      const res = await fetch('/api/mfa/setup', { method: 'POST', headers: hdrs });
-                      const d = await res.json();
-                      if (res.ok) setMfaQR(d.qrCode);
-                      else setMfaStatus({ ok: false, msg: d.error || 'Setup failed' });
-                    } catch (err) { setMfaStatus({ ok: false, msg: 'Connection error' }); }
-                    setMfaLoading(false);
-                  };
-
-                  const handleDisable2FA = async () => {
-                    setDisable2FAConfirmHosp(false);
-                    setMfaLoading(true);
-                    try {
-                      const res = await fetch('/api/mfa/disable', { method: 'POST', headers: hdrs });
-                      const d = await res.json();
-                      setMfaStatus({ ok: res.ok, msg: d.message || d.error });
-                      setMfaQR(null);
-                    } catch (err) { setMfaStatus({ ok: false, msg: 'Connection error' }); }
-                    setMfaLoading(false);
-                    setTimeout(() => setMfaStatus(null), 5000);
-                  };
-
-                  return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-
-                      {/* 2FA Disable Confirm Modal */}
-                      {disable2FAConfirmHosp && (
-                        <div style={{ position: 'fixed', inset: 0, zIndex: 9999999, background: 'rgba(0,3,12,0.88)', backdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setDisable2FAConfirmHosp(false)}>
-                          <div style={{ background: 'rgba(8,18,42,0.98)', border: '1px solid rgba(255,68,68,0.4)', borderRadius: 14, padding: 30, maxWidth: 420, width: '90%', boxShadow: '0 0 40px rgba(255,68,68,0.1)' }} onClick={e => e.stopPropagation()}>
-                            <div style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#ff4444', fontWeight: 900, marginBottom: 8 }}>🔓 DISABLE 2FA</div>
-                            <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'", marginBottom: 20, lineHeight: 1.65 }}>
-                              Removing 2FA will leave your hospital account protected only by your password.<br /><br />
-                              <strong style={{ color: '#ffb800' }}>This reduces security significantly.</strong>
-                            </div>
-                            <div style={{ display: 'flex', gap: 12 }}>
-                              <button onClick={handleDisable2FA} style={{ flex: 1, padding: '10px', background: 'rgba(255,40,40,0.14)', border: '1px solid rgba(255,40,40,0.5)', borderRadius: 8, color: '#ff4444', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>
-                                🔓 YES, DISABLE 2FA
-                              </button>
-                              <button onClick={() => setDisable2FAConfirmHosp(false)} style={{ flex: 1, padding: '10px', background: 'transparent', border: '1px solid rgba(160,200,255,0.15)', borderRadius: 8, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer' }}>
-                                CANCEL
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 1. Edit Hospital Profile */}
-                      <div style={S.card}>
-                        <div style={S.sectionTitle}>🏥 Edit Hospital Profile</div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                          <div style={{ gridColumn: '1 / -1' }}>
-                            <label style={S.label}>Hospital Name</label>
-                            <input style={S.input} value={profileForm.name} onChange={e => setProfileForm({ ...profileForm, name: e.target.value })} />
-                          </div>
-                          <div>
-                            <label style={S.label}>City</label>
-                            <input style={S.input} value={profileForm.city} onChange={e => setProfileForm({ ...profileForm, city: e.target.value })} />
-                          </div>
-                          <div>
-                            <label style={S.label}>State</label>
-                            <input style={S.input} value={profileForm.state} onChange={e => setProfileForm({ ...profileForm, state: e.target.value })} />
-                          </div>
-                          <div>
-                            <label style={S.label}>Latitude</label>
-                            <input type="number" step="0.0001" style={S.input} value={profileForm.lat} onChange={e => setProfileForm({ ...profileForm, lat: parseFloat(e.target.value) || 0.0 })} />
-                          </div>
-                          <div>
-                            <label style={S.label}>Longitude</label>
-                            <input type="number" step="0.0001" style={S.input} value={profileForm.lng} onChange={e => setProfileForm({ ...profileForm, lng: parseFloat(e.target.value) || 0.0 })} />
-                          </div>
-                          <div>
-                            <label style={S.label}>Contact Number</label>
-                            <input style={S.input} value={profileForm.contact_number} onChange={e => setProfileForm({ ...profileForm, contact_number: e.target.value })} />
-                          </div>
-                          <div>
-                            <label style={S.label}>Total Beds</label>
-                            <input type="number" style={S.input} value={profileForm.total_beds} onChange={e => setProfileForm({ ...profileForm, total_beds: parseInt(e.target.value) || 0 })} />
-                          </div>
-                          <div>
-                            <label style={S.label}>Total ICU Beds</label>
-                            <input type="number" style={S.input} value={profileForm.icu_beds} onChange={e => setProfileForm({ ...profileForm, icu_beds: parseInt(e.target.value) || 0 })} />
-                          </div>
-                          <div>
-                            <label style={S.label}>Ventilators Available</label>
-                            <input type="number" style={S.input} value={profileForm.ventilators} onChange={e => setProfileForm({ ...profileForm, ventilators: parseInt(e.target.value) || 0 })} />
-                          </div>
-                          <div>
-                            <label style={S.label}>License Number</label>
-                            <input style={S.input} value={profileForm.license_number} onChange={e => setProfileForm({ ...profileForm, license_number: e.target.value })} />
-                          </div>
-                          <div>
-                            <label style={S.label}>Accreditation ID</label>
-                            <input style={S.input} value={profileForm.accreditation_id} onChange={e => setProfileForm({ ...profileForm, accreditation_id: e.target.value })} />
-                          </div>
-                          <div>
-                            <label style={S.label}>Emergency Bay Capacity</label>
-                            <input type="number" style={S.input} value={profileForm.bay_capacity} onChange={e => setProfileForm({ ...profileForm, bay_capacity: parseInt(e.target.value) || 0 })} />
-                          </div>
-                          <div>
-                            <label style={S.label}>Trauma Tier</label>
-                            <select style={S.input} value={profileForm.trauma_tier} onChange={e => setProfileForm({ ...profileForm, trauma_tier: e.target.value })}>
-                              <option value="">-- Select Tier --</option>
-                              <option value="Tier-1">Level 1 — Comprehensive Trauma Center</option>
-                              <option value="Tier-2">Level 2 — Major Trauma Center</option>
-                              <option value="Tier-3">Level 3 — General Emergency Room</option>
-                            </select>
-                          </div>
-                          <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
-                            <label style={S.label}>Active Departments</label>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-                              {['Cardiology', 'Neurology', 'Orthopedics', 'Pediatrics', 'Burn Unit', 'ICU'].map(dept => {
-                                const checked = profileForm.departments.includes(dept);
-                                return (
-                                  <label key={dept} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#e0eaff', cursor: 'pointer' }}>
-                                    <input 
-                                      type="checkbox" 
-                                      checked={checked} 
-                                      onChange={() => {
-                                        if (checked) {
-                                          setProfileForm(p => ({ ...p, departments: p.departments.filter(item => item !== dept) }));
-                                        } else {
-                                          setProfileForm(p => ({ ...p, departments: [...p.departments, dept] }));
-                                        }
-                                      }} 
-                                    />
-                                    {dept}
-                                  </label>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        </div>
-                        <div style={{ marginTop: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
-                          <button onClick={handleSaveProfile} style={S.btn('0,200,255')}>💾 SAVE PROFILE & BROADCAST</button>
-                          {saveStatus && <div style={S.statusMsg(saveStatus.ok)}>{saveStatus.ok ? '✅' : '❌'} {saveStatus.msg}</div>}
-                        </div>
-                      </div>
-
-                      {/* 2. Change Login Credentials */}
-                      <div style={S.card}>
-                        <div style={S.sectionTitle}>🔑 Change Login Credentials</div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 460 }}>
-                          <div>
-                            <label style={S.label}>Current Password</label>
-                            <input type="password" style={S.input} placeholder="Enter current password" value={pwForm.currentPassword} onChange={e => setPwForm(p => ({ ...p, currentPassword: e.target.value }))} />
-                          </div>
-                          <div>
-                            <label style={S.label}>New Password</label>
-                            <input type="password" style={S.input} placeholder="Min. 6 characters" value={pwForm.newPassword} onChange={e => setPwForm(p => ({ ...p, newPassword: e.target.value }))} />
-                          </div>
-                          <div>
-                            <label style={S.label}>Confirm New Password</label>
-                            <input type="password" style={S.input} placeholder="Repeat new password" value={pwForm.confirmPassword} onChange={e => setPwForm(p => ({ ...p, confirmPassword: e.target.value }))} />
-                          </div>
-                          <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 4 }}>
-                            <button onClick={handleChangePassword} disabled={pwLoading} style={{ ...S.btn('255,184,0'), opacity: pwLoading ? 0.5 : 1 }}>
-                              {pwLoading ? 'UPDATING…' : '🔐 UPDATE PASSWORD'}
-                            </button>
-                            {pwStatus && <div style={S.statusMsg(pwStatus.ok)}>{pwStatus.ok ? '✅' : '❌'} {pwStatus.msg}</div>}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 3. Two-Factor Authentication */}
-                      <div style={S.card}>
-                        <div style={S.sectionTitle}>🛡️ Two-Factor Authentication (TOTP)</div>
-                        <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.55)', marginBottom: 16, fontFamily: "'Share Tech Mono'", lineHeight: 1.6 }}>
-                          TOTP-based 2FA adds an extra layer of security. Scan the QR code below with an authenticator app (Google Authenticator, Authy, etc.).
-                        </div>
-                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-                          <button onClick={handleSetup2FA} disabled={mfaLoading} style={{ ...S.btn('0,255,136'), opacity: mfaLoading ? 0.5 : 1 }}>
-                            {mfaLoading ? '⏳ LOADING…' : '🔒 ENABLE 2FA — Generate QR'}
-                          </button>
-                          <button onClick={() => setDisable2FAConfirmHosp(true)} disabled={mfaLoading} style={{ ...S.btn('255,68,68'), opacity: mfaLoading ? 0.5 : 1 }}>
-                            🔓 DISABLE 2FA
-                          </button>
-                        </div>
-                        {mfaQR && (
-                          <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 10 }}>
-                            <div style={{ fontSize: 10, color: '#00ff88', fontFamily: "'Orbitron'", letterSpacing: '0.08em' }}>SCAN WITH YOUR AUTHENTICATOR APP</div>
-                            <img src={mfaQR} alt="2FA QR Code" style={{ width: 180, height: 180, borderRadius: 8, border: '2px solid rgba(0,255,136,0.3)', background: '#fff', padding: 4 }} />
-                            <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>After scanning, enter the 6-digit code from your app at next login.</div>
-                          </div>
-                        )}
-                        {mfaStatus && <div style={{ ...S.statusMsg(mfaStatus.ok), marginTop: 14 }}>{mfaStatus.ok ? '✅' : '❌'} {mfaStatus.msg}</div>}
-                      </div>
-
-                      {/* 4. Notification Preferences */}
-                      <div style={S.card}>
-                        <div style={S.sectionTitle}>🔔 Notification Preferences</div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                          {[['emailAlerts', 'Email Alerts for new emergency requests'], ['smsAlerts', 'SMS/Push Alerts (requires mobile verified)'], ['criticalOnly', 'Critical incidents only (suppress routine alerts)']].map(([key, label]) => (
-                            <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
-                              <div onClick={() => setNotifPrefs(p => ({ ...p, [key]: !p[key] }))} style={{ width: 42, height: 24, borderRadius: 12, background: notifPrefs[key] ? 'rgba(0,200,255,0.35)' : 'rgba(0,0,0,0.4)', border: `1px solid ${notifPrefs[key] ? '#00c8ff' : 'rgba(255,255,255,0.1)'}`, position: 'relative', cursor: 'pointer', transition: 'all 0.2s', flexShrink: 0 }}>
-                                <div style={{ position: 'absolute', top: 3, left: notifPrefs[key] ? 20 : 3, width: 16, height: 16, borderRadius: '50%', background: notifPrefs[key] ? '#00c8ff' : 'rgba(160,200,255,0.3)', transition: 'left 0.2s' }} />
-                              </div>
-                              <span style={{ fontSize: 12, color: notifPrefs[key] ? '#e0eaff' : 'rgba(160,200,255,0.45)', fontFamily: "'Share Tech Mono'" }}>{label}</span>
-                            </label>
-                          ))}
-                          <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.3)', fontFamily: "'Share Tech Mono'", marginTop: 4 }}>
-                            Note: Notification delivery requires backend email/SMS integration. Preferences are saved locally.
-                          </div>
-                        </div>
-                      </div>
-
-                    </div>
-                  );
-                };
-                return (
-                  <div style={{ flex: 1, padding: 24, overflowY: 'auto' }}>
-                    <SettingsContent key="hospital-settings-panel" />
-                  </div>
-                );
-              })()}
+              {activeTab === 'settings' && (
+                <div style={{ flex: 1, padding: 24, overflowY: 'auto' }}>
+                  <HospitalProfileSettings
+                    authHospital={authHospital}
+                    setAuthHospital={setAuthHospital}
+                    setHospitalGps={setHospitalGps}
+                    setIcuBeds={setIcuBeds}
+                    socket={socket}
+                    icuBeds={icuBeds}
+                  />
+                </div>
+              )}
             
             </div>
           </div>
@@ -5357,6 +5063,334 @@ function ThreeDResuscitationMonitor({ vitals }) {
         <span>HR Pulse: {vitals?.heartRate || '--'} bpm</span>
         <span>RR Expansion: {vitals?.respRate || '--'} br/min</span>
         <span>SpO2 Cyanosis check: {vitals?.spo2 || '--'}%</span>
+      </div>
+    </div>
+  );
+}
+
+function HospitalProfileSettings({ authHospital, setAuthHospital, setHospitalGps, setIcuBeds, socket, icuBeds }) {
+  const [pwForm, setPwForm] = React.useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [pwStatus, setPwStatus] = React.useState(null);
+  const [pwLoading, setPwLoading] = React.useState(false);
+  const [mfaStatus, setMfaStatus] = React.useState(null);
+  const [mfaQR, setMfaQR] = React.useState(null);
+  const [mfaLoading, setMfaLoading] = React.useState(false);
+  const [disable2FAConfirmHosp, setDisable2FAConfirmHosp] = React.useState(false);
+  const [notifPrefs, setNotifPrefs] = React.useState({ emailAlerts: true, smsAlerts: false, criticalOnly: false });
+  const [saveStatus, setSaveStatus] = React.useState(null);
+
+  const token = sessionStorage.getItem('rescuelink_token');
+  const hdrs = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+  const hospitalDbId = authHospital?.hospitalId;
+
+  const [profileForm, setProfileForm] = React.useState({
+    name: authHospital?.name || '',
+    city: authHospital?.city || '',
+    state: authHospital?.state || '',
+    lat: authHospital?.lat || '',
+    lng: authHospital?.lng || '',
+    contact_number: authHospital?.contact_number || '',
+    total_beds: authHospital?.total_beds || 0,
+    icu_beds: icuBeds || authHospital?.icu_beds || 0,
+    ventilators: authHospital?.ventilators || 0,
+    license_number: authHospital?.license_number || '',
+    departments: [],
+    bay_capacity: 5,
+    trauma_tier: '',
+    accreditation_id: ''
+  });
+
+  React.useEffect(() => {
+    const fetchHospitalDetails = async () => {
+      if (!hospitalDbId) return;
+      try {
+        const res = await fetch(`/api/hospitals/${hospitalDbId}`, { headers: hdrs });
+        if (res.ok) {
+          const data = await res.json();
+          let depts = [];
+          try {
+            depts = data.departments ? (Array.isArray(data.departments) ? data.departments : JSON.parse(data.departments)) : [];
+          } catch (e) {
+            depts = data.departments || [];
+          }
+          setProfileForm({
+            name: data.name || '',
+            city: data.city || '',
+            state: data.state || '',
+            lat: data.lat || 0.0,
+            lng: data.lng || 0.0,
+            contact_number: data.contact_number || '',
+            total_beds: data.total_beds || 0,
+            icu_beds: data.icu_beds || 0,
+            ventilators: data.ventilators || 0,
+            license_number: data.license_number || '',
+            departments: depts,
+            bay_capacity: data.bay_capacity || 5,
+            trauma_tier: data.trauma_tier || '',
+            accreditation_id: data.accreditation_id || ''
+          });
+        }
+      } catch (e) {
+        console.error("Failed to fetch hospital details", e);
+      }
+    };
+    fetchHospitalDetails();
+  }, [hospitalDbId]);
+
+  const S = {
+    card: { background: 'rgba(5,15,40,0.85)', border: '1px solid rgba(0,200,255,0.15)', borderRadius: 10, padding: 24, marginBottom: 0 },
+    label: { display: 'block', fontSize: 10, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.55)', marginBottom: 6, letterSpacing: '0.07em', textTransform: 'uppercase' },
+    input: { width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: 12, color: '#fff', outline: 'none', fontSize: 13, boxSizing: 'border-box', fontFamily: "'Share Tech Mono'" },
+    btn: (color) => ({ padding: '10px 22px', background: `rgba(${color},0.14)`, border: `1px solid rgba(${color},0.4)`, borderRadius: 8, color: `rgb(${color})`, fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer', letterSpacing: '0.06em', transition: 'all 0.2s' }),
+    sectionTitle: { fontFamily: "'Orbitron'", fontSize: 13, color: '#00c8ff', fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 },
+    statusMsg: (ok) => ({ marginTop: 10, padding: '8px 14px', borderRadius: 6, background: ok ? 'rgba(0,255,136,0.1)' : 'rgba(255,68,68,0.1)', border: `1px solid ${ok ? '#00ff88' : '#ff4444'}`, color: ok ? '#00ff88' : '#ff4444', fontSize: 11, fontFamily: "'Share Tech Mono'" })
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      const res = await fetch(`/api/hospitals/${hospitalDbId}`, {
+        method: 'PUT', headers: hdrs,
+        body: JSON.stringify(profileForm)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSaveStatus({ ok: true, msg: 'Hospital profile updated and broadcast to network!' });
+        setAuthHospital(prev => ({
+          ...prev,
+          name: data.name,
+          lat: data.lat,
+          lng: data.lng,
+          ventilators: data.ventilators
+        }));
+        setHospitalGps({ lat: data.lat, lng: data.lng });
+        setIcuBeds(data.icu_beds);
+        if (socket) socket.emit('register-hospital', { hospitalId: data.id, name: data.name, adminName: authHospital.adminName, id: data.id, lat: data.lat, lng: data.lng, token });
+      } else { const d = await res.json(); setSaveStatus({ ok: false, msg: d.error || 'Update failed' }); }
+    } catch (err) { setSaveStatus({ ok: false, msg: 'Connection error' }); }
+    setTimeout(() => setSaveStatus(null), 4000);
+  };
+
+  const handleChangePassword = async () => {
+    if (pwForm.newPassword !== pwForm.confirmPassword) { setPwStatus({ ok: false, msg: 'Passwords do not match' }); return; }
+    if (pwForm.newPassword.length < 6) { setPwStatus({ ok: false, msg: 'Password must be at least 6 characters' }); return; }
+    setPwLoading(true);
+    try {
+      const res = await fetch(`/api/hospitals/${hospitalDbId}/change-password`, {
+        method: 'POST', headers: hdrs,
+        body: JSON.stringify({ currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword })
+      });
+      const d = await res.json();
+      setPwStatus({ ok: res.ok, msg: d.message || d.error });
+      if (res.ok) setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (err) { setPwStatus({ ok: false, msg: 'Connection error' }); }
+    setPwLoading(false);
+    setTimeout(() => setPwStatus(null), 5000);
+  };
+
+  const handleSetup2FA = async () => {
+    setMfaLoading(true);
+    try {
+      const res = await fetch('/api/mfa/setup', { method: 'POST', headers: hdrs });
+      const d = await res.json();
+      if (res.ok) setMfaQR(d.qrCode);
+      else setMfaStatus({ ok: false, msg: d.error || 'Setup failed' });
+    } catch (err) { setMfaStatus({ ok: false, msg: 'Connection error' }); }
+    setMfaLoading(false);
+  };
+
+  const handleDisable2FA = async () => {
+    setDisable2FAConfirmHosp(false);
+    setMfaLoading(true);
+    try {
+      const res = await fetch('/api/mfa/disable', { method: 'POST', headers: hdrs });
+      const d = await res.json();
+      setMfaStatus({ ok: res.ok, msg: d.message || d.error });
+      setMfaQR(null);
+    } catch (err) { setMfaStatus({ ok: false, msg: 'Connection error' }); }
+    setMfaLoading(false);
+    setTimeout(() => setMfaStatus(null), 5000);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* 2FA Disable Confirm Modal */}
+      {disable2FAConfirmHosp && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999999, background: 'rgba(0,3,12,0.88)', backdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setDisable2FAConfirmHosp(false)}>
+          <div style={{ background: 'rgba(8,18,42,0.98)', border: '1px solid rgba(255,68,68,0.4)', borderRadius: 14, padding: 30, maxWidth: 420, width: '90%', boxShadow: '0 0 40px rgba(255,68,68,0.1)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#ff4444', fontWeight: 900, marginBottom: 8 }}>🔓 DISABLE 2FA</div>
+            <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'", marginBottom: 20, lineHeight: 1.65 }}>
+              Removing 2FA will leave your hospital account protected only by your password.<br /><br />
+              <strong style={{ color: '#ffb800' }}>This reduces security significantly.</strong>
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button onClick={handleDisable2FA} style={{ flex: 1, padding: '10px', background: 'rgba(255,40,40,0.14)', border: '1px solid rgba(255,40,40,0.5)', borderRadius: 8, color: '#ff4444', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>
+                🔓 YES, DISABLE 2FA
+              </button>
+              <button onClick={() => setDisable2FAConfirmHosp(false)} style={{ flex: 1, padding: '10px', background: 'transparent', border: '1px solid rgba(160,200,255,0.15)', borderRadius: 8, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer' }}>
+                CANCEL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 1. Edit Hospital Profile */}
+      <div style={S.card}>
+        <div style={S.sectionTitle}>🏥 Edit Hospital Profile</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <label style={S.label}>Hospital Name</label>
+            <input style={S.input} value={profileForm.name} onChange={e => setProfileForm({ ...profileForm, name: e.target.value })} />
+          </div>
+          <div>
+            <label style={S.label}>City</label>
+            <input style={S.input} value={profileForm.city} onChange={e => setProfileForm({ ...profileForm, city: e.target.value })} />
+          </div>
+          <div>
+            <label style={S.label}>State</label>
+            <input style={S.input} value={profileForm.state} onChange={e => setProfileForm({ ...profileForm, state: e.target.value })} />
+          </div>
+          <div>
+            <label style={S.label}>Latitude</label>
+            <input type="number" step="0.0001" style={S.input} value={profileForm.lat} onChange={e => setProfileForm({ ...profileForm, lat: parseFloat(e.target.value) || 0.0 })} />
+          </div>
+          <div>
+            <label style={S.label}>Longitude</label>
+            <input type="number" step="0.0001" style={S.input} value={profileForm.lng} onChange={e => setProfileForm({ ...profileForm, lng: parseFloat(e.target.value) || 0.0 })} />
+          </div>
+          <div>
+            <label style={S.label}>Contact Number</label>
+            <input style={S.input} value={profileForm.contact_number} onChange={e => setProfileForm({ ...profileForm, contact_number: e.target.value })} />
+          </div>
+          <div>
+            <label style={S.label}>Total Beds</label>
+            <input type="number" style={S.input} value={profileForm.total_beds} onChange={e => setProfileForm({ ...profileForm, total_beds: parseInt(e.target.value) || 0 })} />
+          </div>
+          <div>
+            <label style={S.label}>Total ICU Beds</label>
+            <input type="number" style={S.input} value={profileForm.icu_beds} onChange={e => setProfileForm({ ...profileForm, icu_beds: parseInt(e.target.value) || 0 })} />
+          </div>
+          <div>
+            <label style={S.label}>Ventilators Available</label>
+            <input type="number" style={S.input} value={profileForm.ventilators} onChange={e => setProfileForm({ ...profileForm, ventilators: parseInt(e.target.value) || 0 })} />
+          </div>
+          <div>
+            <label style={S.label}>License Number</label>
+            <input style={S.input} value={profileForm.license_number} onChange={e => setProfileForm({ ...profileForm, license_number: e.target.value })} />
+          </div>
+          <div>
+            <label style={S.label}>Accreditation ID</label>
+            <input style={S.input} value={profileForm.accreditation_id} onChange={e => setProfileForm({ ...profileForm, accreditation_id: e.target.value })} />
+          </div>
+          <div>
+            <label style={S.label}>Emergency Bay Capacity</label>
+            <input type="number" style={S.input} value={profileForm.bay_capacity} onChange={e => setProfileForm({ ...profileForm, bay_capacity: parseInt(e.target.value) || 0 })} />
+          </div>
+          <div>
+            <label style={S.label}>Trauma Tier</label>
+            <select style={S.input} value={profileForm.trauma_tier} onChange={e => setProfileForm({ ...profileForm, trauma_tier: e.target.value })}>
+              <option value="">-- Select Tier --</option>
+              <option value="Tier-1">Level 1 — Comprehensive Trauma Center</option>
+              <option value="Tier-2">Level 2 — Major Trauma Center</option>
+              <option value="Tier-3">Level 3 — General Emergency Room</option>
+            </select>
+          </div>
+          <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+            <label style={S.label}>Active Departments</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+              {['Cardiology', 'Neurology', 'Orthopedics', 'Pediatrics', 'Burn Unit', 'ICU'].map(dept => {
+                const checked = profileForm.departments.includes(dept);
+                return (
+                  <label key={dept} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#e0eaff', cursor: 'pointer' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={checked} 
+                      onChange={() => {
+                        if (checked) {
+                          setProfileForm(p => ({ ...p, departments: p.departments.filter(item => item !== dept) }));
+                        } else {
+                          setProfileForm(p => ({ ...p, departments: [...p.departments, dept] }));
+                        }
+                      }} 
+                    />
+                    {dept}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+        <div style={{ marginTop: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
+          <button onClick={handleSaveProfile} style={S.btn('0,200,255')}>💾 SAVE PROFILE & BROADCAST</button>
+          {saveStatus && <div style={S.statusMsg(saveStatus.ok)}>{saveStatus.ok ? '✅' : '❌'} {saveStatus.msg}</div>}
+        </div>
+      </div>
+
+      {/* 2. Change Login Credentials */}
+      <div style={S.card}>
+        <div style={S.sectionTitle}>🔑 Change Login Credentials</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 460 }}>
+          <div>
+            <label style={S.label}>Current Password</label>
+            <input type="password" style={S.input} placeholder="Enter current password" value={pwForm.currentPassword} onChange={e => setPwForm(p => ({ ...p, currentPassword: e.target.value }))} />
+          </div>
+          <div>
+            <label style={S.label}>New Password</label>
+            <input type="password" style={S.input} placeholder="Min. 6 characters" value={pwForm.newPassword} onChange={e => setPwForm(p => ({ ...p, newPassword: e.target.value }))} />
+          </div>
+          <div>
+            <label style={S.label}>Confirm New Password</label>
+            <input type="password" style={S.input} placeholder="Repeat new password" value={pwForm.confirmPassword} onChange={e => setPwForm(p => ({ ...p, confirmPassword: e.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 4 }}>
+            <button onClick={handleChangePassword} disabled={pwLoading} style={{ ...S.btn('255,184,0'), opacity: pwLoading ? 0.5 : 1 }}>
+              {pwLoading ? 'UPDATING…' : '🔐 UPDATE PASSWORD'}
+            </button>
+            {pwStatus && <div style={S.statusMsg(pwStatus.ok)}>{pwStatus.ok ? '✅' : '❌'} {pwStatus.msg}</div>}
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Two-Factor Authentication */}
+      <div style={S.card}>
+        <div style={S.sectionTitle}>🛡️ Two-Factor Authentication (TOTP)</div>
+        <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.55)', marginBottom: 16, fontFamily: "'Share Tech Mono'", lineHeight: 1.6 }}>
+          TOTP-based 2FA adds an extra layer of security. Scan the QR code below with an authenticator app (Google Authenticator, Authy, etc.).
+        </div>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          <button onClick={handleSetup2FA} disabled={mfaLoading} style={{ ...S.btn('0,255,136'), opacity: mfaLoading ? 0.5 : 1 }}>
+            {mfaLoading ? '⏳ LOADING…' : '🔒 ENABLE 2FA — Generate QR'}
+          </button>
+          <button onClick={() => setDisable2FAConfirmHosp(true)} disabled={mfaLoading} style={{ ...S.btn('255,68,68'), opacity: mfaLoading ? 0.5 : 1 }}>
+            🔓 DISABLE 2FA
+          </button>
+        </div>
+        {mfaQR && (
+          <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 10 }}>
+            <div style={{ fontSize: 10, color: '#00ff88', fontFamily: "'Orbitron'", letterSpacing: '0.08em' }}>SCAN WITH YOUR AUTHENTICATOR APP</div>
+            <img src={mfaQR} alt="2FA QR Code" style={{ width: 180, height: 180, borderRadius: 8, border: '2px solid rgba(0,255,136,0.3)', background: '#fff', padding: 4 }} />
+            <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>After scanning, enter the 6-digit code from your app at next login.</div>
+          </div>
+        )}
+        {mfaStatus && <div style={{ ...S.statusMsg(mfaStatus.ok), marginTop: 14 }}>{mfaStatus.ok ? '✅' : '❌'} {mfaStatus.msg}</div>}
+      </div>
+
+      {/* 4. Notification Preferences */}
+      <div style={S.card}>
+        <div style={S.sectionTitle}>🔔 Notification Preferences</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {[['emailAlerts', 'Email Alerts for new emergency requests'], ['smsAlerts', 'SMS/Push Alerts (requires mobile verified)'], ['criticalOnly', 'Critical incidents only (suppress routine alerts)']].map(([key, label]) => (
+            <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+              <div onClick={() => setNotifPrefs(p => ({ ...p, [key]: !p[key] }))} style={{ width: 42, height: 24, borderRadius: 12, background: notifPrefs[key] ? 'rgba(0,200,255,0.35)' : 'rgba(0,0,0,0.4)', border: `1px solid ${notifPrefs[key] ? '#00c8ff' : 'rgba(255,255,255,0.1)'}`, position: 'relative', cursor: 'pointer', transition: 'all 0.2s', flexShrink: 0 }}>
+                <div style={{ position: 'absolute', top: 3, left: notifPrefs[key] ? 20 : 3, width: 16, height: 16, borderRadius: '50%', background: notifPrefs[key] ? '#00c8ff' : 'rgba(160,200,255,0.3)', transition: 'left 0.2s' }} />
+              </div>
+              <span style={{ fontSize: 12, color: notifPrefs[key] ? '#e0eaff' : 'rgba(160,200,255,0.45)', fontFamily: "'Share Tech Mono'" }}>{label}</span>
+            </label>
+          ))}
+          <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.3)', fontFamily: "'Share Tech Mono'", marginTop: 4 }}>
+            Note: Notification delivery requires backend email/SMS integration. Preferences are saved locally.
+          </div>
+        </div>
       </div>
     </div>
   );

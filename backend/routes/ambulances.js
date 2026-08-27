@@ -283,7 +283,8 @@ router.get('/:id', async (req, res) => {
     if (!amb) {
       return res.status(404).json({ error: 'Ambulance not found' });
     }
-    return res.json(amb);
+    // Return plain JSON so all snake_case fields (equipment_checklist, crew_members, etc.) are included
+    return res.json(amb.toJSON ? amb.toJSON() : amb);
   } catch (err) {
     console.error('[AMBULANCES API] Fetch single error:', err.message);
     return res.status(500).json({ error: 'Failed to fetch ambulance' });

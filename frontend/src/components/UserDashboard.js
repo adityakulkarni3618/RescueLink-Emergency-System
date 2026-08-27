@@ -1431,6 +1431,7 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
           }}>
             LOCATION: {locationMethod}
           </div>
+
           <LiveRouteMap
             routeGeometry={routePath ? { type: 'LineString', coordinates: routePath.map(p => [p.lng || p[1], p.lat || p[0]]) } : null}
             ambulancePosition={liveAmbulanceLoc}
@@ -1609,318 +1610,31 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
         </div>
       )}
 
+      {/* Patient Health Portal */}
+      {showPatientPortal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,5,20,0.95)', backdropFilter: 'blur(10px)', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(0,200,255,0.2)', display: 'flex', justifyContent: 'flex-start', background: 'rgba(5, 10, 28, 0.95)' }}>
+            <button onClick={() => routeTo('')} style={{ background: 'rgba(255,68,68,0.1)', border: '1px solid rgba(255,68,68,0.3)', borderRadius: 8, padding: '6px 14px', color: '#ff4444', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 11 }}>✕ CLOSE PORTAL</button>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', background: 'rgba(0,3,12,0.95)' }}>
+            <PatientPortal />
+          </div>
+        </div>
+      )}
+
       {/* ⚙️ PATIENT ACCOUNT SETTINGS */}
-      {showAccountSettings && (() => {
-        const AccountSettingsPanel = () => {
-          const [profileForm, setProfileForm] = React.useState({
-            name: patientData.name || '',
-            mobile: patientData.mobile || '',
-            bloodGroup: patientData.bloodGroup || '',
-            allergies: patientData.allergies || '',
-            chronicConditions: patientData.chronicConditions || '',
-            dob: patientData.dob || '',
-            gender: patientData.gender || '',
-            emergencyContactName: patientData.emergencyContactName || '',
-            emergencyContactRelationship: patientData.emergencyContactRelationship || '',
-            emergencyContactPhone: patientData.emergencyContactPhone || '',
-            insuranceProvider: patientData.insuranceProvider || '',
-            policyNumber: patientData.policyNumber || '',
-            abhaNumber: patientData.abhaNumber || '',
-            abhaAddress: patientData.abhaAddress || ''
-          });
-          const [profileStatus, setProfileStatus] = React.useState(null);
-          const [profileLoading, setProfileLoading] = React.useState(false);
-          const [pwForm, setPwForm] = React.useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
-          const [pwStatus, setPwStatus] = React.useState(null);
-          const [pwLoading, setPwLoading] = React.useState(false);
-          const [mfaQR, setMfaQR] = React.useState(null);
-          const [mfaStatus, setMfaStatus] = React.useState(null);
-          const [mfaLoading, setMfaLoading] = React.useState(false);
-          const [disable2FAConfirmUD, setDisable2FAConfirmUD] = React.useState(false);
-
-          const token = sessionStorage.getItem('rescuelink_token') || '';
-          const hdrs = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
-
-          React.useEffect(() => {
-            const fetchUserProfile = async () => {
-              try {
-                const res = await fetch('/api/auth/me', { headers: hdrs });
-                if (res.ok) {
-                  const data = await res.json();
-                  setProfileForm({
-                    name: data.name || '',
-                    mobile: data.mobile || '',
-                    bloodGroup: data.blood_group || '',
-                    allergies: data.allergies || '',
-                    chronicConditions: data.chronic_conditions || '',
-                    dob: data.dob || '',
-                    gender: data.gender || '',
-                    emergencyContactName: data.emergency_contact_name || '',
-                    emergencyContactRelationship: data.emergency_contact_relationship || '',
-                    emergencyContactPhone: data.emergency_contact_phone || '',
-                    insuranceProvider: data.insurance_provider || '',
-                    policyNumber: data.policy_number || '',
-                    abhaNumber: data.abha_number || '',
-                    abhaAddress: data.abha_address || ''
-                  });
-                }
-              } catch (e) {
-                console.error("Failed to fetch full user profile", e);
-              }
-            };
-            fetchUserProfile();
-          }, []);
-
-          const S = {
-            card: { background: 'rgba(5,15,40,0.85)', border: '1px solid rgba(0,200,255,0.15)', borderRadius: 12, padding: 24, marginBottom: 20 },
-            label: { display: 'block', fontSize: 10, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.55)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em' },
-            input: { width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: '11px 14px', color: '#fff', outline: 'none', fontSize: 13, boxSizing: 'border-box', fontFamily: "'Share Tech Mono'" },
-            btn: (color) => ({ padding: '10px 22px', background: `rgba(${color},0.14)`, border: `1px solid rgba(${color},0.4)`, borderRadius: 8, color: `rgb(${color})`, fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer', letterSpacing: '0.06em' }),
-            sectionTitle: { fontFamily: "'Orbitron'", fontSize: 13, color: '#00c8ff', fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 },
-            statusMsg: (ok) => ({ marginTop: 10, padding: '8px 14px', borderRadius: 6, background: ok ? 'rgba(0,255,136,0.1)' : 'rgba(255,68,68,0.1)', border: `1px solid ${ok ? '#00ff88' : '#ff4444'}`, color: ok ? '#00ff88' : '#ff4444', fontSize: 11, fontFamily: "'Share Tech Mono'" })
-          };
-
-          const handleSaveProfile = async () => {
-            setProfileLoading(true);
-            try {
-              const res = await fetch(`/api/auth/profile`, {
-                method: 'PUT',
-                headers: hdrs,
-                body: JSON.stringify(profileForm)
-              });
-              const d = await res.json();
-              setProfileStatus({ ok: res.ok, msg: res.ok ? 'Profile updated successfully!' : (d.error || 'Update failed') });
-              if (res.ok) {
-                const sessionUserStr = sessionStorage.getItem('rescuelink_user');
-                if (sessionUserStr) {
-                  const u = JSON.parse(sessionUserStr);
-                  u.name = d.name;
-                  u.mobile = d.mobile;
-                  sessionStorage.setItem('rescuelink_user', JSON.stringify(u));
-                }
-                setPatientData(prev => ({
-                  ...prev,
-                  name: d.name,
-                  mobile: d.mobile,
-                  bloodGroup: d.blood_group || '',
-                  allergies: d.allergies || '',
-                  chronicConditions: d.chronic_conditions || '',
-                  dob: d.dob || '',
-                  gender: d.gender || '',
-                  abhaAddress: d.abha_address || '',
-                  abhaNumber: d.abha_number || ''
-                }));
-              }
-            } catch { setProfileStatus({ ok: false, msg: 'Connection error' }); }
-            setProfileLoading(false);
-            setTimeout(() => setProfileStatus(null), 4000);
-          };
-
-          const handleChangePw = async () => {
-            if (pwForm.newPassword !== pwForm.confirmPassword) { setPwStatus({ ok: false, msg: 'Passwords do not match' }); return; }
-            if (pwForm.newPassword.length < 6) { setPwStatus({ ok: false, msg: 'Password must be at least 6 characters' }); return; }
-            setPwLoading(true);
-            try {
-              const res = await fetch(`/api/users/${userId}/change-password`, { method: 'POST', headers: hdrs, body: JSON.stringify({ currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword }) });
-              const d = await res.json();
-              setPwStatus({ ok: res.ok, msg: d.message || d.error });
-              if (res.ok) setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-            } catch { setPwStatus({ ok: false, msg: 'Connection error' }); }
-            setPwLoading(false);
-            setTimeout(() => setPwStatus(null), 5000);
-          };
-
-          const handleSetup2FA = async () => {
-            setMfaLoading(true);
-            try {
-              const res = await fetch('/api/mfa/setup', { method: 'POST', headers: hdrs });
-              const d = await res.json();
-              if (res.ok) setMfaQR(d.qrCode);
-              else setMfaStatus({ ok: false, msg: d.error || 'Setup failed' });
-            } catch { setMfaStatus({ ok: false, msg: 'Connection error' }); }
-            setMfaLoading(false);
-          };
-
-          const handleDisable2FA = async () => {
-            setDisable2FAConfirmUD(false);
-            setMfaLoading(true);
-            try {
-              const res = await fetch('/api/mfa/disable', { method: 'POST', headers: hdrs });
-              const d = await res.json();
-              setMfaStatus({ ok: res.ok, msg: d.message || d.error });
-              setMfaQR(null);
-            } catch { setMfaStatus({ ok: false, msg: 'Connection error' }); }
-            setMfaLoading(false);
-            setTimeout(() => setMfaStatus(null), 5000);
-          };
-
-          return (
-            <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(0,5,20,0.93)', backdropFilter: 'blur(12px)', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
-
-            {/* 2FA Disable Confirm */}
-            {disable2FAConfirmUD && (
-              <div style={{ position: 'fixed', inset: 0, zIndex: 9999999, background: 'rgba(0,5,20,0.88)', backdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setDisable2FAConfirmUD(false)}>
-                <div style={{ background: 'rgba(8,18,42,0.98)', border: '1px solid rgba(255,68,68,0.3)', borderRadius: 14, padding: 30, maxWidth: 420, width: '90%' }} onClick={e => e.stopPropagation()}>
-                  <div style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#ff4444', fontWeight: 900, marginBottom: 8 }}>🔓 DISABLE 2FA</div>
-                  <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'", marginBottom: 20, lineHeight: 1.65 }}>
-                    Removing 2FA will leave your account protected only by your password.<br /><br />
-                    <strong style={{ color: '#ffb800' }}>This reduces your account security significantly.</strong>
-                  </div>
-                  <div style={{ display: 'flex', gap: 12 }}>
-                    <button onClick={handleDisable2FA} style={{ flex: 1, padding: '10px', background: 'rgba(255,40,40,0.14)', border: '1px solid rgba(255,40,40,0.5)', borderRadius: 8, color: '#ff4444', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>
-                      🔓 YES, DISABLE 2FA
-                    </button>
-                    <button onClick={() => setDisable2FAConfirmUD(false)} style={{ flex: 1, padding: '10px', background: 'transparent', border: '1px solid rgba(160,200,255,0.15)', borderRadius: 8, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer' }}>
-                      CANCEL
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-              <div style={{ background: 'rgba(3,10,28,0.98)', borderBottom: '1px solid rgba(0,200,255,0.15)', padding: '16px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-                <div style={{ fontFamily: "'Orbitron'", fontSize: 15, color: '#a78bfa', fontWeight: 900, letterSpacing: '0.08em' }}>⚙️ ACCOUNT SETTINGS</div>
-                <button onClick={() => routeTo('')} style={{ background: 'none', border: 'none', color: '#ff4444', cursor: 'pointer', fontSize: 22, lineHeight: 1 }}>✕</button>
-              </div>
-              <div style={{ flex: 1, padding: '28px', maxWidth: 680, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
-
-                {/* Profile */}
-                <div style={S.card}>
-                  <div style={S.sectionTitle}>👤 Edit Profile</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                    <div style={{ gridColumn: '1 / -1' }}>
-                      <label style={S.label}>Full Name</label>
-                      <input style={S.input} value={profileForm.name} onChange={e => setProfileForm(p => ({ ...p, name: e.target.value }))} placeholder="Your name" />
-                    </div>
-                    <div>
-                      <label style={S.label}>Mobile Number</label>
-                      <input style={S.input} value={profileForm.mobile} onChange={e => setProfileForm(p => ({ ...p, mobile: e.target.value }))} placeholder="e.g. 9876543210" />
-                    </div>
-                    <div>
-                      <label style={S.label}>User ID</label>
-                      <input style={{ ...S.input, opacity: 0.5, cursor: 'not-allowed' }} value={userId} readOnly />
-                    </div>
-                    <div>
-                      <label style={S.label}>ABHA Card Number</label>
-                      <input style={S.input} value={profileForm.abhaNumber} onChange={e => setProfileForm(p => ({ ...p, abhaNumber: e.target.value }))} placeholder="12-3456-7890-12" />
-                    </div>
-                    <div>
-                      <label style={S.label}>ABHA Address ID</label>
-                      <input style={S.input} value={profileForm.abhaAddress} onChange={e => setProfileForm(p => ({ ...p, abhaAddress: e.target.value }))} placeholder="username@abdm" />
-                    </div>
-                    <div>
-                      <label style={S.label}>Blood Group</label>
-                      <input style={S.input} value={profileForm.bloodGroup} onChange={e => setProfileForm(p => ({ ...p, bloodGroup: e.target.value }))} placeholder="e.g. O+ve" />
-                    </div>
-                    <div>
-                      <label style={S.label}>Date of Birth</label>
-                      <input type="date" style={S.input} value={profileForm.dob} onChange={e => setProfileForm(p => ({ ...p, dob: e.target.value }))} />
-                    </div>
-                    <div>
-                      <label style={S.label}>Gender</label>
-                      <select style={{ ...S.input, background: 'rgba(5,15,40,0.85)' }} value={profileForm.gender} onChange={e => setProfileForm(p => ({ ...p, gender: e.target.value }))}>
-                        <option value="">Select Gender</option>
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
-                        <option value="Other">Other</option>
-                      </select>
-                    </div>
-                    <div style={{ gridColumn: '1 / -1' }}>
-                      <label style={S.label}>Known Drug & Metabolic Allergies</label>
-                      <input style={S.input} value={profileForm.allergies} onChange={e => setProfileForm(p => ({ ...p, allergies: e.target.value }))} placeholder="e.g. Penicillin, Peanuts" />
-                    </div>
-                    <div style={{ gridColumn: '1 / -1' }}>
-                      <label style={S.label}>Existing Chronic Medical Conditions</label>
-                      <input style={S.input} value={profileForm.chronicConditions} onChange={e => setProfileForm(p => ({ ...p, chronicConditions: e.target.value }))} placeholder="e.g. Asthma, Diabetes" />
-                    </div>
-                    <div style={{ gridColumn: '1 / -1', borderTop: '1px solid rgba(0,200,255,0.1)', paddingTop: 14, marginTop: 6 }}>
-                      <span style={{ fontSize: 11, fontFamily: "'Orbitron'", color: '#ffb800', fontWeight: 'bold' }}>Emergency Contact (Next of Kin)</span>
-                    </div>
-                    <div>
-                      <label style={S.label}>Contact Name</label>
-                      <input style={S.input} value={profileForm.emergencyContactName} onChange={e => setProfileForm(p => ({ ...p, emergencyContactName: e.target.value }))} placeholder="e.g. Jane Doe" />
-                    </div>
-                    <div>
-                      <label style={S.label}>Relationship</label>
-                      <input style={S.input} value={profileForm.emergencyContactRelationship} onChange={e => setProfileForm(p => ({ ...p, emergencyContactRelationship: e.target.value }))} placeholder="e.g. Spouse" />
-                    </div>
-                    <div style={{ gridColumn: '1 / -1' }}>
-                      <label style={S.label}>Contact Phone</label>
-                      <input style={S.input} value={profileForm.emergencyContactPhone} onChange={e => setProfileForm(p => ({ ...p, emergencyContactPhone: e.target.value }))} placeholder="e.g. 9876543210" />
-                    </div>
-                    <div style={{ gridColumn: '1 / -1', borderTop: '1px solid rgba(0,200,255,0.1)', paddingTop: 14, marginTop: 6 }}>
-                      <span style={{ fontSize: 11, fontFamily: "'Orbitron'", color: '#00ff88', fontWeight: 'bold' }}>Insurance Details</span>
-                    </div>
-                    <div>
-                      <label style={S.label}>Insurance Provider</label>
-                      <input style={S.input} value={profileForm.insuranceProvider} onChange={e => setProfileForm(p => ({ ...p, insuranceProvider: e.target.value }))} placeholder="e.g. Star Health" />
-                    </div>
-                    <div>
-                      <label style={S.label}>Policy Number</label>
-                      <input style={S.input} value={profileForm.policyNumber} onChange={e => setProfileForm(p => ({ ...p, policyNumber: e.target.value }))} placeholder="e.g. POL12345" />
-                    </div>
-                  </div>
-                  <div style={{ marginTop: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
-                    <button onClick={handleSaveProfile} disabled={profileLoading} style={{ ...S.btn('0,200,255'), opacity: profileLoading ? 0.5 : 1 }}>
-                      {profileLoading ? '⏳ SAVING...' : '💾 SAVE PROFILE'}
-                    </button>
-                    {profileStatus && <div style={S.statusMsg(profileStatus.ok)}>{profileStatus.ok ? '✅' : '❌'} {profileStatus.msg}</div>}
-                  </div>
-                </div>
-
-                {/* Password */}
-                <div style={S.card}>
-                  <div style={S.sectionTitle}>🔑 Change Password</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 420 }}>
-                    <div><label style={S.label}>Current Password</label><input type="password" style={S.input} placeholder="Enter current password" value={pwForm.currentPassword} onChange={e => setPwForm(p => ({ ...p, currentPassword: e.target.value }))} /></div>
-                    <div><label style={S.label}>New Password</label><input type="password" style={S.input} placeholder="Min. 6 characters" value={pwForm.newPassword} onChange={e => setPwForm(p => ({ ...p, newPassword: e.target.value }))} /></div>
-                    <div><label style={S.label}>Confirm New Password</label><input type="password" style={S.input} placeholder="Repeat new password" value={pwForm.confirmPassword} onChange={e => setPwForm(p => ({ ...p, confirmPassword: e.target.value }))} /></div>
-                    <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 4 }}>
-                      <button onClick={handleChangePw} disabled={pwLoading} style={{ ...S.btn('255,184,0'), opacity: pwLoading ? 0.5 : 1 }}>
-                        {pwLoading ? 'UPDATING…' : '🔐 UPDATE PASSWORD'}
-                      </button>
-                      {pwStatus && <div style={S.statusMsg(pwStatus.ok)}>{pwStatus.ok ? '✅' : '❌'} {pwStatus.msg}</div>}
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2FA */}
-                <div style={S.card}>
-                  <div style={S.sectionTitle}>🛡️ Two-Factor Authentication (2FA)</div>
-                  <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.55)', marginBottom: 16, fontFamily: "'Share Tech Mono'", lineHeight: 1.6 }}>
-                    Add an extra layer of security. Scan the QR code with Google Authenticator, Authy, or any TOTP app.
-                  </div>
-                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <button onClick={handleSetup2FA} disabled={mfaLoading} style={{ ...S.btn('0,255,136'), opacity: mfaLoading ? 0.5 : 1 }}>
-                      {mfaLoading ? '⏳ LOADING…' : '🔒 ENABLE 2FA — GENERATE QR'}
-                    </button>
-                    <button onClick={() => setDisable2FAConfirmUD(true)} disabled={mfaLoading} style={{ ...S.btn('255,68,68'), opacity: mfaLoading ? 0.5 : 1 }}>
-                      🔓 DISABLE 2FA
-                    </button>
-                  </div>
-                  {mfaQR && (
-                    <div style={{ marginTop: 16, textAlign: 'center' }}>
-                      <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'", marginBottom: 10 }}>SCAN WITH YOUR AUTHENTICATOR APP</div>
-                      <img src={mfaQR} alt="2FA QR Code" style={{ width: 180, height: 180, border: '4px solid rgba(0,200,255,0.3)', borderRadius: 10 }} />
-                    </div>
-                  )}
-                  {mfaStatus && <div style={{ ...S.statusMsg(mfaStatus.ok), marginTop: 12 }}>{mfaStatus.ok ? '✅' : '❌'} {mfaStatus.msg}</div>}
-                </div>
-
-                {/* Danger Zone */}
-                <div style={{ ...S.card, border: '1px solid rgba(255,68,68,0.25)' }}>
-                  <div style={{ ...S.sectionTitle, color: '#ff4444' }}>⚠️ Danger Zone</div>
-                  <div style={{ fontSize: 12, color: 'rgba(255,150,150,0.6)', marginBottom: 12, fontFamily: "'Share Tech Mono'" }}>
-                    These actions are irreversible. Please proceed with caution.
-                  </div>
-                  <button onClick={onLogout} style={{ ...S.btn('255,68,68') }}>🚪 LOGOUT FROM THIS SESSION</button>
-                </div>
-
-              </div>
-            </div>
-          );
-        };
-        return <AccountSettingsPanel />;
-      })()}
+      {showAccountSettings && (
+        <AccountSettingsPanel
+          patientData={patientData}
+          setPatientData={setPatientData}
+          userId={userId}
+          onLogout={onLogout}
+          SERVER_URL_CONST={SERVER_URL_CONST}
+          routeTo={routeTo}
+          consentGranted={consentGranted}
+          setConsentGranted={setConsentGranted}
+        />
+      )}
 
       {/* 🔐 DPDP ACT 2023 - PRIVACY & CONSENT CENTER */}
       {showPrivacyModal && (
@@ -2509,6 +2223,323 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .custom-div-icon { background: none; border: none; }
       `}</style>
+    </div>
+  );
+}
+
+function AccountSettingsPanel({
+  patientData,
+  setPatientData,
+  userId,
+  onLogout,
+  SERVER_URL_CONST,
+  routeTo,
+  consentGranted,
+  setConsentGranted
+}) {
+  const [profileForm, setProfileForm] = React.useState({
+    name: patientData.name || '',
+    mobile: patientData.mobile || '',
+    bloodGroup: patientData.bloodGroup || '',
+    allergies: patientData.allergies || '',
+    chronicConditions: patientData.chronicConditions || '',
+    dob: patientData.dob || '',
+    gender: patientData.gender || '',
+    emergencyContactName: patientData.emergencyContactName || '',
+    emergencyContactRelationship: patientData.emergencyContactRelationship || '',
+    emergencyContactPhone: patientData.emergencyContactPhone || '',
+    insuranceProvider: patientData.insuranceProvider || '',
+    policyNumber: patientData.policyNumber || '',
+    abhaNumber: patientData.abhaNumber || '',
+    abhaAddress: patientData.abhaAddress || ''
+  });
+  const [profileStatus, setProfileStatus] = React.useState(null);
+  const [profileLoading, setProfileLoading] = React.useState(false);
+  const [pwForm, setPwForm] = React.useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [pwStatus, setPwStatus] = React.useState(null);
+  const [pwLoading, setPwLoading] = React.useState(false);
+  const [mfaQR, setMfaQR] = React.useState(null);
+  const [mfaStatus, setMfaStatus] = React.useState(null);
+  const [mfaLoading, setMfaLoading] = React.useState(false);
+  const [disable2FAConfirmUD, setDisable2FAConfirmUD] = React.useState(false);
+
+  const token = sessionStorage.getItem('rescuelink_token') || '';
+  const hdrs = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+
+  React.useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const res = await fetch('/api/auth/me', { headers: hdrs });
+        if (res.ok) {
+          const data = await res.json();
+          setProfileForm({
+            name: data.name || '',
+            mobile: data.mobile || '',
+            bloodGroup: data.bloodGroup || data.blood_group || '',
+            allergies: data.allergies || '',
+            chronicConditions: data.chronicConditions || data.chronic_conditions || '',
+            dob: data.dob || '',
+            gender: data.gender || '',
+            emergencyContactName: data.emergencyContactName || data.emergency_contact_name || '',
+            emergencyContactRelationship: data.emergencyContactRelationship || data.emergency_contact_relationship || '',
+            emergencyContactPhone: data.emergencyContactPhone || data.emergency_contact_phone || '',
+            insuranceProvider: data.insuranceProvider || data.insurance_provider || '',
+            policyNumber: data.policyNumber || data.policy_number || '',
+            abhaNumber: data.abhaNumber || data.abha_number || '',
+            abhaAddress: data.abhaAddress || data.abha_address || ''
+          });
+        }
+      } catch (e) {
+        console.error("Failed to fetch full user profile", e);
+      }
+    };
+    fetchUserProfile();
+  }, []);
+
+  const S = {
+    card: { background: 'rgba(5,15,40,0.85)', border: '1px solid rgba(0,200,255,0.15)', borderRadius: 12, padding: 24, marginBottom: 20 },
+    label: { display: 'block', fontSize: 10, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.55)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em' },
+    input: { width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 8, padding: '11px 14px', color: '#fff', outline: 'none', fontSize: 13, boxSizing: 'border-box', fontFamily: "'Share Tech Mono'" },
+    btn: (color) => ({ padding: '10px 22px', background: `rgba(${color},0.14)`, border: `1px solid rgba(${color},0.4)`, borderRadius: 8, color: `rgb(${color})`, fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer', letterSpacing: '0.06em' }),
+    sectionTitle: { fontFamily: "'Orbitron'", fontSize: 13, color: '#00c8ff', fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 },
+    statusMsg: (ok) => ({ marginTop: 10, padding: '8px 14px', borderRadius: 6, background: ok ? 'rgba(0,255,136,0.1)' : 'rgba(255,68,68,0.1)', border: `1px solid ${ok ? '#00ff88' : '#ff4444'}`, color: ok ? '#00ff88' : '#ff4444', fontSize: 11, fontFamily: "'Share Tech Mono'" })
+  };
+
+  const handleSaveProfile = async () => {
+    setProfileLoading(true);
+    try {
+      const res = await fetch(`/api/auth/profile`, {
+        method: 'PUT',
+        headers: hdrs,
+        body: JSON.stringify(profileForm)
+      });
+      const d = await res.json();
+      setProfileStatus({ ok: res.ok, msg: res.ok ? 'Profile updated successfully!' : (d.error || 'Update failed') });
+      if (res.ok) {
+        const sessionUserStr = sessionStorage.getItem('rescuelink_user');
+        if (sessionUserStr) {
+          const u = JSON.parse(sessionUserStr);
+          u.name = d.name;
+          u.mobile = d.mobile;
+          sessionStorage.setItem('rescuelink_user', JSON.stringify(u));
+        }
+        setPatientData(prev => ({
+          ...prev,
+          name: d.name,
+          mobile: d.mobile,
+          bloodGroup: d.blood_group || '',
+          allergies: d.allergies || '',
+          chronicConditions: d.chronic_conditions || '',
+          dob: d.dob || '',
+          gender: d.gender || '',
+          abhaAddress: d.abha_address || '',
+          abhaNumber: d.abha_number || ''
+        }));
+      }
+    } catch { setProfileStatus({ ok: false, msg: 'Connection error' }); }
+    setProfileLoading(false);
+    setTimeout(() => setProfileStatus(null), 4000);
+  };
+
+  const handleChangePw = async () => {
+    if (pwForm.newPassword !== pwForm.confirmPassword) { setPwStatus({ ok: false, msg: 'Passwords do not match' }); return; }
+    if (pwForm.newPassword.length < 6) { setPwStatus({ ok: false, msg: 'Password must be at least 6 characters' }); return; }
+    setPwLoading(true);
+    try {
+      const res = await fetch(`/api/users/${userId}/change-password`, { method: 'POST', headers: hdrs, body: JSON.stringify({ currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword }) });
+      const d = await res.json();
+      setPwStatus({ ok: res.ok, msg: d.message || d.error });
+      if (res.ok) setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch { setPwStatus({ ok: false, msg: 'Connection error' }); }
+    setPwLoading(false);
+    setTimeout(() => setPwStatus(null), 5000);
+  };
+
+  const handleSetup2FA = async () => {
+    setMfaLoading(true);
+    try {
+      const res = await fetch('/api/mfa/setup', { method: 'POST', headers: hdrs });
+      const d = await res.json();
+      if (res.ok) setMfaQR(d.qrCode);
+      else setMfaStatus({ ok: false, msg: d.error || 'Setup failed' });
+    } catch { setMfaStatus({ ok: false, msg: 'Connection error' }); }
+    setMfaLoading(false);
+  };
+
+  const handleDisable2FA = async () => {
+    setDisable2FAConfirmUD(false);
+    setMfaLoading(true);
+    try {
+      const res = await fetch('/api/mfa/disable', { method: 'POST', headers: hdrs });
+      const d = await res.json();
+      setMfaStatus({ ok: res.ok, msg: d.message || d.error });
+      setMfaQR(null);
+    } catch { setMfaStatus({ ok: false, msg: 'Connection error' }); }
+    setMfaLoading(false);
+    setTimeout(() => setMfaStatus(null), 5000);
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(0,5,20,0.93)', backdropFilter: 'blur(12px)', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+      {/* 2FA Disable Confirm */}
+      {disable2FAConfirmUD && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999999, background: 'rgba(0,5,20,0.88)', backdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setDisable2FAConfirmUD(false)}>
+          <div style={{ background: 'rgba(8,18,42,0.98)', border: '1px solid rgba(255,68,68,0.3)', borderRadius: 14, padding: 30, maxWidth: 420, width: '90%' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#ff4444', fontWeight: 900, marginBottom: 8 }}>🔓 DISABLE 2FA</div>
+            <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'", marginBottom: 20, lineHeight: 1.65 }}>
+              Removing 2FA will leave your account protected only by your password.<br /><br />
+              <strong style={{ color: '#ffb800' }}>This reduces your account security significantly.</strong>
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button onClick={handleDisable2FA} style={{ flex: 1, padding: '10px', background: 'rgba(255,40,40,0.14)', border: '1px solid rgba(255,40,40,0.5)', borderRadius: 8, color: '#ff4444', fontFamily: "'Orbitron'", fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>
+                🔓 YES, DISABLE 2FA
+              </button>
+              <button onClick={() => setDisable2FAConfirmUD(false)} style={{ flex: 1, padding: '10px', background: 'transparent', border: '1px solid rgba(160,200,255,0.15)', borderRadius: 8, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", fontSize: 11, cursor: 'pointer' }}>
+                CANCEL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ background: 'rgba(3,10,28,0.98)', borderBottom: '1px solid rgba(0,200,255,0.15)', padding: '16px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <div style={{ fontFamily: "'Orbitron'", fontSize: 15, color: '#a78bfa', fontWeight: 900, letterSpacing: '0.08em' }}>⚙️ ACCOUNT SETTINGS</div>
+        <button onClick={() => routeTo('')} style={{ background: 'none', border: 'none', color: '#ff4444', cursor: 'pointer', fontSize: 22, lineHeight: 1 }}>✕</button>
+      </div>
+
+      <div style={{ flex: 1, padding: '28px', maxWidth: 680, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
+        {/* Profile */}
+        <div style={S.card}>
+          <div style={S.sectionTitle}>👤 Edit Profile</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label style={S.label}>Full Name</label>
+              <input style={S.input} value={profileForm.name} onChange={e => setProfileForm(p => ({ ...p, name: e.target.value }))} placeholder="Your name" />
+            </div>
+            <div>
+              <label style={S.label}>Mobile Number</label>
+              <input style={S.input} value={profileForm.mobile} onChange={e => setProfileForm(p => ({ ...p, mobile: e.target.value }))} placeholder="e.g. 9876543210" />
+            </div>
+            <div>
+              <label style={S.label}>User ID</label>
+              <input style={{ ...S.input, opacity: 0.5, cursor: 'not-allowed' }} value={userId} readOnly />
+            </div>
+            <div>
+              <label style={S.label}>ABHA Card Number</label>
+              <input style={S.input} value={profileForm.abhaNumber} onChange={e => setProfileForm(p => ({ ...p, abhaNumber: e.target.value }))} placeholder="12-3456-7890-12" />
+            </div>
+            <div>
+              <label style={S.label}>ABHA Address ID</label>
+              <input style={S.input} value={profileForm.abhaAddress} onChange={e => setProfileForm(p => ({ ...p, abhaAddress: e.target.value }))} placeholder="username@abdm" />
+            </div>
+            <div>
+              <label style={S.label}>Blood Group</label>
+              <input style={S.input} value={profileForm.bloodGroup} onChange={e => setProfileForm(p => ({ ...p, bloodGroup: e.target.value }))} placeholder="e.g. O+ve" />
+            </div>
+            <div>
+              <label style={S.label}>Date of Birth</label>
+              <input type="date" style={S.input} value={profileForm.dob} onChange={e => setProfileForm(p => ({ ...p, dob: e.target.value }))} />
+            </div>
+            <div>
+              <label style={S.label}>Gender</label>
+              <select style={{ ...S.input, background: 'rgba(5,15,40,0.85)' }} value={profileForm.gender} onChange={e => setProfileForm(p => ({ ...p, gender: e.target.value }))}>
+                <option value="">Select Gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label style={S.label}>Known Drug & Metabolic Allergies</label>
+              <input style={S.input} value={profileForm.allergies} onChange={e => setProfileForm(p => ({ ...p, allergies: e.target.value }))} placeholder="e.g. Penicillin, Peanuts" />
+            </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label style={S.label}>Existing Chronic Medical Conditions</label>
+              <input style={S.input} value={profileForm.chronicConditions} onChange={e => setProfileForm(p => ({ ...p, chronicConditions: e.target.value }))} placeholder="e.g. Asthma, Diabetes" />
+            </div>
+            <div style={{ gridColumn: '1 / -1', borderTop: '1px solid rgba(0,200,255,0.1)', paddingTop: 14, marginTop: 6 }}>
+              <span style={{ fontSize: 11, fontFamily: "'Orbitron'", color: '#ffb800', fontWeight: 'bold' }}>Emergency Contact (Next of Kin)</span>
+            </div>
+            <div>
+              <label style={S.label}>Contact Name</label>
+              <input style={S.input} value={profileForm.emergencyContactName} onChange={e => setProfileForm(p => ({ ...p, emergencyContactName: e.target.value }))} placeholder="e.g. Jane Doe" />
+            </div>
+            <div>
+              <label style={S.label}>Relationship</label>
+              <input style={S.input} value={profileForm.emergencyContactRelationship} onChange={e => setProfileForm(p => ({ ...p, emergencyContactRelationship: e.target.value }))} placeholder="e.g. Spouse" />
+            </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label style={S.label}>Contact Phone</label>
+              <input style={S.input} value={profileForm.emergencyContactPhone} onChange={e => setProfileForm(p => ({ ...p, emergencyContactPhone: e.target.value }))} placeholder="e.g. 9876543210" />
+            </div>
+            <div style={{ gridColumn: '1 / -1', borderTop: '1px solid rgba(0,200,255,0.1)', paddingTop: 14, marginTop: 6 }}>
+              <span style={{ fontSize: 11, fontFamily: "'Orbitron'", color: '#00ff88', fontWeight: 'bold' }}>Insurance Details</span>
+            </div>
+            <div>
+              <label style={S.label}>Insurance Provider</label>
+              <input style={S.input} value={profileForm.insuranceProvider} onChange={e => setProfileForm(p => ({ ...p, insuranceProvider: e.target.value }))} placeholder="e.g. Star Health" />
+            </div>
+            <div>
+              <label style={S.label}>Policy Number</label>
+              <input style={S.input} value={profileForm.policyNumber} onChange={e => setProfileForm(p => ({ ...p, policyNumber: e.target.value }))} placeholder="e.g. POL12345" />
+            </div>
+          </div>
+          <div style={{ marginTop: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
+            <button onClick={handleSaveProfile} disabled={profileLoading} style={{ ...S.btn('0,200,255'), opacity: profileLoading ? 0.5 : 1 }}>
+              {profileLoading ? '⏳ SAVING...' : '💾 SAVE PROFILE'}
+            </button>
+            {profileStatus && <div style={S.statusMsg(profileStatus.ok)}>{profileStatus.ok ? '✅' : '❌'} {profileStatus.msg}</div>}
+          </div>
+        </div>
+
+        {/* Password */}
+        <div style={S.card}>
+          <div style={S.sectionTitle}>🔑 Change Password</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 420 }}>
+            <div><label style={S.label}>Current Password</label><input type="password" style={S.input} placeholder="Enter current password" value={pwForm.currentPassword} onChange={e => setPwForm(p => ({ ...p, currentPassword: e.target.value }))} /></div>
+            <div><label style={S.label}>New Password</label><input type="password" style={S.input} placeholder="Min. 6 characters" value={pwForm.newPassword} onChange={e => setPwForm(p => ({ ...p, newPassword: e.target.value }))} /></div>
+            <div><label style={S.label}>Confirm New Password</label><input type="password" style={S.input} placeholder="Repeat new password" value={pwForm.confirmPassword} onChange={e => setPwForm(p => ({ ...p, confirmPassword: e.target.value }))} /></div>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 4 }}>
+              <button onClick={handleChangePw} disabled={pwLoading} style={{ ...S.btn('255,184,0'), opacity: pwLoading ? 0.5 : 1 }}>
+                {pwLoading ? 'UPDATING…' : '🔐 UPDATE PASSWORD'}
+              </button>
+              {pwStatus && <div style={S.statusMsg(pwStatus.ok)}>{pwStatus.ok ? '✅' : '❌'} {pwStatus.msg}</div>}
+            </div>
+          </div>
+        </div>
+
+        {/* 2FA */}
+        <div style={S.card}>
+          <div style={S.sectionTitle}>🛡️ Two-Factor Authentication (2FA)</div>
+          <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.55)', marginBottom: 16, fontFamily: "'Share Tech Mono'", lineHeight: 1.6 }}>
+            Add an extra layer of security. Scan the QR code with Google Authenticator, Authy, or any TOTP app.
+          </div>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+            <button onClick={handleSetup2FA} disabled={mfaLoading} style={{ ...S.btn('0,255,136'), opacity: mfaLoading ? 0.5 : 1 }}>
+              {mfaLoading ? '⏳ LOADING…' : '🔒 ENABLE 2FA — GENERATE QR'}
+            </button>
+            <button onClick={() => setDisable2FAConfirmUD(true)} disabled={mfaLoading} style={{ ...S.btn('255,68,68'), opacity: mfaLoading ? 0.5 : 1 }}>
+              🔓 DISABLE 2FA
+            </button>
+          </div>
+          {mfaQR && (
+            <div style={{ marginTop: 16, textAlign: 'center' }}>
+              <div style={{ fontSize: 11, color: 'rgba(160,200,255,0.5)', fontFamily: "'Share Tech Mono'", marginBottom: 10 }}>SCAN WITH YOUR AUTHENTICATOR APP</div>
+              <img src={mfaQR} alt="2FA QR Code" style={{ width: 180, height: 180, border: '4px solid rgba(0,200,255,0.3)', borderRadius: 10 }} />
+            </div>
+          )}
+          {mfaStatus && <div style={{ ...S.statusMsg(mfaStatus.ok), marginTop: 12 }}>{mfaStatus.ok ? '✅' : '❌'} {mfaStatus.msg}</div>}
+        </div>
+
+        {/* Danger Zone */}
+        <div style={{ ...S.card, border: '1px solid rgba(255,68,68,0.25)' }}>
+          <div style={{ ...S.sectionTitle, color: '#ff4444' }}>⚠️ Danger Zone</div>
+          <div style={{ fontSize: 12, color: 'rgba(255,150,150,0.6)', marginBottom: 12, fontFamily: "'Share Tech Mono'" }}>
+            These actions are irreversible. Please proceed with caution.
+          </div>
+          <button onClick={onLogout} style={{ ...S.btn('255,68,68') }}>🚪 LOGOUT FROM THIS SESSION</button>
+        </div>
+      </div>
     </div>
   );
 }

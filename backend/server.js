@@ -309,7 +309,7 @@ const authRateLimiter = rateLimit({
 
 const apiRateLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
-  max: 100, // Max 100 requests per minute
+  max: 1000, // Max 1000 requests per minute
   message: { error: 'Too many requests, please try again later' }
 });
 
@@ -381,6 +381,44 @@ app.get('/ready', async (req, res) => {
     });
   }
 });
+
+app.get('/api/db-status', async (req, res) => {
+  try {
+    const { Hospital, Ambulance, User } = require('./utils/db');
+    const dialect = sequelize.getDialect();
+    
+    // Mask sensitive DB URL
+    let dbUrlMasked = 'none';
+    const dbUrlRaw = process.env.DATABASE_URL || '';
+    if (dbUrlRaw) {
+      const parts = dbUrlRaw.split('@');
+      dbUrlMasked = parts.length > 1 ? `postgres://****@${parts[1]}` : 'postgres://****';
+    }
+
+    const hospitalCount = await Hospital.count();
+    const ambulanceCount = await Ambulance.count();
+    const userCount = await User.count();
+
+    res.json({
+      status: 'online',
+      dialect,
+      useSqlite: sequelize.options.dialect === 'sqlite',
+      forceSqliteEnv: process.env.FORCE_SQLITE,
+      renderEnv: process.env.RENDER,
+      nodeEnv: process.env.NODE_ENV,
+      databaseUrlSet: !!process.env.DATABASE_URL,
+      databaseUrlMasked: dbUrlMasked,
+      counts: {
+        hospitals: hospitalCount,
+        ambulances: ambulanceCount,
+        users: userCount
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 const setupSwagger = require('./utils/swagger');
 setupSwagger(app);
@@ -833,7 +871,13 @@ const spawnVirtualAmbulances = (centerLoc) => {
 };
 
 const getCombinedAmbulances = () => {
-  return ambulances;
+  const filtered = {};
+  Object.entries(ambulances).forEach(([key, value]) => {
+    if (!value.isSimulated && (!value.vehicleNo || !value.vehicleNo.startsWith('SIM-FLEET-'))) {
+      filtered[key] = value;
+    }
+  });
+  return filtered;
 };
 
 const activeSimulations = {};
@@ -878,21 +922,27 @@ function startVirtualAmbulanceSimulation(reqId, virtualAmbId) {
     patientDetails: req.patientDetails,
   });
 
-  getSmartRoute(amb.location, req.userLocation).then(route => {
+  getSmartRoute(amb.location, req.userLocation).then(async (route) => {
     if (!route || route.length === 0) {
-      route = [amb.location, req.userLocation];
+      route = [[amb.location.lat, amb.location.lng], [req.userLocation.lat, req.userLocation.lng]];
     }
 
-    req.routePath = route;
-    io.to(req.userSocket).emit('route-update', { reqId: req.id, routePath: route });
+    req.routePath = route.map(p => ({ lat: p[0], lng: p[1] }));
+    io.to(req.userSocket).emit('route-update', { reqId: req.id, routePath: req.routePath });
 
     let currentWaypointIdx = 0;
     const totalWaypoints = route.length;
-    const tickIntervalMs = 1000;
-    const numTicks = isRushHour() ? 38 : 15; // 2.5x speed reduction (more ticks) during rush hour
-    const stepSize = Math.max(1, Math.ceil(totalWaypoints / numTicks));
+    
+    // Calculate realistic ETA and Duration
+    const etaData = await getETA(amb.location.lat, amb.location.lng, req.userLocation.lat, req.userLocation.lng);
+    const etaMinutes = etaData ? etaData.etaMinutes : 3;
+    const totalDurationSeconds = Math.max(30, Math.round(etaMinutes * 60)); // at least 30 seconds for visual flow
+    
+    const tickIntervalMs = 2000;
+    const totalTicks = totalDurationSeconds / (tickIntervalMs / 1000);
+    const stepSize = Math.max(1, Math.ceil(totalWaypoints / totalTicks));
 
-    console.log(`[Sim Dispatch] Starting simulation for ${virtualAmbId} to user. Waypoints: ${totalWaypoints}, step: ${stepSize}`);
+    console.log(`[Sim Dispatch] Starting real-time simulation for ${virtualAmbId} to user. Total Duration: ${totalDurationSeconds}s, tick: ${tickIntervalMs}ms`);
 
     const interval = setInterval(() => {
       if (!activeRequests[reqId] || activeRequests[reqId].status === 'cancelled') {
@@ -910,17 +960,31 @@ function startVirtualAmbulanceSimulation(reqId, virtualAmbId) {
       }
 
       const currentLoc = route[currentWaypointIdx];
-      amb.location = currentLoc;
+      const lat = currentLoc[0];
+      const lng = currentLoc[1];
+      amb.location = { lat, lng };
+
+      // Calculate exact remaining distance & ETA dynamically along the route
+      let remainingDist = 0;
+      for (let i = currentWaypointIdx; i < route.length - 1; i++) {
+        remainingDist += haversineDistance(route[i][0], route[i][1], route[i+1][0], route[i+1][1]);
+      }
+      const speedKmh = isRushHour() ? 30 : 50;
+      const remainingEtaMinutes = remainingDist > 0 ? (remainingDist / speedKmh) * 60 : 0;
 
       const locationPayload = {
         reqId: req.id,
-        lat: currentLoc.lat,
-        lng: currentLoc.lng,
+        lat,
+        lng,
         ambulanceSocket: virtualAmbId,
-        arrivedAtUser: currentWaypointIdx === totalWaypoints - 1
+        arrivedAtUser: currentWaypointIdx === totalWaypoints - 1,
+        speed: speedKmh,
+        etaMinutes: remainingEtaMinutes,
+        distanceRemaining: remainingDist
       };
 
       io.to(req.userSocket).emit('location-update', locationPayload);
+      io.to(`mission_${req.id}`).emit('location-update', locationPayload);
       io.emit('ambulances-update', getCombinedAmbulances());
 
       if (currentWaypointIdx === totalWaypoints - 1) {
@@ -934,6 +998,7 @@ function startVirtualAmbulanceSimulation(reqId, virtualAmbId) {
           if (!activeRequests[reqId]) return;
           req.status = 'patient_onboard';
           io.to(req.userSocket).emit('patient-onboard', { reqId: req.id });
+          io.to(`mission_${req.id}`).emit('patient-onboard', { reqId: req.id });
           console.log(`[Sim Dispatch] Patient onboard for request ${reqId}. Waiting for hospital response.`);
 
           const availableHospitalSockets = Object.keys(hospitals).filter(sid => {
@@ -950,12 +1015,11 @@ function startVirtualAmbulanceSimulation(reqId, virtualAmbId) {
           });
           console.log(`[Sim Dispatch] Broadcasted admission request to ${availableHospitalSockets.length} hospitals.`);
 
-          // SIMULATION AUTO-ACCEPT: If no human clicks accept in 8 seconds, the simulation forces a mock hospital to accept it.
+          // SIMULATION AUTO-ACCEPT: If no human clicks accept in 4 seconds, the simulation forces a mock hospital to accept it.
           setTimeout(() => {
             const currentReq = activeRequests[reqId];
             if (currentReq && currentReq.status === 'admission_request') {
               console.log(`[Sim Dispatch] Auto-accepting request ${reqId} for simulation.`);
-              // Find first available mock hospital, or any available
               let mockSid = Object.keys(hospitals).find(sid => hospitals[sid].id && hospitals[sid].id.startsWith('mock_'));
               if (!mockSid && availableHospitalSockets.length > 0) mockSid = availableHospitalSockets[0];
 
@@ -979,8 +1043,8 @@ function startVirtualAmbulanceSimulation(reqId, virtualAmbId) {
                 startVirtualAmbulanceToHospitalSimulation(reqId, mockSid);
               }
             }
-          }, 8000);
-        }, 5000);
+          }, 4000);
+        }, 3000);
       }
     }, tickIntervalMs);
 
@@ -1005,19 +1069,25 @@ function startVirtualAmbulanceToHospitalSimulation(reqId, hospitalSocketId) {
 
   console.log(`[Sim Dispatch] Starting leg 2 of simulation for ${amb.unitId} to hospital ${hosp.name}.`);
 
-  getSmartRoute(req.userLocation, hospLoc).then(route => {
+  getSmartRoute(req.userLocation, hospLoc).then(async (route) => {
     if (!route || route.length === 0) {
-      route = [req.userLocation, hospLoc];
+      route = [[req.userLocation.lat, req.userLocation.lng], [hospLoc.lat, hospLoc.lng]];
     }
 
-    req.routePath = route;
-    io.to(`mission_${req.id}`).emit('route-update', { reqId: req.id, routePath: route, from: 'incident', to: 'hospital' });
+    req.routePath = route.map(p => ({ lat: p[0], lng: p[1] }));
+    io.to(`mission_${req.id}`).emit('route-update', { reqId: req.id, routePath: req.routePath, from: 'incident', to: 'hospital' });
 
     let currentWaypointIdx = 0;
     const totalWaypoints = route.length;
-    const tickIntervalMs = 1000;
-    const numTicks = isRushHour() ? 38 : 15; // 2.5x speed reduction (more ticks) during rush hour
-    const stepSize = Math.max(1, Math.ceil(totalWaypoints / numTicks));
+
+    // Calculate real-time duration and ETA
+    const etaData = await getETA(req.userLocation.lat, req.userLocation.lng, hospLoc.lat, hospLoc.lng);
+    const etaMinutes = etaData ? etaData.etaMinutes : 4;
+    const totalDurationSeconds = Math.max(30, Math.round(etaMinutes * 60));
+
+    const tickIntervalMs = 2000;
+    const totalTicks = totalDurationSeconds / (tickIntervalMs / 1000);
+    const stepSize = Math.max(1, Math.ceil(totalWaypoints / totalTicks));
 
     const interval = setInterval(() => {
       if (!activeRequests[reqId] || activeRequests[reqId].status === 'cancelled') {
@@ -1035,15 +1105,62 @@ function startVirtualAmbulanceToHospitalSimulation(reqId, hospitalSocketId) {
       }
 
       const currentLoc = route[currentWaypointIdx];
-      amb.location = currentLoc;
+      const lat = currentLoc[0];
+      const lng = currentLoc[1];
+      amb.location = { lat, lng };
 
-      io.to(`mission_${req.id}`).emit('location-update', {
-        reqId: req.id,
-        lat: currentLoc.lat,
-        lng: currentLoc.lng,
-        ambulanceSocket: amb.unitId,
-        destinationId: hosp.id
+      // Calculate exact remaining distance & ETA dynamically along the route
+      let remainingDist = 0;
+      for (let i = currentWaypointIdx; i < route.length - 1; i++) {
+        remainingDist += haversineDistance(route[i][0], route[i][1], route[i+1][0], route[i+1][1]);
+      }
+      const speedKmh = isRushHour() ? 30 : 50;
+      const remainingEtaMinutes = remainingDist > 0 ? (remainingDist / speedKmh) * 60 : 0;
+
+      // Coordination agent: dynamically find other registered hospitals based on coordinates and traffic
+      const otherHospitals = [];
+      Object.keys(hospitals).forEach(sid => {
+        const h = hospitals[sid];
+        if (h.id && h.id !== req.hospitalId) {
+          const hPos = h.pos || h.location || h;
+          if (hPos && hPos.lat) {
+            const d = haversineDistance(lat, lng, hPos.lat, hPos.lng);
+            const eta = Math.ceil((d / 50) * 60);
+            const score = Math.max(0, Math.min(100, Math.round(-1.2 * eta + 3.0 * (h.icu_beds || 10) + 50)));
+            otherHospitals.push({
+              id: h.id,
+              name: h.name,
+              lat: hPos.lat,
+              lng: hPos.lng,
+              contactInfo: h.contactInfo,
+              eta,
+              hriScore: score
+            });
+          }
+        }
       });
+      otherHospitals.sort((a, b) => b.hriScore - a.hriScore);
+      req.waitingList = otherHospitals.slice(0, 5);
+
+      io.to(`mission_${req.id}`).emit('mission-coordination-update', {
+        assignedHospital: req.assignedHospital,
+        waitingList: req.waitingList
+      });
+
+      const locationPayload = {
+        reqId: req.id,
+        lat,
+        lng,
+        ambulanceSocket: amb.unitId,
+        destinationId: hosp.id,
+        arrivedAtUser: false,
+        speed: speedKmh,
+        etaMinutes: remainingEtaMinutes,
+        distanceRemaining: remainingDist
+      };
+
+      io.to(`mission_${req.id}`).emit('location-update', locationPayload);
+      io.to(req.userSocket).emit('location-update', locationPayload);
       io.emit('ambulances-update', getCombinedAmbulances());
 
       if (currentWaypointIdx === totalWaypoints - 1) {
@@ -1980,9 +2097,15 @@ io.on('connection', (socket) => {
       contactInfo: account.contact_number
     };
 
-    hospitals[socket.id] = { ...data, ...registryData, pos: { lat: data.lat || data.pos?.lat || account?.lat, lng: data.lng || data.pos?.lng || account?.lng }, socketId: socket.id, isBusy: false };
+    hospitals[socket.id] = { ...data, ...registryData, pos: { lat: data.lat || data.pos?.lat || account?.lat, lng: data.lng || data.pos?.lng || account?.lng }, socketId: socket.id, isBusy: false, isOnline: true, _isRegistryEntry: false };
     socket.join('global_hospitals');
     socket.join(`hospital:${id}`);
+    // Remove pre-loaded registry entry since this hospital is now live
+    const registryKey = `registry_${id}`;
+    if (hospitals[registryKey]) {
+      delete hospitals[registryKey];
+    }
+
 
     // Recovery for already accepted active missions
     const activeMissions = Object.values(activeRequests).filter(r => r.hospitalId === id && r.status !== 'completed' && r.status !== 'admission_request' && r.status !== 'advance_notice');
@@ -2010,7 +2133,7 @@ io.on('connection', (socket) => {
     const { userId, location } = data;
     users[userId] = socket.id;
     role = 'user';
-    spawnVirtualAmbulances(location);
+    // spawnVirtualAmbulances(location); // disabled simulated fleet to show only registered database units
     spawnIncidentZones(location);
     io.emit('ambulances-update', getCombinedAmbulances());
     io.emit('traffic-incidents-update', activeIncidentZones);
@@ -2093,21 +2216,40 @@ io.on('connection', (socket) => {
 
     socket.emit('request-acknowledged', { id: reqId, status: 'searching' });
 
-    // Broadcast incoming request to all candidate hospitals in range
-    candidateHospitals.forEach(sid => {
-      io.to(sid).emit('incoming-hospital-request', activeRequests[reqId]);
+    // Broadcast incoming request to all connected hospitals (via global room or all keys)
+    io.to('global_hospitals').emit('incoming-hospital-request', activeRequests[reqId]);
+
+    // CRITICAL FIX: Also broadcast via hospital:<id> rooms to reach hospital staff
+    // who connected via JWT (auto-joined hospital rooms) but may not have fired register-hospital yet.
+    try {
+      const allActiveHospitals = await Hospital.findAll({ where: { is_active: true }, attributes: ['id'] });
+      allActiveHospitals.forEach(h => {
+        io.to(`hospital:${h.id}`).emit('incoming-hospital-request', activeRequests[reqId]);
+      });
+      console.log(`[DISPATCH] Broadcast patient request to ${allActiveHospitals.length} registered hospital rooms.`);
+    } catch (hospBroadcastErr) {
+      console.error('[DISPATCH] Failed to broadcast to hospital rooms from DB:', hospBroadcastErr.message);
+    }
+
+    // Broadcast incoming request to all connected ambulances
+    Object.keys(ambulances).forEach(ambSocketId => {
+      io.to(ambSocketId).emit('incoming-ambulance-request', activeRequests[reqId]);
     });
 
-    // Broadcast incoming request to all candidate ambulances in range
-    candidateAmbulances.forEach(ambId => {
-      const isVirtual = ambId.startsWith('VIRTUAL-AMB-') || (combinedAmbulances[ambId] && combinedAmbulances[ambId].isSimulated);
-      if (isVirtual) {
-        // Auto-accept for simulation compatibility
-        startVirtualAmbulanceSimulation(reqId, ambId);
-      } else {
-        io.to(ambId).emit('incoming-ambulance-request', activeRequests[reqId]);
+    // Simulated Ambulance Auto-Accept: if no real/virtual ambulance has accepted within 3.5 seconds, auto-accept
+    setTimeout(() => {
+      const currentReq = activeRequests[reqId];
+      if (currentReq && currentReq.status === 'pending_ambulance') {
+        const virtualAmbId = Object.keys(ambulances).find(sid => {
+          const amb = ambulances[sid];
+          return amb.available && (sid.startsWith('registry_amb_') || sid.startsWith('VIRTUAL-AMB-') || amb.isSimulated);
+        });
+        if (virtualAmbId) {
+          console.log(`[Sim Dispatch] Auto-accepting ambulance request ${reqId} by virtual unit ${virtualAmbId}`);
+          startVirtualAmbulanceSimulation(reqId, virtualAmbId);
+        }
       }
-    });
+    }, 3500);
 
     // FCM Push Notifications & Topic notifications
     if (data.userId) {
@@ -2275,6 +2417,8 @@ io.on('connection', (socket) => {
     if (data.incidentLocation) {
       req.incidentLocation = data.incidentLocation;
     }
+    // Attach ambulance socket id to request
+    req.ambulanceSocket = socket.id;
 
     // Log currently registered hospitals on socket
     console.log(`[SOCKET_LOG] Currently registered hospitals count: ${Object.keys(hospitals).length}`);
@@ -2882,7 +3026,8 @@ io.on('connection', (socket) => {
   // ── Reroute Hospital (ambulance switches destination) ───────────────────
 
   // ── Disconnect ─────────────────────────────────────────────────────────────
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
+
     if (role === 'user') connectedRoles.user = Math.max(0, connectedRoles.user - 1);
 
     if (role === 'ambulance') {
@@ -2905,9 +3050,30 @@ io.on('connection', (socket) => {
         }
       });
 
+      const disconnectedAmbId = ambulances[socket.id]?.unitId || ambulances[socket.id]?.vehicleNo;
+      const disconnectedAmbDbId = ambulances[socket.id]?.id;
       delete ambulances[socket.id];
-      io.emit('ambulances-update', ambulances);
+      // Restore registry placeholder for this ambulance
+      try {
+        const { Ambulance: AmbMod } = require('./utils/db');
+        const dbAmb = disconnectedAmbDbId
+          ? await AmbMod.findByPk(disconnectedAmbDbId)
+          : await AmbMod.findOne({ where: { vehicleNo: disconnectedAmbId } });
+        if (dbAmb && dbAmb.is_active) {
+          ambulances[`registry_amb_${dbAmb.id}`] = {
+            unitId: dbAmb.vehicleNo || dbAmb.id, vehicleNo: dbAmb.vehicleNo,
+            driverName: dbAmb.driverName || dbAmb.name, type: dbAmb.type || 'BLS',
+            location: { lat: dbAmb.lat || 17.3850, lng: dbAmb.lng || 78.4867 },
+            available: true, isOnline: false, _isRegistryEntry: true,
+            socketId: `registry_amb_${dbAmb.id}`
+          };
+        }
+      } catch (ambRestoreErr) {
+        console.error('[DISCONNECT] Failed to restore ambulance registry entry:', ambRestoreErr.message);
+      }
+      io.emit('ambulances-update', getCombinedAmbulances());
     }
+
 
     if (role === 'hospital') {
       connectedRoles.hospital = Math.max(0, connectedRoles.hospital - 1);
@@ -2941,9 +3107,31 @@ io.on('connection', (socket) => {
         }
       });
 
+      const disconnectedHospitalId = hospitals[socket.id]?.id || hospitals[socket.id]?.hospitalId;
       delete hospitals[socket.id];
+
+      // Restore registry entry for this hospital so it stays visible in dashboards
+      if (disconnectedHospitalId) {
+        try {
+          const { Hospital: HospMod } = require('./utils/db');
+          const dbH = await HospMod.findByPk(disconnectedHospitalId);
+          if (dbH && dbH.is_active) {
+            hospitals[`registry_${disconnectedHospitalId}`] = {
+              id: dbH.id, hospitalId: dbH.id, name: dbH.name,
+              lat: dbH.lat, lng: dbH.lng, pos: { lat: dbH.lat, lng: dbH.lng },
+              location: { lat: dbH.lat, lng: dbH.lng },
+              contactInfo: dbH.contact_number, total_beds: dbH.total_beds,
+              icu_beds: dbH.icu_beds, ventilators: dbH.ventilators,
+              isOnline: false, _isRegistryEntry: true, socketId: `registry_${dbH.id}`
+            };
+          }
+        } catch (restoreErr) {
+          console.error('[DISCONNECT] Failed to restore hospital registry entry:', restoreErr.message);
+        }
+      }
       io.emit('hospitals-update', hospitals);
     }
+
     io.emit('roles-update', connectedRoles);
     console.log(`[DISCONNECT] ${role.toUpperCase()} disconnected — ${socket.id}`);
   });
@@ -3090,6 +3278,11 @@ app.get('/api/marketplace/ambulances', (req, res) => {
     return m;
   });
   res.json(liveMerged);
+});
+
+// ─── LIVE TELEMETRY COMMAND LINK ACTIVE REQUESTS ──────────────────────────────
+app.get('/api/analytics/live-telemetry', authenticateToken, (req, res) => {
+  res.json({ activeRequests });
 });
 
 // ─── PREDICTIVE EMERGENCY HOTSPOT ANALYTICS ──────────────────────────────────
@@ -3374,6 +3567,61 @@ async function startServer() {
       };
     });
     console.log(`[ENTERPRISE DB] Restored ${persisted.length} active incidents into memory.`);
+
+    // ── Pre-load registered hospitals from DB into in-memory registry ──────────
+    // This ensures hospitals show in dashboards after restarts, even without an active socket
+    try {
+      const { Hospital: HospitalModel, Ambulance: AmbulanceModel } = require('./utils/db');
+      const dbHospitals = await HospitalModel.findAll({ where: { is_active: true } });
+      dbHospitals.forEach(h => {
+        const registryKey = `registry_${h.id}`;
+        // Only create registry entry if no live socket is already registered for this hospital
+        const alreadyLive = Object.values(hospitals).some(lh => lh.id === h.id && !lh._isRegistryEntry);
+        if (!alreadyLive) {
+          hospitals[registryKey] = {
+            id: h.id,
+            hospitalId: h.id,
+            name: h.name,
+            lat: h.lat,
+            lng: h.lng,
+            pos: { lat: h.lat, lng: h.lng },
+            location: { lat: h.lat, lng: h.lng },
+            contactInfo: h.contact_number,
+            total_beds: h.total_beds,
+            icu_beds: h.icu_beds,
+            ventilators: h.ventilators,
+            isOnline: false,
+            _isRegistryEntry: true,
+            socketId: registryKey
+          };
+        }
+      });
+      console.log(`[ENTERPRISE DB] Pre-loaded ${dbHospitals.length} registered hospitals into memory registry.`);
+
+      const dbAmbulances = await AmbulanceModel.findAll({ where: { is_active: true } });
+      dbAmbulances.forEach(a => {
+        const registryKey = `registry_amb_${a.id}`;
+        const alreadyLive = Object.values(ambulances).some(la => la.unitId === a.vehicleNo && !la._isRegistryEntry);
+        if (!alreadyLive) {
+          ambulances[registryKey] = {
+            unitId: a.vehicleNo || a.id,
+            vehicleNo: a.vehicleNo,
+            driverName: a.driverName || a.name,
+            type: a.type || 'BLS',
+            location: { lat: a.lat || 17.3850, lng: a.lng || 78.4867 },
+            available: true,
+            isOnline: false,
+            _isRegistryEntry: true,
+            socketId: registryKey
+          };
+        }
+      });
+      console.log(`[ENTERPRISE DB] Pre-loaded ${dbAmbulances.length} registered ambulances into memory registry.`);
+    } catch (preloadErr) {
+      console.error('[BOOT PRELOAD ERROR] Failed to preload entities from DB:', preloadErr.message);
+    }
+
+
 
     // 3. Open port to incoming connections
     const PORT = process.env.PORT || 5000;

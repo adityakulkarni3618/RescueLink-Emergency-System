@@ -37,10 +37,21 @@ const mockDb = {
     findOne: jest.fn().mockResolvedValue(mockUser),
     findByPk: jest.fn().mockResolvedValue(mockUser)
   },
+  Hospital: {
+    findOne: jest.fn(),
+    findByPk: jest.fn(),
+    findAll: jest.fn().mockResolvedValue([])
+  },
+  Ambulance: {
+    findOne: jest.fn(),
+    findByPk: jest.fn(),
+    findAll: jest.fn().mockResolvedValue([])
+  },
   Incident: {
     findByPk: jest.fn().mockResolvedValue(mockIncident),
     findOne: jest.fn().mockResolvedValue(mockIncident),
-    findAll: jest.fn().mockResolvedValue([])
+    findAll: jest.fn().mockResolvedValue([]),
+    update: jest.fn().mockResolvedValue([0])
   },
   AuditLog: {
     create: jest.fn().mockResolvedValue({ id: 'audit-1' })

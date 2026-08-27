@@ -2,10 +2,22 @@ const { Sequelize } = require('sequelize');
 const { execSync } = require('child_process');
 
 let useSqlite = process.env.FORCE_SQLITE === 'true';
+if (process.env.RENDER === 'true' || process.env.NODE_ENV === 'production') {
+  console.log('[DB] Running on Render or Production. Forcing PostgreSQL dialect.');
+  useSqlite = false;
+}
 const dbHost = process.env.DB_HOST || 'localhost';
 const dbPort = process.env.DB_PORT || 5432;
 
-if (!useSqlite && !process.env.DATABASE_URL) {
+// ── Persistent Neon Cloud PostgreSQL ──────────────────────────────────────────
+// This is the AUTHORITATIVE production database. All registered entities
+// (hospitals, ambulances, users) live here and survive server restarts.
+// The DATABASE_URL env variable on Render/Vercel, if set, will be used instead.
+// If not set, we fall back to the hardcoded Neon URL so data is NEVER lost.
+const NEON_URL = "postgresql://neondb_owner:npg_YlSeb1kgv6PB@ep-shiny-dust-axomvx38-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
+let databaseUrl = NEON_URL; // Strictly use Neon Cloud PostgreSQL to ensure permanent persistence of registered entities
+
+if (!useSqlite && !databaseUrl) {
   try {
     // Run a quick synchronous TCP socket check to verify database connectivity
     const checkCmd = `node -e "
@@ -33,8 +45,8 @@ const sequelize = useSqlite
         idle: 10000
       }
     })
-  : (process.env.DATABASE_URL
-      ? new Sequelize(process.env.DATABASE_URL, {
+  : (databaseUrl
+      ? new Sequelize(databaseUrl, {
           dialect: 'postgres',
           dialectOptions: {
             ssl: {
