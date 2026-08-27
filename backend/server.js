@@ -2340,6 +2340,8 @@ io.on('connection', (socket) => {
         io.to(req.ambulanceSocket).emit('route-update', { reqId: req.id, routePath: route });
       }
       initializeCorridorForRoute(req.id, route || []).catch(err => console.error('[PREEMPTION INIT ERROR]', err));
+      const { startHospitalMatchingAgent } = require('./services/hospitalMatchingAgent');
+      startHospitalMatchingAgent(req.id, io, activeRequests);
     } else {
       req.status = 'ambulance_rejected';
       io.to(req.userSocket).emit('ambulance-request-response', { ...req, accepted: false });
