@@ -437,10 +437,10 @@ export default function AIEmergencyCorridorDashboard({ socket, connected, onLogo
                 attribution='&copy; <a href="https://carto.com/">CARTO</a>'
               />
               
-              {routePath && (
+              {routePath && Array.isArray(routePath) && (
                 <Polyline 
-                  positions={routePath} 
-                  pathOptions={{ color: '#ff3333', weight: 6, opacity: 0.8, lineCap: 'round', glow: '0 0 10px #ff3333' }} 
+                  positions={routePath.filter(p => Array.isArray(p) && p.length >= 2 && typeof p[0] === 'number' && !isNaN(p[0]) && typeof p[1] === 'number' && !isNaN(p[1]))} 
+                  pathOptions={{ color: '#ff3333', weight: 6, opacity: 0.8, lineCap: 'round' }} 
                 />
               )}
 

@@ -67,13 +67,16 @@ const mockDb = {
   Incident: {
     count: jest.fn().mockResolvedValue(10),
     findAll: jest.fn().mockResolvedValue([mockIncident]),
-    findOne: jest.fn().mockResolvedValue(mockIncident)
+    findOne: jest.fn().mockResolvedValue(mockIncident),
+    update: jest.fn().mockResolvedValue([0])
   },
   AuditLog: {
     create: jest.fn().mockResolvedValue({ id: 'audit-1' })
   },
   Ambulance: {
-    findOne: jest.fn().mockResolvedValue(null)
+    findOne: jest.fn().mockResolvedValue(null),
+    findByPk: jest.fn(),
+    findAll: jest.fn().mockResolvedValue([])
   },
   sequelize: {
     authenticate: jest.fn().mockResolvedValue(true),
