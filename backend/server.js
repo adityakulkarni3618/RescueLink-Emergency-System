@@ -2231,25 +2231,9 @@ io.on('connection', (socket) => {
       console.error('[DISPATCH] Failed to broadcast to hospital rooms from DB:', hospBroadcastErr.message);
     }
 
-    // Broadcast incoming request to all connected ambulances
-    Object.keys(ambulances).forEach(ambSocketId => {
-      io.to(ambSocketId).emit('incoming-ambulance-request', activeRequests[reqId]);
-    });
-
-    // Simulated Ambulance Auto-Accept: if no real/virtual ambulance has accepted within 3.5 seconds, auto-accept
-    setTimeout(() => {
-      const currentReq = activeRequests[reqId];
-      if (currentReq && currentReq.status === 'pending_ambulance') {
-        const virtualAmbId = Object.keys(ambulances).find(sid => {
-          const amb = ambulances[sid];
-          return amb.available && (sid.startsWith('registry_amb_') || sid.startsWith('VIRTUAL-AMB-') || amb.isSimulated);
-        });
-        if (virtualAmbId) {
-          console.log(`[Sim Dispatch] Auto-accepting ambulance request ${reqId} by virtual unit ${virtualAmbId}`);
-          startVirtualAmbulanceSimulation(reqId, virtualAmbId);
-        }
-      }
-    }, 3500);
+    // Call tiered dispatch agent
+    const { dispatchTiered } = require('./services/dispatchAgent');
+    dispatchTiered(reqId, userLocation.lat, userLocation.lng, io, ambulances, activeRequests);
 
     // FCM Push Notifications & Topic notifications
     if (data.userId) {
