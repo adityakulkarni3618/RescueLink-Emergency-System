@@ -785,9 +785,32 @@ router.post('/register-patient', async (req, res) => {
  * @desc Register a new hospital unit with speakeasy 2FA setup
  */
 router.post('/register-hospital', async (req, res) => {
-  const { name, contactInfo, lat, lng, totalBeds, icuBeds, ventilators, password, licenseNumber, departments, bayCapacity, adminEmail, traumaTier, accreditationId } = req.body;
-  if (!name || !contactInfo || !lat || !lng || !password) {
-    return res.status(400).json({ error: 'name, contactInfo, lat, lng, and password are required' });
+  const { name, contactInfo, address, lat, lng, totalBeds, icuBeds, ventilators, password, licenseNumber, departments, bayCapacity, adminEmail, traumaTier, accreditationId } = req.body;
+  if (!name || !contactInfo || !password) {
+    return res.status(400).json({ error: 'name, contactInfo, and password are required' });
+  }
+
+  let finalLat = parseFloat(lat);
+  let finalLng = parseFloat(lng);
+
+  if (address) {
+    const { geocodeAddress } = require('../utils/geocoder');
+    const coords = await geocodeAddress(address);
+    if (coords) {
+      finalLat = coords.lat;
+      finalLng = coords.lng;
+    } else {
+      return res.status(400).json({ error: 'Failed to geocode physical address. Please enter a valid address.' });
+    }
+  }
+
+  const isPlaceholder = !finalLat || !finalLng || 
+                        (finalLat === 12.9716 && finalLng === 77.5946) ||
+                        (finalLat === 16.5062 && finalLng === 80.6480) ||
+                        (finalLat === 18.5204 && finalLng === 73.8567);
+
+  if (isPlaceholder) {
+    return res.status(400).json({ error: 'Hospital registration requires real physical coordinates. Placeholder coordinates are not permitted.' });
   }
 
   try {
@@ -823,8 +846,8 @@ router.post('/register-hospital', async (req, res) => {
       contact_number: contactInfo,
       city: req.body.city || null,
       state: req.body.state || null,
-      lat: parseFloat(lat),
-      lng: parseFloat(lng),
+      lat: finalLat,
+      lng: finalLng,
       total_beds: parseInt(totalBeds) || 50,
       icu_beds: parseInt(icuBeds) || 5,
       ventilators: parseInt(ventilators) || 2,
