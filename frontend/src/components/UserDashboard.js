@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline, Circle } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import LiveRouteMap from './LiveRouteMap';
 import VideoCall from './VideoCall';
 import { showAlert } from '../utils/alert';
 import AIEmergencyCopilot from './AIEmergencyCopilot';
@@ -50,101 +48,6 @@ const generateBlockchain = (consentStatus, userId) => {
   };
 
   return [genesisBlock, block1, block2];
-};
-
-
-try {
-  if (typeof window !== 'undefined' && L && L.Icon && L.Icon.Default) {
-    delete L.Icon.Default.prototype._getIconUrl;
-    L.Icon.Default.mergeOptions({
-      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-    });
-  }
-} catch (e) {
-  console.warn('[LEAFLET ICON PATCH ERROR]', e);
-}
-
-let userIcon = null;
-let ambulanceIcon = null;
-let hospitalIcon = null;
-try {
-  if (typeof window !== 'undefined' && L && L.DivIcon) {
-    userIcon = new L.DivIcon({
-      html: `<div style="font-size: 24px;">🧍</div>`,
-      className: 'custom-div-icon',
-      iconSize: [24, 24],
-      iconAnchor: [12, 24],
-    });
-
-    ambulanceIcon = new L.DivIcon({
-      html: `<div style="font-size: 24px;">🚑</div>`,
-      className: 'custom-div-icon',
-      iconSize: [24, 24],
-      iconAnchor: [12, 24],
-    });
-
-    hospitalIcon = new L.DivIcon({
-      html: `<div style="font-size: 24px;">🏥</div>`,
-      className: 'custom-div-icon',
-      iconSize: [24, 24],
-      iconAnchor: [12, 24],
-    });
-  }
-} catch (e) {}
-
-// Helper component to center map on user
-function SmartMapController({ userLoc, ambulanceLoc, manualCenter }) {
-  const map = useMap();
-  const lastBoundsRef = useRef(null);
-
-  useEffect(() => {
-    if (manualCenter && manualCenter.lat !== undefined && manualCenter.lng !== undefined && !isNaN(manualCenter.lat) && !isNaN(manualCenter.lng)) {
-      map.setView(manualCenter, 13, { animate: true });
-      return;
-    }
-
-    const hasUser = userLoc && userLoc.lat !== undefined && userLoc.lng !== undefined && !isNaN(userLoc.lat) && !isNaN(userLoc.lng);
-    const hasAmb = ambulanceLoc && ambulanceLoc.lat !== undefined && ambulanceLoc.lng !== undefined && !isNaN(ambulanceLoc.lat) && !isNaN(ambulanceLoc.lng);
-
-    if (hasUser && hasAmb) {
-      const bounds = L.latLngBounds([
-        [userLoc.lat, userLoc.lng],
-        [ambulanceLoc.lat, ambulanceLoc.lng]
-      ]);
-      const boundsStr = bounds.toBBoxString();
-      if (boundsStr !== lastBoundsRef.current) {
-        map.fitBounds(bounds, { padding: [50, 50], animate: true });
-        lastBoundsRef.current = boundsStr;
-      }
-    } else if (hasUser) {
-      map.panTo([userLoc.lat, userLoc.lng], { animate: true });
-    }
-  }, [userLoc, ambulanceLoc, manualCenter, map]);
-
-  return null;
-}
-
-function MapCenterer({ center }) {
-  const map = useMap();
-  useEffect(() => {
-    if (center) {
-      const lat = center.lat !== undefined ? center.lat : (Array.isArray(center) ? center[0] : undefined);
-      const lng = center.lng !== undefined ? center.lng : (Array.isArray(center) ? center[1] : undefined);
-      if (lat !== undefined && lng !== undefined && !isNaN(lat) && !isNaN(lng)) {
-        map.setView([lat, lng], map.getZoom(), { animate: true });
-      }
-    }
-  }, [center, map]);
-  return null;
-}
-
-const isValidLatLng = (loc) => {
-  if (!loc) return false;
-  const lat = loc.lat !== undefined ? loc.lat : (Array.isArray(loc) ? loc[0] : undefined);
-  const lng = loc.lng !== undefined ? loc.lng : (Array.isArray(loc) ? loc[1] : undefined);
-  return lat !== undefined && lng !== undefined && !isNaN(lat) && !isNaN(lng);
 };
 
 let audioCtx = null;
@@ -1528,211 +1431,22 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
           }}>
             LOCATION: {locationMethod}
           </div>
-          <MapContainer
-            center={mapCenter || [12.9716, 77.5946]}
-            zoom={14}
-            style={{ height: '100%', width: '100%' }}
-          >
-            <TileLayer
-              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-              attribution='&copy; <a href="https://carto.com/">Carto</a>'
-            />
-            
-            <SmartMapController 
-              userLoc={userLocation} 
-              ambulanceLoc={liveAmbulanceLoc} 
-              manualCenter={manualCenter} 
-            />
-
-            {/* Locate Me Button Overlay */}
-            <div style={{ position: 'absolute', top: 60, right: 10, zIndex: 1000 }}>
-              <button 
-                onClick={() => {
-                  navigator.geolocation.getCurrentPosition(pos => {
-                    const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                    setUserLocation(loc);
-                    setMapCenter([loc.lat, loc.lng]);
-                  });
-                }}
-                style={{
-                  background: 'rgba(0,200,255,0.2)', border: '1px solid #00c8ff',
-                  borderRadius: 4, padding: '5px 10px', color: '#00c8ff', cursor: 'pointer',
-                  fontFamily: "'Orbitron'", fontSize: 10
-                }}
-              >
-                🛰️ LOCATE ME
-              </button>
-            </div>
-            {/* User Location Marker */}
-            {isValidLatLng(userLocation) && (
-              <Marker position={userLocation} icon={userIcon}>
-                <Popup>
-                  <div style={{ color: '#333' }}>
-                    <strong>📍 Your Location</strong><br />
-                    Lat: {userLocation.lat.toFixed(4)}<br />
-                    Lng: {userLocation.lng.toFixed(4)}
-                  </div>
-                </Popup>
-              </Marker>
-            )}
-
-            {/* FIX: map follows user GPS then ambulance movement in real-time */}
-            <MapCenterer center={liveAmbulanceLoc || userLocation} />
-
-            {/* All Registered & Live Hospitals */}
-            {Object.values(getHospitalsData()).map(h => {
-              const pos = h.pos || h.location || { lat: h.lat, lng: h.lng };
-              const isOnline = h.isOnline || !!h.socketId;
-              if (!isValidLatLng(pos)) return null;
-              
-              return (
-                <Marker key={h.id} position={[pos.lat, pos.lng]} icon={hospitalIcon}>
-                  <Popup>
-                    <div style={{ color: '#333', minWidth: 150 }}>
-                      <strong style={{ color: '#0052cc' }}>{h.name}</strong><br />
-                      <span style={{ 
-                        fontSize: 9, 
-                        color: isOnline ? '#008855' : '#888',
-                        fontWeight: 'bold'
-                      }}>
-                        {isOnline ? '● LIVE DASHBOARD ACTIVE' : '○ REGISTRY ENTRY (OFFLINE)'}
-                      </span><br />
-                      <div style={{ marginTop: 5, fontSize: 11, borderTop: '1px solid #eee', paddingTop: 5 }}>
-                        Distance: {calcDist(userLocation, pos).toFixed(1)} km<br />
-                        Contact: {h.contactInfo || 'Not Listed'}
-                      </div>
-                    </div>
-                  </Popup>
-                </Marker>
-              );
-            })}
-
-            {requestStatus === 'idle' && topAmbs.map((amb) => {
-              if (!isValidLatLng(amb.location)) return null;
-              return (
-                <Marker key={amb.id} position={amb.location} icon={ambulanceIcon}>
-                  <Popup>
-                    <div style={{ color: '#333' }}>
-                      <strong>Ambulance Unit</strong><br />
-                      🟢 Available<br />
-                      <button 
-                        onClick={() => requestAmbulance(amb.id)}
-                        style={{ marginTop: '10px', width: '100%', padding: '5px', backgroundColor: '#ff6b35', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                      >
-                        Request Dispatch
-                      </button>
-                    </div>
-                  </Popup>
-                </Marker>
-              );
-            })}
-
-            {/* Live Assigned Ambulance Marker */}
-            {assignedAmbulanceId && isValidLatLng(liveAmbulanceLoc) && requestStatus !== 'idle' && (
-              <Marker position={liveAmbulanceLoc} icon={ambulanceIcon}>
-                <Popup>
-                  <div style={{ color: '#333' }}>
-                    <strong>🚑 YOUR ASSIGNED UNIT</strong><br />
-                    {isAmbulanceArrived ? '🟢 Arrived' : '🔴 En Route'}<br />
-                    📍 {liveAmbulanceLoc.lat.toFixed(4)}°N, {liveAmbulanceLoc.lng.toFixed(4)}°E
-                  </div>
-                </Popup>
-              </Marker>
-            )}
-
-            {/* OTHER ACTIVE AMBULANCES (City Overview) */}
-            {Object.entries(ambulances).map(([id, amb]) => {
-              if (!isValidLatLng(amb.location) || id === assignedAmbulanceId) return null;
-              return (
-                <Marker key={id} position={amb.location} icon={ambulanceIcon} opacity={0.4}>
-                  <Popup>
-                    <div style={{ color: '#333' }}>
-                      <strong>Ambulance {amb.name}</strong><br />
-                      {amb.available ? '🟢 Available' : '🔴 Busy'}
-                    </div>
-                  </Popup>
-                </Marker>
-              );
-            })}
-
-            {locationHistory.length > 1 && (
-              <Polyline positions={locationHistory} color="#00c8ff" weight={3} opacity={0.5} />
-            )}
-
-            {/* Hospital Markers */}
-            {Object.entries(getHospitalsData()).map(([id, hosp]) => {
-              if (!isValidLatLng(hosp.location)) return null;
-              if (isAmbulanceArrived && assignedHospitalId && assignedHospitalId !== id) return null;
-              
-              return (
-                <Marker key={id} position={hosp.location} icon={hospitalIcon}>
-                  <Popup>
-                    <div style={{ color: '#333' }}>
-                      <strong>🏥 {hosp.name}</strong><br />
-                      {assignedHospitalId === id ? '🟢 Destination Hospital' : 'Available Hospital'}
-                    </div>
-                  </Popup>
-                </Marker>
-              );
-            })}
-
-            {routePath && (
-              <>
-                <Polyline positions={routePath} color="#00ff88" weight={5} opacity={0.7} dashArray="10, 10" />
-                {routePath.length > 2 && [routePath[Math.floor(routePath.length / 3)], routePath[Math.floor(routePath.length * 2 / 3)]].map((pos, idx) => {
-                  const lightIcon = new L.DivIcon({
-                    html: `<div style="font-size: 18px; filter: drop-shadow(0 0 4px ${greenCorridorActive ? '#00ff88' : '#ff3333'});">${greenCorridorActive ? '🟢' : '🔴'}</div>`,
-                    className: 'custom-div-icon',
-                    iconSize: [18, 18],
-                  });
-                  return (
-                    <Marker key={idx} position={pos} icon={lightIcon}>
-                      <Popup>
-                        <div style={{ color: '#333', fontSize: 11 }}>
-                          <strong>🚦 Traffic Signal #{idx + 1}</strong><br />
-                          Status: {greenCorridorActive ? '🟢 Clear (Green Corridor Active)' : '🔴 Red (Preemption Required)'}
-                        </div>
-                      </Popup>
-                    </Marker>
-                  );
-                })}
-              </>
-            )}
-
-            {Object.values(trafficIncidents).map((incident) => (
-              <React.Fragment key={incident.id}>
-                <Circle
-                  center={[incident.lat, incident.lng]}
-                  radius={incident.radius || 300}
-                  pathOptions={{
-                    color: '#ff3333',
-                    fillColor: '#ff3333',
-                    fillOpacity: 0.15,
-                    dashArray: '5, 10',
-                    weight: 2
-                  }}
-                >
-                  <Popup>
-                    <div style={{ color: '#333', fontFamily: 'sans-serif' }}>
-                      <strong style={{ color: '#ff3333' }}>⚠️ Traffic Incident / Blockage</strong>
-                      <p style={{ margin: '5px 0 0 0', fontSize: '11px' }}>{incident.reason}</p>
-                      <span style={{ fontSize: '9px', color: '#666' }}>Radius: {incident.radius}m</span>
-                    </div>
-                  </Popup>
-                </Circle>
-                <Circle
-                  center={[incident.lat, incident.lng]}
-                  radius={20}
-                  pathOptions={{
-                    color: '#ff1111',
-                    fillColor: '#ff1111',
-                    fillOpacity: 0.8,
-                    weight: 1
-                  }}
-                />
-              </React.Fragment>
-            ))}
-          </MapContainer>
+          <LiveRouteMap
+            routeGeometry={routePath ? { type: 'LineString', coordinates: routePath.map(p => [p.lng || p[1], p.lat || p[0]]) } : null}
+            ambulancePosition={liveAmbulanceLoc}
+            originMarker={userLocation}
+            destinationMarker={assignedHospitalId ? Object.values(getHospitalsData()).find(h => h.id === assignedHospitalId)?.location : null}
+            extraAmbulances={requestStatus === 'idle' ? topAmbs.reduce((acc, a) => {
+              acc[a.id] = { ...a, location: a.location, available: true };
+              return acc;
+            }, {}) : ambulances}
+            extraHospitals={getHospitalsData()}
+            incidents={Object.values(trafficIncidents)}
+            locationHistory={locationHistory}
+            greenCorridorActive={greenCorridorActive}
+            mode="user"
+            theme="dark"
+          />
 
           {/* 🔐 ABDM DPDP CONSENT POPUP */}
           {pendingConsentRequest && (

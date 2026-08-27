@@ -1,54 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Circle, useMap, Polyline } from 'react-leaflet';
+import LiveRouteMap from './LiveRouteMap';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import MassCasualtyPanel from './MassCasualtyPanel';
 import BloodEmergencyNetwork from './BloodEmergencyNetwork';
 import VideoCall from './VideoCall';
 import EmergencyCorridorPanel from './EmergencyCorridorPanel';
-import OfflineTileLayer from './OfflineTileLayer';
 import { generateMonthlyReport } from '../utils/reportGenerator';
 import { exportMetricsToExcel } from '../utils/excelExporter';
 import PhysiologicalWaveforms from './PhysiologicalWaveforms';
 
 const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
-
-try {
-  if (typeof window !== 'undefined' && L && L.Icon && L.Icon.Default) {
-    delete L.Icon.Default.prototype._getIconUrl;
-    L.Icon.Default.mergeOptions({
-      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-    });
-  }
-} catch (e) {
-  console.warn('[LEAFLET ICON PATCH ERROR]', e);
-}
-
-let ambulanceIcon = null;
-try {
-  if (typeof window !== 'undefined' && L && L.divIcon) {
-    ambulanceIcon = L.divIcon({
-      className: '',
-      html: `<div style="width:26px;height:26px;background:rgba(0,255,136,0.9);border:2px solid #00ff88;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 0 12px #00ff88;">🚑</div>`,
-      iconSize: [26, 26], iconAnchor: [13, 13]
-    });
-  }
-} catch (e) {}
-
-function MapCenterer({ center }) {
-  const map = useMap();
-  const doneRef = useRef(false);
-  useEffect(() => {
-    if (center && !doneRef.current) {
-      map.setView(center, 12, { animate: true });
-      doneRef.current = true;
-    }
-  }, [center, map]);
-  return null;
-}
 
 function KpiCard({ label, value, unit, color, icon }) {
   return (
@@ -632,37 +593,16 @@ export default function WarRoom({ socket, connected, onLogout, onSwitchRole, onS
                   </button>
                 </div>
             <div style={{ flex: 1, minHeight: 0 }}>
-              <MapContainer center={[mapCenter.lat, mapCenter.lng]} zoom={11} style={{ height: '100%', width: '100%' }} zoomControl={false}>
-                <OfflineTileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" attribution="&copy; OpenStreetMap" />
-                <MapCenterer center={mapCenter} />
-                {Object.entries(ambulances).map(([id, amb]) => {
-                  if (!amb.location) return null;
-                  return (
-                    <Marker key={id} position={[amb.location.lat, amb.location.lng]} icon={ambulanceIcon}>
-                      <Popup>
-                        <div style={{ color: '#000', minWidth: 140 }}>
-                          <strong>{amb.unitId || id.slice(-8)}</strong><br />
-                          {amb.driverName || 'On Duty'}<br />
-                          <span style={{ color: amb.available ? 'green' : 'red', fontWeight: 'bold' }}>
-                            {amb.available ? '🟢 AVAILABLE' : '🔴 DISPATCHED'}
-                          </span>
-                        </div>
-                      </Popup>
-                    </Marker>
-                  );
-                })}
-                {hazards.map(h => (
-                  <Circle key={h.id} center={[h.lat, h.lng]} radius={h.radius} pathOptions={{ color: h.color, fillColor: h.color, fillOpacity: 0.14 }}>
-                    <Popup><div style={{ color: h.color, fontWeight: 'bold' }}>{h.type}</div><div style={{ fontSize: 11, color: '#000' }}>Radius: {(h.radius / 1000).toFixed(1)} km</div></Popup>
-                  </Circle>
-                ))}
-                {routeToPatient.length > 0 && (
-                  <Polyline positions={routeToPatient} pathOptions={{ color: '#00ff88', weight: 4, opacity: 0.85, dashArray: '6, 12' }} />
-                )}
-                {routeToHospital.length > 0 && (
-                  <Polyline positions={routeToHospital} pathOptions={{ color: '#00c8ff', weight: 4, opacity: 0.85 }} />
-                )}
-              </MapContainer>
+              <LiveRouteMap
+                ambulancePosition={mapCenter}
+                extraAmbulances={ambulances}
+                extraHospitals={hospitals}
+                hazards={hazards}
+                routeToPatient={routeToPatient}
+                routeToHospital={routeToHospital}
+                mode="warroom"
+                theme="dark"
+              />
             </div>
           </div>
 

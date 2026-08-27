@@ -4,9 +4,6 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine,
 } from 'recharts';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, useMap } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import VideoCall from './VideoCall';
 import PhysiologicalWaveforms from './PhysiologicalWaveforms';
 import { showAlert } from '../utils/alert';
@@ -16,7 +13,6 @@ import HeartbeatViz from './HeartbeatViz';
 import HospitalAnalytics from './HospitalAnalytics';
 import BloodEmergencyNetwork from './BloodEmergencyNetwork';
 import { MfaVerifyScreen } from './MfaVerifyScreen';
-import OfflineTileLayer from './OfflineTileLayer';
 import AIEmergencyCorridorView from './AIEmergencyCorridorView';
 // THREE is dynamically imported inside ThreeDResuscitationMonitor to prevent TDZ crash
 
@@ -99,51 +95,7 @@ if (typeof window !== 'undefined') {
   }, { once: true });
 }
 
-// Fix leaflet default icon
-try {
-  if (typeof window !== 'undefined' && L && L.Icon && L.Icon.Default) {
-    delete L.Icon.Default.prototype._getIconUrl;
-    L.Icon.Default.mergeOptions({
-      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-    });
-  }
-} catch (e) {
-  console.warn('[LEAFLET ICON PATCH ERROR]', e);
-}
-
-let ambulanceIcon = null;
-let hospitalIcon = null;
-try {
-  if (typeof window !== 'undefined' && L && L.divIcon) {
-    ambulanceIcon = L.divIcon({
-      className: '',
-      html: `<div style="
-        width:36px; height:36px; background:rgba(255,100,50,0.9);
-        border:2px solid rgba(255,150,100,0.8); border-radius:50%;
-        display:flex; align-items:center; justify-content:center;
-        font-size:18px; box-shadow:0 0 20px rgba(255,100,50,0.6);
-        animation:pulse 1.5s ease infinite;
-      ">🚑</div>
-      <style>@keyframes pulse{0%,100%{box-shadow:0 0 10px rgba(255,100,50,0.4)}50%{box-shadow:0 0 30px rgba(255,100,50,0.8)}}</style>`,
-      iconSize: [36, 36],
-      iconAnchor: [18, 18],
-    });
-
-    hospitalIcon = L.divIcon({
-      className: '',
-      html: `<div style="
-        width:32px; height:32px; background:rgba(0,200,255,0.9);
-        border:2px solid rgba(100,220,255,0.8); border-radius:6px;
-        display:flex; align-items:center; justify-content:center;
-        font-size:16px; box-shadow:0 0 15px rgba(0,200,255,0.4);
-      ">🏥</div>`,
-      iconSize: [32, 32],
-      iconAnchor: [16, 16],
-    });
-  }
-} catch (e) {}
+// Fix leaflet default icon removed
 
 const CLINICAL_PROTOCOLS = {
   'CARDIAC ARREST': [
@@ -177,47 +129,7 @@ const CLINICAL_PROTOCOLS = {
 // This prevents the system from defaulting to hardcoded Indian GPS coordinates for non-Indian clients.
 // The hospital network is populated dynamically from the active server socket registry.
 
-/* ─── Map recenter helper ─────────────────────────────────────────────────── */
-function MapUpdater({ center }) {
-  const map = useMap();
-  useEffect(() => {
-    if (center && center.lat !== undefined && center.lng !== undefined && !isNaN(center.lat) && !isNaN(center.lng)) {
-      map.panTo([center.lat, center.lng], { animate: true, duration: 1 });
-    }
-  }, [center, map]);
-  return null;
-}
-
-function SmartMapController({ ambulanceLoc, userLoc, hospitalLoc }) {
-  const map = useMap();
-  const lastBoundsRef = useRef(null);
-
-  useEffect(() => {
-    const points = [];
-    if (ambulanceLoc && ambulanceLoc.lat !== undefined && ambulanceLoc.lng !== undefined && !isNaN(ambulanceLoc.lat) && !isNaN(ambulanceLoc.lng)) {
-      points.push([ambulanceLoc.lat, ambulanceLoc.lng]);
-    }
-    if (userLoc && userLoc.lat !== undefined && userLoc.lng !== undefined && !isNaN(userLoc.lat) && !isNaN(userLoc.lng)) {
-      points.push([userLoc.lat, userLoc.lng]);
-    }
-    if (hospitalLoc && hospitalLoc.lat !== undefined && hospitalLoc.lng !== undefined && !isNaN(hospitalLoc.lat) && !isNaN(hospitalLoc.lng)) {
-      points.push([hospitalLoc.lat, hospitalLoc.lng]);
-    }
-
-    if (points.length >= 2) {
-      const bounds = L.latLngBounds(points);
-      const boundsStr = bounds.toBBoxString();
-      if (boundsStr !== lastBoundsRef.current) {
-        map.fitBounds(bounds, { padding: [50, 50], animate: true });
-        lastBoundsRef.current = boundsStr;
-      }
-    } else if (points.length === 1) {
-      map.panTo(points[0], { animate: true });
-    }
-  }, [ambulanceLoc, userLoc, hospitalLoc, map]);
-
-  return null;
-}
+// Leaflet helpers removed
 
 
 

@@ -1,62 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Polyline } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-
-// Custom glowing HTML markers for Leaflet map
-const createAmbulanceIcon = () => L.divIcon({
-  className: 'glowing-ambulance-marker',
-  html: `<div style="
-    width: 20px;
-    height: 20px;
-    background: #ff3333;
-    border: 3px style solid #fff;
-    border-radius: 50%;
-    box-shadow: 0 0 15px #ff3333, 0 0 25px #ff3333;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #fff;
-    font-size: 10px;
-    font-weight: bold;
-    animation: pulse 1.2s infinite;
-  ">🚑</div>`,
-  iconSize: [20, 20],
-  iconAnchor: [10, 10]
-});
-
-const createPatientIcon = () => L.divIcon({
-  className: 'glowing-patient-marker',
-  html: `<div style="
-    width: 16px;
-    height: 16px;
-    background: #ffe600;
-    border: 2px solid #000;
-    border-radius: 50%;
-    box-shadow: 0 0 10px #ffe600, 0 0 20px #ffe600;
-    animation: pulse 1.5s infinite;
-  ">👤</div>`,
-  iconSize: [16, 16],
-  iconAnchor: [8, 8]
-});
-
-const createHospitalIcon = () => L.divIcon({
-  className: 'glowing-hospital-marker',
-  html: `<div style="
-    width: 22px;
-    height: 22px;
-    background: #00ff88;
-    border: 2px solid #fff;
-    border-radius: 50%;
-    box-shadow: 0 0 15px #00ff88, 0 0 25px #00ff88;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-  ">🏥</div>`,
-  iconSize: [22, 22],
-  iconAnchor: [11, 11]
-});
+import LiveRouteMap from './LiveRouteMap';
 
 // Dynamic junction solver based on coordinates
 const getCityJunctions = (lat, lng) => {
@@ -426,34 +369,15 @@ export default function AIEmergencyCorridorDashboard({ socket, connected, onLogo
               </p>
             </div>
           ) : (ambulancePos || patientPos || hospitalPos ? (
-            <MapContainer
-              center={ambulancePos || patientPos || [16.5062, 80.6480]}
-              zoom={14}
-              style={{ height: '100%', width: '100%' }}
-              zoomControl={false}
-            >
-              <TileLayer
-                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-              />
-              
-              {routePath && (
-                <Polyline 
-                  positions={routePath} 
-                  pathOptions={{ color: '#ff3333', weight: 6, opacity: 0.8, lineCap: 'round', glow: '0 0 10px #ff3333' }} 
-                />
-              )}
-
-              {ambulancePos && (
-                <Marker position={ambulancePos} icon={createAmbulanceIcon()} />
-              )}
-              {patientPos && (
-                <Marker position={patientPos} icon={createPatientIcon()} />
-              )}
-              {hospitalPos && (
-                <Marker position={hospitalPos} icon={createHospitalIcon()} />
-              )}
-            </MapContainer>
+            <LiveRouteMap
+              routeGeometry={routePath ? { type: 'LineString', coordinates: routePath.map(p => [p[1], p[0]]) } : null}
+              ambulancePosition={ambulancePos}
+              originMarker={patientPos}
+              destinationMarker={hospitalPos}
+              junctions={junctions}
+              theme="dark"
+              mode="corridor"
+            />
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
               <span style={{ fontSize: 14, fontFamily: "'Orbitron'", color: '#00c8ff' }}>LOADING MAP TELEMETRY...</span>

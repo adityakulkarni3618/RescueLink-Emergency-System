@@ -1,7 +1,4 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, Circle } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import VideoCall from './VideoCall';
 import { showAlert } from '../utils/alert';
@@ -10,7 +7,6 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import PhysiologicalWaveforms from './PhysiologicalWaveforms';
 import EmergencyCorridorPanel from './EmergencyCorridorPanel';
-import OfflineTileLayer from './OfflineTileLayer';
 import AIEmergencyCorridorView from './AIEmergencyCorridorView';
 import LiveRouteMap from './LiveRouteMap';
 let audioCtx = null;

@@ -1,34 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { MapContainer, Marker, Popup, Circle } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import LiveRouteMap from './LiveRouteMap';
 import QRCode from 'qrcode';
-import OfflineTileLayer from './OfflineTileLayer';
 
-const getServerUrl = () => process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
-
-try {
-  if (typeof window !== 'undefined' && L && L.Icon && L.Icon.Default) {
-    delete L.Icon.Default.prototype._getIconUrl;
-    L.Icon.Default.mergeOptions({
-      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-    });
-  }
-} catch (e) {
-  console.warn('[LEAFLET ICON PATCH ERROR]', e);
-}
-
-let bloodBankIcon = null;
-try {
-  if (typeof window !== 'undefined' && L && L.divIcon) {
-    bloodBankIcon = L.divIcon({
-      className: '', html: `<div style="width:32px;height:32px;background:rgba(220,30,30,0.9);border:2px solid rgba(255,100,100,0.8);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 0 15px rgba(220,30,30,0.5);">🩸</div>`,
-      iconSize: [32, 32], iconAnchor: [16, 16],
-    });
-  }
-} catch (e) {}
+// Leaflet config removed
 
 const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
 const BLOOD_COMPATIBILITY = {
@@ -195,29 +169,17 @@ export default function BloodEmergencyNetwork({ socket, userLocation, patientDet
 
             {/* Map */}
             <div style={{ height: 280, borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(220,30,30,0.3)' }}>
-              <MapContainer center={[mapCenter.lat, mapCenter.lng]} zoom={13} style={{ width: '100%', height: '100%' }}>
-                <OfflineTileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
-                {bloodBanks.map(bank => {
-                  const hasStock = (bank.inventory[selectedBloodType] || 0) > 0;
-                  return (
-                    <Marker key={bank.id} position={[bank.lat, bank.lng]} icon={bloodBankIcon}>
-                      <Popup>
-                        <div style={{ background: '#050f28', padding: 12, minWidth: 200, color: '#e0eaff', fontFamily: "'Rajdhani'" }}>
-                          <div style={{ fontFamily: "'Orbitron'", fontSize: 12, color: '#ff4444', marginBottom: 8 }}>{bank.name}</div>
-                          <div style={{ fontSize: 11, color: '#00ff88', marginBottom: 4 }}>{bank.phone}</div>
-                          <div style={{ fontSize: 10, color: hasStock ? '#00ff88' : '#ff4444', fontWeight: 700 }}>
-                            {selectedBloodType}: {bank.inventory[selectedBloodType] || 0} units {hasStock ? '✅' : '❌'}
-                          </div>
-                          <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.5)', marginTop: 4 }}>
-                            {bank.emergency24x7 ? '🕐 24/7 Emergency' : 'Office hours only'}
-                          </div>
-                        </div>
-                      </Popup>
-                    </Marker>
-                  );
-                })}
-                {userLocation && <Circle center={[userLocation.lat, userLocation.lng]} radius={1000} color="rgba(255,68,68,0.5)" fillOpacity={0.1} />}
-              </MapContainer>
+              <LiveRouteMap
+                ambulancePosition={userLocation || mapCenter}
+                extraHospitals={bloodBanks.map(bank => ({
+                  hospitalId: bank.id,
+                  name: bank.name,
+                  pos: { lat: bank.lat, lng: bank.lng },
+                  available: (bank.inventory[selectedBloodType] || 0) > 0
+                }))}
+                theme="dark"
+                mode="blood"
+              />
             </div>
 
             {/* Bank List */}
