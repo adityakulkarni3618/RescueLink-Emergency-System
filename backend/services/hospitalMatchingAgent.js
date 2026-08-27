@@ -72,4 +72,38 @@ function startHospitalMatchingAgent(missionId, io, activeRequests) {
   }, 30000);
 }
 
-module.exports = { rankHospitals, startHospitalMatchingAgent };
+async function checkForBetterHospitalMidTransport(missionId, currentLat, currentLng, io, activeRequests) {
+  const req = activeRequests[missionId];
+  if (!req || req.status !== 'en_route_to_hospital' || !req.hospitalId) return;
+
+  const currentRoute = await getRealRoute(currentLat, currentLng, req.assignedHospital.lat, req.assignedHospital.lng);
+  if (!currentRoute) return;
+
+  if (!req.confirmed_eta_seconds) {
+    req.confirmed_eta_seconds = currentRoute.durationSeconds;
+  }
+  const originalEta = req.confirmed_eta_seconds;
+  const delayRatio = currentRoute.durationSeconds / originalEta;
+
+  if (delayRatio > 1.25 || (currentRoute.durationSeconds - originalEta) > 300) {
+    const alternatives = await rankHospitals(currentLat, currentLng);
+    const better = alternatives.find(a => 
+      a.hospital.id !== req.hospitalId && a.etaSeconds < currentRoute.durationSeconds * 0.85
+    );
+    if (better) {
+      console.log(`[REROUTE SUGGESTION] Suggesting alternative hospital ${better.hospital.name} (ETA: ${better.etaSeconds}s) for mission ${missionId}`);
+      io.to(`mission_${missionId}`).emit('corridor:reroute-suggested', {
+        currentEtaSeconds: currentRoute.durationSeconds,
+        alternative: { 
+          hospitalId: better.hospital.id,
+          hospitalName: better.hospital.name, 
+          etaSeconds: better.etaSeconds,
+          distanceKm: better.distanceKm
+        }
+      });
+      io.to(`hospital:${req.hospitalId}`).emit('mission:possible-reroute-pending', { missionId });
+    }
+  }
+}
+
+module.exports = { rankHospitals, startHospitalMatchingAgent, checkForBetterHospitalMidTransport };

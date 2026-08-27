@@ -1740,6 +1740,8 @@ io.on('connection', (socket) => {
       console.log(`[MAP] Enriched Location update routed to mission_${reqId}`);
       syncMissionToDB(reqId);
       evaluatePreemption(reqId, data, io).catch(err => console.error('[PREEMPTION ERROR]', err));
+      const { checkForBetterHospitalMidTransport } = require('./services/hospitalMatchingAgent');
+      checkForBetterHospitalMidTransport(reqId, data.lat, data.lng, io, activeRequests).catch(err => console.error('[MID-TRANS CHECK ERROR]', err));
     } else {
       if (reqId) {
         io.to(`mission_${reqId}`).emit('location-update', data);
