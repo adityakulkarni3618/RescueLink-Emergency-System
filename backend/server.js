@@ -2278,18 +2278,35 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('patient-onboard', (data) => {
+  socket.on('patient-onboard', async (data) => {
     const { reqId } = data;
     const req = activeRequests[reqId];
     if (req) {
-      req.status = 'patient_onboard';
-      io.to(`mission_${reqId}`).emit('patient-onboard', data);
-      console.log(`[DISPATCH] Patient onboard for request ${reqId}`);
+      if (!req.hospitalId) {
+        return socket.emit('error-alert', { message: 'Cannot mark patient onboard without a confirmed hospital.' });
+      }
 
-      // Emit initial hospital facility recommendations
-      getHospitalRecommendations(req).then(recommendations => {
-        io.to(`mission_${reqId}`).emit('hospital-facility-recommendations', { recommendations });
-      });
+      req.status = 'en_route_to_hospital';
+
+      // Lock the preemption corridor route to the hospital
+      const { getRealRoute } = require('./services/routing');
+      const routeData = await getRealRoute(
+        (ambulances[req.ambulanceSocket]?.location?.lat) || req.userLocation.lat,
+        (ambulances[req.ambulanceSocket]?.location?.lng) || req.userLocation.lng,
+        req.assignedHospital.lat,
+        req.assignedHospital.lng
+      );
+
+      if (routeData) {
+        req.routePath = routeData.geometry.coordinates.map(c => ({ lat: c[1], lng: c[0] }));
+        req.corridor_junctions = routeData.steps;
+        
+        io.to(`mission_${reqId}`).emit('route-update', { reqId, routePath: req.routePath });
+        io.to(`mission_${reqId}`).emit('corridor:activated', { route: routeData, hospital: req.assignedHospital });
+      }
+
+      io.to(`mission_${reqId}`).emit('patient-onboard', data);
+      console.log(`[CORRIDOR LOCK] Corridor locked for request ${reqId} to hospital ${req.assignedHospital.name}`);
     }
   });
 
