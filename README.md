@@ -96,3 +96,11 @@ RescueLink is built from the ground up for healthcare compliance audits:
    cd ../frontend
    npm start
    ```
+
+---
+
+## 6. Bandwidth & Real-Time Optimization
+To resolve high cloud egress bandwidth limits (such as Render's 5 GB Hobby quota), RescueLink implements advanced network optimization layers:
+- **Targeted Sockets**: Global fleet location broadcasts (`io.emit('ambulances-update')`) are restricted and redirected to the `admin_warroom` room. GPS telemetry is strictly contained in active `mission_${reqId}` rooms.
+- **REST Telemetry Throttling**: Background HTTP polling loops for ambulances, hospitals, and disaster cases on the frontend are throttled from 8s/10s to **60 seconds**, reducing background GET request data consumption by **~87%**.
+- **Real-Time Architecture Reference**: See [REALTIME_ARCHITECTURE.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/REALTIME_ARCHITECTURE.md) and [BANDWIDTH_OPTIMIZATION_REPORT.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/BANDWIDTH_OPTIMIZATION_REPORT.md) for detailed performance audit and implementation specs.
