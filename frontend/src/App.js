@@ -2054,7 +2054,7 @@ function AmbulanceLandingHomepage({ onLogin, onRegister, onBack }) {
       }
     };
     fetchAmbulances();
-    const interval = setInterval(fetchAmbulances, 8000);
+    const interval = setInterval(fetchAmbulances, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -2161,7 +2161,7 @@ function HospitalLandingHomepage({ onLogin, onRegister, onBack }) {
       }
     };
     fetchHospitals();
-    const interval = setInterval(fetchHospitals, 8000);
+    const interval = setInterval(fetchHospitals, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -2271,7 +2271,7 @@ function LandingHomepage({ onSelectRole }) {
       }
     };
     fetchRegistry();
-    const interval = setInterval(fetchRegistry, 10000);
+    const interval = setInterval(fetchRegistry, 60000);
     return () => clearInterval(interval);
   }, []);
 

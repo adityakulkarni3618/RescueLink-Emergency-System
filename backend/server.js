@@ -985,7 +985,7 @@ function startVirtualAmbulanceSimulation(reqId, virtualAmbId) {
 
       io.to(req.userSocket).emit('location-update', locationPayload);
       io.to(`mission_${req.id}`).emit('location-update', locationPayload);
-      io.emit('ambulances-update', getCombinedAmbulances());
+      io.to('admin_warroom').emit('ambulances-update', getCombinedAmbulances());
 
       if (currentWaypointIdx === totalWaypoints - 1) {
         console.log(`[Sim Dispatch] Virtual ambulance ${virtualAmbId} arrived at user.`);
@@ -1161,7 +1161,7 @@ function startVirtualAmbulanceToHospitalSimulation(reqId, hospitalSocketId) {
 
       io.to(`mission_${req.id}`).emit('location-update', locationPayload);
       io.to(req.userSocket).emit('location-update', locationPayload);
-      io.emit('ambulances-update', getCombinedAmbulances());
+      io.to('admin_warroom').emit('ambulances-update', getCombinedAmbulances());
 
       if (currentWaypointIdx === totalWaypoints - 1) {
         console.log(`[Sim Dispatch] Virtual ambulance arrived at hospital ${hosp.name}.`);
