@@ -3364,6 +3364,28 @@ app.get('/api/resources/shares', (req, res) => {
   res.json(active);
 });
 
+// Lightweight health endpoint for load balancers
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
+
+// Readiness check verifying active database and redis connectivity
+app.get('/ready', async (req, res) => {
+  try {
+    const { healthCheck } = require('./utils/db');
+    const dbStatus = await healthCheck();
+    const { redis } = require('./utils/redis');
+    const redisStatus = (redis && redis.status === 'ready') ? 'healthy' : 'unhealthy';
+    
+    if (dbStatus.status === 'healthy' && redisStatus === 'healthy') {
+      return res.json({ status: 'ready', database: dbStatus, redis: redisStatus });
+    }
+    return res.status(503).json({ status: 'not_ready', database: dbStatus, redis: redisStatus });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
 // Fallback to React index.html for unknown routes (React Router support)
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../client/build/index.html'));
@@ -3773,5 +3795,47 @@ if (process.env.NODE_ENV !== 'test') {
   startServer();
 }
 
-module.exports = { app, server, startServer };
+// Graceful shutdown handler
+async function gracefulShutdown(signal) {
+  console.log(`\n[SHUTDOWN] Received ${signal}. Starting graceful shutdown sequence...`);
+  
+  if (server) {
+    console.log('[SHUTDOWN] Stopping HTTP server...');
+    server.close(() => {
+      console.log('[SHUTDOWN] HTTP server stopped.');
+    });
+  }
+
+  try {
+    if (io) {
+      console.log('[SHUTDOWN] Closing Socket.io connection manager...');
+      io.close();
+      console.log('[SHUTDOWN] Socket.io closed.');
+    }
+  } catch (err) {
+    console.error('[SHUTDOWN ERROR] Failed to close Socket.io:', err.message);
+  }
+
+  try {
+    const { closeRedis } = require('./utils/redis');
+    await closeRedis();
+  } catch (err) {
+    console.error('[SHUTDOWN ERROR] Failed to close Redis pool:', err.message);
+  }
+
+  try {
+    const { closeDatabase } = require('./utils/db');
+    await closeDatabase();
+  } catch (err) {
+    console.error('[SHUTDOWN ERROR] Failed to close database:', err.message);
+  }
+
+  console.log('[SHUTDOWN] Graceful shutdown completed. Exiting process.');
+  process.exit(0);
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+module.exports = { app, server, startServer, gracefulShutdown };
 // Nodemon trigger comment - reload and restart server successfully

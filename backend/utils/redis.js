@@ -124,10 +124,23 @@ async function releaseLock(resource, value) {
   return false;
 }
 
+async function closeRedis() {
+  if (redis) {
+    console.log('[REDIS] Disconnecting Redis client...');
+    try {
+      await redis.quit();
+      console.log('[REDIS] Redis client disconnected.');
+    } catch (err) {
+      console.error('[REDIS ERROR] Failed to quit Redis client:', err.message);
+    }
+  }
+}
+
 module.exports = {
   redis,
   blacklistToken,
   isTokenBlacklisted,
   acquireLock,
-  releaseLock
+  releaseLock,
+  closeRedis
 };

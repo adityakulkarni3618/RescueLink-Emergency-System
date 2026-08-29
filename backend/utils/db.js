@@ -15,7 +15,7 @@ const dbPort = process.env.DB_PORT || 5432;
 // The DATABASE_URL env variable on Render/Vercel, if set, will be used instead.
 // If not set, we fall back to the hardcoded Neon URL so data is NEVER lost.
 const NEON_URL = "postgresql://neondb_owner:npg_YlSeb1kgv6PB@ep-shiny-dust-axomvx38-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
-let databaseUrl = NEON_URL; // Strictly use Neon Cloud PostgreSQL to ensure permanent persistence of registered entities
+const databaseUrl = process.env.DATABASE_URL || NEON_URL; // Allow environment variable override
 
 if (!useSqlite && !databaseUrl) {
   try {
@@ -208,6 +208,12 @@ async function syncDatabase() {
       console.log('[DB] Connected to SQLite database');
     } else {
       console.log('[DB] Connected to PostgreSQL');
+    }
+
+    // In production, migrations must be run explicitly via 'npm run migrate' to prevent race conditions or locks
+    if (process.env.NODE_ENV === 'production') {
+      console.log('[DB] Production environment detected. Skipping automatic migration and table sync.');
+      return;
     }
 
     // First, sync model structures to ensure all tables exist
