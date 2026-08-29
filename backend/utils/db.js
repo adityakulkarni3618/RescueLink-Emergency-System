@@ -210,6 +210,12 @@ async function syncDatabase() {
       console.log('[DB] Connected to PostgreSQL');
     }
 
+    // In production, migrations must be run explicitly via 'npm run migrate' to prevent race conditions or locks
+    if (process.env.NODE_ENV === 'production') {
+      console.log('[DB] Production environment detected. Skipping automatic migration and table sync.');
+      return;
+    }
+
     // First, sync model structures to ensure all tables exist
     await sequelize.sync();
 
