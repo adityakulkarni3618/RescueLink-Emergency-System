@@ -189,8 +189,6 @@ function processHL7Message(hl7Msg, io, activeRequests) {
       io.to(`mission_${activeMission.id}`).emit('vitals-update', payload);
       if (!activeMission.vitalsHistory) activeMission.vitalsHistory = [];
       activeMission.vitalsHistory.push(payload);
-    } else {
-      io.emit('vitals-update', payload);
     }
   } catch (err) {
     console.error('[VITALS BRIDGE] Error processing HL7 message:', err.message);
@@ -229,8 +227,6 @@ function startSimulation(io, activeRequests) {
       if (!activeMission.vitalsHistory) activeMission.vitalsHistory = [];
       activeMission.vitalsHistory.push(payload);
       io.to(`mission_${activeMission.id}`).emit('vitals-update', payload);
-    } else {
-      io.emit('vitals-update', payload);
     }
   }, 3000);
 }
