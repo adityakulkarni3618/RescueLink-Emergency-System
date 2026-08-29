@@ -1598,7 +1598,6 @@ io.on('connection', (socket) => {
 
     if (reqId) {
       io.to(`mission_${reqId}`).emit('vitals-update', update);
-      io.emit('vitals-update', update);
 
       // Dynamic hospital facility recommendations if patient is onboard
       if (activeRequests[reqId] && activeRequests[reqId].status === 'patient_onboard') {
@@ -1618,11 +1617,6 @@ io.on('connection', (socket) => {
       if (reqId) {
         io.to(`mission_${reqId}`).emit('bulk-vitals-update', vitals);
         io.to(`mission_${reqId}`).emit('vitals-update', latest);
-        io.emit('bulk-vitals-update', vitals);
-        io.emit('vitals-update', latest);
-      } else {
-        io.emit('bulk-vitals-update', vitals);
-        io.emit('vitals-update', latest);
       }
     }
   });
