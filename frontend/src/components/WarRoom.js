@@ -375,7 +375,10 @@ export default function WarRoom({ socket, connected, onLogout, onSwitchRole, onS
       } catch (_) { /* server may be temporarily unreachable */ }
     };
     poll();
-    const interval = setInterval(poll, 8000);
+    const interval = setInterval(() => {
+      if (document.hidden) return;
+      poll();
+    }, 30000);
 
     const onStuckCase = (data) => {
       setStuckMissions(prev => ({ ...prev, [data.reqId]: data.duration }));

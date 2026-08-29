@@ -198,7 +198,7 @@ async function broadcastRegistry() {
       }
     });
 
-    io.emit('hospitals-update', mergedHospitals);
+    io.to('admin_warroom').to('global_hospitals').emit('hospitals-update', mergedHospitals);
   } catch (err) {
     console.error('[REGISTRY SYNC ERROR]', err);
   }
@@ -223,6 +223,7 @@ const activeIncidentZones = {};
 const activeMciEvents = {};
 let disasterModeActive = false;
 const lastEmittedLocations = {};
+const lastEtaFetches = {};
 
 function isRushHour() {
   const hour = new Date().getHours();
@@ -285,6 +286,10 @@ app.use(helmet({
   contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false
 }));
+
+// HTTP Response compression
+const compression = require('compression');
+app.use(compression());
 
 // Morgan Request Logging
 if (process.env.NODE_ENV === 'production') {
@@ -892,7 +897,7 @@ function cleanupSimulation(reqId) {
     const amb = virtualAmbulances[req.unitId];
     if (amb) {
       amb.available = true;
-      io.emit('ambulances-update', getCombinedAmbulances());
+      io.to('admin_warroom').emit('ambulances-update', getCombinedAmbulances());
     }
   }
 }
@@ -911,7 +916,7 @@ function startVirtualAmbulanceSimulation(reqId, virtualAmbId) {
   req.unitId = virtualAmbId;
   amb.available = false;
 
-  io.emit('ambulances-update', getCombinedAmbulances());
+  io.to('admin_warroom').emit('ambulances-update', getCombinedAmbulances());
   io.to(req.userSocket).emit('ambulance-request-response', { ...req, accepted: true });
 
   io.emit('incoming-hospital-request', {
@@ -950,7 +955,7 @@ function startVirtualAmbulanceSimulation(reqId, virtualAmbId) {
         clearInterval(interval);
         delete activeSimulations[reqId];
         amb.available = true;
-        io.emit('ambulances-update', getCombinedAmbulances());
+        io.to('admin_warroom').emit('ambulances-update', getCombinedAmbulances());
         return;
       }
 
@@ -1034,8 +1039,8 @@ function startVirtualAmbulanceSimulation(reqId, virtualAmbId) {
                 hospitals[mockSid].activeMissionsCount = (hospitals[mockSid].activeMissionsCount || 0) + 1;
                 hospitals[mockSid].isBusy = true;
 
-                io.emit('hospitals-update', hospitals);
-                io.emit('ambulances-update', getCombinedAmbulances());
+                io.to('admin_warroom').to('global_hospitals').emit('hospitals-update', hospitals);
+                io.to('admin_warroom').emit('ambulances-update', getCombinedAmbulances());
 
                 const fakeData = { reqId, status: 'hospital_accepted', readyServices: currentReq.readyServices, assignedHospital: hospitals[mockSid] };
                 io.to(currentReq.userSocket).emit('hospital-response', fakeData);
@@ -1095,7 +1100,7 @@ function startVirtualAmbulanceToHospitalSimulation(reqId, hospitalSocketId) {
         clearInterval(interval);
         delete activeSimulations[reqId];
         amb.available = true;
-        io.emit('ambulances-update', getCombinedAmbulances());
+        io.to('admin_warroom').emit('ambulances-update', getCombinedAmbulances());
         return;
       }
 
@@ -1177,10 +1182,10 @@ function startVirtualAmbulanceToHospitalSimulation(reqId, hospitalSocketId) {
 
           hosp.activeMissionsCount = Math.max(0, (hosp.activeMissionsCount || 1) - 1);
           hosp.isBusy = hosp.activeMissionsCount > 0;
-          io.emit('hospitals-update', hospitals);
+          io.to('admin_warroom').to('global_hospitals').emit('hospitals-update', hospitals);
 
           amb.available = true;
-          io.emit('ambulances-update', getCombinedAmbulances());
+          io.to('admin_warroom').emit('ambulances-update', getCombinedAmbulances());
 
           Incident.update({ status: 'completed' }, { where: { id: req.id } })
             .catch(err => console.error('[Sim Dispatch DB Error]', err));
@@ -1220,7 +1225,7 @@ app.post('/api/hospital/capacity', authenticateToken, async (req, res) => {
     if (socketId && hospitals[socketId]) {
       hospitals[socketId].availableICUBeds = hospital.icu_beds;
       hospitals[socketId].availableVentilators = hospital.ventilators;
-      io.emit('hospitals-update', hospitals);
+      io.to('admin_warroom').to('global_hospitals').emit('hospitals-update', hospitals);
     }
     return res.json({ success: true, icu_beds: hospital.icu_beds, ventilators: hospital.ventilators });
   } catch (err) {
@@ -1598,7 +1603,6 @@ io.on('connection', (socket) => {
 
     if (reqId) {
       io.to(`mission_${reqId}`).emit('vitals-update', update);
-      io.emit('vitals-update', update);
 
       // Dynamic hospital facility recommendations if patient is onboard
       if (activeRequests[reqId] && activeRequests[reqId].status === 'patient_onboard') {
@@ -1618,11 +1622,6 @@ io.on('connection', (socket) => {
       if (reqId) {
         io.to(`mission_${reqId}`).emit('bulk-vitals-update', vitals);
         io.to(`mission_${reqId}`).emit('vitals-update', latest);
-        io.emit('bulk-vitals-update', vitals);
-        io.emit('vitals-update', latest);
-      } else {
-        io.emit('bulk-vitals-update', vitals);
-        io.emit('vitals-update', latest);
       }
     }
   });
@@ -1630,7 +1629,7 @@ io.on('connection', (socket) => {
   socket.on('location-update', async (data) => {
     if (ambulances[socket.id]) {
       ambulances[socket.id].location = data;
-      io.emit('ambulances-update', getCombinedAmbulances());
+      io.to('admin_warroom').emit('ambulances-update', getCombinedAmbulances());
     }
 
     const reqId = data.reqId || (Array.from(socket.rooms).find(r => r.startsWith('mission_')) || '').replace('mission_', '');
@@ -1713,17 +1712,28 @@ io.on('connection', (socket) => {
         destPos = hospitalPos;
       }
 
-      let etaMinutes = null;
-      let distanceKm = null;
+      let etaMinutes = req.etaMinutes || null;
+      let distanceKm = req.distanceKm || null;
+      
+      const lastFetchTime = lastEtaFetches[reqId] || 0;
+      const now = Date.now();
+      
       if (destPos && destPos.lat && destPos.lng) {
-        try {
-          const etaResult = await getETA(data.lat, data.lng, destPos.lat, destPos.lng);
-          if (etaResult) {
-            etaMinutes = etaResult.etaMinutes;
-            distanceKm = etaResult.distanceKm;
+        if (!req.lastEtaResult || (now - lastFetchTime > 12000)) {
+          try {
+            const etaResult = await getETA(data.lat, data.lng, destPos.lat, destPos.lng);
+            if (etaResult) {
+              etaMinutes = etaResult.etaMinutes;
+              distanceKm = etaResult.distanceKm;
+              req.lastEtaResult = { etaMinutes, distanceKm };
+              lastEtaFetches[reqId] = now;
+            }
+          } catch (err) {
+            console.error('[MAP] getETA failed:', err.message);
           }
-        } catch (err) {
-          console.error('[MAP] getETA failed:', err.message);
+        } else if (req.lastEtaResult) {
+          etaMinutes = req.lastEtaResult.etaMinutes;
+          distanceKm = req.lastEtaResult.distanceKm;
         }
       }
 
@@ -1796,14 +1806,14 @@ io.on('connection', (socket) => {
   socket.on('resources-update', (data) => {
     if (hospitals[socket.id]) {
       hospitals[socket.id].resources = { ...hospitals[socket.id].resources, ...data };
-      io.emit('hospitals-update', hospitals);
+      io.to('admin_warroom').to('global_hospitals').emit('hospitals-update', hospitals);
     }
   });
 
   socket.on('update-hospital-inventory', (data) => {
     if (hospitals[socket.id]) {
       hospitals[socket.id].inventory = { ...hospitals[socket.id].inventory, ...data };
-      io.emit('hospitals-update', hospitals);
+      io.to('admin_warroom').to('global_hospitals').emit('hospitals-update', hospitals);
       console.log(`[HOSPITAL INVENTORY] ${hospitals[socket.id].name} updated beds: ${data.beds}`);
     }
   });
@@ -1931,7 +1941,7 @@ io.on('connection', (socket) => {
               hosp.ventilators -= 1;
             }
             await hosp.save();
-            io.emit('hospitals-update', await Hospital.findAll());
+            io.to('admin_warroom').to('global_hospitals').emit('hospitals-update', await Hospital.findAll());
           }
         } catch (dbErr) {
           console.error('[LOCK DB ERROR]', dbErr.message);
@@ -2027,7 +2037,7 @@ io.on('connection', (socket) => {
       socket.join(`mission_${socket.id}`);
     }
 
-    io.emit('ambulances-update', getCombinedAmbulances());
+    io.to('admin_warroom').emit('ambulances-update', getCombinedAmbulances());
   });
 
   socket.on('toggle-active-duty', async (data) => {
@@ -2043,7 +2053,7 @@ io.on('connection', (socket) => {
           .catch(e => console.error('[DB ERROR] Failed to toggle ambulance active status:', e.message));
       }
       
-      io.emit('ambulances-update', getCombinedAmbulances());
+      io.to('admin_warroom').emit('ambulances-update', getCombinedAmbulances());
       console.log(`[ACTIVE DUTY] Ambulance ${socket.id} set active status to ${active}`);
     }
   });
@@ -2128,7 +2138,7 @@ io.on('connection', (socket) => {
       socket.emit('incoming-hospital-request', { ...req, incidentLocation: req.incidentLocation });
     });
 
-    io.emit('hospitals-update', hospitals);
+    io.to('admin_warroom').to('global_hospitals').emit('hospitals-update', hospitals);
   });
 
   socket.on('register-user', (data) => {
@@ -2137,7 +2147,7 @@ io.on('connection', (socket) => {
     role = 'user';
     // spawnVirtualAmbulances(location); // disabled simulated fleet to show only registered database units
     spawnIncidentZones(location);
-    io.emit('ambulances-update', getCombinedAmbulances());
+    io.to('admin_warroom').emit('ambulances-update', getCombinedAmbulances());
     io.emit('traffic-incidents-update', activeIncidentZones);
 
     const activeMissions = Object.values(activeRequests).filter(r => r.userSocketId === userId && r.status !== 'completed');
@@ -2171,7 +2181,7 @@ io.on('connection', (socket) => {
       if (req.ambulanceSocket && ambulances[req.ambulanceSocket]) {
         ambulances[req.ambulanceSocket].available = true;
       }
-      io.emit('ambulances-update', getCombinedAmbulances());
+      io.to('admin_warroom').emit('ambulances-update', getCombinedAmbulances());
 
       delete activeRequests[reqId];
     }
@@ -2369,7 +2379,7 @@ io.on('connection', (socket) => {
       io.to(req.userSocket).emit('ambulance-request-response', { ...req, accepted: true });
 
       ambulances[socket.id].available = false;
-      io.emit('ambulances-update', getCombinedAmbulances());
+      io.to('admin_warroom').emit('ambulances-update', getCombinedAmbulances());
 
       const route = await getSmartRoute(ambulances[socket.id].location, req.userLocation);
       if (route) {
@@ -2591,8 +2601,8 @@ io.on('connection', (socket) => {
       });
 
       hospitals[socket.id].isBusy = true;
-      io.emit('hospitals-update', hospitals);
-      io.emit('ambulances-update', getCombinedAmbulances());
+      io.to('admin_warroom').to('global_hospitals').emit('hospitals-update', hospitals);
+      io.to('admin_warroom').emit('ambulances-update', getCombinedAmbulances());
 
       // FCM notifications
       if (req.userSocketId) {
@@ -2662,7 +2672,7 @@ io.on('connection', (socket) => {
       io.to(newHospSocketId).emit('reroute-hospital', data);
     }
 
-    io.emit('hospitals-update', hospitals);
+    io.to('admin_warroom').to('global_hospitals').emit('hospitals-update', hospitals);
     routeToMission(socket, 'reroute-hospital', data);
   });
 
@@ -2778,7 +2788,7 @@ io.on('connection', (socket) => {
       }
     }
 
-    io.emit('ambulances-update', getCombinedAmbulances());
+    io.to('admin_warroom').emit('ambulances-update', getCombinedAmbulances());
     routeToMission(socket, 'reassign-ambulance', req);
     syncMissionToDB(reqId);
   });
@@ -2829,8 +2839,8 @@ io.on('connection', (socket) => {
       hospitals[req.hospitalSocket].activeMissionsCount = Math.max(0, (hospitals[req.hospitalSocket].activeMissionsCount || 1) - 1);
     }
 
-    io.emit('ambulances-update', getCombinedAmbulances());
-    io.emit('hospitals-update', hospitals);
+    io.to('admin_warroom').emit('ambulances-update', getCombinedAmbulances());
+    io.to('admin_warroom').to('global_hospitals').emit('hospitals-update', hospitals);
 
     delete activeRequests[reqId];
   });
@@ -2904,7 +2914,7 @@ io.on('connection', (socket) => {
         if (req.hospitalSocket && hospitals[req.hospitalSocket]) {
           hospitals[req.hospitalSocket].activeMissionsCount = Math.max(0, (hospitals[req.hospitalSocket].activeMissionsCount || 1) - 1);
           hospitals[req.hospitalSocket].isBusy = hospitals[req.hospitalSocket].activeMissionsCount > 0;
-          io.emit('hospitals-update', hospitals);
+          io.to('admin_warroom').to('global_hospitals').emit('hospitals-update', hospitals);
         }
       }
       if (req.userSocket) io.to(req.userSocket).emit('mission-completed', { reqId });
@@ -2916,7 +2926,7 @@ io.on('connection', (socket) => {
     // Set ambulance back to available
     if (ambulances[socket.id]) {
       ambulances[socket.id].available = true;
-      io.emit('ambulances-update', getCombinedAmbulances());
+      io.to('admin_warroom').emit('ambulances-update', getCombinedAmbulances());
     }
   });
 
@@ -2942,8 +2952,8 @@ io.on('connection', (socket) => {
         ambulances[req.ambulanceSocket].available = true;
       }
       delete activeRequests[reqId];
-      io.emit('ambulances-update', getCombinedAmbulances());
-      io.emit('hospitals-update', hospitals);
+      io.to('admin_warroom').emit('ambulances-update', getCombinedAmbulances());
+      io.to('admin_warroom').to('global_hospitals').emit('hospitals-update', hospitals);
     }
   });
 
@@ -3110,7 +3120,7 @@ io.on('connection', (socket) => {
       } catch (ambRestoreErr) {
         console.error('[DISCONNECT] Failed to restore ambulance registry entry:', ambRestoreErr.message);
       }
-      io.emit('ambulances-update', getCombinedAmbulances());
+      io.to('admin_warroom').emit('ambulances-update', getCombinedAmbulances());
     }
 
 
@@ -3168,7 +3178,7 @@ io.on('connection', (socket) => {
           console.error('[DISCONNECT] Failed to restore hospital registry entry:', restoreErr.message);
         }
       }
-      io.emit('hospitals-update', hospitals);
+      io.to('admin_warroom').to('global_hospitals').emit('hospitals-update', hospitals);
     }
 
     io.emit('roles-update', connectedRoles);
@@ -3759,7 +3769,7 @@ async function startServer() {
 
             // Notify user/patient that paramedic disconnected and we are search routing again
             io.to(m.userSocket).emit('ambulance-request-response', { id: m.id, status: 'searching', message: 'Assigned unit disconnected. Rerouting dispatch.' });
-            io.emit('ambulances-update', getCombinedAmbulances());
+            io.to('admin_warroom').emit('ambulances-update', getCombinedAmbulances());
             syncMissionToDB(m.id);
           }
         }
