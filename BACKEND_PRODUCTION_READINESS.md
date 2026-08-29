@@ -31,3 +31,12 @@ Upon receipt of system shutdown alerts, the application executes the following:
 2. Closes Socket.IO server, disconnecting active clients.
 3. Shuts down active Redis pools gracefully.
 4. Closes active Sequelize database connection pools, executing clean process exits.
+
+## 6. Production Database Migrations
+To prevent automatic and potentially unsafe schema changes during server boot on cloud instances:
+* **Boot Bypass**: When `NODE_ENV=production`, the backend skips database table sync and automatic migrations on startup (`npm start`). It only validates credentials using `sequelize.authenticate()`.
+* **Explicit Execution**: Migrations must be run explicitly as a pre-deploy or release task using:
+  ```bash
+  npm run migrate
+  ```
+  This executes `scripts/run-migrations.js` which applies all SQL files sequentially and updates the `migrations` tracking table. If any migration fails, the process exits with a non-zero exit code (`1`) to abort deployment.
