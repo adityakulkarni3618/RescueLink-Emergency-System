@@ -2054,7 +2054,10 @@ function AmbulanceLandingHomepage({ onLogin, onRegister, onBack }) {
       }
     };
     fetchAmbulances();
-    const interval = setInterval(fetchAmbulances, 60000);
+    const interval = setInterval(() => {
+      if (document.hidden) return;
+      fetchAmbulances();
+    }, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -2161,7 +2164,10 @@ function HospitalLandingHomepage({ onLogin, onRegister, onBack }) {
       }
     };
     fetchHospitals();
-    const interval = setInterval(fetchHospitals, 60000);
+    const interval = setInterval(() => {
+      if (document.hidden) return;
+      fetchHospitals();
+    }, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -2271,7 +2277,10 @@ function LandingHomepage({ onSelectRole }) {
       }
     };
     fetchRegistry();
-    const interval = setInterval(fetchRegistry, 60000);
+    const interval = setInterval(() => {
+      if (document.hidden) return;
+      fetchRegistry();
+    }, 60000);
     return () => clearInterval(interval);
   }, []);
 
