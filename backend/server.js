@@ -287,6 +287,10 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 
+// HTTP Response compression
+const compression = require('compression');
+app.use(compression());
+
 // Morgan Request Logging
 if (process.env.NODE_ENV === 'production') {
   app.use(morgan('combined'));
