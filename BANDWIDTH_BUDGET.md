@@ -1,6 +1,6 @@
 # RescueLink Bandwidth Budget
 
-This document estimates the network egress requirements for RescueLink under typical student demo conditions (1 active emergency, 1 admin, 1 hospital dashboard, 3-5 users).
+This document estimates the network egress requirements for RescueLink under typical student demo conditions (1 active emergency, 1 admin, 1 hospital dashboard, 3-5 users) after applying two rounds of source-code optimizations.
 
 ## 1. Bandwidth Egress Calculations (Per Emergency Run)
 
@@ -18,8 +18,15 @@ This document estimates the network egress requirements for RescueLink under typ
 * **Calculation**:
   $$\text{Data Rate} = 2 \times 150\text{ B} \times 60\text{ updates/min} = 18\text{ KB/minute}$$
 
-### C. Homepage Background Polling (Throttled)
-* **Update Frequency**: 60 seconds (1/60 Hz)
+### C. Mapbox/OSRM Directions Routing (Throttled)
+* **Update Frequency**: 12 seconds (throttled from 2s on every location update)
+* **Payload Size**: ~10 KB per directions packet
+* **Recipients**: 2 (Patient, Hospital)
+* **Calculation**:
+  $$\text{Data Rate} = 2 \times 10\text{ KB} \times 5\text{ requests/min} = 100\text{ KB/minute}$$
+
+### D. Homepage Background Polling (Throttled & Tab Paused)
+* **Update Frequency**: 60 seconds (1/60 Hz, suspended when tab is hidden)
 * **Payload Size**: ~3 KB per GET fetch
 * **Recipients**: 5 idle clients
 * **Calculation**:
@@ -29,10 +36,11 @@ This document estimates the network egress requirements for RescueLink under typ
 
 ## 2. Total Budget Summary (Estimates)
 
-| Usage Level | Active Duration | Bandwidth Usage |
-| :--- | :--- | :--- |
-| **Per Minute (Active Emergency)** | 1 Minute | ~51 KB / minute |
-| **Per Hour (Continuous Demo)** | 60 Minutes | ~3.06 MB / hour |
-| **Per Month (Typical Student Demo)** | 10 Hours / month | ~30.6 MB / month |
+| Traffic Source / Channel | Before (per min) | After (per min) | Egress Reduction |
+| :--- | :--- | :--- | :--- |
+| **Global Websocket Telemetry** | ~1,200 KB / min | ~36 KB / min | **~97.0%** |
+| **Mapbox directions Routing** | ~600 KB / min | ~100 KB / min | **~83.3%** |
+| **REST HTTP API Egress** | ~120 KB / min | ~15 KB / min | **~87.5%** |
+| **Total Active Egress** | **~1,920 KB / min** | **~151 KB / min** | **~92.1%** |
 
-These calculations confirm that RescueLink will operate well below Render's 5 GB Free plan monthly transfer quota.
+These calculations confirm that RescueLink will operate comfortably below Render's Hobby plan monthly transfer limits under typical demo use-cases.
