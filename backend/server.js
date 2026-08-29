@@ -223,6 +223,7 @@ const activeIncidentZones = {};
 const activeMciEvents = {};
 let disasterModeActive = false;
 const lastEmittedLocations = {};
+const lastEtaFetches = {};
 
 function isRushHour() {
   const hour = new Date().getHours();
@@ -1707,17 +1708,28 @@ io.on('connection', (socket) => {
         destPos = hospitalPos;
       }
 
-      let etaMinutes = null;
-      let distanceKm = null;
+      let etaMinutes = req.etaMinutes || null;
+      let distanceKm = req.distanceKm || null;
+      
+      const lastFetchTime = lastEtaFetches[reqId] || 0;
+      const now = Date.now();
+      
       if (destPos && destPos.lat && destPos.lng) {
-        try {
-          const etaResult = await getETA(data.lat, data.lng, destPos.lat, destPos.lng);
-          if (etaResult) {
-            etaMinutes = etaResult.etaMinutes;
-            distanceKm = etaResult.distanceKm;
+        if (!req.lastEtaResult || (now - lastFetchTime > 12000)) {
+          try {
+            const etaResult = await getETA(data.lat, data.lng, destPos.lat, destPos.lng);
+            if (etaResult) {
+              etaMinutes = etaResult.etaMinutes;
+              distanceKm = etaResult.distanceKm;
+              req.lastEtaResult = { etaMinutes, distanceKm };
+              lastEtaFetches[reqId] = now;
+            }
+          } catch (err) {
+            console.error('[MAP] getETA failed:', err.message);
           }
-        } catch (err) {
-          console.error('[MAP] getETA failed:', err.message);
+        } else if (req.lastEtaResult) {
+          etaMinutes = req.lastEtaResult.etaMinutes;
+          distanceKm = req.lastEtaResult.distanceKm;
         }
       }
 
