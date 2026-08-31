@@ -6,8 +6,7 @@ import { offlineQueue } from '../utils/IndexedDBBridge';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import PhysiologicalWaveforms from './PhysiologicalWaveforms';
-import EmergencyCorridorPanel from './EmergencyCorridorPanel';
-import AIEmergencyCorridorView from './AIEmergencyCorridorView';
+import CorridorPanel from './CorridorPanel';
 import LiveRouteMap from './LiveRouteMap';
 let audioCtx = null;
 
@@ -3252,7 +3251,7 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
           )}
  
           {activeTab === 'corridor' && (
-            <AIEmergencyCorridorView
+            <CorridorPanel
               socket={socket}
               connected={connected}
               activeMissionId={assignedUser?.id}
@@ -3264,6 +3263,7 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
               etaSeconds={arrivalCountdown}
               distanceKm={assignedUser ? parseFloat(calcDist(location, selectedHospital || assignedUser.userLocation).toFixed(2)) : 1.8}
               speedKmh={gpsSpeed || 62}
+              mode="driver"
               onBack={() => setActiveTab('mission')}
             />
           )}

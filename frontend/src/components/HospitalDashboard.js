@@ -13,7 +13,7 @@ import HeartbeatViz from './HeartbeatViz';
 import HospitalAnalytics from './HospitalAnalytics';
 import BloodEmergencyNetwork from './BloodEmergencyNetwork';
 import { MfaVerifyScreen } from './MfaVerifyScreen';
-import AIEmergencyCorridorView from './AIEmergencyCorridorView';
+import CorridorPanel from './CorridorPanel';
 import LiveRouteMap from './LiveRouteMap';
 // THREE is dynamically imported inside ThreeDResuscitationMonitor to prevent TDZ crash
 
@@ -4470,7 +4470,7 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
                   {(() => {
                     const mission = activeMissions[activeMissionId];
                     return (
-                      <AIEmergencyCorridorView
+                      <CorridorPanel
                         socket={socket}
                         connected={connected}
                         activeMissionId={activeMissionId}
@@ -4482,6 +4482,7 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
                         etaSeconds={mission?.etaSeconds || 180}
                         distanceKm={mission?.distanceRemaining || 1.8}
                         speedKmh={mission?.speedKmh || 55}
+                        mode="hospital"
                         onBack={() => handleTabChange('triage')}
                       />
                     );
