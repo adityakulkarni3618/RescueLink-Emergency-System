@@ -12,6 +12,7 @@ const VideoCall = ({ socket, role, missionId: reqId }) => {
   const [incomingUrl, setIncomingUrl] = useState(null);
   const [callerRole, setCallerRole] = useState('');
   const [jitsiUrl, setJitsiUrl] = useState(null);
+  const [vitals, setVitals] = useState(null);
   
   // Peer state
   const [peers, setPeers] = useState({
@@ -46,6 +47,21 @@ const VideoCall = ({ socket, role, missionId: reqId }) => {
     return () => {
       clearInterval(interval);
       socket.off('mission-peers', handlePeersUpdate);
+    };
+  }, [socket, reqId]);
+
+  useEffect(() => {
+    if (!socket || !reqId) return;
+
+    const handleVitalsUpdate = (data) => {
+      if (data && data.reqId === reqId) {
+        setVitals(data);
+      }
+    };
+
+    socket.on('vitals-update', handleVitalsUpdate);
+    return () => {
+      socket.off('vitals-update', handleVitalsUpdate);
     };
   }, [socket, reqId]);
 
@@ -364,6 +380,40 @@ const VideoCall = ({ socket, role, missionId: reqId }) => {
             allow="camera; microphone; fullscreen; display-capture; autoplay"
             style={{ width: '100%', height: '100%', border: 'none', position: 'absolute', inset: 0, zIndex: 4 }}
           />
+        )}
+
+        {/* Floating Vitals Telemetry HUD Overlay */}
+        {inCall && vitals && (
+          <div style={{
+            position: 'absolute',
+            top: 12,
+            right: 12,
+            zIndex: 10,
+            background: 'rgba(2, 6, 20, 0.85)',
+            border: '1.5px solid rgba(0, 200, 255, 0.4)',
+            borderRadius: 8,
+            padding: '10px 14px',
+            pointerEvents: 'none',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+            minWidth: 140,
+            fontFamily: "'Share Tech Mono', monospace"
+          }}>
+            <div style={{ fontSize: 9, color: '#00c8ff', fontWeight: 'bold', fontFamily: "'Orbitron'", letterSpacing: '0.05em' }}>
+              📡 PATIENT TELEMETRY HUD
+            </div>
+            <div style={{ fontSize: 13, color: '#ff4444', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between' }}>
+              <span>❤️ HR:</span> <span>{vitals.heartRate || '---'} BPM</span>
+            </div>
+            <div style={{ fontSize: 13, color: '#00ff88', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between' }}>
+              <span>🫁 SpO2:</span> <span>{vitals.spo2 || '---'}%</span>
+            </div>
+            <div style={{ fontSize: 13, color: '#ffb800', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between' }}>
+              <span>🩸 BP:</span> <span>{vitals.systolic || '---'}/{vitals.diastolic || '---'}</span>
+            </div>
+          </div>
         )}
       </div>
     </div>

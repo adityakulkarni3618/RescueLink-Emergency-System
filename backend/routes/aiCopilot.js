@@ -257,6 +257,99 @@ Provide the output in STRICT JSON format. Do not write any markdown blocks, expl
   }
 });
 
+/**
+ * @route POST /api/ai/protocol
+ * @desc Suggest medical protocol and calculate drug dosage safely
+ */
+router.post('/protocol', verifyToken(), async (req, res) => {
+  const { condition, weight, allergies } = req.body;
+  if (!condition) {
+    return res.status(400).json({ error: 'Condition or symptoms description is required' });
+  }
+
+  try {
+    let resultPayload;
+
+    if (aiModel) {
+      const prompt = `You are a clinical decision support system for RescueLink Emergency Services.
+Analyze this emergency condition: "${condition}"
+Patient weight: ${weight || 'unknown'} kg.
+Patient allergies: ${JSON.stringify(allergies || [])}.
+
+Provide:
+1. Standard medical protocol name (e.g., ACLS Cardiac Arrest, ATLS Severe Trauma, Stroke Protocol).
+2. Step-by-step checklist actions (4-6 steps).
+3. Recommended emergency drugs with calculated dosage (based on ${weight || 70} kg).
+4. Safety warnings / contraindications, especially checking the patient's allergies: ${JSON.stringify(allergies || [])}.
+
+Provide the output in STRICT JSON format matching this structure:
+{
+  "protocolName": "string",
+  "steps": ["step 1", "step 2"],
+  "drugs": [
+    { "name": "Epinephrine", "dose": "calculated dose details", "reason": "reason for use" }
+  ],
+  "warnings": ["warning 1"]
+}`;
+      try {
+        const result = await aiModel.generateContent(prompt);
+        const textResponse = result.response.text().trim();
+        const cleaned = textResponse.replace(/^```json/, '').replace(/```$/, '').trim();
+        resultPayload = JSON.parse(cleaned);
+      } catch (geminiErr) {
+        resultPayload = getFallbackProtocol(condition, weight, allergies);
+      }
+    } else {
+      resultPayload = getFallbackProtocol(condition, weight, allergies);
+    }
+
+    return res.json(resultPayload);
+  } catch (err) {
+    console.error('[AI PROTOCOL ERROR]', err.message);
+    return res.status(500).json({ error: 'Protocol generation failed' });
+  }
+});
+
+function getFallbackProtocol(condition, weight, allergies) {
+  const w = weight || 70;
+  const isCardiac = condition.toLowerCase().includes('cardiac') || condition.toLowerCase().includes('arrest') || condition.toLowerCase().includes('heart');
+  const isAllergic = (allergies || []).some(a => a.toLowerCase().includes('penicillin'));
+
+  if (isCardiac) {
+    return {
+      protocolName: "ACLS Cardiac Arrest Protocol",
+      steps: [
+        "Initiate high-quality CPR (30:2 compressions/ventilations)",
+        "Attach AED / defibrillator monitor; check rhythm (shockable vs non-shockable)",
+        "Establish IV/IO access and prepare advanced airway equipment",
+        "Administer Epinephrine every 3-5 minutes",
+        "Minimize interruptions in chest compressions"
+      ],
+      drugs: [
+        { name: "Epinephrine", dose: `${(w >= 40 ? 1 : 0.01 * w).toFixed(2)} mg (1:10000) IV/IO`, reason: "Vasopressor support during resuscitation" },
+        { name: "Amiodarone", dose: "300 mg IV/IO bolus first dose", reason: "Antiarrhythmic for VF/pVT" }
+      ],
+      warnings: ["Monitor for return of spontaneous circulation (ROSC)", "Ensure chest recoil is complete"]
+    };
+  }
+
+  return {
+    protocolName: "Advanced EMS General Protocol",
+    steps: [
+      "Secure airway and check breathing rate/adequacy",
+      "Administer supplemental high-flow oxygen if SpO2 < 94%",
+      "Establish intravenous access and obtain primary vital signs",
+      "Perform secondary head-to-toe clinical assessment"
+    ],
+    drugs: [
+      { name: "Normal Saline Bolus", dose: `${20 * w} mL IV infusion`, reason: "Fluid resuscitation / maintenance" }
+    ],
+    warnings: [
+      isAllergic ? "🚨 WARNING: Avoid Penicillin/Beta-Lactam class of antibiotics due to recorded allergy." : "Verify all allergies before administering drug therapies."
+    ]
+  };
+}
+
 function getFallbackSoapNote(notes, vitalsHistory) {
   const latestVitals = vitalsHistory && vitalsHistory.length > 0 ? vitalsHistory[vitalsHistory.length - 1] : {};
   const bpText = latestVitals.systolic ? `${latestVitals.systolic}/${latestVitals.diastolic} mmHg` : 'N/A';
