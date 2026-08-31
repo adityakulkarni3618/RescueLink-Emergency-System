@@ -10,6 +10,7 @@ import axios from 'axios';
 import PatientPortal from './components/PatientPortal';
 import { MfaVerifyScreen } from './components/MfaVerifyScreen';
 import AIEmergencyCorridorDashboard from './components/AIEmergencyCorridorDashboard';
+import SimulationDashboard from './components/SimulationDashboard';
 
 const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system-4d85.onrender.com');
 const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system-4d85.onrender.com');
@@ -3216,6 +3217,7 @@ export default function App() {
       <div className="scanline" />
 
       <ThemeSwitcher />
+      <SimulationDashboard />
 
       {role === 'user' && (
         <UserDashboard 

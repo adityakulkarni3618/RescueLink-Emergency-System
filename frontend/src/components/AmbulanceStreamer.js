@@ -1317,6 +1317,94 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
     };
   }, [socket, connected, authUnit]);
 
+  // Connect Demo Simulator custom events
+  useEffect(() => {
+    let deteriorationInterval = null;
+    let driftInterval = null;
+
+    const handleVitalsDeteriorate = (e) => {
+      const active = e.detail.active;
+      setSimulateCrisis(active);
+      if (active) {
+        setVitalsSource('SIMULATED');
+        deteriorationInterval = setInterval(() => {
+          setVitals(prev => {
+            const hr = Math.min(180, prev.heartRate + Math.floor(Math.random() * 4) + 1);
+            const spo2 = Math.max(75, prev.spo2 - (Math.random() * 1.5 + 0.2));
+            const sys = Math.max(70, prev.systolic - Math.floor(Math.random() * 3));
+            return {
+              ...prev,
+              heartRate: Math.round(hr),
+              spo2: Math.round(spo2 * 10) / 10,
+              systolic: Math.round(sys),
+              source: 'SIMULATED'
+            };
+          });
+        }, 1500);
+      } else {
+        if (deteriorationInterval) {
+          clearInterval(deteriorationInterval);
+          deteriorationInterval = null;
+        }
+      }
+    };
+
+    const handleGpsDrift = (e) => {
+      const active = e.detail.active;
+      if (active) {
+        driftInterval = setInterval(() => {
+          setLocation(prev => {
+            if (!prev) return { lat: 12.9716, lng: 77.5946 };
+            const nextLat = prev.lat + (Math.random() - 0.4) * 0.0003;
+            const nextLng = prev.lng + (Math.random() - 0.4) * 0.0003;
+            const newPos = { lat: nextLat, lng: nextLng };
+            if (socket && connected) {
+              socket.emit('location-update', {
+                ...newPos,
+                accuracy: 10,
+                speed: 45,
+                heading: 90,
+                timestamp: Date.now(),
+                simulationOn: true
+              });
+            }
+            return newPos;
+          });
+        }, 2000);
+      } else {
+        if (driftInterval) {
+          clearInterval(driftInterval);
+          driftInterval = null;
+        }
+      }
+    };
+
+    const handleOffline = (e) => {
+      setIsOffline(e.detail.active);
+    };
+
+    const handleGreenCorridor = (e) => {
+      setGreenCorridorActive(e.detail.active);
+      if (socket && assignedUser) {
+        socket.emit('green-corridor-status', { reqId: assignedUser.id, active: e.detail.active });
+      }
+    };
+
+    window.addEventListener('demo:vitals-deteriorate', handleVitalsDeteriorate);
+    window.addEventListener('demo:gps-drift', handleGpsDrift);
+    window.addEventListener('demo:network-offline', handleOffline);
+    window.addEventListener('demo:green-corridor', handleGreenCorridor);
+
+    return () => {
+      window.removeEventListener('demo:vitals-deteriorate', handleVitalsDeteriorate);
+      window.removeEventListener('demo:gps-drift', handleGpsDrift);
+      window.removeEventListener('demo:network-offline', handleOffline);
+      window.removeEventListener('demo:green-corridor', handleGreenCorridor);
+      if (deteriorationInterval) clearInterval(deteriorationInterval);
+      if (driftInterval) clearInterval(driftInterval);
+    };
+  }, [socket, connected, assignedUser]);
+
   const handleAbortResume = () => {
     if (socket && pendingResumeMission) {
       socket.emit('reject-resume-mission', { reqId: pendingResumeMission.id });
