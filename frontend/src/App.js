@@ -9,7 +9,7 @@ import CustomAlert from './components/CustomAlert';
 import axios from 'axios';
 import PatientPortal from './components/PatientPortal';
 import { MfaVerifyScreen } from './components/MfaVerifyScreen';
-import AIEmergencyCorridorDashboard from './components/AIEmergencyCorridorDashboard';
+import CorridorPanel from './components/CorridorPanel';
 import SimulationDashboard from './components/SimulationDashboard';
 
 const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system-4d85.onrender.com');
@@ -3286,10 +3286,11 @@ export default function App() {
         />
       )}
       {role === 'corridor' && (
-        <AIEmergencyCorridorDashboard 
+        <CorridorPanel 
           socket={socket} 
           connected={connected} 
-          onLogout={handleLogout}
+          mode="warroom"
+          onBack={handleLogout}
         />
       )}
 

@@ -243,6 +243,15 @@ function calcDist(pos1, pos2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+function broadcastTrafficIncidents() {
+  io.to('warroom').emit('traffic-incidents-update', activeIncidentZones);
+  Object.values(activeRequests).forEach(req => {
+    if (req.routePath && checkRouteCollision(req.routePath)) {
+      io.to(`mission_${req.id}`).emit('traffic-incidents-update', activeIncidentZones);
+    }
+  });
+}
+
 function checkRouteCollision(route) {
   if (!route || route.length === 0) return null;
   for (const coord of route) {
@@ -1349,7 +1358,7 @@ const spawnIncidentZones = (centerLoc) => {
       radius: off.radius
     };
   });
-  io.emit('traffic-incidents-update', activeIncidentZones);
+  broadcastTrafficIncidents();
 };
 
 // ─── Socket.io ─────────────────────────────────────────────────────────────────
@@ -1366,7 +1375,7 @@ io.on('connection', (socket) => {
   if (role === 'ambulance') connectedRoles.ambulance++;
   if (role === 'hospital') connectedRoles.hospital++;
 
-  io.emit('roles-update', connectedRoles);
+  io.to('warroom').emit('roles-update', connectedRoles);
 
   // Send current state to newly connected client
   socket.emit('ambulances-update', getCombinedAmbulances());
@@ -2148,7 +2157,7 @@ io.on('connection', (socket) => {
     // spawnVirtualAmbulances(location); // disabled simulated fleet to show only registered database units
     spawnIncidentZones(location);
     io.to('admin_warroom').emit('ambulances-update', getCombinedAmbulances());
-    io.emit('traffic-incidents-update', activeIncidentZones);
+    broadcastTrafficIncidents();
 
     const activeMissions = Object.values(activeRequests).filter(r => r.userSocketId === userId && r.status !== 'completed');
     if (activeMissions.length > 0) {
@@ -2616,7 +2625,13 @@ io.on('connection', (socket) => {
 
       io.to(req.userSocket).emit('hospital-request-response', { ...req, hospitalSocket: req.hospitalSocket });
       if (req.ambulanceSocket) io.to(req.ambulanceSocket).emit('hospital-request-response', { ...req, hospitalSocket: req.hospitalSocket });
-      io.emit('hospital-request-taken', { reqId: req.id, acceptedBy: socket.id });
+      if (req.offeredHospitals) {
+      req.offeredHospitals.forEach(hId => {
+        io.to(`hospital:${hId}`).emit('hospital-request-taken', { reqId: req.id, acceptedBy: socket.id });
+      });
+    } else {
+      io.to('hospitals').emit('hospital-request-taken', { reqId: req.id, acceptedBy: socket.id });
+    }
     }
   });
 
@@ -2991,7 +3006,7 @@ io.on('connection', (socket) => {
     activeMciEvents[eventId] = mciEvent;
     disasterModeActive = true;
 
-    io.emit('mass-casualty-declared', mciEvent);
+    io.to('warroom').to('hospitals').emit('mass-casualty-declared', mciEvent);
     console.log(`[MCI DECLARE] Mass Casualty declared: ${mciEvent.eventType} (${eventId})`);
   });
 
@@ -3045,7 +3060,7 @@ io.on('connection', (socket) => {
         timestamp: new Date().toISOString()
       };
       mci.casualties.push(casualty);
-      io.emit('mass-casualty-update', mci);
+      io.to('warroom').to('hospitals').emit('mass-casualty-update', mci);
       console.log(`[MCI TRIAGE] Casualty triaged: ${casualty.casualtyName} -> [${casualty.tag}]`);
     }
   });
@@ -3064,7 +3079,7 @@ io.on('connection', (socket) => {
         timestamp: new Date().toISOString()
       };
       mci.resourceRequests.push(req);
-      io.emit('mass-casualty-update', mci);
+      io.to('warroom').to('hospitals').emit('mass-casualty-update', mci);
       console.log(`[MCI RESOURCE] Resource request: ${req.resourceType} (Qty: ${req.quantity})`);
     }
   });
@@ -3181,7 +3196,7 @@ io.on('connection', (socket) => {
       io.to('admin_warroom').to('global_hospitals').emit('hospitals-update', hospitals);
     }
 
-    io.emit('roles-update', connectedRoles);
+    io.to('warroom').emit('roles-update', connectedRoles);
     console.log(`[DISCONNECT] ${role.toUpperCase()} disconnected — ${socket.id}`);
   });
 });
@@ -3252,7 +3267,7 @@ app.post('/api/blood/request', async (req, res) => {
   const id = `BLD-${Date.now()}`;
   const request = { id, bloodType, location, patientName, reqId, urgency: urgency || 'HIGH', timestamp: new Date().toISOString(), status: 'active' };
   activeBloodRequests[id] = request;
-  io.emit('blood-emergency-broadcast', request);
+  io.to('blood-network-subscribers').emit('blood-emergency-broadcast', request);
   setTimeout(() => { if (activeBloodRequests[id]) { activeBloodRequests[id].status = 'expired'; } }, 30 * 60 * 1000);
   logAudit('BLOOD_REQUEST', `Blood type ${bloodType} requested for ${patientName}`, { bloodType, location });
   res.json({ success: true, id, message: `Blood emergency broadcast sent for ${bloodType}` });
@@ -3282,7 +3297,7 @@ app.post('/api/blood/fulfill', async (req, res) => {
   if (activeBloodRequests[requestId]) {
     activeBloodRequests[requestId].status = 'fulfilled';
     activeBloodRequests[requestId].fulfilledBy = hospitalId;
-    io.emit('blood-request-fulfilled', { requestId, hospitalId, units });
+    io.to('blood-network-subscribers').emit('blood-request-fulfilled', { requestId, hospitalId, units });
   }
   res.json({ success: true });
 });
@@ -3365,7 +3380,7 @@ app.post('/api/resources/share', authenticateToken, async (req, res) => {
   const shareId = `RS-${Date.now()}`;
   const share = { id: shareId, hospitalId: req.user.id, resourceType, quantity, expiresAt: new Date(Date.now() + (expiresInHours || 4) * 3600000).toISOString(), status: 'available' };
   activeResourceShares[shareId] = share;
-  io.emit('resource-share-available', share);
+  io.to('hospitals').emit('resource-share-available', share);
   res.json({ success: true, shareId });
 });
 
@@ -3414,7 +3429,7 @@ io.on('connection', (newSocket) => {
     const corridor = { id: corridorId, reqId, route, reason, patientCondition, requestedAt: new Date().toISOString(), status: 'pending' };
     activeGreenCorridors[corridorId] = corridor;
     io.to('admin_warroom').emit('green-corridor-request', corridor);
-    io.emit('green-corridor-active', corridor); // Broadcast to all clients
+    io.to(`mission_${reqId}`).to('warroom').emit('green-corridor-active', corridor); // Broadcast to all clients
     io.to(`mission_${reqId}`).emit('green-corridor-status', { reqId, active: true });
     console.log(`[GREEN CORRIDOR] Requested for mission ${reqId}`);
   });
@@ -3431,7 +3446,7 @@ io.on('connection', (newSocket) => {
       const gc = activeGreenCorridors[corridorId];
       gc.status = 'approved';
       gc.approvedAt = new Date().toISOString();
-      io.emit('green-corridor-approved', gc);
+      io.to(`mission_${gc.reqId}`).to('warroom').emit('green-corridor-approved', gc);
       io.to(`mission_${gc.reqId}`).emit('green-corridor-status', { reqId: gc.reqId, active: true });
       console.log(`[GREEN CORRIDOR] Approved: ${corridorId}`);
     }
@@ -3460,7 +3475,7 @@ io.on('connection', (newSocket) => {
     const eventId = `MCI-${Date.now()}`;
     const event = { id: eventId, eventType, location, estimatedVictims, description, declaredAt: new Date().toISOString(), status: 'active', victims: [], allocations: {} };
     activeMassCasualties[eventId] = event;
-    io.emit('mass-casualty-declared', event);
+    io.to('warroom').to('hospitals').emit('mass-casualty-declared', event);
     io.to('admin_warroom').emit('mass-casualty-declared', event);
     console.log(`[MCI] Mass casualty event declared: ${eventId}`);
   });
@@ -3470,7 +3485,7 @@ io.on('connection', (newSocket) => {
     if (activeMassCasualties[eventId]) {
       if (victims) activeMassCasualties[eventId].victims = victims;
       if (allocations) activeMassCasualties[eventId].allocations = allocations;
-      io.emit('mass-casualty-update', activeMassCasualties[eventId]);
+      io.to('warroom').to('hospitals').emit('mass-casualty-update', activeMassCasualties[eventId]);
     }
   });
 
@@ -3508,7 +3523,7 @@ io.on('connection', (newSocket) => {
     const id = `BLD-${Date.now()}`;
     const request = { id, bloodType, location, patientName, urgency: urgency || 'CRITICAL', timestamp: new Date().toISOString(), requestorSocket: newSocket.id };
     activeBloodRequests[id] = request;
-    io.emit('blood-emergency-broadcast', request);
+    io.to('blood-network-subscribers').emit('blood-emergency-broadcast', request);
     console.log(`[BLOOD] Emergency request for ${bloodType}`);
   });
 

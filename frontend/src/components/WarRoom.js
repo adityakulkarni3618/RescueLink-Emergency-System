@@ -4,7 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
 import MassCasualtyPanel from './MassCasualtyPanel';
 import BloodEmergencyNetwork from './BloodEmergencyNetwork';
 import VideoCall from './VideoCall';
-import EmergencyCorridorPanel from './EmergencyCorridorPanel';
+import CorridorPanel from './CorridorPanel';
 import { generateMonthlyReport } from '../utils/reportGenerator';
 import { exportMetricsToExcel } from '../utils/excelExporter';
 import PhysiologicalWaveforms from './PhysiologicalWaveforms';
@@ -946,7 +946,15 @@ export default function WarRoom({ socket, connected, onLogout, onSwitchRole, onS
 
               {/* AI Emergency Corridor Preemption Control Panel */}
               <div style={{ marginTop: 15 }}>
-                <EmergencyCorridorPanel socket={socket} incidentId={selectedIncidentDetails.id} isControlPanel={true} />
+                <CorridorPanel
+                  socket={socket}
+                  activeMissionId={selectedIncidentDetails.id}
+                  patientLoc={selectedIncidentDetails.userLocation}
+                  ambulanceLoc={selectedIncidentDetails.ambulanceLocation}
+                  hospitalLoc={selectedIncidentDetails.hospitalLocation || selectedIncidentDetails.destinationLocation}
+                  hospitalName={selectedIncidentDetails.hospitalName || selectedIncidentDetails.assignedHospital?.name || 'Destination Hospital'}
+                  mode="warroom"
+                />
               </div>
             </div>
           )}
