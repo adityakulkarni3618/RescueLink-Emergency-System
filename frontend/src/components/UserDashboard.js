@@ -8,6 +8,13 @@ import BloodEmergencyNetwork from './BloodEmergencyNetwork';
 import AmbulanceMarketplace from './AmbulanceMarketplace';
 import PatientPortal from './PatientPortal';
 
+const isValidLatLng = (loc) => {
+  if (!loc) return false;
+  const lat = loc.lat !== undefined ? loc.lat : (Array.isArray(loc) ? loc[0] : undefined);
+  const lng = loc.lng !== undefined ? loc.lng : (Array.isArray(loc) ? loc[1] : undefined);
+  return lat !== undefined && lng !== undefined && !isNaN(lat) && !isNaN(lng);
+};
+
 function cypherHash(input) {
   let hash = 0;
   if (input.length === 0) return hash.toString(16);
