@@ -50,7 +50,7 @@ graph TD
 ## 3. Tech Stack
 
 - **Backend**: Node.js, Express, Socket.io, Sequelize ORM, PostgreSQL / SQLite.
-- **Frontend**: React.js, Leaflet Maps, Recharts, Custom Glassmorphism UI System.
+- **Frontend**: React.js, Mapbox GL, Recharts, Custom Glassmorphism UI System.
 - **Database**: PostgreSQL (system of record), SQLite (automatic local fallback), Redis (session & token blacklists).
 - **Security**: AES-256-GCM application-layer encryption, TOTP Multi-factor authentication, DPDP Act 2023 dynamic consent control.
 - **Deployments**: Docker, docker-compose, Vercel (Frontend), Render (Backend Node API).
