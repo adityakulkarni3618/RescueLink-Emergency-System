@@ -1821,6 +1821,28 @@ function AuthorityRegistrationForm() {
 function LedgerExplorer() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+
+  const handleVerifyLedger = async () => {
+    setVerifying(true);
+    try {
+      const token = sessionStorage.getItem('rescuelink_token');
+      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
+      const res = await fetch(`${SERVER_URL}/api/audit/verify`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const d = await res.json();
+      if (res.ok) {
+        alert(`✅ Ledger Integrity Verified!\n\nStatus: ${d.integrity}\nTotal Blocks: ${d.totalLogsChecked}\nMessage: ${d.message}`);
+      } else {
+        alert(`❌ Ledger Compromised!\n\nStatus: ${d.integrity}\nFailures: ${JSON.stringify(d.failures)}`);
+      }
+    } catch (e) {
+      alert('Verification server offline.');
+    } finally {
+      setVerifying(false);
+    }
+  };
 
   const fetchLogs = async () => {
     setLoading(true);
@@ -1853,9 +1875,14 @@ function LedgerExplorer() {
             HIPAA-COMPLIANT SHA-256 HASH-CHAINED SECURITY LOGS
           </span>
         </div>
-        <button onClick={fetchLogs} disabled={loading} style={{ padding: '6px 14px', background: 'rgba(0,200,255,0.1)', border: '1px solid rgba(0,200,255,0.3)', borderRadius: 6, color: '#00c8ff', fontFamily: "'Orbitron'", fontSize: 10, cursor: 'pointer' }}>
-          {loading ? 'SYNCING...' : 'REFRESH LEDGER'}
-        </button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={handleVerifyLedger} disabled={verifying} style={{ padding: '6px 14px', background: 'rgba(0,255,136,0.1)', border: '1px solid rgba(0,255,136,0.3)', borderRadius: 6, color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 10, cursor: 'pointer' }}>
+            {verifying ? 'VERIFYING...' : '🛡️ VERIFY INTEGRITY'}
+          </button>
+          <button onClick={fetchLogs} disabled={loading} style={{ padding: '6px 14px', background: 'rgba(0,200,255,0.1)', border: '1px solid rgba(0,200,255,0.3)', borderRadius: 6, color: '#00c8ff', fontFamily: "'Orbitron'", fontSize: 10, cursor: 'pointer' }}>
+            {loading ? 'SYNCING...' : 'REFRESH LEDGER'}
+          </button>
+        </div>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', flex: 1 }}>

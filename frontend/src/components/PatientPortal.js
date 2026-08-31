@@ -557,6 +557,8 @@ export default function PatientPortal() {
                 const [mfaStatus, setMfaStatus] = React.useState(null);
                 const [mfaLoading, setMfaLoading] = React.useState(false);
                 const [disable2FAConfirm, setDisable2FAConfirm] = React.useState(false);
+                const [erasureReason, setErasureReason] = React.useState('');
+                const [erasureStatus, setErasureStatus] = React.useState(null);
                 const token = sessionStorage.getItem('rescuelink_token');
                 const userId = profile?.id;
                 const hdrs = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
@@ -605,6 +607,30 @@ export default function PatientPortal() {
                   } catch { setMfaStatus({ ok: false, msg: 'Connection error' }); }
                   setMfaLoading(false);
                   setTimeout(() => setMfaStatus(null), 5000);
+                };
+
+                const handleRequestErasure = async () => {
+                  if (!erasureReason.trim()) {
+                    setErasureStatus({ ok: false, msg: 'Reason is required' });
+                    return;
+                  }
+                  try {
+                    const res = await fetch(`${getServerUrl()}/api/erasure/request`, {
+                      method: 'POST',
+                      headers: hdrs,
+                      body: JSON.stringify({ patient_id: userId, reason: erasureReason })
+                    });
+                    const d = await res.json();
+                    if (res.ok) {
+                      setErasureStatus({ ok: true, msg: '✅ Erasure request submitted. Under compliance review.' });
+                      setErasureReason('');
+                    } else {
+                      setErasureStatus({ ok: false, msg: d.error || 'Request failed' });
+                    }
+                  } catch (e) {
+                    setErasureStatus({ ok: false, msg: 'Connection error' });
+                  }
+                  setTimeout(() => setErasureStatus(null), 6000);
                 };
 
                 return (
@@ -671,6 +697,36 @@ export default function PatientPortal() {
                         </div>
                       )}
                       {mfaStatus && <div style={{ ...S.statusMsg(mfaStatus.ok), marginTop: 12 }}>{mfaStatus.ok ? '✅' : '❌'} {mfaStatus.msg}</div>}
+                    </div>
+
+                    {/* DPDP Erasure request */}
+                    <div style={S.card}>
+                      <h4 style={{ fontFamily: "'Orbitron'", color: '#ff4444', margin: '0 0 12px 0', fontSize: 12 }}>🔐 DPDP RIGHT TO ERASURE (DATA PURGE)</h4>
+                      <p style={{ fontSize: 12, color: 'rgba(160,200,255,0.5)', marginBottom: 14, fontFamily: "'Share Tech Mono'", lineHeight: 1.6 }}>
+                        Under the DPDP Act 2023, you have the right to request the complete deletion of your patient health profile and medical history. This will initiate an administrator review to delete your records permanently.
+                      </p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <textarea
+                          value={erasureReason}
+                          onChange={e => setErasureReason(e.target.value)}
+                          placeholder="Reason for erasure request (required)..."
+                          rows={2}
+                          style={{
+                            padding: 10,
+                            background: 'rgba(0,0,0,0.3)',
+                            border: '1px solid rgba(255,68,68,0.25)',
+                            borderRadius: 6,
+                            color: '#fff',
+                            fontSize: 12,
+                            outline: 'none',
+                            fontFamily: "'Share Tech Mono'"
+                          }}
+                        />
+                        <button onClick={handleRequestErasure} style={{ ...S.btn('255,68,68'), width: 'fit-content' }}>
+                          🚨 REQUEST PERMANENT ERASURE
+                        </button>
+                        {erasureStatus && <div style={S.statusMsg(erasureStatus.ok)}>{erasureStatus.msg}</div>}
+                      </div>
                     </div>
                   </>
                 );
