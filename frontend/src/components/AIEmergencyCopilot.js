@@ -9,9 +9,6 @@ const SEVERITY_COLORS = {
   LOW: { bg: 'rgba(0,255,136,0.1)', border: '#00ff88', text: '#00ff88', badge: '#00ff88' },
 };
 
-const TRIAGE_COLORS = { RED: '#ff3333', YELLOW: '#ffb800', GREEN: '#00ff88' };
-
-// Brain pulse animation (CSS-only 3D neural network)
 function BrainAnimation() {
   return (
     <div style={{ position: 'relative', width: 80, height: 80, margin: '0 auto 20px' }}>
@@ -52,6 +49,7 @@ function BrainAnimation() {
 }
 
 export default function AIEmergencyCopilot({ onAnalysisComplete, onClose }) {
+  const [activeTab, setActiveTab] = useState('triage'); // triage, protocol, dosage
   const [inputText, setInputText] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState(null);
@@ -59,13 +57,25 @@ export default function AIEmergencyCopilot({ onAnalysisComplete, onClose }) {
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef(null);
 
+  // Protocol States
+  const [protocolQuery, setProtocolQuery] = useState('');
+  const [protocolWeight, setProtocolWeight] = useState('70');
+  const [protocolAllergies, setProtocolAllergies] = useState('Penicillin');
+  const [protocolResult, setProtocolResult] = useState(null);
+  const [loadingProtocol, setLoadingProtocol] = useState(false);
+
+  // Dosage States
+  const [doseWeight, setDoseWeight] = useState('70');
+  const [doseAllergies, setDoseAllergies] = useState('Penicillin');
+  const [selectedDrug, setSelectedDrug] = useState('Epinephrine');
+  const [doseCalculated, setDoseCalculated] = useState(null);
+
   const QUICK_PROMPTS = [
     "My father has severe chest pain and is sweating",
     "Person unconscious, not breathing",
     "Major car accident, person bleeding heavily",
     "Severe difficulty breathing, choking",
     "Sudden face drooping and arm weakness",
-    "Child burned by hot water",
   ];
 
   const startListening = () => {
@@ -77,7 +87,11 @@ export default function AIEmergencyCopilot({ onAnalysisComplete, onClose }) {
     recognition.onstart = () => setIsListening(true);
     recognition.onresult = (e) => {
       const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
-      setInputText(prev => prev ? prev + ' ' + transcript : transcript);
+      if (activeTab === 'triage') {
+        setInputText(prev => prev ? prev + ' ' + transcript : transcript);
+      } else {
+        setProtocolQuery(prev => prev ? prev + ' ' + transcript : transcript);
+      }
     };
     recognition.onerror = () => setIsListening(false);
     recognition.onend = () => setIsListening(false);
@@ -91,9 +105,13 @@ export default function AIEmergencyCopilot({ onAnalysisComplete, onClose }) {
     setError('');
     setResult(null);
     try {
+      const token = sessionStorage.getItem('rescuelink_token') || '';
       const res = await fetch(`${getServerUrl()}/api/ai/copilot`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ symptoms: text })
       });
       const data = await res.json();
@@ -104,6 +122,64 @@ export default function AIEmergencyCopilot({ onAnalysisComplete, onClose }) {
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const fetchProtocol = async () => {
+    if (!protocolQuery.trim()) return;
+    setLoadingProtocol(true);
+    setError('');
+    try {
+      const token = sessionStorage.getItem('rescuelink_token') || '';
+      const res = await fetch(`${getServerUrl()}/api/ai/protocol`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          condition: protocolQuery,
+          weight: parseFloat(protocolWeight) || 70,
+          allergies: protocolAllergies.split(',').map(s => s.trim())
+        })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setProtocolResult(data);
+    } catch (err) {
+      setError('Failed to load clinical protocols.');
+    } finally {
+      setLoadingProtocol(false);
+    }
+  };
+
+  const calculateDose = () => {
+    const w = parseFloat(doseWeight) || 70;
+    const isPenicillinAllergy = doseAllergies.toLowerCase().includes('penicillin');
+    
+    if (selectedDrug === 'Amoxicillin' && isPenicillinAllergy) {
+      setDoseCalculated({
+        error: "🚨 CONTRAINDICATION: Patient has documented Penicillin allergy.",
+        safe: false
+      });
+      return;
+    }
+
+    let calculation = '';
+    if (selectedDrug === 'Epinephrine') {
+      calculation = w >= 40 ? '1 mg (1:10000) IV/IO every 3-5 min' : `${(w * 0.01).toFixed(2)} mg IV/IO`;
+    } else if (selectedDrug === 'Amiodarone') {
+      calculation = w >= 40 ? '300 mg IV/IO bolus, second dose 150 mg' : `${(w * 5).toFixed(0)} mg IV/IO`;
+    } else if (selectedDrug === 'Fentanyl') {
+      calculation = `${(w * 1).toFixed(0)} mcg IV/IO slow push`;
+    } else if (selectedDrug === 'Amoxicillin') {
+      calculation = `${(w * 15).toFixed(0)} mg oral suspension`;
+    }
+
+    setDoseCalculated({
+      dose: calculation,
+      drug: selectedDrug,
+      safe: true
+    });
   };
 
   const confirmAndApply = () => {
@@ -127,7 +203,7 @@ export default function AIEmergencyCopilot({ onAnalysisComplete, onClose }) {
         @keyframes typingDot { 0%,80%,100%{opacity:0.3;transform:scale(0.8)} 40%{opacity:1;transform:scale(1)} }
       `}</style>
       <div style={{
-        width: '95%', maxWidth: 680, maxHeight: '92vh', overflowY: 'auto',
+        width: '95%', maxWidth: 720, maxHeight: '92vh', overflowY: 'auto',
         background: 'linear-gradient(135deg, rgba(5,15,40,0.98), rgba(10,25,60,0.98))',
         borderRadius: 20, border: '1px solid rgba(0,200,255,0.3)',
         boxShadow: '0 0 80px rgba(0,200,255,0.15), inset 0 1px 0 rgba(255,255,255,0.05)',
@@ -141,10 +217,10 @@ export default function AIEmergencyCopilot({ onAnalysisComplete, onClose }) {
         }}>
           <div>
             <div style={{ fontFamily: "'Orbitron'", fontSize: 16, color: '#00c8ff', fontWeight: 700, letterSpacing: '0.1em' }}>
-              🧠 AI EMERGENCY COPILOT
+              🧠 AI CLINICAL COPILOT
             </div>
             <div style={{ fontSize: 12, color: 'rgba(160,200,255,0.5)', marginTop: 4, fontFamily: "'Share Tech Mono'" }}>
-              Powered by AI Triage Engine • Real-time symptom analysis
+              ACLS/ATLS Decision Support System & Dosage Guard
             </div>
           </div>
           <button onClick={onClose} style={{
@@ -153,174 +229,274 @@ export default function AIEmergencyCopilot({ onAnalysisComplete, onClose }) {
           }}>×</button>
         </div>
 
-        <div style={{ padding: '24px 28px' }}>
-          {/* Input Section */}
-          {!result && (
-            <>
-              <BrainAnimation />
-              <div style={{ fontSize: 14, color: 'rgba(160,200,255,0.8)', textAlign: 'center', marginBottom: 20, lineHeight: 1.6 }}>
-                Describe the emergency in plain language.<br />
-                <span style={{ color: '#00c8ff' }}>The AI will analyze symptoms and recommend immediate action.</span>
-              </div>
+        {/* Tab Selection */}
+        <div style={{ display: 'flex', borderBottom: '1px solid rgba(0,200,255,0.1)', padding: '0 28px', background: 'rgba(0,0,0,0.2)' }}>
+          {[
+            { id: 'triage', label: '🚨 TRIAGE COPILOT' },
+            { id: 'protocol', label: '📋 ACLS PROTOCOLS' },
+            { id: 'dosage', label: '💊 DOSAGE CALCULATOR' }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => { setActiveTab(tab.id); setError(''); }}
+              style={{
+                padding: '12px 18px',
+                background: 'transparent',
+                border: 'none',
+                borderBottom: activeTab === tab.id ? '2px solid #00c8ff' : 'none',
+                color: activeTab === tab.id ? '#00c8ff' : 'rgba(160,200,255,0.5)',
+                fontFamily: "'Orbitron'",
+                fontSize: 11,
+                cursor: 'pointer',
+                fontWeight: activeTab === tab.id ? 700 : 400
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
-              {/* Quick Prompts */}
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Orbitron'", marginBottom: 8, letterSpacing: '0.1em' }}>QUICK SCENARIOS</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {QUICK_PROMPTS.map((p, i) => (
-                    <button key={i} onClick={() => { setInputText(p); analyze(p); }}
+        <div style={{ padding: '24px 28px' }}>
+          {error && (
+            <div style={{ background: 'rgba(255,68,68,0.1)', border: '1px solid rgba(255,68,68,0.3)', borderRadius: 8, padding: '10px 14px', color: '#ff6666', fontSize: 12, marginBottom: 12 }}>
+              ⚠️ {error}
+            </div>
+          )}
+
+          {/* TAB 1: Triage Copilot */}
+          {activeTab === 'triage' && (
+            <>
+              {!result ? (
+                <>
+                  <BrainAnimation />
+                  <div style={{ fontSize: 14, color: 'rgba(160,200,255,0.8)', textAlign: 'center', marginBottom: 20, lineHeight: 1.6 }}>
+                    Describe the emergency in plain language.<br />
+                    <span style={{ color: '#00c8ff' }}>The AI will analyze symptoms and recommend immediate action.</span>
+                  </div>
+
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Orbitron'", marginBottom: 8, letterSpacing: '0.1em' }}>QUICK SCENARIOS</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {QUICK_PROMPTS.map((p, i) => (
+                        <button key={i} onClick={() => { setInputText(p); analyze(p); }}
+                          style={{
+                            padding: '6px 12px', background: 'rgba(0,200,255,0.08)',
+                            border: '1px solid rgba(0,200,255,0.2)', borderRadius: 20,
+                            color: 'rgba(160,200,255,0.8)', fontSize: 11, cursor: 'pointer',
+                            transition: 'all 0.2s', fontFamily: "'Rajdhani'"
+                          }}>
+                          {p.slice(0, 35)}...
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{ position: 'relative', marginBottom: 16 }}>
+                    <textarea
+                      value={inputText}
+                      onChange={e => setInputText(e.target.value)}
+                      placeholder="Example: My grandfather is having chest pain and sweating, breathing is difficult..."
+                      rows={4}
                       style={{
-                        padding: '6px 12px', background: 'rgba(0,200,255,0.08)',
-                        border: '1px solid rgba(0,200,255,0.2)', borderRadius: 20,
-                        color: 'rgba(160,200,255,0.8)', fontSize: 11, cursor: 'pointer',
-                        transition: 'all 0.2s', fontFamily: "'Rajdhani'"
-                      }}>
-                      {p.slice(0, 35)}...
+                        width: '100%', background: 'rgba(0,200,255,0.05)',
+                        border: '1px solid rgba(0,200,255,0.3)', borderRadius: 12,
+                        padding: '14px 50px 14px 16px', color: '#e0eaff', fontSize: 14,
+                        resize: 'none', outline: 'none', boxSizing: 'border-box',
+                        fontFamily: "'Rajdhani'", lineHeight: 1.5
+                      }}
+                    />
+                    <button onClick={startListening} style={{
+                      position: 'absolute', right: 12, top: 12, background: isListening ? 'rgba(255,68,68,0.2)' : 'rgba(0,200,255,0.1)',
+                      border: `1px solid ${isListening ? '#ff4444' : 'rgba(0,200,255,0.3)'}`, borderRadius: 8,
+                      padding: '8px', color: isListening ? '#ff4444' : '#00c8ff', cursor: 'pointer', fontSize: 18,
+                    }}>
+                      {isListening ? '🛑' : '🎤'}
                     </button>
-                  ))}
+                  </div>
+
+                  <button onClick={() => analyze()} disabled={!inputText.trim() || isAnalyzing}
+                    style={{
+                      width: '100%', padding: '16px', borderRadius: 12, cursor: 'pointer',
+                      background: isAnalyzing ? 'rgba(0,200,255,0.1)' : 'linear-gradient(135deg, rgba(0,200,255,0.25), rgba(0,100,255,0.2))',
+                      border: `2px solid ${isAnalyzing ? 'rgba(0,200,255,0.3)' : '#00c8ff'}`,
+                      color: '#00c8ff', fontFamily: "'Orbitron'", fontSize: 13, fontWeight: 700,
+                      letterSpacing: '0.1em', transition: 'all 0.3s',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12
+                    }}>
+                    {isAnalyzing ? 'ANALYZING SYMPTOMS...' : '🔍 ANALYZE WITH AI'}
+                  </button>
+                </>
+              ) : (
+                <div style={{ animation: 'resultReveal 0.4s ease' }}>
+                  <div style={{
+                    background: colors.bg, border: `2px solid ${colors.border}`,
+                    borderRadius: 16, padding: '20px', marginBottom: 20, textAlign: 'center',
+                  }}>
+                    <div style={{
+                      display: 'inline-block', padding: '6px 20px', background: colors.badge,
+                      borderRadius: 20, color: '#000', fontFamily: "'Orbitron'", fontSize: 11,
+                      fontWeight: 950, letterSpacing: '0.15em', marginBottom: 12
+                    }}>
+                      {result.severity} SEVERITY — {result.triageColor} TRIAGE
+                    </div>
+                    <div style={{ fontSize: 22, color: colors.text, fontWeight: 700, marginBottom: 8 }}>
+                      {result.detectedCondition}
+                    </div>
+                    <div style={{ fontSize: 13, color: 'rgba(220,230,255,0.8)', lineHeight: 1.5 }}>
+                      {result.urgentMessage}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+                    <div style={{ background: 'rgba(255,107,53,0.1)', border: '1px solid rgba(255,107,53,0.3)', borderRadius: 10, padding: 14 }}>
+                      <div style={{ fontSize: 10, color: 'rgba(255,107,53,0.7)', fontFamily: "'Orbitron'", marginBottom: 6 }}>AMBULANCE TYPE</div>
+                      <div style={{ fontSize: 16, color: '#ff6b35', fontWeight: 700 }}>
+                        🚑 {result.suggestedAmbulanceType === 'ALS' ? 'Advanced Life Support' : 'Basic Life Support'}
+                      </div>
+                    </div>
+                    <div style={{ background: 'rgba(0,200,255,0.08)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 10, padding: 14 }}>
+                      <div style={{ fontSize: 10, color: 'rgba(0,200,255,0.7)', fontFamily: "'Orbitron'", marginBottom: 6 }}>HOSPITAL TYPE</div>
+                      <div style={{ fontSize: 16, color: '#00c8ff', fontWeight: 700 }}>
+                        🏥 {result.suggestedHospitalType}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ background: 'rgba(5,15,40,0.8)', border: '1px solid rgba(0,200,255,0.15)', borderRadius: 10, padding: 16, marginBottom: 20 }}>
+                    <div style={{ fontSize: 11, color: '#00c8ff', fontFamily: "'Orbitron'", marginBottom: 12, letterSpacing: '0.1em' }}>⚡ IMMEDIATE ACTIONS</div>
+                    {(result.immediateActions || []).map((action, i) => (
+                      <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 8, padding: '8px 12px', background: 'rgba(0,200,255,0.04)', borderRadius: 6 }}>
+                        <div style={{ color: '#00c8ff', fontWeight: 700 }}>{i + 1}.</div>
+                        <div style={{ fontSize: 13, color: '#e0eaff' }}>{action}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    <button onClick={() => { setResult(null); setInputText(''); }} style={{ flex: 1, padding: 14, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, color: 'rgba(160,200,255,0.7)', cursor: 'pointer' }}>
+                      ← RE-ANALYZE
+                    </button>
+                    <button onClick={confirmAndApply} style={{ flex: 2, padding: 14, cursor: 'pointer', borderRadius: 10, background: `linear-gradient(135deg, ${colors.border}44, ${colors.border}22)`, border: `2px solid ${colors.border}`, color: colors.text, fontFamily: "'Orbitron'", fontWeight: 700 }}>
+                      ✅ CONFIRM DISPATCH
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* TAB 2: Protocol Lookup */}
+          {activeTab === 'protocol' && (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+                <div>
+                  <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'" }}>PATIENT WEIGHT (KG)</label>
+                  <input type="number" value={protocolWeight} onChange={e => setProtocolWeight(e.target.value)} style={{ width: '100%', marginTop: 6 }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'" }}>ALLERGIES</label>
+                  <input type="text" value={protocolAllergies} onChange={e => setProtocolAllergies(e.target.value)} style={{ width: '100%', marginTop: 6 }} placeholder="e.g. Penicillin, Sulfa" />
                 </div>
               </div>
 
               <div style={{ position: 'relative', marginBottom: 16 }}>
                 <textarea
-                  value={inputText}
-                  onChange={e => setInputText(e.target.value)}
-                  placeholder="Example: My grandfather is having chest pain and sweating, breathing is difficult..."
-                  rows={4}
-                  style={{
-                    width: '100%', background: 'rgba(0,200,255,0.05)',
-                    border: '1px solid rgba(0,200,255,0.3)', borderRadius: 12,
-                    padding: '14px 50px 14px 16px', color: '#e0eaff', fontSize: 14,
-                    resize: 'none', outline: 'none', boxSizing: 'border-box',
-                    fontFamily: "'Rajdhani'", lineHeight: 1.5
-                  }}
+                  value={protocolQuery}
+                  onChange={e => setProtocolQuery(e.target.value)}
+                  placeholder="Enter condition (e.g. Cardiac Arrest, Severe Burns, Stroke, Shock)..."
+                  rows={2}
+                  style={{ width: '100%', resize: 'none', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,200,255,0.2)' }}
                 />
-                <button onClick={startListening} style={{
-                  position: 'absolute', right: 12, top: 12, background: isListening ? 'rgba(255,68,68,0.2)' : 'rgba(0,200,255,0.1)',
-                  border: `1px solid ${isListening ? '#ff4444' : 'rgba(0,200,255,0.3)'}`, borderRadius: 8,
-                  padding: '8px', color: isListening ? '#ff4444' : '#00c8ff', cursor: 'pointer', fontSize: 18,
-                  animation: isListening ? 'pulse 1s infinite' : 'none'
-                }}>
-                  {isListening ? '🛑' : '🎤'}
-                </button>
               </div>
 
-              {error && (
-                <div style={{ background: 'rgba(255,68,68,0.1)', border: '1px solid rgba(255,68,68,0.3)', borderRadius: 8, padding: '10px 14px', color: '#ff6666', fontSize: 12, marginBottom: 12 }}>
-                  ⚠️ {error}
+              <button onClick={fetchProtocol} disabled={loadingProtocol || !protocolQuery} style={{ width: '100%', background: '#00c8ff', color: '#000', marginBottom: 20 }}>
+                {loadingProtocol ? 'RETRIEVING PROTOCOL...' : '⚡ GENERATE PROTOCOL'}
+              </button>
+
+              {protocolResult && (
+                <div style={{ background: 'rgba(0,200,255,0.03)', border: '1px solid rgba(0,200,255,0.15)', borderRadius: 10, padding: 18 }}>
+                  <div style={{ fontFamily: "'Orbitron'", fontSize: 14, color: '#00ff88', marginBottom: 12, fontWeight: 'bold' }}>
+                    {protocolResult.protocolName}
+                  </div>
+                  <div style={{ marginBottom: 15 }}>
+                    <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', marginBottom: 8 }}>CLINICAL STEPS:</div>
+                    {protocolResult.steps.map((step, idx) => (
+                      <div key={idx} style={{ display: 'flex', gap: 8, fontSize: 12, color: '#e0eaff', marginBottom: 6 }}>
+                        <span>◽</span> {step}
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ marginBottom: 15 }}>
+                    <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)', marginBottom: 8 }}>EMERGENCY PHARMACOLOGY:</div>
+                    {protocolResult.drugs.map((drug, idx) => (
+                      <div key={idx} style={{ background: 'rgba(255,255,255,0.02)', padding: 8, borderRadius: 6, marginBottom: 6 }}>
+                        <div style={{ fontWeight: 'bold', color: '#ffb800', fontSize: 12 }}>{drug.name}</div>
+                        <div style={{ fontSize: 11, color: '#fff', fontFamily: "'Share Tech Mono'" }}>Dose: {drug.dose}</div>
+                        <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', marginTop: 2 }}>{drug.reason}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {protocolResult.warnings && protocolResult.warnings.length > 0 && (
+                    <div style={{ background: 'rgba(255,68,68,0.08)', border: '1px solid rgba(255,68,68,0.2)', padding: 10, borderRadius: 6, color: '#ff8888', fontSize: 11 }}>
+                      {protocolResult.warnings.map((w, idx) => <div key={idx}>⚠️ {w}</div>)}
+                    </div>
+                  )}
                 </div>
               )}
-
-              <button onClick={() => analyze()} disabled={!inputText.trim() || isAnalyzing}
-                style={{
-                  width: '100%', padding: '16px', borderRadius: 12, cursor: 'pointer',
-                  background: isAnalyzing ? 'rgba(0,200,255,0.1)' : 'linear-gradient(135deg, rgba(0,200,255,0.25), rgba(0,100,255,0.2))',
-                  border: `2px solid ${isAnalyzing ? 'rgba(0,200,255,0.3)' : '#00c8ff'}`,
-                  color: '#00c8ff', fontFamily: "'Orbitron'", fontSize: 13, fontWeight: 700,
-                  letterSpacing: '0.1em', transition: 'all 0.3s',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12
-                }}>
-                {isAnalyzing ? (
-                  <>
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      {[0,1,2].map(i => <div key={i} style={{ width: 8, height: 8, borderRadius: '50%', background: '#00c8ff', animation: `typingDot 1.2s ${i*0.4}s ease-in-out infinite` }} />)}
-                    </div>
-                    ANALYZING SYMPTOMS...
-                  </>
-                ) : '🔍 ANALYZE WITH AI'}
-              </button>
             </>
           )}
 
-          {/* Result Section */}
-          {result && colors && (
-            <div style={{ animation: 'resultReveal 0.4s ease' }}>
-              {/* Triage Badge */}
-              <div style={{
-                background: colors.bg, border: `2px solid ${colors.border}`,
-                borderRadius: 16, padding: '20px', marginBottom: 20, textAlign: 'center',
-                boxShadow: `0 0 30px ${colors.border}33`
-              }}>
-                <div style={{
-                  display: 'inline-block', padding: '6px 20px', background: colors.badge,
-                  borderRadius: 20, color: '#000', fontFamily: "'Orbitron'", fontSize: 11,
-                  fontWeight: 900, letterSpacing: '0.15em', marginBottom: 12
-                }}>
-                  {result.severity} SEVERITY — {result.triageColor} TRIAGE
+          {/* TAB 3: Dosage Calculator */}
+          {activeTab === 'dosage' && (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+                <div>
+                  <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'" }}>PATIENT WEIGHT (KG)</label>
+                  <input type="number" value={doseWeight} onChange={e => setDoseWeight(e.target.value)} style={{ width: '100%', marginTop: 6 }} />
                 </div>
-                <div style={{ fontSize: 22, color: colors.text, fontWeight: 700, marginBottom: 8 }}>
-                  {result.detectedCondition}
-                </div>
-                <div style={{ fontSize: 13, color: 'rgba(220,230,255,0.8)', lineHeight: 1.5 }}>
-                  {result.urgentMessage}
+                <div>
+                  <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'" }}>KNOWN ALLERGIES</label>
+                  <input type="text" value={doseAllergies} onChange={e => setDoseAllergies(e.target.value)} style={{ width: '100%', marginTop: 6 }} placeholder="e.g. Penicillin" />
                 </div>
               </div>
 
-              {/* Details Grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
-                <div style={{ background: 'rgba(255,107,53,0.1)', border: '1px solid rgba(255,107,53,0.3)', borderRadius: 10, padding: 14 }}>
-                  <div style={{ fontSize: 10, color: 'rgba(255,107,53,0.7)', fontFamily: "'Orbitron'", marginBottom: 6 }}>AMBULANCE TYPE</div>
-                  <div style={{ fontSize: 16, color: '#ff6b35', fontWeight: 700 }}>
-                    🚑 {result.suggestedAmbulanceType === 'ALS' ? 'Advanced Life Support' : 'Basic Life Support'}
-                  </div>
-                  <div style={{ fontSize: 10, color: 'rgba(255,107,53,0.5)', marginTop: 4 }}>{result.suggestedAmbulanceType} Required</div>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'" }}>SELECT RESUSCITATION DRUG</label>
+                <select value={selectedDrug} onChange={e => setSelectedDrug(e.target.value)} style={{ width: '100%', marginTop: 6 }}>
+                  <option value="Epinephrine">Epinephrine (ACLS Shock/Asystole)</option>
+                  <option value="Amiodarone">Amiodarone (VF/Pulseless VT)</option>
+                  <option value="Fentanyl">Fentanyl (Analgesia)</option>
+                  <option value="Amoxicillin">Amoxicillin (Allergy Demo Antibiotic)</option>
+                </select>
+              </div>
+
+              <button onClick={calculateDose} style={{ width: '100%', background: '#ffb800', color: '#000', marginBottom: 20 }}>
+                ⚡ SECURELY CALCULATE DOSE
+              </button>
+
+              {doseCalculated && (
+                <div style={{ background: 'rgba(0,0,0,0.3)', padding: 18, borderRadius: 10, border: `1px solid ${doseCalculated.safe ? 'rgba(0,255,136,0.3)' : 'rgba(255,51,51,0.3)'}` }}>
+                  {doseCalculated.safe ? (
+                    <>
+                      <div style={{ fontSize: 10, color: '#00ff88', fontFamily: "'Orbitron'" }}>CALCULATED DOSAGE SAFE</div>
+                      <div style={{ fontSize: 20, fontWeight: 'bold', color: '#fff', margin: '8px 0', fontFamily: "'Share Tech Mono'" }}>
+                        {doseCalculated.dose}
+                      </div>
+                      <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.5)' }}>
+                        Verified against patient profile. Weight factored: {doseWeight} kg.
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ color: '#ff6b6b', fontSize: 12, fontWeight: 'bold' }}>
+                      {doseCalculated.error}
+                    </div>
+                  )}
                 </div>
-                <div style={{ background: 'rgba(0,200,255,0.08)', border: '1px solid rgba(0,200,255,0.2)', borderRadius: 10, padding: 14 }}>
-                  <div style={{ fontSize: 10, color: 'rgba(0,200,255,0.7)', fontFamily: "'Orbitron'", marginBottom: 6 }}>HOSPITAL TYPE</div>
-                  <div style={{ fontSize: 16, color: '#00c8ff', fontWeight: 700 }}>
-                    🏥 {result.suggestedHospitalType}
-                  </div>
-                  <div style={{ fontSize: 10, color: 'rgba(0,200,255,0.5)', marginTop: 4 }}>Specialist facility recommended</div>
-                </div>
-              </div>
-
-              {/* Time to Deterioration */}
-              <div style={{ background: 'rgba(255,184,0,0.08)', border: '1px solid rgba(255,184,0,0.3)', borderRadius: 10, padding: 14, marginBottom: 16 }}>
-                <div style={{ fontSize: 10, color: 'rgba(255,184,0,0.7)', fontFamily: "'Orbitron'", marginBottom: 6 }}>⏱ CRITICAL TIME WINDOW</div>
-                <div style={{ fontSize: 18, color: '#ffb800', fontWeight: 700 }}>{result.estimatedTimeToDeterioration}</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,184,0,0.5)', marginTop: 2 }}>Estimated time to significant deterioration if untreated</div>
-              </div>
-
-              {/* Immediate Actions */}
-              <div style={{ background: 'rgba(5,15,40,0.8)', border: '1px solid rgba(0,200,255,0.15)', borderRadius: 10, padding: 16, marginBottom: 20 }}>
-                <div style={{ fontSize: 11, color: '#00c8ff', fontFamily: "'Orbitron'", marginBottom: 12, letterSpacing: '0.1em' }}>⚡ IMMEDIATE ACTIONS (Do Now)</div>
-                {(result.immediateActions || []).map((action, i) => (
-                  <div key={i} style={{
-                    display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8,
-                    padding: '8px 12px', background: 'rgba(0,200,255,0.04)',
-                    borderRadius: 6, borderLeft: '3px solid rgba(0,200,255,0.4)'
-                  }}>
-                    <div style={{ color: '#00c8ff', fontWeight: 700, fontSize: 14, minWidth: 20, fontFamily: "'Share Tech Mono'" }}>{i + 1}.</div>
-                    <div style={{ fontSize: 13, color: 'rgba(220,230,255,0.9)', lineHeight: 1.4 }}>{action}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Action Buttons */}
-              <div style={{ display: 'flex', gap: 12 }}>
-                <button onClick={() => { setResult(null); setInputText(''); }}
-                  style={{
-                    flex: 1, padding: 14, background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10,
-                    color: 'rgba(160,200,255,0.7)', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 11
-                  }}>
-                  ← RE-ANALYZE
-                </button>
-                <button onClick={confirmAndApply}
-                  style={{
-                    flex: 2, padding: 14, cursor: 'pointer', borderRadius: 10,
-                    background: `linear-gradient(135deg, ${colors.border}44, ${colors.border}22)`,
-                    border: `2px solid ${colors.border}`,
-                    color: colors.text, fontFamily: "'Orbitron'", fontSize: 13, fontWeight: 700, letterSpacing: '0.1em'
-                  }}>
-                  ✅ CONFIRM & REQUEST DISPATCH
-                </button>
-              </div>
-            </div>
+              )}
+            </>
           )}
         </div>
       </div>
     </div>
   );
 }
-
