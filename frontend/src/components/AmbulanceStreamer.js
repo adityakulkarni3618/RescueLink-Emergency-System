@@ -612,7 +612,7 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
   const [isPendingApproval, setIsPendingApproval] = useState(false);
   const [manualRecoveryId, setManualRecoveryId] = useState('');
   const [vitals, setVitals] = useState({ heartRate: 75, spo2: 98, systolic: 120, diastolic: 80, temperature: 37.0, respRate: 16, bloodGlucose: 100 });
-  const [vitalsSource, setVitalsSource] = useState('SIMULATED'); // 'SIMULATED', 'MANUAL', 'LIVE'
+  const [vitalsSource, setVitalsSource] = useState('LIVE'); // 'SIMULATED', 'MANUAL', 'LIVE'
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [endMissionConfirm, setEndMissionConfirm] = useState(false);
   const [abortMissionConfirm, setAbortMissionConfirm] = useState(false);
@@ -737,7 +737,7 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
     return { score, breakdown, eta, icuBeds, traumaReady, queue };
   };
   const [streaming, setStreaming] = useState(() => localStorage.getItem('amb_streaming') === 'true');
-  const [hardwareMode, setHardwareMode] = useState(true); // Enable simulation by default for vitals generation
+  const [hardwareMode, setHardwareMode] = useState(false); // Enable simulation by default for vitals generation
   const [selectedPatient, setSelectedPatient] = useState(() => localStorage.getItem('amb_selectedPatient') || '');
   const [isScanning, setIsScanning] = useState(false);
   const [routeProgress, setRouteProgress] = useState(0);
@@ -1713,8 +1713,7 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
      });
  
      if (hList.length === 0) {
-       console.warn("[NETWORK] No live connected hospitals found within 200km. Falling back to local/simulated network registry.");
-       hList = generateGlobalHospitals(incidentAnchor);
+       console.warn("[NETWORK] No live connected hospitals found within 200km.");
      }
     const riskLevel = pDetails?.riskLevel || 'CRITICAL';
 
