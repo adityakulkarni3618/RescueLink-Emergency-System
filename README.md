@@ -104,3 +104,11 @@ To resolve high cloud egress bandwidth limits (such as Render's 5 GB Hobby quota
 - **Targeted Sockets**: Global fleet location broadcasts (`io.emit('ambulances-update')`) are restricted and redirected to the `admin_warroom` room. GPS telemetry is strictly contained in active `mission_${reqId}` rooms.
 - **REST Telemetry Throttling**: Background HTTP polling loops for ambulances, hospitals, and disaster cases on the frontend are throttled from 8s/10s to **60 seconds**, reducing background GET request data consumption by **~87%**.
 - **Real-Time Architecture Reference**: See [REALTIME_ARCHITECTURE.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/REALTIME_ARCHITECTURE.md) and [BANDWIDTH_OPTIMIZATION_REPORT.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/BANDWIDTH_OPTIMIZATION_REPORT.md) for detailed performance audit and implementation specs.
+
+---
+
+## 7. Real-Time Telemetry & Hardware Integration
+By default in production modes, RescueLink bypasses mock/simulated streams to rely strictly on real-world endpoints:
+- **Browser-Native Geolocation**: Ambulance coordinates are mapped directly using native GPS device locations through `navigator.geolocation.watchPosition` with high accuracy mode enabled, disabling artificial drifts.
+- **Web Bluetooth Integration**: Paramedic inputs default to real sensor data streams utilizing GATT services for Heart Rate Measurement (HRM), or manual entries via the paramedic dashboard.
+- **Production Database Registry**: Hospital listings and resources are sourced dynamically from the PostgreSQL instance, disabling simulated fallback registries.
