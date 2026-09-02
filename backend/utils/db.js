@@ -101,6 +101,7 @@ const Prescription = require('../models/Prescription')(sequelize);
 const EmergencyCorridor = require('../models/EmergencyCorridor')(sequelize);
 const GoodSamaritan = require('../models/GoodSamaritan')(sequelize);
 const MciTriageTag = require('../models/MciTriageTag')(sequelize);
+const MedicalDrone = require('../models/MedicalDrone')(sequelize);
 
 // Define relations / associations
 Patient.hasMany(Prescription, { foreignKey: 'patient_id', as: 'prescriptions' });
@@ -255,6 +256,7 @@ module.exports = {
   EmergencyCorridor,
   GoodSamaritan,
   MciTriageTag,
+  MedicalDrone,
   syncDatabase,
   healthCheck,
   closeDatabase

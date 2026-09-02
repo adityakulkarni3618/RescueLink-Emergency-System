@@ -8,6 +8,7 @@ import BloodEmergencyNetwork from './BloodEmergencyNetwork';
 import AmbulanceMarketplace from './AmbulanceMarketplace';
 import PatientPortal from './PatientPortal';
 import GoodSamaritanPanel from './GoodSamaritanPanel';
+import DroneDispatchPanel from './DroneDispatchPanel';
 
 const isValidLatLng = (loc) => {
   if (!loc) return false;
@@ -157,6 +158,8 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
   const [showBloodNetwork, setShowBloodNetwork] = useState(false);
   const [showMarketplace, setShowMarketplace] = useState(false);
   const [showPatientPortal, setShowPatientPortal] = useState(false);
+  const [showGoodSamaritan, setShowGoodSamaritan] = useState(false);
+  const [showDroneDispatch, setShowDroneDispatch] = useState(false);
   const [aiAnalysisResult, setAiAnalysisResult] = useState(null);
   const [familyTrackingLink, setFamilyTrackingLink] = useState(null);
   const [showFamilyLinkModal, setShowFamilyLinkModal] = useState(false);
@@ -191,6 +194,7 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
         setShowBloodNetwork(parts[1] === 'blood-network');
         setShowPatientPortal(parts[1] === 'health-portal');
         setShowGoodSamaritan(parts[1] === 'cpr-volunteer');
+        setShowDroneDispatch(parts[1] === 'drone-dispatch');
         setShowAccountSettings(parts[1] === 'account-settings');
       }
     };
@@ -1049,6 +1053,7 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
               { icon: '🚑', label: 'MARKETPLACE', sublabel: 'Book ambulance', color: '#ffb800', action: () => routeTo('marketplace') },
               { icon: '🧍', label: 'HEALTH PORTAL', sublabel: 'My Medical File', color: '#00c8ff', action: () => routeTo('health-portal') },
               { icon: '🛡️', label: 'CPR RESPO', sublabel: 'Volunteer Net', color: '#ff4444', action: () => routeTo('cpr-volunteer') },
+              { icon: '🚁', label: 'DRONE AED', sublabel: 'Rapid Airway', color: '#00c8ff', action: () => routeTo('drone-dispatch') },
               { icon: '🎙️', label: 'VOICE SOS', sublabel: voiceSosActive ? 'Listening...' : 'Say "Help"', color: voiceSosActive ? '#00ff88' : '#8888ff', action: () => setVoiceSosActive(!voiceSosActive) },
               { icon: '🔐', label: 'PRIVACY', sublabel: 'Consent & Erasure', color: '#00ff88', action: () => setShowPrivacyModal(true) },
               { icon: '⚙️', label: 'SETTINGS', sublabel: 'Account & Security', color: '#a78bfa', action: () => routeTo('account-settings') },
@@ -1651,6 +1656,18 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
           </div>
           <div style={{ flex: 1, overflowY: 'auto', padding: '20px', background: 'rgba(0,3,12,0.95)' }}>
             <GoodSamaritanPanel user={{ id: userId, name: patientData.name, mobile: patientData.mobile }} />
+          </div>
+        </div>
+      )}
+
+      {/* Drone Emergency Dispatch Overlay */}
+      {showDroneDispatch && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,5,20,0.95)', backdropFilter: 'blur(10px)', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(0,200,255,0.2)', display: 'flex', justifyContent: 'flex-start', background: 'rgba(5, 10, 28, 0.95)' }}>
+            <button onClick={() => routeTo('')} style={{ background: 'rgba(255,68,68,0.1)', border: '1px solid rgba(255,68,68,0.3)', borderRadius: 8, padding: '6px 14px', color: '#ff4444', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 11 }}>✕ CLOSE DRONE DISPATCH</button>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '20px', background: 'rgba(0,3,12,0.95)' }}>
+            <DroneDispatchPanel userLocation={userLocation} socket={socket} />
           </div>
         </div>
       )}
