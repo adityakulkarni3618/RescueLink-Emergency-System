@@ -1,9 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
-import { MAPBOX_TOKEN, MAP_STYLE } from '../config/mapConfig';
-
-mapboxgl.accessToken = MAPBOX_TOKEN;
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 // Helper to check for valid latitude and longitude
 const isValidLatLng = (loc) => {
@@ -204,68 +201,49 @@ export default function CorridorPanel({
     };
   }, [socket, activeMissionId]);
 
-  // Mapbox GL Lifecycle
+  // Leaflet Map Lifecycle
   useEffect(() => {
     if (mode === 'driver' || !mapContainerRef.current) return;
 
-    let center = [80.6480, 16.5062]; // Default Vijayawada
+    let center = [16.5062, 80.6480]; // [lat, lng]
     if (isValidLatLng(ambulanceLoc)) {
-      center = [ambulanceLoc.lng || ambulanceLoc[1], ambulanceLoc.lat || ambulanceLoc[0]];
+      center = [ambulanceLoc.lat !== undefined ? ambulanceLoc.lat : ambulanceLoc[0], ambulanceLoc.lng !== undefined ? ambulanceLoc.lng : ambulanceLoc[1]];
     }
 
-    const map = new mapboxgl.Map({
-      container: mapContainerRef.current,
-      style: MAP_STYLE,
+    const map = L.map(mapContainerRef.current, {
       center: center,
-      zoom: 14.5,
-      pitch: 45
+      zoom: 14,
+      zoomControl: false,
+      attributionControl: false
     });
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19,
+      subdomains: 'abcd'
+    }).addTo(map);
 
     mapRef.current = map;
 
-    map.on('load', () => {
-      // Add route sources and custom styling (Dual layer glow route)
-      map.addSource('corridor-route', {
-        type: 'geojson',
-        data: {
-          type: 'Feature',
-          geometry: {
-            type: 'LineString',
-            coordinates: realRoutePath ? realRoutePath.map(p => [p[1], p[0]]) : (routePath ? routePath.map(p => [p.lng || p[1], p.lat || p[0]]) : [])
-          }
-        }
-      });
+    let coords = [];
+    if (realRoutePath) {
+      coords = realRoutePath;
+    } else if (routePath) {
+      coords = routePath.map(p => [p.lat !== undefined ? p.lat : p[0], p.lng !== undefined ? p.lng : p[1]]);
+    }
 
-      // Wide blurred underlying glow layer in #FF4D63
-      map.addLayer({
-        id: 'glow-route-under',
-        type: 'line',
-        source: 'corridor-route',
-        paint: {
-          'line-color': '#FF4D63',
-          'line-width': 14,
-          'line-blur': 8,
-          'line-opacity': 0.35
-        }
-      });
+    if (coords.length > 0) {
+      L.polyline(coords, { color: '#FF4D63', weight: 12, opacity: 0.35 }).addTo(map);
+      const poly = L.polyline(coords, { color: '#FF4D63', weight: 4, opacity: 0.95 }).addTo(map);
+      map.fitBounds(poly.getBounds(), { padding: [40, 40] });
+    }
 
-      // Crisp narrow top layer in #FF4D63
-      map.addLayer({
-        id: 'glow-route-top',
-        type: 'line',
-        source: 'corridor-route',
-        paint: {
-          'line-color': '#FF4D63',
-          'line-width': 4,
-          'line-opacity': 0.95
-        }
-      });
-
-      updateMarkers();
-    });
+    updateMarkers();
 
     return () => {
-      map.remove();
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
     };
   }, [mode, realRoutePath, routePath]);
 
@@ -280,23 +258,25 @@ export default function CorridorPanel({
 
     // Add destination
     if (isValidLatLng(hospitalLoc)) {
+      const lat = hospitalLoc.lat !== undefined ? hospitalLoc.lat : hospitalLoc[0];
+      const lng = hospitalLoc.lng !== undefined ? hospitalLoc.lng : hospitalLoc[1];
+      const icon = L.divIcon({ html: '<div style="font-size: 28px; filter: drop-shadow(0 0 10px #00ff88);">🏥</div>', className: '', iconSize: [36, 36] });
       if (!destinationMarkerRef.current) {
-        const el = document.createElement('div');
-        el.innerHTML = '<div style="font-size: 28px; filter: drop-shadow(0 0 10px #00ff88);">🏥</div>';
-        destinationMarkerRef.current = new mapboxgl.Marker(el)
-          .setLngLat([hospitalLoc.lng || hospitalLoc[1], hospitalLoc.lat || hospitalLoc[0]])
-          .addTo(map);
+        destinationMarkerRef.current = L.marker([lat, lng], { icon }).addTo(map);
+      } else {
+        destinationMarkerRef.current.setLatLng([lat, lng]);
       }
     }
 
     // Add Patient origin
     if (isValidLatLng(patientLoc)) {
+      const lat = patientLoc.lat !== undefined ? patientLoc.lat : patientLoc[0];
+      const lng = patientLoc.lng !== undefined ? patientLoc.lng : patientLoc[1];
+      const icon = L.divIcon({ html: '<div style="font-size: 26px; filter: drop-shadow(0 0 8px #ffb800);">🧍</div>', className: '', iconSize: [32, 32] });
       if (!originMarkerRef.current) {
-        const el = document.createElement('div');
-        el.innerHTML = '<div style="font-size: 26px; filter: drop-shadow(0 0 8px #ffb800);">🧍</div>';
-        originMarkerRef.current = new mapboxgl.Marker(el)
-          .setLngLat([patientLoc.lng || patientLoc[1], patientLoc.lat || patientLoc[0]])
-          .addTo(map);
+        originMarkerRef.current = L.marker([lat, lng], { icon }).addTo(map);
+      } else {
+        originMarkerRef.current.setLatLng([lat, lng]);
       }
     }
 
@@ -304,12 +284,11 @@ export default function CorridorPanel({
     if (isValidLatLng(ambulanceLoc)) {
       const lat = ambulanceLoc.lat !== undefined ? ambulanceLoc.lat : ambulanceLoc[0];
       const lng = ambulanceLoc.lng !== undefined ? ambulanceLoc.lng : ambulanceLoc[1];
+      const icon = L.divIcon({ html: '<div style="font-size: 32px; filter: drop-shadow(0 0 12px #ff4d63); transform: scale(1.15);">🚑</div>', className: '', iconSize: [36, 36] });
       if (!ambulanceMarkerRef.current) {
-        const el = document.createElement('div');
-        el.innerHTML = '<div style="font-size: 32px; filter: drop-shadow(0 0 12px #ff4d63); transform: scale(1.15);">🚑</div>';
-        ambulanceMarkerRef.current = new mapboxgl.Marker(el).setLngLat([lng, lat]).addTo(map);
+        ambulanceMarkerRef.current = L.marker([lat, lng], { icon }).addTo(map);
       } else {
-        ambulanceMarkerRef.current.setLngLat([lng, lat]);
+        ambulanceMarkerRef.current.setLatLng([lat, lng]);
       }
     }
 
@@ -320,12 +299,9 @@ export default function CorridorPanel({
       else if (j.status === 'APPROACHING') color = '#ffea00';
       else if (j.status === 'CLEARED') color = '#2c3e50';
 
-      const el = document.createElement('div');
-      el.innerHTML = `<div style="width: 14px; height: 14px; border-radius: 50%; background: ${color}; border: 2px solid #fff; box-shadow: 0 0 12px ${color};"></div>`;
-      
-      const m = new mapboxgl.Marker(el)
-        .setLngLat([j.coord[1], j.coord[0]])
-        .addTo(map);
+      const iconHtml = `<div style="width: 14px; height: 14px; border-radius: 50%; background: ${color}; border: 2px solid #fff; box-shadow: 0 0 12px ${color};"></div>`;
+      const icon = L.divIcon({ html: iconHtml, className: '', iconSize: [14, 14] });
+      const m = L.marker([j.coord[0], j.coord[1]], { icon }).addTo(map);
       
       junctionMarkersRef.current.push(m);
     });
