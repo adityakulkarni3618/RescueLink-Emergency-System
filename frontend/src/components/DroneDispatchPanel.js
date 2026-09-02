@@ -1,7 +1,6 @@
-const React = require('react');
-const { useState, useEffect } = React;
+import React, { useState, useEffect } from 'react';
 
-module.exports = function DroneDispatchPanel({ userLocation, socket }) {
+export default function DroneDispatchPanel({ userLocation, socket }) {
   const [fleet, setFleet] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedPayload, setSelectedPayload] = useState('AED');

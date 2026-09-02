@@ -1,7 +1,6 @@
-const React = require('react');
-const { useState, useEffect } = React;
+import React, { useState, useEffect } from 'react';
 
-module.exports = function QrPassportModal({ patientData, onClose }) {
+export default function QrPassportModal({ patientData, onClose }) {
   const [passportData, setPassportData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
