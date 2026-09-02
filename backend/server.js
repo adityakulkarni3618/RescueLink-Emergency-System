@@ -31,6 +31,7 @@ const { verifyToken } = require('./middleware/auth');
 const authRouter = require('./routes/auth');
 const usersRouter = require('./routes/users');
 const droneRouter = require('./routes/drone');
+const qrPassportRouter = require('./routes/qrPassport');
 const whatsappService = require('./utils/whatsapp');
 const { getSmartRoute, getETA, haversineDistance } = require('./utils/osrmService');
 const { initVitalsBridge } = require('./utils/vitalsBridge');
@@ -415,6 +416,7 @@ app.get('/api/fhir/:reqId', authenticateToken, (req, res) => {
 });
 
 app.use('/api/drone', droneRouter);
+app.use('/api/passport', qrPassportRouter);
 
 app.post('/api/ai/predictive-hospital', async (req, res) => {
   const { lat, lng, news2 } = req.body;

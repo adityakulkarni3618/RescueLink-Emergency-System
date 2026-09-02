@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import QrPassportModal from './QrPassportModal';
 
 const getServerUrl = () => process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
 
 export default function PatientPortal() {
   const [activeTab, setActiveTab] = useState('overview');
+  const [showQrModal, setShowQrModal] = useState(false);
   const [profile, setProfile] = useState(null);
   const [incidents, setIncidents] = useState([]);
   const [vitalsHistory, setVitalsHistory] = useState([]);
@@ -192,10 +194,24 @@ export default function PatientPortal() {
           <h2 style={{ fontFamily: "'Orbitron'", color: '#00c8ff', margin: 0, fontSize: 24, letterSpacing: '0.1em' }}>🧍 PATIENT EMER-HEALTH PORTAL</h2>
           <p style={{ color: 'rgba(160,200,255,0.6)', margin: '4px 0 0 0', fontSize: 12, fontFamily: "'Share Tech Mono'" }}>ABHA Link ID: {profile?.abha_number || 'UNLINKED'}</p>
         </div>
-        <div style={{ padding: '6px 12px', background: 'rgba(0,255,136,0.1)', border: '1px solid #00ff88', borderRadius: 4, color: '#00ff88', fontSize: 11, fontFamily: "'Orbitron'", fontWeight: 'bold' }}>
-          🔒 HL7 SECURED END-TO-END
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <button
+            onClick={() => setShowQrModal(true)}
+            style={{
+              padding: '8px 16px', background: 'rgba(0,200,255,0.15)',
+              border: '1px solid #00c8ff', borderRadius: 6, color: '#00c8ff',
+              fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 'bold', cursor: 'pointer'
+            }}
+          >
+            📲 LOCKSCREEN QR PASSPORT
+          </button>
+          <div style={{ padding: '8px 12px', background: 'rgba(0,255,136,0.1)', border: '1px solid #00ff88', borderRadius: 6, color: '#00ff88', fontSize: 11, fontFamily: "'Orbitron'", fontWeight: 'bold' }}>
+            🔒 HL7 SECURED END-TO-END
+          </div>
         </div>
       </div>
+
+      {showQrModal && <QrPassportModal patientData={profile} onClose={() => setShowQrModal(false)} />}
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
