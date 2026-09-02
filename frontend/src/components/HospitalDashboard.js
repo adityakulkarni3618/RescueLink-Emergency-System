@@ -1290,8 +1290,34 @@ function ResourcePanel({ socket, bedsList, setBedsList, hospitalId }) {
           <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', letterSpacing: '0.1em' }}>
             ER BED OCCUPANCY TRACKER
           </div>
-          <div style={{ fontFamily: "'Share Tech Mono'", fontSize: 11, color: 'rgba(160,200,255,0.5)' }}>
-            12 BEDS TOTAL
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <button
+              onClick={async () => {
+                try {
+                  const token = sessionStorage.getItem('rescuelink_token') || localStorage.getItem('token') || '';
+                  const res = await fetch('/api/disaster/auto-balance-hospitals', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ primaryHospitalId: 'hospital-1' })
+                  });
+                  const d = await res.json();
+                  if (d.diversionRequired) {
+                    alert(`🚨 STATE 108 AUTO-BALANCING ALERT:\n${d.reason}\nRecommended Diversion: ${d.recommendedDiversion?.name} (${d.recommendedDiversion?.distanceKm} km away)`);
+                  } else {
+                    alert(`✅ STATE 108 GRID STABLE:\n${d.primaryHospital || 'Hospital ER'} operating at ${d.occupancyPct || 45}% capacity. No diversion required.`);
+                  }
+                } catch (e) { alert('Capacity check failed: ' + e.message); }
+              }}
+              style={{
+                padding: '2px 8px', background: 'rgba(0,255,136,0.1)', border: '1px solid #00ff88',
+                borderRadius: 4, color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 9, cursor: 'pointer'
+              }}
+            >
+              ⚡ STATE 108 AUTO-BALANCE
+            </button>
+            <div style={{ fontFamily: "'Share Tech Mono'", fontSize: 11, color: 'rgba(160,200,255,0.5)' }}>
+              12 BEDS TOTAL
+            </div>
           </div>
         </div>
 

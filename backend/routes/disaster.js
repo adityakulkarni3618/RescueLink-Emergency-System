@@ -141,4 +141,21 @@ router.put('/triage-tag/:tagId', verifyToken(), async (req, res) => {
   }
 });
 
+/**
+ * @route POST /api/disaster/auto-balance-hospitals
+ * @desc Evaluate state 108 emergency grid hospital capacity auto-balancing
+ */
+router.post('/auto-balance-hospitals', verifyToken(), async (req, res) => {
+  const { primaryHospitalId, patientLocation } = req.body;
+  const { calculateCapacityAutoBalancing } = require('../utils/capacityOverflowEngine');
+
+  try {
+    const result = await calculateCapacityAutoBalancing(primaryHospitalId, patientLocation);
+    return res.json(result);
+  } catch (err) {
+    console.error('[CAPACITY AUTO-BALANCE ERROR]', err.message);
+    return res.status(500).json({ error: 'Capacity auto-balancing evaluation failed' });
+  }
+});
+
 module.exports = router;
