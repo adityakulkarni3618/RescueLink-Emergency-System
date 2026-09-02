@@ -802,6 +802,9 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
   const [isListeningNote, setIsListeningNote] = useState(false);
   const [hospitalResources, setHospitalResources] = useState({ otPrepared: false, ventilatorReady: false, cardiologistAssigned: false, bloodBankAlerted: false });
   const [aiAlert, setAiAlert] = useState(null);
+  const [sbarReport, setSbarReport] = useState(null);
+  const [sbarLoading, setSbarLoading] = useState(false);
+  const [deteriorationAnalysis, setDeteriorationAnalysis] = useState(null);
   const [simulateCrisis, setSimulateCrisis] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
   const [signalLostTime, setSignalLostTime] = useState(0);
@@ -809,6 +812,36 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
   const [simulateTraffic, setSimulateTraffic] = useState(false);
   const trafficRef = useRef(false);
   useEffect(() => { trafficRef.current = simulateTraffic; }, [simulateTraffic]);
+
+  const generateSbarReport = async () => {
+    setSbarLoading(true);
+    try {
+      const token = sessionStorage.getItem('rescuelink_token') || localStorage.getItem('token');
+      const res = await fetch('/api/ai/sbar', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          notes: incidentNote,
+          vitalsHistory: previousReports,
+          patientData: assignedUser
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSbarReport(data);
+        if (socket && assignedUser?.id) {
+          socket.emit('sbar-report-share', { reqId: assignedUser.id, sbar: data });
+        }
+      }
+    } catch (err) {
+      console.error('[SBAR GENERATION ERROR]', err);
+    } finally {
+      setSbarLoading(false);
+    }
+  };
 
   const [locationHistory, setLocationHistory] = useState([]);
 

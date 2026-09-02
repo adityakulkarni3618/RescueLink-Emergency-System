@@ -135,19 +135,48 @@ export default function MassCasualtyPanel({ socket }) {
     }
   };
 
-  const submitTriageResult = (tag, answers) => {
+  const submitTriageResult = async (tag, answers) => {
     if (!activeMci) return;
     
-    socket.emit('mci-triage-update', {
-      mciId: activeMci.id,
-      casualtyName: victimName || 'Casualty #' + (activeMci.casualties.length + 1),
-      tag,
-      symptoms: `Triage flowchart result. Breath: ${answers.breathing !== false}, Pulse: ${answers.pulsePresent !== false}`,
-      vitals: {
-        respRate: answers.respRateOver30 ? 32 : 20,
-        pulsePresent: answers.pulsePresent !== false
-      }
-    });
+    const casualtyName = victimName || 'Casualty #' + (activeMci.casualties ? activeMci.casualties.length + 1 : 1);
+
+    try {
+      const token = sessionStorage.getItem('rescuelink_token') || localStorage.getItem('token') || '';
+      await fetch('/api/disaster/triage-tag', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          incident_id: activeMci.id,
+          tag_number: `TAG-${Math.floor(1000 + Math.random() * 9000)}`,
+          start_triage_color: tag,
+          patient_age_group: 'ADULT',
+          victim_name_or_alias: casualtyName,
+          vitals_snapshot: {
+            respRate: answers.respRateOver30 ? 32 : 20,
+            pulsePresent: answers.pulsePresent !== false
+          },
+          injury_notes: `Triage flowchart result. Breath: ${answers.breathing !== false}, Pulse: ${answers.pulsePresent !== false}`
+        })
+      });
+    } catch (err) {
+      console.warn('[MCI BACKEND SYNC WARN]', err);
+    }
+
+    if (socket) {
+      socket.emit('mci-triage-update', {
+        mciId: activeMci.id,
+        casualtyName,
+        tag,
+        symptoms: `Triage flowchart result. Breath: ${answers.breathing !== false}, Pulse: ${answers.pulsePresent !== false}`,
+        vitals: {
+          respRate: answers.respRateOver30 ? 32 : 20,
+          pulsePresent: answers.pulsePresent !== false
+        }
+      });
+    }
 
     setTriageStep(0);
   };

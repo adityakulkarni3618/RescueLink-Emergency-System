@@ -7,6 +7,7 @@ import CPRGuidance from './CPRGuidance';
 import BloodEmergencyNetwork from './BloodEmergencyNetwork';
 import AmbulanceMarketplace from './AmbulanceMarketplace';
 import PatientPortal from './PatientPortal';
+import GoodSamaritanPanel from './GoodSamaritanPanel';
 
 const isValidLatLng = (loc) => {
   if (!loc) return false;
@@ -189,6 +190,7 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
         setShowAICopilot(parts[1] === 'ai-copilot');
         setShowBloodNetwork(parts[1] === 'blood-network');
         setShowPatientPortal(parts[1] === 'health-portal');
+        setShowGoodSamaritan(parts[1] === 'cpr-volunteer');
         setShowAccountSettings(parts[1] === 'account-settings');
       }
     };
@@ -1046,6 +1048,7 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
               { icon: '🩸', label: 'BLOOD NET', sublabel: 'Find blood banks', color: '#ff4444', action: () => routeTo('blood-network') },
               { icon: '🚑', label: 'MARKETPLACE', sublabel: 'Book ambulance', color: '#ffb800', action: () => routeTo('marketplace') },
               { icon: '🧍', label: 'HEALTH PORTAL', sublabel: 'My Medical File', color: '#00c8ff', action: () => routeTo('health-portal') },
+              { icon: '🛡️', label: 'CPR RESPO', sublabel: 'Volunteer Net', color: '#ff4444', action: () => routeTo('cpr-volunteer') },
               { icon: '🎙️', label: 'VOICE SOS', sublabel: voiceSosActive ? 'Listening...' : 'Say "Help"', color: voiceSosActive ? '#00ff88' : '#8888ff', action: () => setVoiceSosActive(!voiceSosActive) },
               { icon: '🔐', label: 'PRIVACY', sublabel: 'Consent & Erasure', color: '#00ff88', action: () => setShowPrivacyModal(true) },
               { icon: '⚙️', label: 'SETTINGS', sublabel: 'Account & Security', color: '#a78bfa', action: () => routeTo('account-settings') },
@@ -1636,6 +1639,18 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
           </div>
           <div style={{ flex: 1, overflowY: 'auto', background: 'rgba(0,3,12,0.95)' }}>
             <PatientPortal />
+          </div>
+        </div>
+      )}
+
+      {/* Good Samaritan CPR Citizen Responder Overlay */}
+      {showGoodSamaritan && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,5,20,0.95)', backdropFilter: 'blur(10px)', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(0,200,255,0.2)', display: 'flex', justifyContent: 'flex-start', background: 'rgba(5, 10, 28, 0.95)' }}>
+            <button onClick={() => routeTo('')} style={{ background: 'rgba(255,68,68,0.1)', border: '1px solid rgba(255,68,68,0.3)', borderRadius: 8, padding: '6px 14px', color: '#ff4444', cursor: 'pointer', fontFamily: "'Orbitron'", fontSize: 11 }}>✕ CLOSE CPR NETWORK</button>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '20px', background: 'rgba(0,3,12,0.95)' }}>
+            <GoodSamaritanPanel user={{ id: userId, name: patientData.name, mobile: patientData.mobile }} />
           </div>
         </div>
       )}
