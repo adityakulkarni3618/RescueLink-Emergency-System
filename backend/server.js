@@ -7,6 +7,13 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const logger = require('./utils/logger');
 
+const app = express();
+const server = http.createServer(app);
+
+app.use(cors());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
 // Sentry Error Tracking Setup (Production Visibility)
 if (process.env.NODE_ENV === 'production' && process.env.SENTRY_DSN) {
   try {
@@ -415,8 +422,28 @@ app.get('/api/fhir/:reqId', authenticateToken, (req, res) => {
   res.json(fhirData);
 });
 
-app.use('/api/drone', droneRouter);
-app.use('/api/passport', qrPassportRouter);
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/users', require('./routes/users'));
+app.use('/api/ambulances', require('./routes/ambulances'));
+app.use('/api/hospitals', require('./routes/hospitals'));
+app.use('/api/analytics', require('./routes/analytics'));
+app.use('/api/audit', require('./routes/audit'));
+app.use('/api/blood', require('./routes/blood'));
+app.use('/api/chronic', require('./routes/chronic'));
+app.use('/api/cpr-network', require('./routes/cprNetwork'));
+app.use('/api/disaster', require('./routes/disaster'));
+app.use('/api/drone', require('./routes/drone'));
+app.use('/api/erasure', require('./routes/erasure'));
+app.use('/api/his', require('./routes/his'));
+app.use('/api/insurance', require('./routes/insurance'));
+app.use('/api/mfa', require('./routes/mfa'));
+app.use('/api/payments', require('./routes/payments'));
+app.use('/api/prescriptions', require('./routes/prescriptions'));
+app.use('/api/passport', require('./routes/qrPassport'));
+app.use('/api/sync', require('./routes/sync'));
+app.use('/api/tele', require('./routes/telemedicine'));
+app.use('/api/ai', require('./routes/aiCopilot'));
+app.use('/api/abdm', require('./routes/abdm'));
 
 app.post('/api/ai/predictive-hospital', async (req, res) => {
   const { lat, lng, news2 } = req.body;
@@ -568,8 +595,7 @@ app.use((err, req, res, next) => {
   return res.status(status).json({ error: message });
 });
 
-const server = http.createServer(app);
-
+// Server already created at top
 const io = new Server(server, {
   cors: {
     origin: true,
