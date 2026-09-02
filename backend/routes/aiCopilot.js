@@ -350,15 +350,153 @@ function getFallbackProtocol(condition, weight, allergies) {
   };
 }
 
-function getFallbackSoapNote(notes, vitalsHistory) {
-  const latestVitals = vitalsHistory && vitalsHistory.length > 0 ? vitalsHistory[vitalsHistory.length - 1] : {};
-  const bpText = latestVitals.systolic ? `${latestVitals.systolic}/${latestVitals.diastolic} mmHg` : 'N/A';
+/**
+ * @route POST /api/ai/sbar
+ * @desc Generate medical SBAR (Situation, Background, Assessment, Recommendation) hospital handover report
+ */
+router.post('/sbar', verifyToken(), async (req, res) => {
+  const { notes, vitalsHistory, patientData } = req.body;
   
+  try {
+    let sbarReport;
+    const latestVitals = vitalsHistory && vitalsHistory.length > 0 ? vitalsHistory[vitalsHistory.length - 1] : {};
+    const pName = patientData?.name || 'Emergency Patient';
+    const pAge = patientData?.age ? `${patientData.age}y` : 'Adult';
+    const pGender = patientData?.gender || '';
+
+    if (aiModel) {
+      const prompt = `You are a Senior Emergency Physician creating a formal SBAR (Situation, Background, Assessment, Recommendation) hospital handover note for patient ${pName} (${pAge} ${pGender}).
+PARAMEDIC NOTES: "${notes || 'Acute emergency transit'}"
+VITALS HISTORY: ${JSON.stringify(vitalsHistory || [])}
+PATIENT DATA: ${JSON.stringify(patientData || {})}
+
+Provide output in STRICT JSON format matching:
+{
+  "situation": "Concise statement of current emergency presentation",
+  "background": "Relevant medical history, allergies, and pre-hospital timeline",
+  "assessment": "Current vital sign findings, NEWS2 score evaluation, clinical stability",
+  "recommendation": "Specific actions requested from receiving ER team upon arrival"
+}`;
+      try {
+        const result = await aiModel.generateContent(prompt);
+        const textResponse = result.response.text().trim();
+        const cleaned = textResponse.replace(/^```json/, '').replace(/```$/, '').trim();
+        sbarReport = JSON.parse(cleaned);
+      } catch (err) {
+        sbarReport = getRuleBasedSbar(notes, vitalsHistory, patientData);
+      }
+    } else {
+      sbarReport = getRuleBasedSbar(notes, vitalsHistory, patientData);
+    }
+
+    return res.json(sbarReport);
+  } catch (err) {
+    console.error('[AI SBAR ROUTE ERROR]', err.message);
+    return res.status(500).json({ error: 'SBAR handover report generation failed' });
+  }
+});
+
+/**
+ * @route POST /api/ai/predict-deterioration
+ * @desc Time-series clinical deterioration early warning algorithm on vitals trend
+ */
+router.post('/predict-deterioration', verifyToken(), async (req, res) => {
+  const { vitalsHistory } = req.body;
+  if (!vitalsHistory || !Array.isArray(vitalsHistory) || vitalsHistory.length === 0) {
+    return res.status(400).json({ error: 'Vitals history array is required' });
+  }
+
+  try {
+    const analysis = calculateVitalsDeterioration(vitalsHistory);
+    return res.json(analysis);
+  } catch (err) {
+    console.error('[DETERIORATION PREDICTION ERROR]', err.message);
+    return res.status(500).json({ error: 'Deterioration calculation failed' });
+  }
+});
+
+function getRuleBasedSbar(notes, vitalsHistory, patientData) {
+  const latestVitals = vitalsHistory && vitalsHistory.length > 0 ? vitalsHistory[vitalsHistory.length - 1] : {};
+  const name = patientData?.name || 'Emergency Patient';
+  const age = patientData?.age ? `${patientData.age}yo` : '';
+  const hr = latestVitals.heartRate || 'N/A';
+  const spo2 = latestVitals.spo2 || 'N/A';
+  const bp = latestVitals.systolic ? `${latestVitals.systolic}/${latestVitals.diastolic} mmHg` : 'N/A';
+
   return {
-    subjective: `Patient presents with: ${notes}. Historical timeline dictated by paramedic team during transit.`,
-    objective: `Vitals recorded: HR ${latestVitals.heartRate || 'N/A'} bpm, SpO2 ${latestVitals.spo2 || 'N/A'}%, BP ${bpText}.`,
-    assessment: `Emergency presentation evaluated. Acuity status aligned with pre-hospital observations.`,
-    plan: `Admit patient to ER trauma bay. Prepare cardiac monitoring, secure IV access, and await physician secondary survey.`
+    situation: `Patient ${name} (${age}) in transit. Presenting with: ${notes || 'Acute emergency symptoms'}.`,
+    background: `Medical History: ${patientData?.chronicConditions || 'None reported'}. Known Allergies: ${patientData?.allergies || 'NKA'}. ABHA ID: ${patientData?.abhaNumber || 'Unlinked'}.`,
+    assessment: `Current Vitals: HR ${hr} bpm, SpO2 ${spo2}%, BP ${bp}. Clinical Acuity: High risk of decompensation en-route.`,
+    recommendation: `Prepare ER Trauma Bay 1. Have Cath Lab / Intubation tray on standby. Request immediate physician bedside arrival upon ambulance docking.`
+  };
+}
+
+function calculateVitalsDeterioration(vitalsHistory) {
+  if (vitalsHistory.length < 2) {
+    const v = vitalsHistory[0] || {};
+    return {
+      riskLevel: v.spo2 < 90 || v.heartRate > 120 ? 'HIGH' : 'STABLE',
+      trend: 'INSUFFICIENT_DATA',
+      predictedDecompensationMin: v.spo2 < 90 ? '5-10 minutes' : 'Stable',
+      alerts: v.spo2 < 90 ? ['Hypoxia Alert: SpO2 < 90%'] : []
+    };
+  }
+
+  const latest = vitalsHistory[vitalsHistory.length - 1];
+  const previous = vitalsHistory[vitalsHistory.length - 2];
+
+  const hrDiff = (latest.heartRate || 0) - (previous.heartRate || 0);
+  const spo2Diff = (latest.spo2 || 0) - (previous.spo2 || 0);
+  const bpDiff = (latest.systolic || 0) - (previous.systolic || 0);
+
+  const alerts = [];
+  let riskScore = 0;
+
+  if (latest.spo2 < 90) {
+    riskScore += 4;
+    alerts.push(`Critical Hypoxia: SpO2 dropped to ${latest.spo2}%`);
+  } else if (spo2Diff <= -3) {
+    riskScore += 3;
+    alerts.push(`Rapid SpO2 Decline: ${spo2Diff}% drop detected`);
+  }
+
+  if (latest.heartRate > 130) {
+    riskScore += 3;
+    alerts.push(`Severe Tachycardia: HR ${latest.heartRate} bpm`);
+  } else if (hrDiff >= 15) {
+    riskScore += 2;
+    alerts.push(`Heart rate accelerating (+${hrDiff} bpm)`);
+  }
+
+  if (latest.systolic && latest.systolic < 90) {
+    riskScore += 4;
+    alerts.push(`Hemorrhagic/Septic Shock Risk: Systolic BP ${latest.systolic} mmHg`);
+  } else if (bpDiff <= -15) {
+    riskScore += 2;
+    alerts.push(`Hypotension Trend: Systolic BP dropped by ${Math.abs(bpDiff)} mmHg`);
+  }
+
+  let riskLevel = 'LOW';
+  let predictedDecompensationMin = 'Stable (No acute risk)';
+
+  if (riskScore >= 6) {
+    riskLevel = 'CRITICAL';
+    predictedDecompensationMin = '5 - 10 minutes';
+  } else if (riskScore >= 3) {
+    riskLevel = 'HIGH';
+    predictedDecompensationMin = '15 - 25 minutes';
+  } else if (riskScore >= 1) {
+    riskLevel = 'MODERATE';
+    predictedDecompensationMin = '30 - 60 minutes';
+  }
+
+  return {
+    riskLevel,
+    riskScore,
+    predictedDecompensationMin,
+    vitalsDelta: { hrDiff, spo2Diff, bpDiff },
+    alerts,
+    timestamp: new Date()
   };
 }
 
