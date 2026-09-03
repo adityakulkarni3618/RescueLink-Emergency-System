@@ -1,7 +1,15 @@
 const { getRealRoute } = require('./routing');
+const { haversineDistance } = require('../utils/maps');
+
+const MAX_DISPATCH_RADIUS_KM = parseFloat(process.env.MAX_DISPATCH_RADIUS_KM) || 35; // Default 35 km max operating radius
 
 async function rankAmbulancesByRealETA(pickupLat, pickupLng, ambulancesList, maxCandidates = 15) {
-  const candidates = ambulancesList.filter(amb => amb.available && amb.location);
+  // STRICT OPERATING RADIUS: Exclude any unit outside MAX_DISPATCH_RADIUS_KM (e.g. Solapur when patient is in Pune)
+  const candidates = ambulancesList.filter(amb => {
+    if (!amb.available || !amb.location) return false;
+    const distKm = haversineDistance(pickupLat, pickupLng, amb.location.lat, amb.location.lng);
+    return distKm <= MAX_DISPATCH_RADIUS_KM;
+  });
 
   const withEta = await Promise.all(candidates.map(async (amb) => {
     const route = await getRealRoute(amb.location.lat, amb.location.lng, pickupLat, pickupLng);
