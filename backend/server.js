@@ -724,6 +724,10 @@ const virtualAmbulances = {};
 const spawnVirtualAmbulances = (centerLoc) => {
   if (!centerLoc || !centerLoc.lat) return;
 
+  // If real registered ambulances exist, do not spawn random simulated units
+  const realCount = Object.values(ambulances).filter(a => !a.isSimulated).length;
+  if (realCount > 0) return;
+
   // Tight cluster around user for immediate visibility
   const offsets = [
     { lat: 0.005, lng: 0.008, name: 'Metro Alpha (ALS)', type: 'ALS' },
@@ -3584,12 +3588,16 @@ async function startServer() {
         const registryKey = `registry_amb_${a.id}`;
         const alreadyLive = Object.values(ambulances).some(la => la.unitId === a.vehicleNo && !la._isRegistryEntry);
         if (!alreadyLive) {
+          const ambLat = parseFloat(a.latitude || a.lat) || 18.5204;
+          const ambLng = parseFloat(a.longitude || a.lng) || 73.8567;
           ambulances[registryKey] = {
+            id: a.id,
             unitId: a.vehicleNo || a.id,
             vehicleNo: a.vehicleNo,
             driverName: a.driverName || a.name,
             type: a.type || 'BLS',
-            location: { lat: a.lat || 17.3850, lng: a.lng || 78.4867 },
+            location: { lat: ambLat, lng: ambLng },
+            pos: { lat: ambLat, lng: ambLng },
             available: true,
             isOnline: false,
             _isRegistryEntry: true,
