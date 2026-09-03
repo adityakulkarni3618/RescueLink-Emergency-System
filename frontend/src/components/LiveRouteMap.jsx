@@ -59,13 +59,9 @@ export default function LiveRouteMap({
       attributionControl: false
     });
 
-    const tileUrl = theme === 'light'
-      ? 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
-      : 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}';
-
-    L.tileLayer(tileUrl, {
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      subdomains: 'abc'
+      className: theme === 'light' ? '' : 'dark-map-tiles'
     }).addTo(map);
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -204,6 +200,11 @@ export default function LiveRouteMap({
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: '350px', background: '#050d1a' }}>
+      <style>{`
+        .dark-map-tiles {
+          filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) !important;
+        }
+      `}</style>
       <div 
         ref={mapContainerRef} 
         style={{ 
