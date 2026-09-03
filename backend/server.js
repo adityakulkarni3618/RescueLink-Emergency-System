@@ -425,6 +425,10 @@ app.get('/api/fhir/:reqId', authenticateToken, (req, res) => {
   res.json(fhirData);
 });
 
+app.get('/health', (req, res) => {
+  res.json({ status: 'HEALTHY', timestamp: new Date().toISOString(), system: 'RescueLink Emergency System' });
+});
+
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/ambulances', require('./routes/ambulances'));
@@ -781,7 +785,7 @@ function startVirtualAmbulanceSimulation(reqId, virtualAmbId) {
   io.to('admin_warroom').emit('ambulances-update', getCombinedAmbulances());
   io.to(req.userSocket).emit('ambulance-request-response', { ...req, accepted: true });
 
-  io.emit('incoming-hospital-request', {
+  io.to('global_hospitals').to('admin_warroom').emit('incoming-hospital-request', {
     id: req.id,
     status: 'advance_notice',
     ambulanceName: amb.driverName || 'Virtual Unit',
