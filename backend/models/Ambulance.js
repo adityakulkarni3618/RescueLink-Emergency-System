@@ -39,8 +39,25 @@ module.exports = (sequelize) => {
     },
     is_active: {
       type: DataTypes.BOOLEAN,
-      defaultValue: true,
+      defaultValue: false,
       allowNull: false
+    },
+    verification_status: {
+      type: DataTypes.STRING,
+      defaultValue: 'PENDING',
+      allowNull: false
+    },
+    latitude: {
+      type: DataTypes.FLOAT,
+      allowNull: true
+    },
+    longitude: {
+      type: DataTypes.FLOAT,
+      allowNull: true
+    },
+    station_name: {
+      type: DataTypes.STRING,
+      allowNull: true
     },
     hospital_id: {
       type: DataTypes.UUID,

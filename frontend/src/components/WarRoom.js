@@ -8,6 +8,7 @@ import CorridorPanel from './CorridorPanel';
 import { generateMonthlyReport } from '../utils/reportGenerator';
 import { exportMetricsToExcel } from '../utils/excelExporter';
 import PhysiologicalWaveforms from './PhysiologicalWaveforms';
+import VerificationPanel from './VerificationPanel';
 
 const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
 
@@ -725,7 +726,7 @@ export default function WarRoom({ socket, connected, onLogout, onSwitchRole, onS
           )}
 
           {activeTab === 'approvals' && (
-            <RegistrationApprovals />
+            <VerificationPanel token={sessionStorage.getItem('rescuelink_token')} socket={socket} />
           )}
 
           {activeTab === 'registry' && (

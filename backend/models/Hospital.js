@@ -38,9 +38,18 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       defaultValue: 0
     },
+    address: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
     is_active: {
       type: DataTypes.BOOLEAN,
-      defaultValue: true
+      defaultValue: false
+    },
+    verification_status: {
+      type: DataTypes.STRING,
+      defaultValue: 'PENDING',
+      allowNull: false
     },
     license_number: {
       type: DataTypes.STRING,
