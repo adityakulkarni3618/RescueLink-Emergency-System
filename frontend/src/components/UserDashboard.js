@@ -302,6 +302,30 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
     } catch (e) { console.error('Search failed', e); }
   };
 
+  const recenterLiveLocation = () => {
+    if (navigator.geolocation) {
+      setLocationMethod('Acquiring GPS...');
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          setUserLocation(loc);
+          setManualCenter([loc.lat, loc.lng]);
+          setLocationMethod('Native GPS');
+          showAlert(`📍 Map pinned to live GPS location: [${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}]`);
+          if (socket) socket.emit('location-update', { ...loc, reqId: currentReqId });
+        },
+        (err) => {
+          console.warn('Live location error:', err);
+          showAlert('⚠️ Could not acquire high-accuracy GPS. Check browser location permissions.');
+          setLocationMethod('Native GPS (Blocked)');
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    } else {
+      showAlert('⚠️ Browser does not support native geolocation.');
+    }
+  };
+
   useEffect(() => {
     const fetchIpLocation = async () => {
       const providers = [
@@ -1444,11 +1468,17 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
                 color: '#fff', fontSize: 13, outline: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.4)'
               }}
             />
-            <button onClick={handleManualSearch} style={{
-              padding: '10px 15px', background: 'rgba(0,255,136,0.2)', 
+            <button onClick={handleManualSearch} title="Search location" style={{
+              padding: '10px 14px', background: 'rgba(0,200,255,0.2)', 
+              border: '1px solid #00c8ff', borderRadius: 8, color: '#00c8ff',
+              cursor: 'pointer', fontSize: 12, fontFamily: "'Orbitron'", fontWeight: 'bold'
+            }}>🔍 SEARCH</button>
+            <button onClick={recenterLiveLocation} title="Pin to My Live Location" style={{
+              padding: '10px 14px', background: 'rgba(0,255,136,0.25)', 
               border: '1px solid #00ff88', borderRadius: 8, color: '#00ff88',
-              cursor: 'pointer', fontSize: 14
-            }}>📍</button>
+              cursor: 'pointer', fontSize: 12, fontFamily: "'Orbitron'", fontWeight: 'bold',
+              display: 'flex', alignItems: 'center', gap: 4, boxShadow: '0 0 15px rgba(0,255,136,0.3)'
+            }}>📍 PIN LIVE GPS</button>
           </div>
           <div style={{
             position: 'absolute', bottom: 10, left: 10, zIndex: 1000,
