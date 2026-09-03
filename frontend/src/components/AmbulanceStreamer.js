@@ -1768,13 +1768,14 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
       return true;
     });
 
-    const availableHosp = capableHospitals.length > 0 ? capableHospitals[0] : sortedHospitals.find(h => !h.isBusy) || sortedHospitals[0];
+    const availableHosp = capableHospitals.length > 0 ? capableHospitals[0] : (sortedHospitals.find(h => !h.isBusy) || sortedHospitals[0]);
+    if (!availableHosp) return;
     
     if (capableHospitals.length === 0) {
-      console.warn(`[ROUTING] No perfectly capable hospital found for ${condition}. Using nearest available: ${availableHosp.name}`);
+      console.warn(`[ROUTING] No perfectly capable hospital found for ${condition}. Using nearest available: ${availableHosp.name || 'Hospital'}`);
     }
 
-    console.log(`[ROUTING] Selected target: ${availableHosp.name} (Busy: ${availableHosp.isBusy || false})`);
+    console.log(`[ROUTING] Selected target: ${availableHosp.name || 'Hospital'} (Busy: ${availableHosp.isBusy || false})`);
     setSelectedHospital({ ...availableHosp, pos: availableHosp.location || availableHosp.pos, baseDistance: availableHosp.currentDist || 15 });
   };
 
