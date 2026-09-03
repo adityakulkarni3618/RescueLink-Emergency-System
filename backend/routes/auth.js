@@ -650,7 +650,7 @@ router.post('/refresh', async (req, res) => {
  * @desc Register a new paramedic ambulance unit with speakeasy 2FA setup
  */
 router.post('/register-ambulance', async (req, res) => {
-  const { vehicleNo, driverName, contactInfo, type, password, hospitalId, equipmentChecklist, crewMembers, licenseNumber, licenseExpiry, isSystemStandard, oxygenCapacityLiters } = req.body;
+  const { vehicleNo, driverName, contactInfo, type, password, hospitalId, equipmentChecklist, crewMembers, licenseNumber, licenseExpiry, isSystemStandard, oxygenCapacityLiters, lat, lng, latitude, longitude, stationName, station_name } = req.body;
   if (!vehicleNo || !driverName || !contactInfo || !password) {
     return res.status(400).json({ error: 'vehicleNo, driverName, contactInfo, and password are required' });
   }
@@ -683,6 +683,9 @@ router.post('/register-ambulance', async (req, res) => {
     const twoFactor = require('../utils/twoFactor');
     const setupData = await twoFactor.generateSecret(vehicleNo, normalizedEmail);
 
+    const ambLat = parseFloat(latitude || lat) || 12.9716;
+    const ambLng = parseFloat(longitude || lng) || 77.5946;
+
     await Ambulance.create({
       vehicleNo,
       driverName,
@@ -691,6 +694,10 @@ router.post('/register-ambulance', async (req, res) => {
       password: passwordHash,
       totp_secret: setupData.secret,
       is_active: false,
+      verification_status: 'PENDING',
+      latitude: ambLat,
+      longitude: ambLng,
+      station_name: stationName || station_name || 'Central Station',
       hospital_id: hospitalId || null,
       equipment_checklist: JSON.stringify(equipmentChecklist || []),
       crew_members: JSON.stringify(crewMembers || []),
@@ -844,6 +851,7 @@ router.post('/register-hospital', async (req, res) => {
     const newHospital = await Hospital.create({
       name,
       contact_number: contactInfo,
+      address: address || null,
       city: req.body.city || null,
       state: req.body.state || null,
       lat: finalLat,
@@ -852,6 +860,7 @@ router.post('/register-hospital', async (req, res) => {
       icu_beds: parseInt(icuBeds) || 5,
       ventilators: parseInt(ventilators) || 2,
       is_active: false,
+      verification_status: 'PENDING',
       license_number: licenseNumber || null,
       departments: JSON.stringify(departments || []),
       bay_capacity: parseInt(bayCapacity) || 5,

@@ -217,8 +217,9 @@ export default function CorridorPanel({
       attributionControl: false
     });
 
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 19
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      className: 'dark-map-tiles'
     }).addTo(map);
 
     mapRef.current = map;

@@ -446,6 +446,7 @@ app.use('/api/passport', require('./routes/qrPassport'));
 app.use('/api/sync', require('./routes/sync'));
 app.use('/api/tele', require('./routes/telemedicine'));
 app.use('/api/ai', require('./routes/aiCopilot'));
+app.use('/api/admin', require('./routes/verification'));
 app.use('/api/abdm', require('./routes/abdm'));
 
 app.post('/api/ai/predictive-hospital', async (req, res) => {
