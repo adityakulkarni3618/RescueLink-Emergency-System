@@ -816,33 +816,29 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
 
   const getAmbulanceDataList = () => {
     const list = Object.entries(ambulances);
-    if (list.length === 0) {
-      if (dbAmbulances && dbAmbulances.length > 0) {
-        const center = isValidLatLng(userLocation) ? userLocation : { lat: 12.9716, lng: 77.5946 };
-        return dbAmbulances.map((amb, index) => {
-          const offsetLat = (index % 2 === 0 ? 1 : -1) * (0.003 + (index * 0.0015));
-          const offsetLng = (index % 3 === 0 ? 1 : -1) * (0.004 + (index * 0.0012));
-          return [
-            amb.id || `AMB-${index}`,
-            {
-              driverName: amb.driverName || `Driver ${amb.vehicleNo}`,
-              available: amb.is_active !== false,
-              location: { lat: center.lat + offsetLat, lng: center.lng + offsetLng },
-              vehicleNo: amb.vehicleNo,
-              type: amb.type === 'ALS' ? 'Advanced Life Support' : 'Basic Life Support',
-              contactInfo: amb.contactInfo
-            }
-          ];
-        });
-      }
-      const center = userLocation || { lat: 12.9716, lng: 77.5946 };
-      return [
-        ['VIRTUAL-AMB-001', { driverName: 'Metro Alpha (ALS)', available: true, location: { lat: center.lat + 0.005, lng: center.lng + 0.008 }, vehicleNo: 'EMG-MH-01', type: 'Advanced Life Support' }],
-        ['VIRTUAL-AMB-002', { driverName: 'Zonal Unit 04 (BLS)', available: true, location: { lat: center.lat - 0.006, lng: center.lng + 0.005 }, vehicleNo: 'EMG-MH-02', type: 'Basic Life Support' }],
-        ['VIRTUAL-AMB-003', { driverName: 'Cardiac Support 12 (ALS)', available: true, location: { lat: center.lat + 0.002, lng: center.lng - 0.009 }, vehicleNo: 'EMG-MH-03', type: 'Advanced Life Support' }]
-      ];
+    if (list.length > 0) return list;
+
+    if (dbAmbulances && dbAmbulances.length > 0) {
+      return dbAmbulances.map((amb, index) => {
+        const ambLat = parseFloat(amb.latitude || amb.lat) || (userLocation ? userLocation.lat : 18.5204);
+        const ambLng = parseFloat(amb.longitude || amb.lng) || (userLocation ? userLocation.lng : 73.8567);
+        return [
+          amb.id || `AMB-${index}`,
+          {
+            id: amb.id,
+            driverName: amb.driverName || amb.name || `Driver ${amb.vehicleNo || ''}`,
+            available: amb.is_active !== false,
+            location: { lat: ambLat, lng: ambLng },
+            pos: { lat: ambLat, lng: ambLng },
+            vehicleNo: amb.vehicleNo || 'EMS Unit',
+            type: amb.type === 'ALS' ? 'Advanced Life Support' : 'Basic Life Support',
+            contactInfo: amb.contactInfo
+          }
+        ];
+      });
     }
-    return list;
+
+    return []; // Avoid returning fake virtual ambulances when real entities are present
   };
 
   const getHospitalsData = () => {
