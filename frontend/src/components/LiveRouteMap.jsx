@@ -60,12 +60,12 @@ export default function LiveRouteMap({
     });
 
     const tileUrl = theme === 'light'
-      ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
-      : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+      ? 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+      : 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}';
 
     L.tileLayer(tileUrl, {
       maxZoom: 19,
-      subdomains: 'abcd'
+      subdomains: 'abc'
     }).addTo(map);
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
