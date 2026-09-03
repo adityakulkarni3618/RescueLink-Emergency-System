@@ -2,9 +2,9 @@ const { Ambulance, Hospital, Incident, AuditLog } = require('./db');
 const { haversineDistance } = require('./maps');
 
 /**
- * Finds all active, verified ambulances within 10 km radius of patient coordinates.
+ * Finds all active, verified ambulances within maxRadiusKm (default 35 km) operating radius of patient coordinates.
  */
-async function findEligibleAmbulances(patientLat, patientLng, maxRadiusKm = 10) {
+async function findEligibleAmbulances(patientLat, patientLng, maxRadiusKm = 35) {
   try {
     const allAmbulances = await Ambulance.findAll({
       where: {
