@@ -86,7 +86,7 @@ async function handleAmbulanceCancellation(io, incidentId, ambulanceId, patientL
 
     // 3. Emit Socket broadcast for cancellation recovery
     if (io) {
-      io.emit('emergency:ambulance_cancelled', {
+      io.to(`mission_${incidentId}`).to('admin_warroom').emit('emergency:ambulance_cancelled', {
         incidentId,
         cancelledAmbulanceId: ambulanceId,
         message: 'Ambulance canceled the trip. Auto-searching nearest 10km ambulances...',
@@ -94,8 +94,8 @@ async function handleAmbulanceCancellation(io, incidentId, ambulanceId, patientL
         nearestHospital: eligibleHospitals[0] || null
       });
 
-      // Broadcast fresh dispatch offer to remaining ambulances within 10km
-      io.emit('emergency:dispatch_offer', {
+      // Broadcast fresh dispatch offer to remaining ambulances room
+      io.to('global_ambulances').emit('emergency:dispatch_offer', {
         incidentId,
         patientLocation: { lat: patientLat, lng: patientLng },
         eligibleAmbulances,
@@ -117,7 +117,7 @@ async function handlePatientCancellation(io, incidentId, patientId) {
   try {
     console.log(`[DISPATCH AGENT] Handling patient cancellation for incident ${incidentId}`);
     if (io) {
-      io.emit('emergency:patient_cancelled', {
+      io.to(`mission_${incidentId}`).to('admin_warroom').emit('emergency:patient_cancelled', {
         incidentId,
         patientId,
         message: 'Emergency SOS cancelled by patient.'
