@@ -9,25 +9,41 @@ const { verifyToken, requireRole } = require('../middleware/auth');
  */
 router.get('/pending-verifications', verifyToken(), async (req, res) => {
   try {
-    const pendingAmbulances = await Ambulance.findAll({
-      where: {
-        [require('sequelize').Op.or]: [
-          { verification_status: 'PENDING' },
-          { is_active: false }
-        ]
-      },
-      order: [['createdAt', 'DESC']]
-    });
+    let pendingAmbulances = [];
+    try {
+      pendingAmbulances = await Ambulance.findAll({
+        where: {
+          [require('sequelize').Op.or]: [
+            { verification_status: 'PENDING' },
+            { is_active: false }
+          ]
+        },
+        order: [['createdAt', 'DESC']]
+      });
+    } catch (e) {
+      pendingAmbulances = await Ambulance.findAll({
+        where: { is_active: false },
+        order: [['createdAt', 'DESC']]
+      });
+    }
 
-    const pendingHospitals = await Hospital.findAll({
-      where: {
-        [require('sequelize').Op.or]: [
-          { verification_status: 'PENDING' },
-          { is_active: false }
-        ]
-      },
-      order: [['createdAt', 'DESC']]
-    });
+    let pendingHospitals = [];
+    try {
+      pendingHospitals = await Hospital.findAll({
+        where: {
+          [require('sequelize').Op.or]: [
+            { verification_status: 'PENDING' },
+            { is_active: false }
+          ]
+        },
+        order: [['createdAt', 'DESC']]
+      });
+    } catch (e) {
+      pendingHospitals = await Hospital.findAll({
+        where: { is_active: false },
+        order: [['createdAt', 'DESC']]
+      });
+    }
 
     return res.json({
       success: true,
