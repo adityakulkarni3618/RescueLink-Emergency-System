@@ -5,27 +5,45 @@ const { verifyToken } = require('../middleware/auth');
 const bcrypt = require('bcryptjs');
 
 async function findAmbulanceByPkOrUser(idOrUuid) {
+  if (!idOrUuid) return null;
   let amb = await Ambulance.findByPk(idOrUuid);
   if (!amb) {
-    const { User } = require('../utils/db');
+    const { User, sequelize } = require('../utils/db');
+    const { Op } = require('sequelize');
     const user = await User.findByPk(idOrUuid);
-    if (user && user.role === 'paramedic') {
-      const vehiclePrefix = user.email.split('@')[0].toUpperCase();
-      const { Op } = require('sequelize');
+    const searchVal = user ? (user.email ? user.email.split('@')[0] : user.name) : String(idOrUuid);
+    const cleanSearch = searchVal.replace(/[\s\-]+/g, '').toLowerCase();
+
+    try {
       amb = await Ambulance.findOne({
-        where: {
-          vehicleNo: {
-            [Op.or]: [
-              vehiclePrefix,
-              user.email.split('@')[0]
-            ]
-          }
-        }
+        where: sequelize.where(
+          sequelize.fn('LOWER', sequelize.fn('REPLACE', sequelize.col('vehicleNo'), '-', '')),
+          cleanSearch
+        )
+      });
+    } catch (e) {
+      amb = await Ambulance.findOne({ where: { vehicleNo: searchVal.toUpperCase() } });
+    }
+
+    if (!amb && user) {
+      amb = await Ambulance.findOne({
+        where: { driverName: user.name }
       });
     }
   }
-  if (!amb) {
-    amb = await Ambulance.findOne({ where: { vehicleNo: idOrUuid.toUpperCase() } });
+  if (!amb && typeof idOrUuid === 'string') {
+    const cleanRaw = idOrUuid.replace(/[\s\-]+/g, '').toLowerCase();
+    const { sequelize } = require('../utils/db');
+    try {
+      amb = await Ambulance.findOne({
+        where: sequelize.where(
+          sequelize.fn('LOWER', sequelize.fn('REPLACE', sequelize.col('vehicleNo'), '-', '')),
+          cleanRaw
+        )
+      });
+    } catch (e) {
+      amb = await Ambulance.findOne({ where: { vehicleNo: idOrUuid.toUpperCase() } });
+    }
   }
   return amb;
 }

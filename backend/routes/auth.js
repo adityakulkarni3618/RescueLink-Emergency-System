@@ -184,6 +184,7 @@ router.post('/login', validate(loginBody), async (req, res) => {
     if (isAmbulanceTableLogin && ambulanceUnit) {
       extraData = {
         id: ambulanceUnit.id,
+        unitId: ambulanceUnit.vehicleNo,
         vehicleNo: ambulanceUnit.vehicleNo,
         driverName: ambulanceUnit.driverName,
         contactInfo: ambulanceUnit.contactInfo,
@@ -196,6 +197,33 @@ router.post('/login', validate(loginBody), async (req, res) => {
         is_system_standard: ambulanceUnit.is_system_standard,
         oxygen_capacity_liters: ambulanceUnit.oxygen_capacity_liters
       };
+    } else if (user && user.role === 'paramedic') {
+      const cleanNo = user.email ? user.email.replace('@rescuelink.com', '').toUpperCase() : '';
+      const amb = await Ambulance.findOne({
+        where: {
+          [require('sequelize').Op.or]: [
+            { vehicleNo: cleanNo },
+            { driverName: user.name }
+          ]
+        }
+      });
+      if (amb) {
+        extraData = {
+          id: amb.id,
+          unitId: amb.vehicleNo,
+          vehicleNo: amb.vehicleNo,
+          driverName: amb.driverName,
+          contactInfo: amb.contactInfo,
+          type: amb.type,
+          hospital_id: amb.hospital_id,
+          equipment_checklist: amb.equipment_checklist,
+          crew_members: amb.crew_members,
+          license_number: amb.license_number,
+          license_expiry: amb.license_expiry,
+          is_system_standard: amb.is_system_standard,
+          oxygen_capacity_liters: amb.oxygen_capacity_liters
+        };
+      }
     } else if (user && (user.role === 'hospital_admin' || user.role === 'doctor') && user.hospital_id) {
       const hospital = await Hospital.findByPk(user.hospital_id);
       if (hospital) {
@@ -454,6 +482,16 @@ router.get('/me', verifyToken(), async (req, res) => {
       });
       if (user && (user.role === 'hospital_admin' || user.role === 'doctor') && user.hospital_id) {
         hospital = await Hospital.findByPk(user.hospital_id);
+      } else if (user && user.role === 'paramedic') {
+        const cleanNo = user.email ? user.email.replace('@rescuelink.com', '').toUpperCase() : '';
+        ambulance = await Ambulance.findOne({
+          where: {
+            [require('sequelize').Op.or]: [
+              { vehicleNo: cleanNo },
+              { driverName: user.name }
+            ]
+          }
+        });
       }
     }
 
