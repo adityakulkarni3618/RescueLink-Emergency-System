@@ -79,6 +79,10 @@ PROJECT STRUCTURE:
   backend\routes\sync.js
   backend\routes\telemedicine.js
   backend\routes\users.js
+  backend\routes\verification.js
+  backend\utils\dispatchAgent.js
+  frontend\src\components\VerificationPanel.js
+  backend\routes\verification.js
   backend\routes\videoCall.js
   backend\scripts\add_patient_user.js
   backend\scripts\backfill_hospitals.js

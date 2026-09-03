@@ -38,19 +38,25 @@ graph TD
 ## 2. Real-World Healthcare Features & Capabilities
 
 - **🚨 Guest Emergency Dispatch (Authentication Bypass)**: Instant SOS dispatch triggering geolocation capture and immediate ambulance routing without requiring account setup or passwords during acute crises.
+- **🚖 Uber/Ola Style Radial Dispatch Engine**: 10 km ambulance radial dispatch and 20 km hospital search with single-accept lock and automated cancellation recovery re-broadcasting.
+- **🛡️ War Room Credentials Verification Gate**: Registration approval workflow for hospitals and ambulances. Newly registered units remain in `PENDING_VERIFICATION` status until inspected and approved by the City Administrator in the War Room.
+- **🛸 Drone AED Dispatch Network**: Autonomous aerial drone AED dispatch protocol for rapid airway and defibrillator deployment to emergency sites.
+- **📱 Lockscreen QR Emergency Health Passport**: Offline QR code health passport for instant first-responder access to ABHA ID, blood group, allergies, and emergency contacts without device unlock.
+- **🏥 Multi-Hospital 108 Capacity Auto-Balancing**: Dynamic bed, ICU, and ventilator capacity calculation with automated patient load balancing across city hospital networks.
+- **🗺️ Zero-Token Leaflet Map Engine**: High-contrast, zero-token Leaflet map layer using OpenStreetMap and Esri tiles with dark-mode CSS filtering for 100% reliable rendering without API key limits.
+- **⚡ HTTP Gzip Response Compression**: Native Express Gzip compression reducing payload sizes by 75%–80% to protect cloud egress bandwidth limits.
 - **🧍 Patient Emer-Health Profile Management**: Full patient portal allowing management of ABDM ABHA IDs, blood groups, allergies, chronic conditions, next-of-kin emergency contact numbers, and insurance policies.
 - **🚑 Certified Ambulance & Crew Management**: Paramedic license tracking, expiration dates, oxygen capacity (liters), and standard EMS vehicle safety compliance checks.
 - **🏥 Hospital Trauma Tier Routing**: Clinical Trauma Center Ratings (Tier 1 Comprehensive, Tier 2 Major, Tier 3 General ER) combined with JCI/NABH national accreditation tracking for intelligent AI destination routing.
 - **🛡️ DPDP Act 2023 & HIPAA Compliance**: Application-layer AES-256-GCM encryption for PHI/PII, dynamic consent revocation, automated 3-year record purge policies, and immutable cryptographic audit logs.
-- **🛡️ Registration Admin Approvals (Fraud Prevention)**: Workflow to enforce system authorization for hospitals and ambulances. Registrations remain inactive (`is_active: false`) until approved by the City Administrator in the War Room tab dashboard.
-- **🚦 AI Emergency Corridor & Dynamic Signal Preemption**: Dynamic traffic signal override synchronizer with Kalman filter GPS drift smoothing, HMAC-SHA256 telemetry signature checks, and automatic watchdog timeouts to prevent city-wide traffic locks during ambulance network disconnections.
+- **🚦 AI Emergency Corridor & Dynamic Signal Preemption**: Dynamic traffic signal override synchronizer with Kalman filter GPS drift smoothing, HMAC-SHA256 telemetry signature checks, and automatic watchdog timeouts to prevent city-wide traffic locks.
 
 ---
 
 ## 3. Tech Stack
 
-- **Backend**: Node.js, Express, Socket.io, Sequelize ORM, PostgreSQL / SQLite.
-- **Frontend**: React.js, Mapbox GL, Recharts, Custom Glassmorphism UI System.
+- **Backend**: Node.js, Express, Socket.io, Sequelize ORM, PostgreSQL / SQLite, Gzip Compression.
+- **Frontend**: React.js, Leaflet, Mapbox GL, Recharts, Custom Glassmorphism UI System.
 - **Database**: PostgreSQL (system of record), SQLite (automatic local fallback), Redis (session & token blacklists).
 - **Security**: AES-256-GCM application-layer encryption, TOTP Multi-factor authentication, DPDP Act 2023 dynamic consent control.
 - **Deployments**: Docker, docker-compose, Vercel (Frontend), Render (Backend Node API).
