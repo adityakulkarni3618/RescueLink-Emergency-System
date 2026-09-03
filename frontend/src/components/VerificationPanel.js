@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
+const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
+
 export default function VerificationPanel({ token, socket }) {
   const [pendingAmbulances, setPendingAmbulances] = useState([]);
   const [pendingHospitals, setPendingHospitals] = useState([]);
@@ -9,7 +11,7 @@ export default function VerificationPanel({ token, socket }) {
   const fetchPendingUnits = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/pending-verifications', {
+      const res = await fetch(`${SERVER_URL}/api/admin/pending-verifications`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -40,7 +42,7 @@ export default function VerificationPanel({ token, socket }) {
 
   const handleApprove = async (unitId, unitType) => {
     try {
-      const res = await fetch('/api/admin/approve-unit', {
+      const res = await fetch(`${SERVER_URL}/api/admin/approve-unit`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -62,7 +64,7 @@ export default function VerificationPanel({ token, socket }) {
 
   const handleReject = async (unitId, unitType) => {
     try {
-      const res = await fetch('/api/admin/reject-unit', {
+      const res = await fetch(`${SERVER_URL}/api/admin/reject-unit`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
