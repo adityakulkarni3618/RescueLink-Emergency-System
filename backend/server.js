@@ -3456,8 +3456,40 @@ async function startServer() {
       } else {
         console.log('[BOOTSTRAP] Super admin already exists. Skipping creation.');
       }
+
+      // Auto-bootstrap baseline system hospitals if table is empty
+      const dbModule = require('./utils/db');
+      const HospitalModel = dbModule.Hospital;
+      const AmbulanceModel = dbModule.Ambulance;
+
+      if (HospitalModel && typeof HospitalModel.count === 'function') {
+        const hospCount = await HospitalModel.count();
+        if (hospCount === 0) {
+          console.log('[BOOTSTRAP] Seeding baseline emergency hospital network...');
+          await HospitalModel.bulkCreate([
+            { name: 'City General Trauma Center', city: 'Bengaluru', state: 'Karnataka', lat: 12.9716, lng: 77.5946, contact_number: '+91-80-22221111', total_beds: 120, icu_beds: 25, ventilators: 12, is_active: true, verification_status: 'APPROVED', trauma_tier: 'Tier 1' },
+            { name: 'Apollo Multispecialty ER', city: 'Bengaluru', state: 'Karnataka', lat: 12.9352, lng: 77.6245, contact_number: '+91-80-33332222', total_beds: 90, icu_beds: 18, ventilators: 8, is_active: true, verification_status: 'APPROVED', trauma_tier: 'Tier 1' },
+            { name: 'Manipal Apex Hospital', city: 'Bengaluru', state: 'Karnataka', lat: 12.9810, lng: 77.6412, contact_number: '+91-80-44443333', total_beds: 150, icu_beds: 30, ventilators: 15, is_active: true, verification_status: 'APPROVED', trauma_tier: 'Tier 2' }
+          ]);
+        }
+      }
+
+      if (AmbulanceModel && typeof AmbulanceModel.count === 'function') {
+        const ambCount = await AmbulanceModel.count();
+        if (ambCount === 0) {
+          console.log('[BOOTSTRAP] Seeding baseline EMS ambulance fleet...');
+          const defaultPasswordHash = bcrypt.hashSync('password123', 10);
+          await AmbulanceModel.bulkCreate([
+            { vehicleNo: 'AMB-101', type: 'ALS', driverName: 'Rajesh Kumar', contactInfo: '+91-9876543210', password: defaultPasswordHash, is_active: true, verification_status: 'APPROVED', latitude: 12.9750, longitude: 77.5900, station_name: 'Central Station' },
+            { vehicleNo: 'AMB-102', type: 'BLS', driverName: 'Suresh Patil', contactInfo: '+91-9876543211', password: defaultPasswordHash, is_active: true, verification_status: 'APPROVED', latitude: 12.9680, longitude: 77.6000, station_name: 'East Station' },
+            { vehicleNo: 'AMB-103', type: 'ALS', driverName: 'Anil Sharma', contactInfo: '+91-9876543212', password: defaultPasswordHash, is_active: true, verification_status: 'APPROVED', latitude: 12.9800, longitude: 77.5850, station_name: 'North Station' },
+            { vehicleNo: 'AMB-104', type: 'BLS', driverName: 'Vikram Singh', contactInfo: '+91-9876543213', password: defaultPasswordHash, is_active: true, verification_status: 'APPROVED', latitude: 12.9550, longitude: 77.6100, station_name: 'South Station' },
+            { vehicleNo: 'AMB-105', type: 'ALS', driverName: 'Deepak Verma', contactInfo: '+91-9876543214', password: defaultPasswordHash, is_active: true, verification_status: 'APPROVED', latitude: 12.9900, longitude: 77.6300, station_name: 'Indiranagar Hub' }
+          ]);
+        }
+      }
     } catch (bootstrapErr) {
-      console.error('[BOOTSTRAP] Failed to auto-create super admin:', bootstrapErr.message);
+      console.error('[BOOTSTRAP] Failed to auto-create super admin or baseline units:', bootstrapErr.message);
     }
 
     // 2. Hydrate active in-memory state from database (clearing stale items first)

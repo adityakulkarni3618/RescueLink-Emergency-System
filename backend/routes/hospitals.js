@@ -18,7 +18,12 @@ router.get('/', async (req, res) => {
     }
 
     const hospitals = await Hospital.findAll({
-      where: { is_active: true }
+      where: {
+        [require('sequelize').Op.or]: [
+          { is_active: true },
+          { verification_status: 'APPROVED' }
+        ]
+      }
     });
 
     const plainHospitals = hospitals.map(h => typeof h.toJSON === 'function' ? h.toJSON() : h);
