@@ -43,18 +43,33 @@ export default function LiveRouteMap({
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
-    let initialCenter = [12.9716, 77.5946]; // Default Bengaluru [lat, lng]
-    if (isValidLatLng(ambulancePosition)) {
-      initialCenter = parseLatLng(ambulancePosition);
-    } else if (isValidLatLng(originMarker)) {
-      initialCenter = parseLatLng(originMarker);
-    } else if (isValidLatLng(destinationMarker)) {
-      initialCenter = parseLatLng(destinationMarker);
+    // Find first valid registered entity for dynamic initial center
+    let initialCenter = null;
+    if (isValidLatLng(ambulancePosition)) initialCenter = parseLatLng(ambulancePosition);
+    else if (isValidLatLng(originMarker)) initialCenter = parseLatLng(originMarker);
+    else if (isValidLatLng(destinationMarker)) initialCenter = parseLatLng(destinationMarker);
+
+    if (!initialCenter && extraHospitals && typeof extraHospitals === 'object') {
+      const firstHosp = Object.values(extraHospitals).find(h => isValidLatLng(h.location || h.pos || (h.lat && h.lng ? { lat: h.lat, lng: h.lng } : null)));
+      if (firstHosp) {
+        const hLoc = firstHosp.location || firstHosp.pos || { lat: firstHosp.lat, lng: firstHosp.lng };
+        initialCenter = parseLatLng(hLoc);
+      }
     }
+
+    if (!initialCenter && extraAmbulances && typeof extraAmbulances === 'object') {
+      const firstAmb = Object.values(extraAmbulances).find(a => isValidLatLng(a.location || a.pos || (a.latitude && a.longitude ? { lat: a.latitude, lng: a.longitude } : (a.lat && a.lng ? { lat: a.lat, lng: a.lng } : null))));
+      if (firstAmb) {
+        const aLoc = firstAmb.location || firstAmb.pos || { lat: firstAmb.latitude || firstAmb.lat, lng: firstAmb.longitude || firstAmb.lng };
+        initialCenter = parseLatLng(aLoc);
+      }
+    }
+
+    if (!initialCenter) initialCenter = [18.5204, 73.8567]; // Pune default center if no entities present
 
     const map = L.map(mapContainerRef.current, {
       center: initialCenter,
-      zoom: 14,
+      zoom: 13,
       zoomControl: false,
       attributionControl: false
     });
@@ -168,13 +183,18 @@ export default function LiveRouteMap({
     // Extra Hospitals
     if (extraHospitals && typeof extraHospitals === 'object') {
       Object.values(extraHospitals).forEach(h => {
-        if (isValidLatLng(h.location)) {
+        const hLoc = h.location || h.pos || (h.lat && h.lng ? { lat: h.lat, lng: h.lng } : null);
+        if (isValidLatLng(hLoc)) {
           const key = `hosp_${h.id || h.name}`;
+          const pos = parseLatLng(hLoc);
+          const iconHtml = `<div style="font-size: 24px; filter: drop-shadow(0 0 8px #00c8ff); text-align: center;">🏥</div>`;
+          const icon = L.divIcon({ html: iconHtml, className: '', iconSize: [28, 28], iconAnchor: [14, 14] });
           if (!extraMarkersRef.current[key]) {
-            const pos = parseLatLng(h.location);
-            const iconHtml = `<div style="font-size: 22px; filter: drop-shadow(0 0 6px #00c8ff); text-align: center;">🏥</div>`;
-            const icon = L.divIcon({ html: iconHtml, className: '', iconSize: [28, 28], iconAnchor: [14, 14] });
-            extraMarkersRef.current[key] = L.marker(pos, { icon }).addTo(map);
+            const m = L.marker(pos, { icon }).addTo(map);
+            m.bindPopup(`<strong style="color:#00c8ff;">🏥 ${h.name}</strong><br/>City: ${h.city || 'Registered Center'}<br/>Beds: ${h.icu_beds || 0} ICU / ${h.total_beds || 0} Total`);
+            extraMarkersRef.current[key] = m;
+          } else {
+            extraMarkersRef.current[key].setLatLng(pos);
           }
         }
       });
@@ -183,13 +203,16 @@ export default function LiveRouteMap({
     // Extra Ambulances
     if (extraAmbulances && typeof extraAmbulances === 'object') {
       Object.values(extraAmbulances).forEach(a => {
-        if (isValidLatLng(a.location)) {
+        const aLoc = a.location || a.pos || (a.latitude && a.longitude ? { lat: a.latitude, lng: a.longitude } : (a.lat && a.lng ? { lat: a.lat, lng: a.lng } : null));
+        if (isValidLatLng(aLoc)) {
           const key = `amb_${a.id || a.vehicleNo}`;
-          const pos = parseLatLng(a.location);
-          const iconHtml = `<div style="font-size: 22px; filter: drop-shadow(0 0 6px #00ff88); text-align: center;">🚑</div>`;
+          const pos = parseLatLng(aLoc);
+          const iconHtml = `<div style="font-size: 24px; filter: drop-shadow(0 0 8px #00ff88); text-align: center;">🚑</div>`;
           const icon = L.divIcon({ html: iconHtml, className: '', iconSize: [28, 28], iconAnchor: [14, 14] });
           if (!extraMarkersRef.current[key]) {
-            extraMarkersRef.current[key] = L.marker(pos, { icon }).addTo(map);
+            const m = L.marker(pos, { icon }).addTo(map);
+            m.bindPopup(`<strong style="color:#00ff88;">🚑 Unit: ${a.vehicleNo}</strong><br/>Driver: ${a.driverName || 'Paramedic'}<br/>Type: ${a.type || 'ALS'}`);
+            extraMarkersRef.current[key] = m;
           } else {
             extraMarkersRef.current[key].setLatLng(pos);
           }
