@@ -914,12 +914,15 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
     const formatted = {};
     if (dbHospitals && dbHospitals.length > 0) {
       dbHospitals.forEach(h => {
+        const hLat = parseFloat(h.latitude || h.lat) || (userLocation ? userLocation.lat : 18.5204);
+        const hLng = parseFloat(h.longitude || h.lng) || (userLocation ? userLocation.lng : 73.8567);
         formatted[h.id] = {
           id: h.id,
           name: h.name,
-          lat: h.lat || 12.9716,
-          lng: h.lng || 77.5946,
-          location: { lat: h.lat || 12.9716, lng: h.lng || 77.5946 },
+          city: h.city,
+          lat: hLat,
+          lng: hLng,
+          location: { lat: hLat, lng: hLng },
           total_beds: h.total_beds,
           icu_beds: h.icu_beds,
           ventilators: h.ventilators,
