@@ -1148,6 +1148,7 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
   const [policyNumber, setPolicyNumber] = useState('');
   const [groupNumber, setGroupNumber] = useState('');
   const [consentToShareData, setConsentToShareData] = useState(false);
+  const [patientCity, setPatientCity] = useState('');
 
   // New Ambulance Fields
   const [licenseExpiry, setLicenseExpiry] = useState('');
@@ -1437,7 +1438,7 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
       } else if (defaultRole === 'user') {
         // Patient registration
         endpoint = '/api/auth/register-patient';
-        payload = { name: driverName, email, password, mobile: contactInfo, abhaNumber: vehicleNo, abhaAddress, bloodGroup, allergies, chronicConditions, dob, gender, emergencyContactName, emergencyContactRelationship, emergencyContactPhone, insuranceProvider, policyNumber, groupNumber, consentToShareData };
+        payload = { name: driverName, email, password, mobile: contactInfo, city: patientCity, abhaNumber: vehicleNo, abhaAddress, bloodGroup, allergies, chronicConditions, dob, gender, emergencyContactName, emergencyContactRelationship, emergencyContactPhone, insuranceProvider, policyNumber, groupNumber, consentToShareData };
       } else {
         endpoint = '/api/auth/register-hospital';
         payload = { name: hospitalName, contactInfo: hospitalContact, lat, lng, totalBeds, icuBeds, ventilators, password, licenseNumber, departments, bayCapacity, adminEmail, traumaTier, accreditationId };
@@ -1514,7 +1515,15 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
 
   const triggerGuestEmergencySOS = async () => {
     const promptedPhone = window.prompt("🚨 EMERGENCY SOS DISPATCH\n\nPlease enter your contact phone number to coordinate with the ambulance driver:", "");
-    if (promptedPhone === null) return; // cancel
+    if (promptedPhone === null) return; // User cancelled prompt
+
+    const cleanPhone = promptedPhone ? promptedPhone.trim() : '';
+    const digitsOnly = cleanPhone.replace(/[^0-9]/g, '');
+    if (!cleanPhone || digitsOnly.length < 10) {
+      alert("❌ A valid contact phone number (at least 10 digits) is required for guest emergency dispatch.");
+      return;
+    }
+
     const promptedName = window.prompt("Please enter your name (Optional):", "Guest SOS Patient");
 
     setError('');
@@ -1523,7 +1532,7 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
       const response = await fetch(`${SERVER_URL}/api/auth/guest-emergency`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: promptedPhone, name: promptedName })
+        body: JSON.stringify({ phone: cleanPhone, name: promptedName })
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Guest login failed');
@@ -1839,6 +1848,10 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                       <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>MOBILE PHONE NUMBER</label>
                       <input type="text" value={contactInfo} onChange={(e) => setContactInfo(e.target.value)} required placeholder="e.g. 9876543210" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label style={{ fontSize: 9, color: '#00c8ff', fontFamily: "'Share Tech Mono'" }}>CITY / RESIDENTIAL LOCATION (FOR EMERGENCY MAP PIN)</label>
+                      <input type="text" value={patientCity} onChange={(e) => setPatientCity(e.target.value)} placeholder="e.g. Mumbai, Bengaluru, Pune" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
                     </div>
                     <div style={{ display: 'flex', gap: 10 }}>
                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
