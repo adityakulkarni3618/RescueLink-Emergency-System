@@ -100,13 +100,18 @@ router.post('/login', validate(loginBody), async (req, res) => {
     let isMfaFullySetup = false;
     if (mfaSecret) {
       if (isAmbulanceTableLogin) {
-        const normalizedEmail = `${ambulanceUnit.vehicleNo.replace(/[\s\-]+/g, '').toLowerCase()}@rescuelink.com`;
-        const assocUser = await User.findOne({ where: { email: normalizedEmail } });
-        if (assocUser && assocUser.backup_codes && assocUser.backup_codes.length > 0) {
-          isMfaFullySetup = true;
-        }
+        isMfaFullySetup = true; // Ambulance units with totp_secret set have completed MFA setup
       } else {
-        if (user && user.backup_codes && user.backup_codes.length > 0) {
+        const parseCodes = (bc) => {
+          if (!bc) return [];
+          if (Array.isArray(bc)) return bc;
+          if (typeof bc === 'string') {
+            try { return JSON.parse(bc); } catch (e) { return []; }
+          }
+          return [];
+        };
+        const codes = parseCodes(user ? user.backup_codes : null);
+        if (codes.length > 0) {
           isMfaFullySetup = true;
         }
       }
