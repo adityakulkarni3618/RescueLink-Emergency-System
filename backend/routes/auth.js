@@ -254,6 +254,9 @@ router.post('/login', validate(loginBody), async (req, res) => {
         role: isAmbulanceTableLogin ? 'paramedic' : user.role,
         hospital_id: isAmbulanceTableLogin ? null : user.hospital_id,
         mobile: isAmbulanceTableLogin ? ambulanceUnit.contactInfo : user.mobile,
+        city: isAmbulanceTableLogin ? null : user?.city,
+        lat: isAmbulanceTableLogin ? ambulanceUnit?.latitude : user?.lat,
+        lng: isAmbulanceTableLogin ? ambulanceUnit?.longitude : user?.lng,
         ...extraData
       }
     });
@@ -403,6 +406,9 @@ router.post('/verify-mfa', async (req, res) => {
         role: isAmbulance ? 'paramedic' : user.role,
         hospital_id: isAmbulance ? null : user.hospital_id,
         mobile: isAmbulance ? ambulanceUnit.contactInfo : user.mobile,
+        city: isAmbulance ? null : user?.city,
+        lat: isAmbulance ? ambulanceUnit?.latitude : user?.lat,
+        lng: isAmbulance ? ambulanceUnit?.longitude : user?.lng,
         ...extraData
       }
     });

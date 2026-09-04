@@ -365,6 +365,7 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
       setUserLocation(profileLoc);
       setLocationMethod('Registered Profile Location');
       setMapCenter([profileLoc.lat, profileLoc.lng]);
+      return; // Registered location from profile takes priority on load
     }
 
     if (navigator.geolocation) {
