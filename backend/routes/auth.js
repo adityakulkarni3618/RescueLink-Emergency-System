@@ -51,16 +51,12 @@ router.post('/login', validate(loginBody), async (req, res) => {
 
     if (!user) {
       const { Ambulance } = require('../utils/db');
-      ambulanceUnit = await Ambulance.findOne({
-        where: {
-          vehicleNo: {
-            [require('sequelize').Op.or]: [
-              loginIdentifier,
-              loginIdentifier.replace(/[\s\-]+/g, '').toUpperCase()
-            ]
-          }
-        }
-      });
+      const cleanVehicleNo = loginIdentifier.replace(/[\s\-]+/g, '').toUpperCase();
+      const rawAmbulances = await Ambulance.findAll();
+      ambulanceUnit = rawAmbulances.find(a => 
+        a.vehicleNo === loginIdentifier || 
+        a.vehicleNo.replace(/[\s\-]+/g, '').toUpperCase() === cleanVehicleNo
+      );
       if (ambulanceUnit) {
         isAmbulanceTableLogin = true;
       }
@@ -84,9 +80,21 @@ router.post('/login', validate(loginBody), async (req, res) => {
 
     let isMatch = false;
     if (isAmbulanceTableLogin) {
-      isMatch = await bcrypt.compare(password, ambulanceUnit.password);
+      if (!ambulanceUnit.password) {
+        isMatch = false;
+      } else if (ambulanceUnit.password.startsWith('$2a$') || ambulanceUnit.password.startsWith('$2b$')) {
+        isMatch = await bcrypt.compare(password, ambulanceUnit.password);
+      } else {
+        isMatch = (password === ambulanceUnit.password);
+      }
     } else {
-      isMatch = await bcrypt.compare(password, user.password);
+      if (!user || !user.password) {
+        isMatch = false;
+      } else if (user.password.startsWith('$2a$') || user.password.startsWith('$2b$')) {
+        isMatch = await bcrypt.compare(password, user.password);
+      } else {
+        isMatch = (password === user.password);
+      }
     }
 
     if (!isMatch) {
@@ -100,13 +108,18 @@ router.post('/login', validate(loginBody), async (req, res) => {
     let isMfaFullySetup = false;
     if (mfaSecret) {
       if (isAmbulanceTableLogin) {
-        const normalizedEmail = `${ambulanceUnit.vehicleNo.replace(/[\s\-]+/g, '').toLowerCase()}@rescuelink.com`;
-        const assocUser = await User.findOne({ where: { email: normalizedEmail } });
-        if (assocUser && assocUser.backup_codes && assocUser.backup_codes.length > 0) {
-          isMfaFullySetup = true;
-        }
+        isMfaFullySetup = true; // Ambulance units with totp_secret set have completed MFA setup
       } else {
-        if (user && user.backup_codes && user.backup_codes.length > 0) {
+        const parseCodes = (bc) => {
+          if (!bc) return [];
+          if (Array.isArray(bc)) return bc;
+          if (typeof bc === 'string') {
+            try { return JSON.parse(bc); } catch (e) { return []; }
+          }
+          return [];
+        };
+        const codes = parseCodes(user ? user.backup_codes : null);
+        if (codes.length > 0) {
           isMfaFullySetup = true;
         }
       }
@@ -169,14 +182,18 @@ router.post('/login', validate(loginBody), async (req, res) => {
       refreshToken = crypto.randomBytes(40).toString('hex');
     }
 
-    await AuditLog.create({
-      user_id: isAmbulanceTableLogin ? null : user.id,
-      action: 'LOGIN',
-      resource: isAmbulanceTableLogin ? 'Ambulance' : 'User',
-      resource_id: isAmbulanceTableLogin ? ambulanceUnit.id : user.id,
-      ip_address: req.ip || req.connection.remoteAddress,
-      details: { email: loginIdentifier }
-    });
+    try {
+      await AuditLog.create({
+        user_id: isAmbulanceTableLogin ? null : user.id,
+        action: 'LOGIN',
+        resource: isAmbulanceTableLogin ? 'Ambulance' : 'User',
+        resource_id: isAmbulanceTableLogin ? (ambulanceUnit ? ambulanceUnit.id : null) : (user ? user.id : null),
+        ip_address: req.ip || req.connection?.remoteAddress || '127.0.0.1',
+        details: { email: loginIdentifier }
+      });
+    } catch (auditErr) {
+      console.warn('[AUTH AUDIT LOG WARNING] Failed to record login audit log:', auditErr.message);
+    }
 
     console.log(`[AUTH] Login success: ${loginIdentifier}`);
     const { Hospital, Ambulance } = require('../utils/db');
@@ -184,6 +201,7 @@ router.post('/login', validate(loginBody), async (req, res) => {
     if (isAmbulanceTableLogin && ambulanceUnit) {
       extraData = {
         id: ambulanceUnit.id,
+        unitId: ambulanceUnit.vehicleNo,
         vehicleNo: ambulanceUnit.vehicleNo,
         driverName: ambulanceUnit.driverName,
         contactInfo: ambulanceUnit.contactInfo,
@@ -196,6 +214,33 @@ router.post('/login', validate(loginBody), async (req, res) => {
         is_system_standard: ambulanceUnit.is_system_standard,
         oxygen_capacity_liters: ambulanceUnit.oxygen_capacity_liters
       };
+    } else if (user && user.role === 'paramedic') {
+      const cleanNo = user.email ? user.email.replace('@rescuelink.com', '').toUpperCase() : '';
+      const amb = await Ambulance.findOne({
+        where: {
+          [require('sequelize').Op.or]: [
+            { vehicleNo: cleanNo },
+            { driverName: user.name }
+          ]
+        }
+      });
+      if (amb) {
+        extraData = {
+          id: amb.id,
+          unitId: amb.vehicleNo,
+          vehicleNo: amb.vehicleNo,
+          driverName: amb.driverName,
+          contactInfo: amb.contactInfo,
+          type: amb.type,
+          hospital_id: amb.hospital_id,
+          equipment_checklist: amb.equipment_checklist,
+          crew_members: amb.crew_members,
+          license_number: amb.license_number,
+          license_expiry: amb.license_expiry,
+          is_system_standard: amb.is_system_standard,
+          oxygen_capacity_liters: amb.oxygen_capacity_liters
+        };
+      }
     } else if (user && (user.role === 'hospital_admin' || user.role === 'doctor') && user.hospital_id) {
       const hospital = await Hospital.findByPk(user.hospital_id);
       if (hospital) {
@@ -226,6 +271,9 @@ router.post('/login', validate(loginBody), async (req, res) => {
         role: isAmbulanceTableLogin ? 'paramedic' : user.role,
         hospital_id: isAmbulanceTableLogin ? null : user.hospital_id,
         mobile: isAmbulanceTableLogin ? ambulanceUnit.contactInfo : user.mobile,
+        city: isAmbulanceTableLogin ? null : user?.city,
+        lat: isAmbulanceTableLogin ? ambulanceUnit?.latitude : user?.lat,
+        lng: isAmbulanceTableLogin ? ambulanceUnit?.longitude : user?.lng,
         ...extraData
       }
     });
@@ -375,6 +423,9 @@ router.post('/verify-mfa', async (req, res) => {
         role: isAmbulance ? 'paramedic' : user.role,
         hospital_id: isAmbulance ? null : user.hospital_id,
         mobile: isAmbulance ? ambulanceUnit.contactInfo : user.mobile,
+        city: isAmbulance ? null : user?.city,
+        lat: isAmbulance ? ambulanceUnit?.latitude : user?.lat,
+        lng: isAmbulance ? ambulanceUnit?.longitude : user?.lng,
         ...extraData
       }
     });
@@ -454,6 +505,16 @@ router.get('/me', verifyToken(), async (req, res) => {
       });
       if (user && (user.role === 'hospital_admin' || user.role === 'doctor') && user.hospital_id) {
         hospital = await Hospital.findByPk(user.hospital_id);
+      } else if (user && user.role === 'paramedic') {
+        const cleanNo = user.email ? user.email.replace('@rescuelink.com', '').toUpperCase() : '';
+        ambulance = await Ambulance.findOne({
+          where: {
+            [require('sequelize').Op.or]: [
+              { vehicleNo: cleanNo },
+              { driverName: user.name }
+            ]
+          }
+        });
       }
     }
 
@@ -650,7 +711,7 @@ router.post('/refresh', async (req, res) => {
  * @desc Register a new paramedic ambulance unit with speakeasy 2FA setup
  */
 router.post('/register-ambulance', async (req, res) => {
-  const { vehicleNo, driverName, contactInfo, type, password, hospitalId, equipmentChecklist, crewMembers, licenseNumber, licenseExpiry, isSystemStandard, oxygenCapacityLiters } = req.body;
+  const { vehicleNo, driverName, contactInfo, type, password, hospitalId, equipmentChecklist, crewMembers, licenseNumber, licenseExpiry, isSystemStandard, oxygenCapacityLiters, lat, lng, latitude, longitude, stationName, station_name } = req.body;
   if (!vehicleNo || !driverName || !contactInfo || !password) {
     return res.status(400).json({ error: 'vehicleNo, driverName, contactInfo, and password are required' });
   }
@@ -683,6 +744,9 @@ router.post('/register-ambulance', async (req, res) => {
     const twoFactor = require('../utils/twoFactor');
     const setupData = await twoFactor.generateSecret(vehicleNo, normalizedEmail);
 
+    const ambLat = parseFloat(latitude || lat) || 12.9716;
+    const ambLng = parseFloat(longitude || lng) || 77.5946;
+
     await Ambulance.create({
       vehicleNo,
       driverName,
@@ -691,6 +755,10 @@ router.post('/register-ambulance', async (req, res) => {
       password: passwordHash,
       totp_secret: setupData.secret,
       is_active: false,
+      verification_status: 'PENDING',
+      latitude: ambLat,
+      longitude: ambLng,
+      station_name: stationName || station_name || 'Central Station',
       hospital_id: hospitalId || null,
       equipment_checklist: JSON.stringify(equipmentChecklist || []),
       crew_members: JSON.stringify(crewMembers || []),
@@ -727,9 +795,24 @@ router.post('/register-ambulance', async (req, res) => {
  * @desc Register a new patient profile with speakeasy 2FA setup
  */
 router.post('/register-patient', async (req, res) => {
-  const { name, email, password, mobile, abhaNumber, abhaAddress, bloodGroup, allergies, chronicConditions, dob, gender, emergencyContactName, emergencyContactRelationship, emergencyContactPhone, insuranceProvider, policyNumber, groupNumber, consentToShareData } = req.body;
+  const { name, email, password, mobile, city, lat, lng, abhaNumber, abhaAddress, bloodGroup, allergies, chronicConditions, dob, gender, emergencyContactName, emergencyContactRelationship, emergencyContactPhone, insuranceProvider, policyNumber, groupNumber, consentToShareData } = req.body;
   if (!name || !email || !password) {
     return res.status(400).json({ error: 'Name, email, and password are required' });
+  }
+
+  let finalLat = parseFloat(lat);
+  let finalLng = parseFloat(lng);
+  if ((!finalLat || !finalLng) && city) {
+    try {
+      const { geocodeAddress } = require('../utils/geocoder');
+      const coords = await geocodeAddress(city);
+      if (coords) {
+        finalLat = coords.lat;
+        finalLng = coords.lng;
+      }
+    } catch (e) {
+      console.warn('[AUTH] Patient city geocode warning:', e.message);
+    }
   }
 
   try {
@@ -750,6 +833,9 @@ router.post('/register-patient', async (req, res) => {
       password: passwordHash,
       role: 'patient',
       mobile: mobile || '',
+      city: city || null,
+      lat: !isNaN(finalLat) ? finalLat : null,
+      lng: !isNaN(finalLng) ? finalLng : null,
       totp_secret: setupData.secret,
       is_active: true,
       abha_number: abhaNumber || null,
@@ -844,6 +930,7 @@ router.post('/register-hospital', async (req, res) => {
     const newHospital = await Hospital.create({
       name,
       contact_number: contactInfo,
+      address: address || null,
       city: req.body.city || null,
       state: req.body.state || null,
       lat: finalLat,
@@ -852,6 +939,7 @@ router.post('/register-hospital', async (req, res) => {
       icu_beds: parseInt(icuBeds) || 5,
       ventilators: parseInt(ventilators) || 2,
       is_active: false,
+      verification_status: 'PENDING',
       license_number: licenseNumber || null,
       departments: JSON.stringify(departments || []),
       bay_capacity: parseInt(bayCapacity) || 5,

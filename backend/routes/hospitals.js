@@ -17,9 +17,19 @@ router.get('/', async (req, res) => {
       return res.json(cached);
     }
 
-    const hospitals = await Hospital.findAll({
-      where: { is_active: true }
-    });
+    let hospitals;
+    try {
+      hospitals = await Hospital.findAll({
+        where: {
+          [require('sequelize').Op.or]: [
+            { is_active: true },
+            { verification_status: 'APPROVED' }
+          ]
+        }
+      });
+    } catch (queryErr) {
+      hospitals = await Hospital.findAll({ where: { is_active: true } });
+    }
 
     const plainHospitals = hospitals.map(h => typeof h.toJSON === 'function' ? h.toJSON() : h);
     await cache.set(ALL_HOSPITALS_CACHE_KEY, plainHospitals, 30); // Cache for 30 seconds

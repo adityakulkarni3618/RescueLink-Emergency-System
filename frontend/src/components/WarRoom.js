@@ -8,6 +8,8 @@ import CorridorPanel from './CorridorPanel';
 import { generateMonthlyReport } from '../utils/reportGenerator';
 import { exportMetricsToExcel } from '../utils/excelExporter';
 import PhysiologicalWaveforms from './PhysiologicalWaveforms';
+import VerificationPanel from './VerificationPanel';
+import { MfaVerifyScreen } from './MfaVerifyScreen';
 
 const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
 
@@ -37,6 +39,8 @@ export default function WarRoom({ socket, connected, onLogout, onSwitchRole, onS
   const [isAuthenticated, setIsAuthenticated] = useState(true);
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [showMfa, setShowMfa] = useState(false);
+  const [mfaToken, setMfaToken] = useState('');
   const [activeTab, setActiveTab] = useState('map'); // map, mass_casualty, blood_bank
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedIncidentId, setSelectedIncidentId] = useState(null);
@@ -258,12 +262,19 @@ export default function WarRoom({ socket, connected, onLogout, onSwitchRole, onS
   const handleLogin = async () => {
     try {
       const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch(`${SERVER_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: 'admin@rescuelink.com', password: loginPass, role: 'admin', bypassMFA: true })
+        body: JSON.stringify({ id: 'admin@rescuelink.com', password: loginPass, role: 'admin' })
       });
       const data = await res.json();
+
+      if (res.ok && data.requiresMFA) {
+        setMfaToken(data.mfaToken);
+        setShowMfa(true);
+        setLoginError('');
+        return;
+      }
 
       if (res.ok && data.token) {
         sessionStorage.setItem('rescuelink_token', data.token);
@@ -427,6 +438,21 @@ export default function WarRoom({ socket, connected, onLogout, onSwitchRole, onS
 
   /* ── Login screen ───────────────────────────────────────────────── */
   if (!isAuthenticated) {
+    if (showMfa) {
+      return (
+        <MfaVerifyScreen
+          mfaToken={mfaToken}
+          onLoginSuccess={(role, token) => {
+            sessionStorage.setItem('rescuelink_token', token);
+            setIsAuthenticated(true);
+            sessionStorage.setItem('warroom_auth', '1');
+            setShowMfa(false);
+          }}
+          onCancel={() => setShowMfa(false)}
+        />
+      );
+    }
+
     return (
       <div style={{ height: '100vh', background: '#020611', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Rajdhani', sans-serif", color: '#e0eaff' }}>
         <div style={{ width: 380, padding: 48, background: 'rgba(5,15,40,0.9)', borderRadius: 16, border: '1px solid rgba(0,255,136,0.3)', textAlign: 'center', boxShadow: '0 0 60px rgba(0,255,136,0.08)' }}>
@@ -725,7 +751,7 @@ export default function WarRoom({ socket, connected, onLogout, onSwitchRole, onS
           )}
 
           {activeTab === 'approvals' && (
-            <RegistrationApprovals />
+            <VerificationPanel token={sessionStorage.getItem('rescuelink_token')} socket={socket} />
           )}
 
           {activeTab === 'registry' && (

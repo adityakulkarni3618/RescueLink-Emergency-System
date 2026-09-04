@@ -1,9 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
-import { MAPBOX_TOKEN, MAP_STYLE, MAP_STYLE_LIGHT } from '../config/mapConfig';
-
-mapboxgl.accessToken = MAPBOX_TOKEN;
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 // Helper to check for valid latitude and longitude
 const isValidLatLng = (loc) => {
@@ -13,19 +10,23 @@ const isValidLatLng = (loc) => {
   return typeof lat === 'number' && !isNaN(lat) && typeof lng === 'number' && !isNaN(lng);
 };
 
+const parseLatLng = (loc) => {
+  if (!isValidLatLng(loc)) return null;
+  const lat = loc.lat !== undefined ? loc.lat : loc[0];
+  const lng = loc.lng !== undefined ? loc.lng : loc[1];
+  return [lat, lng];
+};
+
 export default function LiveRouteMap({
   routeGeometry,
   ambulancePosition,
   originMarker,
   destinationMarker,
   junctions = [],
-  mode = 'driver', // 'driver' | 'hospital' | 'warroom' | 'user'
+  mode = 'driver',
   theme = 'dark',
   extraAmbulances = {},
   extraHospitals = {},
-  hazards = [],
-  locationHistory = [],
-  greenCorridorActive = false,
   routeToPatient = [],
   routeToHospital = []
 }) {
@@ -34,141 +35,239 @@ export default function LiveRouteMap({
   const ambulanceMarkerRef = useRef(null);
   const originMarkerRef = useRef(null);
   const destinationMarkerRef = useRef(null);
-  
-  // Track dynamically created markers in a dictionary
-  const dynamicMarkersRef = useRef({});
+  const routePolylineRef = useRef(null);
+  const routeGlowPolylineRef = useRef(null);
+  const extraMarkersRef = useRef({});
 
+  // 1. Initialize Leaflet Map
   useEffect(() => {
-    if (!mapContainerRef.current) return;
+    if (!mapContainerRef.current || mapRef.current) return;
 
-    // Determine initial center
-    let initialCenter = [77.5946, 12.9716]; // Default to Bengaluru
-    if (isValidLatLng(ambulancePosition)) {
-      initialCenter = [ambulancePosition.lng || ambulancePosition[1], ambulancePosition.lat || ambulancePosition[0]];
-    } else if (isValidLatLng(originMarker)) {
-      initialCenter = [originMarker.lng || originMarker[1], originMarker.lat || originMarker[0]];
-    } else if (isValidLatLng(destinationMarker)) {
-      initialCenter = [destinationMarker.lng || destinationMarker[1], destinationMarker.lat || destinationMarker[0]];
+    // Find first valid registered entity for dynamic initial center
+    let initialCenter = null;
+    if (isValidLatLng(ambulancePosition)) initialCenter = parseLatLng(ambulancePosition);
+    else if (isValidLatLng(originMarker)) initialCenter = parseLatLng(originMarker);
+    else if (isValidLatLng(destinationMarker)) initialCenter = parseLatLng(destinationMarker);
+
+    if (!initialCenter && extraHospitals && typeof extraHospitals === 'object') {
+      const firstHosp = Object.values(extraHospitals).find(h => isValidLatLng(h.location || h.pos || (h.lat && h.lng ? { lat: h.lat, lng: h.lng } : null)));
+      if (firstHosp) {
+        const hLoc = firstHosp.location || firstHosp.pos || { lat: firstHosp.lat, lng: firstHosp.lng };
+        initialCenter = parseLatLng(hLoc);
+      }
     }
 
-    const map = new mapboxgl.Map({
-      container: mapContainerRef.current,
-      style: theme === 'light' ? MAP_STYLE_LIGHT : MAP_STYLE,
+    if (!initialCenter && extraAmbulances && typeof extraAmbulances === 'object') {
+      const firstAmb = Object.values(extraAmbulances).find(a => isValidLatLng(a.location || a.pos || (a.latitude && a.longitude ? { lat: a.latitude, lng: a.longitude } : (a.lat && a.lng ? { lat: a.lat, lng: a.lng } : null))));
+      if (firstAmb) {
+        const aLoc = firstAmb.location || firstAmb.pos || { lat: firstAmb.latitude || firstAmb.lat, lng: firstAmb.longitude || firstAmb.lng };
+        initialCenter = parseLatLng(aLoc);
+      }
+    }
+
+    if (!initialCenter) initialCenter = [18.5204, 73.8567]; // Pune default center if no entities present
+
+    const map = L.map(mapContainerRef.current, {
       center: initialCenter,
-      zoom: 14,
-      pitch: mode === 'corridor' ? 45 : 0,
-      bearing: 0
+      zoom: 13,
+      zoomControl: false,
+      attributionControl: false
     });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      className: theme === 'light' ? '' : 'dark-map-tiles'
+    }).addTo(map);
+
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
 
     mapRef.current = map;
 
-    map.on('load', () => {
-      // 1. Primary Route Layer
-      map.addSource('route', {
-        type: 'geojson',
-        data: {
-          type: 'Feature',
-          geometry: routeGeometry || { type: 'LineString', coordinates: [] }
-        }
-      });
-      
-      map.addLayer({
-        id: 'route-line-glow',
-        type: 'line',
-        source: 'route',
-        layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': '#ff3333', 'line-width': 10, 'line-opacity': 0.3 }
-      });
-      map.addLayer({
-        id: 'route-line',
-        type: 'line',
-        source: 'route',
-        layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': '#ffffff', 'line-width': 3, 'line-opacity': 0.95 }
-      });
+    // Trigger map tile invalidation after mount and on layout resize to prevent gray missing tile issue
+    const invalidateTimer = setTimeout(() => {
+      if (mapRef.current) {
+        mapRef.current.invalidateSize();
+      }
+    }, 250);
 
-      // 2. Secondary Route Layers (to Patient, to Hospital)
-      map.addSource('routeToPatientSrc', {
-        type: 'geojson',
-        data: {
-          type: 'Feature',
-          geometry: { type: 'LineString', coordinates: routeToPatient.map(p => [p[1], p[0]]) }
-        }
-      });
-      map.addLayer({
-        id: 'route-patient-layer',
-        type: 'line',
-        source: 'routeToPatientSrc',
-        layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': '#00ff88', 'line-width': 4, 'line-opacity': 0.8, 'line-dasharray': [2, 2] }
-      });
-
-      map.addSource('routeToHospitalSrc', {
-        type: 'geojson',
-        data: {
-          type: 'Feature',
-          geometry: { type: 'LineString', coordinates: routeToHospital.map(p => [p[1], p[0]]) }
-        }
-      });
-      map.addLayer({
-        id: 'route-hospital-layer',
-        type: 'line',
-        source: 'routeToHospitalSrc',
-        layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': '#00c8ff', 'line-width': 4, 'line-opacity': 0.8 }
-      });
-
-      updateMarkers();
-    });
+    const handleResize = () => {
+      if (mapRef.current) {
+        mapRef.current.invalidateSize();
+      }
+    };
+    window.addEventListener('resize', handleResize);
 
     return () => {
-      map.remove();
+      clearTimeout(invalidateTimer);
+      window.removeEventListener('resize', handleResize);
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
     };
   }, []);
 
-  const updateMarkers = () => {
+  // 2. Render & Update Route Geometry
+  useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
-    if (isValidLatLng(ambulancePosition)) {
-      const lat = ambulancePosition.lat !== undefined ? ambulancePosition.lat : ambulancePosition[0];
-      const lng = ambulancePosition.lng !== undefined ? ambulancePosition.lng : ambulancePosition[1];
-      if (!ambulanceMarkerRef.current) {
-        const el = document.createElement('div');
-        el.innerHTML = `<div style="font-size: 26px; transform: rotate(${ambulancePosition.heading || 0}deg); filter: drop-shadow(0 0 8px #ff3333);">🚑</div>`;
-        ambulanceMarkerRef.current = new mapboxgl.Marker(el).setLngLat([lng, lat]).addTo(map);
-      } else {
-        ambulanceMarkerRef.current.setLngLat([lng, lat]);
-      }
+    // Remove existing polylines
+    if (routePolylineRef.current) {
+      map.removeLayer(routePolylineRef.current);
+      routePolylineRef.current = null;
+    }
+    if (routeGlowPolylineRef.current) {
+      map.removeLayer(routeGlowPolylineRef.current);
+      routeGlowPolylineRef.current = null;
     }
 
-    if (isValidLatLng(originMarker)) {
-      const lat = originMarker.lat !== undefined ? originMarker.lat : originMarker[0];
-      const lng = originMarker.lng !== undefined ? originMarker.lng : originMarker[1];
-      if (!originMarkerRef.current) {
-        const el = document.createElement('div');
-        el.innerHTML = '<div style="font-size: 24px;">🧍</div>';
-        originMarkerRef.current = new mapboxgl.Marker(el).setLngLat([lng, lat]).addTo(map);
+    let coords = [];
+    if (routeGeometry) {
+      let rawList = [];
+      if (Array.isArray(routeGeometry)) {
+        rawList = routeGeometry;
+      } else if (routeGeometry.coordinates && Array.isArray(routeGeometry.coordinates)) {
+        rawList = routeGeometry.coordinates.map(c => (Array.isArray(c) ? [c[1], c[0]] : c));
       }
+
+      coords = rawList
+        .map(p => parseLatLng(p))
+        .filter(p => p !== null && typeof p[0] === 'number' && !isNaN(p[0]) && typeof p[1] === 'number' && !isNaN(p[1]));
     }
 
-    if (isValidLatLng(destinationMarker)) {
-      const lat = destinationMarker.lat !== undefined ? destinationMarker.lat : destinationMarker[0];
-      const lng = destinationMarker.lng !== undefined ? destinationMarker.lng : destinationMarker[1];
-      if (!destinationMarkerRef.current) {
-        const el = document.createElement('div');
-        el.innerHTML = '<div style="font-size: 26px;">🏥</div>';
-        destinationMarkerRef.current = new mapboxgl.Marker(el).setLngLat([lng, lat]).addTo(map);
+    if (coords.length >= 2) {
+      try {
+        routeGlowPolylineRef.current = L.polyline(coords, {
+          color: '#ff3333',
+          weight: 10,
+          opacity: 0.35,
+          lineCap: 'round',
+          lineJoin: 'round'
+        }).addTo(map);
+
+        routePolylineRef.current = L.polyline(coords, {
+          color: '#ffffff',
+          weight: 3,
+          opacity: 0.95,
+          lineCap: 'round',
+          lineJoin: 'round'
+        }).addTo(map);
+
+        map.fitBounds(routePolylineRef.current.getBounds(), { padding: [40, 40] });
+      } catch (err) {
+        console.warn('[LiveRouteMap] Error rendering polyline bounds:', err);
+      }
+    } else {
+      // Auto-center map on the panel entity position when no route is active
+      let targetCenter = null;
+      if (mode === 'hospital' && isValidLatLng(destinationMarker)) targetCenter = parseLatLng(destinationMarker);
+      else if (mode === 'user' && isValidLatLng(originMarker)) targetCenter = parseLatLng(originMarker);
+      else if (mode === 'driver' && isValidLatLng(ambulancePosition)) targetCenter = parseLatLng(ambulancePosition);
+      else if (isValidLatLng(ambulancePosition)) targetCenter = parseLatLng(ambulancePosition);
+      else if (isValidLatLng(originMarker)) targetCenter = parseLatLng(originMarker);
+      else if (isValidLatLng(destinationMarker)) targetCenter = parseLatLng(destinationMarker);
+
+      if (targetCenter) {
+        map.setView(targetCenter, 14, { animate: true });
       }
     }
-  };
+  }, [routeGeometry, ambulancePosition, originMarker, destinationMarker, mode]);
 
+  // 3. Update Markers (Ambulance, Patient, Hospital, Extra Fleet)
   useEffect(() => {
-    updateMarkers();
-  }, [ambulancePosition, originMarker, destinationMarker, extraAmbulances, extraHospitals, junctions, greenCorridorActive]);
+    const map = mapRef.current;
+    if (!map) return;
+
+    // Ambulance Marker
+    if (isValidLatLng(ambulancePosition)) {
+      const pos = parseLatLng(ambulancePosition);
+      const heading = ambulancePosition.heading || 0;
+      const iconHtml = `<div style="font-size: 28px; transform: rotate(${heading}deg); filter: drop-shadow(0 0 10px #ff3333); text-align: center;">🚑</div>`;
+      const customIcon = L.divIcon({ html: iconHtml, className: '', iconSize: [36, 36], iconAnchor: [18, 18] });
+
+      if (!ambulanceMarkerRef.current) {
+        ambulanceMarkerRef.current = L.marker(pos, { icon: customIcon }).addTo(map);
+      } else {
+        ambulanceMarkerRef.current.setLatLng(pos);
+        ambulanceMarkerRef.current.setIcon(customIcon);
+      }
+    }
+
+    // Origin (Patient) Marker
+    if (isValidLatLng(originMarker)) {
+      const pos = parseLatLng(originMarker);
+      const iconHtml = `<div style="font-size: 26px; filter: drop-shadow(0 0 8px #ffb800); text-align: center;">🧍</div>`;
+      const customIcon = L.divIcon({ html: iconHtml, className: '', iconSize: [32, 32], iconAnchor: [16, 16] });
+
+      if (!originMarkerRef.current) {
+        originMarkerRef.current = L.marker(pos, { icon: customIcon }).addTo(map);
+      } else {
+        originMarkerRef.current.setLatLng(pos);
+      }
+    }
+
+    // Destination (Hospital) Marker
+    if (isValidLatLng(destinationMarker)) {
+      const pos = parseLatLng(destinationMarker);
+      const iconHtml = `<div style="font-size: 28px; filter: drop-shadow(0 0 10px #00ff88); text-align: center;">🏥</div>`;
+      const customIcon = L.divIcon({ html: iconHtml, className: '', iconSize: [36, 36], iconAnchor: [18, 18] });
+
+      if (!destinationMarkerRef.current) {
+        destinationMarkerRef.current = L.marker(pos, { icon: customIcon }).addTo(map);
+      } else {
+        destinationMarkerRef.current.setLatLng(pos);
+      }
+    }
+
+    // Extra Hospitals
+    if (extraHospitals && typeof extraHospitals === 'object') {
+      Object.values(extraHospitals).forEach(h => {
+        const hLoc = h.location || h.pos || (h.lat && h.lng ? { lat: h.lat, lng: h.lng } : null);
+        if (isValidLatLng(hLoc)) {
+          const key = `hosp_${h.id || h.name}`;
+          const pos = parseLatLng(hLoc);
+          const iconHtml = `<div style="font-size: 24px; filter: drop-shadow(0 0 8px #00c8ff); text-align: center;">🏥</div>`;
+          const icon = L.divIcon({ html: iconHtml, className: '', iconSize: [28, 28], iconAnchor: [14, 14] });
+          if (!extraMarkersRef.current[key]) {
+            const m = L.marker(pos, { icon }).addTo(map);
+            m.bindPopup(`<strong style="color:#00c8ff;">🏥 ${h.name}</strong><br/>City: ${h.city || 'Registered Center'}<br/>Beds: ${h.icu_beds || 0} ICU / ${h.total_beds || 0} Total`);
+            extraMarkersRef.current[key] = m;
+          } else {
+            extraMarkersRef.current[key].setLatLng(pos);
+          }
+        }
+      });
+    }
+
+    // Extra Ambulances
+    if (extraAmbulances && typeof extraAmbulances === 'object') {
+      Object.values(extraAmbulances).forEach(a => {
+        const aLoc = a.location || a.pos || (a.latitude && a.longitude ? { lat: a.latitude, lng: a.longitude } : (a.lat && a.lng ? { lat: a.lat, lng: a.lng } : null));
+        if (isValidLatLng(aLoc)) {
+          const key = `amb_${a.id || a.vehicleNo}`;
+          const pos = parseLatLng(aLoc);
+          const iconHtml = `<div style="font-size: 24px; filter: drop-shadow(0 0 8px #00ff88); text-align: center;">🚑</div>`;
+          const icon = L.divIcon({ html: iconHtml, className: '', iconSize: [28, 28], iconAnchor: [14, 14] });
+          if (!extraMarkersRef.current[key]) {
+            const m = L.marker(pos, { icon }).addTo(map);
+            m.bindPopup(`<strong style="color:#00ff88;">🚑 Unit: ${a.vehicleNo}</strong><br/>Driver: ${a.driverName || 'Paramedic'}<br/>Type: ${a.type || 'ALS'}`);
+            extraMarkersRef.current[key] = m;
+          } else {
+            extraMarkersRef.current[key].setLatLng(pos);
+          }
+        }
+      });
+    }
+  }, [ambulancePosition, originMarker, destinationMarker, extraAmbulances, extraHospitals]);
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: '350px' }}>
+    <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: '350px', background: '#050d1a' }}>
+      <style>{`
+        .dark-map-tiles {
+          filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) !important;
+        }
+      `}</style>
       <div 
         ref={mapContainerRef} 
         style={{ 
@@ -191,9 +290,9 @@ export default function LiveRouteMap({
           fontSize: '9px',
           color: '#00c8ff',
           fontFamily: 'monospace',
-          zIndex: 10
+          zIndex: 1000
         }}>
-          ℹ️ AI corridor signal integration pending municipal partnership.
+          ℹ️ AI corridor signal integration active.
         </div>
       )}
     </div>

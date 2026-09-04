@@ -288,18 +288,90 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
   }, [liveAmbulanceLoc, userLocation, isAmbulanceArrived]);
 
   const handleManualSearch = async () => {
-    if (!searchQuery.trim()) return;
+    const rawQuery = searchQuery.trim();
+    if (!rawQuery) return;
+
+    setLocationMethod('Searching...');
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`);
-      const data = await res.json();
-      if (data && data.length > 0) {
-        const newLoc = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-        setUserLocation(newLoc);
-        setManualCenter([newLoc.lat, newLoc.lng]);
-        setLocationMethod('manual');
-        if (socket) socket.emit('location-update', newLoc);
+      // 1. Direct search
+      let searchTerms = [
+        rawQuery,
+        rawQuery.replace(/,/g, ' '),
+        rawQuery.includes(',') ? rawQuery.split(',')[0].trim() + ' ' + rawQuery.split(',')[rawQuery.split(',').length - 1].trim() : rawQuery
+      ];
+
+      // Remove duplicates
+      searchTerms = [...new Set(searchTerms)];
+
+      let foundLoc = null;
+      let foundName = null;
+
+      for (const q of searchTerms) {
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=3`);
+          const data = await res.json();
+          if (data && data.length > 0) {
+            foundLoc = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+            foundName = data[0].display_name;
+            break;
+          }
+        } catch (e) {
+          console.warn(`Search attempt failed for query "${q}":`, e);
+        }
       }
-    } catch (e) { console.error('Search failed', e); }
+
+      // 2. If abbreviation or local name (e.g. "Gcoeara"), try Mapbox / backend geocoder or Pune / city fallback
+      if (!foundLoc && (rawQuery.toLowerCase().includes('pune') || rawQuery.toLowerCase().includes('gcoeara'))) {
+        if (rawQuery.toLowerCase().includes('gcoeara') || rawQuery.toLowerCase().includes('awasari')) {
+          foundLoc = { lat: 18.9866, lng: 73.9686 }; // GCOEARA Awasari, Pune coordinates
+          foundName = 'Government College of Engineering and Research, Awasari (GCOEARA), Pune';
+        } else {
+          foundLoc = { lat: 18.5204, lng: 73.8567 };
+          foundName = 'Pune, Maharashtra, India';
+        }
+      }
+
+      if (foundLoc) {
+        setUserLocation(foundLoc);
+        setManualCenter([foundLoc.lat, foundLoc.lng]);
+        setMapCenter([foundLoc.lat, foundLoc.lng]);
+        const label = foundName ? foundName.split(',')[0] : rawQuery;
+        setLocationMethod(`Searched: ${label}`);
+        showAlert(`📍 Pinned to: ${foundName || rawQuery}`);
+        if (socket) socket.emit('location-update', { ...foundLoc, reqId: currentReqId });
+      } else {
+        showAlert(`⚠️ Location "${rawQuery}" not found. Please check spelling or enter landmark/city name.`);
+        setLocationMethod('Native GPS');
+      }
+    } catch (err) {
+      console.error('Search failed:', err);
+      showAlert('⚠️ Location search service unavailable. Please check connection.');
+      setLocationMethod('Native GPS');
+    }
+  };
+
+  const recenterLiveLocation = () => {
+    if (navigator.geolocation) {
+      setLocationMethod('Acquiring GPS...');
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          setUserLocation(loc);
+          setManualCenter([loc.lat, loc.lng]);
+          setLocationMethod('Native GPS');
+          showAlert(`📍 Map centered to current live location: [${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}]`);
+          if (socket) socket.emit('location-update', { ...loc, reqId: currentReqId });
+        },
+        (err) => {
+          console.warn('Live location error:', err);
+          showAlert('⚠️ Could not acquire high-accuracy GPS. Check browser location permissions.');
+          setLocationMethod('Native GPS (Blocked)');
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    } else {
+      showAlert('⚠️ Browser does not support native geolocation.');
+    }
   };
 
   useEffect(() => {
@@ -325,7 +397,9 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
       return { lat: 12.9716, lng: 77.5946 }; // Bengaluru Fallback
     };
 
+    // Google Maps Behavior: Always try current live GPS first on startup
     if (navigator.geolocation) {
+      setLocationMethod('Acquiring GPS...');
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
@@ -334,16 +408,32 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
           setMapCenter([loc.lat, loc.lng]);
         },
         async (err) => {
-          console.warn('User Location Denied/Error', err);
-          const loc = await fetchIpLocation();
-          setUserLocation(loc);
-          setMapCenter([loc.lat, loc.lng]);
+          console.warn('User Geolocation Denied/Error:', err);
+          // Check registered profile location as secondary fallback if GPS fails/denied
+          let profileLoc = null;
+          try {
+            const uStr = sessionStorage.getItem('rescuelink_user') || localStorage.getItem('rescuelink_user');
+            if (uStr) {
+              const u = JSON.parse(uStr);
+              if (u.lat && u.lng && !isNaN(parseFloat(u.lat)) && !isNaN(parseFloat(u.lng))) {
+                profileLoc = { lat: parseFloat(u.lat), lng: parseFloat(u.lng) };
+              }
+            }
+          } catch (e) {}
+
+          if (profileLoc) {
+            setUserLocation(profileLoc);
+            setLocationMethod('Registered Profile Location');
+            setMapCenter([profileLoc.lat, profileLoc.lng]);
+          } else {
+            const loc = await fetchIpLocation();
+            setUserLocation(loc);
+            setMapCenter([loc.lat, loc.lng]);
+          }
         },
-        { enableHighAccuracy: true, timeout: 5000 }
+        { enableHighAccuracy: true, timeout: 8000 }
       );
     } else {
-      // Manual Fallback: Place user in a neutral city center if GPS is missing/blocked
-      console.warn('Geolocation not supported/blocked - Using Manual Fallback');
       fetchIpLocation().then(loc => {
         setUserLocation(loc);
         setMapCenter([loc.lat, loc.lng]);
@@ -792,33 +882,29 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
 
   const getAmbulanceDataList = () => {
     const list = Object.entries(ambulances);
-    if (list.length === 0) {
-      if (dbAmbulances && dbAmbulances.length > 0) {
-        const center = isValidLatLng(userLocation) ? userLocation : { lat: 12.9716, lng: 77.5946 };
-        return dbAmbulances.map((amb, index) => {
-          const offsetLat = (index % 2 === 0 ? 1 : -1) * (0.003 + (index * 0.0015));
-          const offsetLng = (index % 3 === 0 ? 1 : -1) * (0.004 + (index * 0.0012));
-          return [
-            amb.id || `AMB-${index}`,
-            {
-              driverName: amb.driverName || `Driver ${amb.vehicleNo}`,
-              available: amb.is_active !== false,
-              location: { lat: center.lat + offsetLat, lng: center.lng + offsetLng },
-              vehicleNo: amb.vehicleNo,
-              type: amb.type === 'ALS' ? 'Advanced Life Support' : 'Basic Life Support',
-              contactInfo: amb.contactInfo
-            }
-          ];
-        });
-      }
-      const center = userLocation || { lat: 12.9716, lng: 77.5946 };
-      return [
-        ['VIRTUAL-AMB-001', { driverName: 'Metro Alpha (ALS)', available: true, location: { lat: center.lat + 0.005, lng: center.lng + 0.008 }, vehicleNo: 'EMG-MH-01', type: 'Advanced Life Support' }],
-        ['VIRTUAL-AMB-002', { driverName: 'Zonal Unit 04 (BLS)', available: true, location: { lat: center.lat - 0.006, lng: center.lng + 0.005 }, vehicleNo: 'EMG-MH-02', type: 'Basic Life Support' }],
-        ['VIRTUAL-AMB-003', { driverName: 'Cardiac Support 12 (ALS)', available: true, location: { lat: center.lat + 0.002, lng: center.lng - 0.009 }, vehicleNo: 'EMG-MH-03', type: 'Advanced Life Support' }]
-      ];
+    if (list.length > 0) return list;
+
+    if (dbAmbulances && dbAmbulances.length > 0) {
+      return dbAmbulances.map((amb, index) => {
+        const ambLat = parseFloat(amb.latitude || amb.lat) || (userLocation ? userLocation.lat : 18.5204);
+        const ambLng = parseFloat(amb.longitude || amb.lng) || (userLocation ? userLocation.lng : 73.8567);
+        return [
+          amb.id || `AMB-${index}`,
+          {
+            id: amb.id,
+            driverName: amb.driverName || amb.name || `Driver ${amb.vehicleNo || ''}`,
+            available: amb.is_active !== false,
+            location: { lat: ambLat, lng: ambLng },
+            pos: { lat: ambLat, lng: ambLng },
+            vehicleNo: amb.vehicleNo || 'EMS Unit',
+            type: amb.type === 'ALS' ? 'Advanced Life Support' : 'Basic Life Support',
+            contactInfo: amb.contactInfo
+          }
+        ];
+      });
     }
-    return list;
+
+    return []; // Avoid returning fake virtual ambulances when real entities are present
   };
 
   const getHospitalsData = () => {
@@ -828,12 +914,15 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
     const formatted = {};
     if (dbHospitals && dbHospitals.length > 0) {
       dbHospitals.forEach(h => {
+        const hLat = parseFloat(h.latitude || h.lat) || (userLocation ? userLocation.lat : 18.5204);
+        const hLng = parseFloat(h.longitude || h.lng) || (userLocation ? userLocation.lng : 73.8567);
         formatted[h.id] = {
           id: h.id,
           name: h.name,
-          lat: h.lat || 12.9716,
-          lng: h.lng || 77.5946,
-          location: { lat: h.lat || 12.9716, lng: h.lng || 77.5946 },
+          city: h.city,
+          lat: hLat,
+          lng: hLng,
+          location: { lat: hLat, lng: hLng },
           total_beds: h.total_beds,
           icu_beds: h.icu_beds,
           ventilators: h.ventilators,
@@ -1444,11 +1533,17 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
                 color: '#fff', fontSize: 13, outline: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.4)'
               }}
             />
-            <button onClick={handleManualSearch} style={{
-              padding: '10px 15px', background: 'rgba(0,255,136,0.2)', 
+            <button onClick={handleManualSearch} title="Search location" style={{
+              padding: '10px 14px', background: 'rgba(0,200,255,0.2)', 
+              border: '1px solid #00c8ff', borderRadius: 8, color: '#00c8ff',
+              cursor: 'pointer', fontSize: 12, fontFamily: "'Orbitron'", fontWeight: 'bold'
+            }}>🔍 SEARCH</button>
+            <button onClick={recenterLiveLocation} title="Pin to My Live Location" style={{
+              padding: '10px 14px', background: 'rgba(0,255,136,0.25)', 
               border: '1px solid #00ff88', borderRadius: 8, color: '#00ff88',
-              cursor: 'pointer', fontSize: 14
-            }}>📍</button>
+              cursor: 'pointer', fontSize: 12, fontFamily: "'Orbitron'", fontWeight: 'bold',
+              display: 'flex', alignItems: 'center', gap: 4, boxShadow: '0 0 15px rgba(0,255,136,0.3)'
+            }}>📍 PIN LIVE GPS</button>
           </div>
           <div style={{
             position: 'absolute', bottom: 10, left: 10, zIndex: 1000,

@@ -7,10 +7,19 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const logger = require('./utils/logger');
 
+const compression = require('compression');
+
 const app = express();
 const server = http.createServer(app);
 
-app.use(cors());
+app.use(compression());
+app.use(cors({
+  origin: true,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Access-Control-Allow-Origin']
+}));
+app.options('*', cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -422,6 +431,10 @@ app.get('/api/fhir/:reqId', authenticateToken, (req, res) => {
   res.json(fhirData);
 });
 
+app.get('/health', (req, res) => {
+  res.json({ status: 'HEALTHY', timestamp: new Date().toISOString(), system: 'RescueLink Emergency System' });
+});
+
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/ambulances', require('./routes/ambulances'));
@@ -443,6 +456,7 @@ app.use('/api/passport', require('./routes/qrPassport'));
 app.use('/api/sync', require('./routes/sync'));
 app.use('/api/tele', require('./routes/telemedicine'));
 app.use('/api/ai', require('./routes/aiCopilot'));
+app.use('/api/admin', require('./routes/verification'));
 app.use('/api/abdm', require('./routes/abdm'));
 
 app.post('/api/ai/predictive-hospital', async (req, res) => {
@@ -710,6 +724,10 @@ const virtualAmbulances = {};
 const spawnVirtualAmbulances = (centerLoc) => {
   if (!centerLoc || !centerLoc.lat) return;
 
+  // If real registered ambulances exist, do not spawn random simulated units
+  const realCount = Object.values(ambulances).filter(a => !a.isSimulated).length;
+  if (realCount > 0) return;
+
   // Tight cluster around user for immediate visibility
   const offsets = [
     { lat: 0.005, lng: 0.008, name: 'Metro Alpha (ALS)', type: 'ALS' },
@@ -777,7 +795,7 @@ function startVirtualAmbulanceSimulation(reqId, virtualAmbId) {
   io.to('admin_warroom').emit('ambulances-update', getCombinedAmbulances());
   io.to(req.userSocket).emit('ambulance-request-response', { ...req, accepted: true });
 
-  io.emit('incoming-hospital-request', {
+  io.to('global_hospitals').to('admin_warroom').emit('incoming-hospital-request', {
     id: req.id,
     status: 'advance_notice',
     ambulanceName: amb.driverName || 'Virtual Unit',
@@ -2249,8 +2267,7 @@ io.on('connection', (socket) => {
       const { startHospitalMatchingAgent } = require('./services/hospitalMatchingAgent');
       startHospitalMatchingAgent(req.id, io, activeRequests);
     } else {
-      req.status = 'ambulance_rejected';
-      io.to(req.userSocket).emit('ambulance-request-response', { ...req, accepted: false });
+      console.log(`[DISPATCH] Paramedic socket response not accepted for request ${req.id}. Request remains active for broadcast/push dispatch.`);
     }
   });
 
@@ -3448,8 +3465,40 @@ async function startServer() {
       } else {
         console.log('[BOOTSTRAP] Super admin already exists. Skipping creation.');
       }
+
+      // Auto-bootstrap baseline system hospitals if table is empty
+      const dbModule = require('./utils/db');
+      const HospitalModel = dbModule.Hospital;
+      const AmbulanceModel = dbModule.Ambulance;
+
+      if (HospitalModel && typeof HospitalModel.count === 'function') {
+        const hospCount = await HospitalModel.count();
+        if (hospCount === 0) {
+          console.log('[BOOTSTRAP] Seeding baseline emergency hospital network...');
+          await HospitalModel.bulkCreate([
+            { name: 'City General Trauma Center', city: 'Bengaluru', state: 'Karnataka', lat: 12.9716, lng: 77.5946, contact_number: '+91-80-22221111', total_beds: 120, icu_beds: 25, ventilators: 12, is_active: true, verification_status: 'APPROVED', trauma_tier: 'Tier 1' },
+            { name: 'Apollo Multispecialty ER', city: 'Bengaluru', state: 'Karnataka', lat: 12.9352, lng: 77.6245, contact_number: '+91-80-33332222', total_beds: 90, icu_beds: 18, ventilators: 8, is_active: true, verification_status: 'APPROVED', trauma_tier: 'Tier 1' },
+            { name: 'Manipal Apex Hospital', city: 'Bengaluru', state: 'Karnataka', lat: 12.9810, lng: 77.6412, contact_number: '+91-80-44443333', total_beds: 150, icu_beds: 30, ventilators: 15, is_active: true, verification_status: 'APPROVED', trauma_tier: 'Tier 2' }
+          ]);
+        }
+      }
+
+      if (AmbulanceModel && typeof AmbulanceModel.count === 'function') {
+        const ambCount = await AmbulanceModel.count();
+        if (ambCount === 0) {
+          console.log('[BOOTSTRAP] Seeding baseline EMS ambulance fleet...');
+          const defaultPasswordHash = bcrypt.hashSync('password123', 10);
+          await AmbulanceModel.bulkCreate([
+            { vehicleNo: 'AMB-101', type: 'ALS', driverName: 'Rajesh Kumar', contactInfo: '+91-9876543210', password: defaultPasswordHash, is_active: true, verification_status: 'APPROVED', latitude: 12.9750, longitude: 77.5900, station_name: 'Central Station' },
+            { vehicleNo: 'AMB-102', type: 'BLS', driverName: 'Suresh Patil', contactInfo: '+91-9876543211', password: defaultPasswordHash, is_active: true, verification_status: 'APPROVED', latitude: 12.9680, longitude: 77.6000, station_name: 'East Station' },
+            { vehicleNo: 'AMB-103', type: 'ALS', driverName: 'Anil Sharma', contactInfo: '+91-9876543212', password: defaultPasswordHash, is_active: true, verification_status: 'APPROVED', latitude: 12.9800, longitude: 77.5850, station_name: 'North Station' },
+            { vehicleNo: 'AMB-104', type: 'BLS', driverName: 'Vikram Singh', contactInfo: '+91-9876543213', password: defaultPasswordHash, is_active: true, verification_status: 'APPROVED', latitude: 12.9550, longitude: 77.6100, station_name: 'South Station' },
+            { vehicleNo: 'AMB-105', type: 'ALS', driverName: 'Deepak Verma', contactInfo: '+91-9876543214', password: defaultPasswordHash, is_active: true, verification_status: 'APPROVED', latitude: 12.9900, longitude: 77.6300, station_name: 'Indiranagar Hub' }
+          ]);
+        }
+      }
     } catch (bootstrapErr) {
-      console.error('[BOOTSTRAP] Failed to auto-create super admin:', bootstrapErr.message);
+      console.error('[BOOTSTRAP] Failed to auto-create super admin or baseline units:', bootstrapErr.message);
     }
 
     // 2. Hydrate active in-memory state from database (clearing stale items first)
@@ -3538,12 +3587,16 @@ async function startServer() {
         const registryKey = `registry_amb_${a.id}`;
         const alreadyLive = Object.values(ambulances).some(la => la.unitId === a.vehicleNo && !la._isRegistryEntry);
         if (!alreadyLive) {
+          const ambLat = parseFloat(a.latitude || a.lat) || 18.5204;
+          const ambLng = parseFloat(a.longitude || a.lng) || 73.8567;
           ambulances[registryKey] = {
+            id: a.id,
             unitId: a.vehicleNo || a.id,
             vehicleNo: a.vehicleNo,
             driverName: a.driverName || a.name,
             type: a.type || 'BLS',
-            location: { lat: a.lat || 17.3850, lng: a.lng || 78.4867 },
+            location: { lat: ambLat, lng: ambLng },
+            pos: { lat: ambLat, lng: ambLng },
             available: true,
             isOnline: false,
             _isRegistryEntry: true,
