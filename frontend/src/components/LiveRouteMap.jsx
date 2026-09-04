@@ -83,7 +83,23 @@ export default function LiveRouteMap({
 
     mapRef.current = map;
 
+    // Trigger map tile invalidation after mount and on layout resize to prevent gray missing tile issue
+    const invalidateTimer = setTimeout(() => {
+      if (mapRef.current) {
+        mapRef.current.invalidateSize();
+      }
+    }, 250);
+
+    const handleResize = () => {
+      if (mapRef.current) {
+        mapRef.current.invalidateSize();
+      }
+    };
+    window.addEventListener('resize', handleResize);
+
     return () => {
+      clearTimeout(invalidateTimer);
+      window.removeEventListener('resize', handleResize);
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;

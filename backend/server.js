@@ -2267,8 +2267,7 @@ io.on('connection', (socket) => {
       const { startHospitalMatchingAgent } = require('./services/hospitalMatchingAgent');
       startHospitalMatchingAgent(req.id, io, activeRequests);
     } else {
-      req.status = 'ambulance_rejected';
-      io.to(req.userSocket).emit('ambulance-request-response', { ...req, accepted: false });
+      console.log(`[DISPATCH] Paramedic socket response not accepted for request ${req.id}. Request remains active for broadcast/push dispatch.`);
     }
   });
 
