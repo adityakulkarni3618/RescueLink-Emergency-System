@@ -51,16 +51,12 @@ router.post('/login', validate(loginBody), async (req, res) => {
 
     if (!user) {
       const { Ambulance } = require('../utils/db');
-      ambulanceUnit = await Ambulance.findOne({
-        where: {
-          vehicleNo: {
-            [require('sequelize').Op.or]: [
-              loginIdentifier,
-              loginIdentifier.replace(/[\s\-]+/g, '').toUpperCase()
-            ]
-          }
-        }
-      });
+      const cleanVehicleNo = loginIdentifier.replace(/[\s\-]+/g, '').toUpperCase();
+      const rawAmbulances = await Ambulance.findAll();
+      ambulanceUnit = rawAmbulances.find(a => 
+        a.vehicleNo === loginIdentifier || 
+        a.vehicleNo.replace(/[\s\-]+/g, '').toUpperCase() === cleanVehicleNo
+      );
       if (ambulanceUnit) {
         isAmbulanceTableLogin = true;
       }
@@ -186,14 +182,18 @@ router.post('/login', validate(loginBody), async (req, res) => {
       refreshToken = crypto.randomBytes(40).toString('hex');
     }
 
-    await AuditLog.create({
-      user_id: isAmbulanceTableLogin ? null : user.id,
-      action: 'LOGIN',
-      resource: isAmbulanceTableLogin ? 'Ambulance' : 'User',
-      resource_id: isAmbulanceTableLogin ? ambulanceUnit.id : user.id,
-      ip_address: req.ip || req.connection.remoteAddress,
-      details: { email: loginIdentifier }
-    });
+    try {
+      await AuditLog.create({
+        user_id: isAmbulanceTableLogin ? null : user.id,
+        action: 'LOGIN',
+        resource: isAmbulanceTableLogin ? 'Ambulance' : 'User',
+        resource_id: isAmbulanceTableLogin ? (ambulanceUnit ? ambulanceUnit.id : null) : (user ? user.id : null),
+        ip_address: req.ip || req.connection?.remoteAddress || '127.0.0.1',
+        details: { email: loginIdentifier }
+      });
+    } catch (auditErr) {
+      console.warn('[AUTH AUDIT LOG WARNING] Failed to record login audit log:', auditErr.message);
+    }
 
     console.log(`[AUTH] Login success: ${loginIdentifier}`);
     const { Hospital, Ambulance } = require('../utils/db');
