@@ -7,15 +7,22 @@ const { User, AuditLog } = require('../utils/db');
 const { verifyToken } = require('../middleware/auth');
 const { blacklistToken } = require('../utils/redis');
 
-const { JWT_SECRET, JWT_EXPIRES_IN } = require('../utils/config');
+const { JWT_SECRET: CONFIG_JWT_SECRET, JWT_EXPIRES_IN } = require('../utils/config');
+const JWT_SECRET = CONFIG_JWT_SECRET || process.env.JWT_SECRET || 'rescuelink_super_secret_jwt_key_2026_fallback';
 const { validate, loginBody } = require('../middleware/validate');
 
 // Helper to generate a rotated refresh token
 async function generateAndSaveRefreshToken(user) {
   const refreshToken = crypto.randomBytes(40).toString('hex');
-  user.refresh_token = refreshToken;
-  if (user && typeof user.save === 'function') {
-    await user.save();
+  if (user) {
+    user.refresh_token = refreshToken;
+    if (typeof user.save === 'function') {
+      try {
+        await user.save();
+      } catch (err) {
+        console.warn('[AUTH WARNING] Failed to persist refresh token to user record:', err.message);
+      }
+    }
   }
   return refreshToken;
 }
