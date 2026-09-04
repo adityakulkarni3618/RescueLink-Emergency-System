@@ -247,21 +247,25 @@ router.post('/login', validate(loginBody), async (req, res) => {
         };
       }
     } else if (user && (user.role === 'hospital_admin' || user.role === 'doctor') && user.hospital_id) {
-      const hospital = await Hospital.findByPk(user.hospital_id);
-      if (hospital) {
-        extraData = {
-          hospital_id: hospital.id,
-          total_beds: hospital.total_beds,
-          icu_beds: hospital.icu_beds,
-          ventilators: hospital.ventilators,
-          license_number: hospital.license_number,
-          departments: hospital.departments,
-          bay_capacity: hospital.bay_capacity,
-          trauma_tier: hospital.trauma_tier,
-          accreditation_id: hospital.accreditation_id,
-          city: hospital.city,
-          state: hospital.state
-        };
+      try {
+        const hospital = await Hospital.findByPk(user.hospital_id);
+        if (hospital) {
+          extraData = {
+            hospital_id: hospital.id,
+            total_beds: hospital.total_beds,
+            icu_beds: hospital.icu_beds,
+            ventilators: hospital.ventilators,
+            license_number: hospital.license_number,
+            departments: hospital.departments,
+            bay_capacity: hospital.bay_capacity,
+            trauma_tier: hospital.trauma_tier,
+            accreditation_id: hospital.accreditation_id,
+            city: hospital.city,
+            state: hospital.state
+          };
+        }
+      } catch (hospErr) {
+        console.warn('[AUTH WARNING] Failed to hydrate hospital profile:', hospErr.message);
       }
     }
 
