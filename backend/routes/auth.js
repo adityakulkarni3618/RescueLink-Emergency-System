@@ -84,9 +84,21 @@ router.post('/login', validate(loginBody), async (req, res) => {
 
     let isMatch = false;
     if (isAmbulanceTableLogin) {
-      isMatch = await bcrypt.compare(password, ambulanceUnit.password);
+      if (!ambulanceUnit.password) {
+        isMatch = false;
+      } else if (ambulanceUnit.password.startsWith('$2a$') || ambulanceUnit.password.startsWith('$2b$')) {
+        isMatch = await bcrypt.compare(password, ambulanceUnit.password);
+      } else {
+        isMatch = (password === ambulanceUnit.password);
+      }
     } else {
-      isMatch = await bcrypt.compare(password, user.password);
+      if (!user || !user.password) {
+        isMatch = false;
+      } else if (user.password.startsWith('$2a$') || user.password.startsWith('$2b$')) {
+        isMatch = await bcrypt.compare(password, user.password);
+      } else {
+        isMatch = (password === user.password);
+      }
     }
 
     if (!isMatch) {
