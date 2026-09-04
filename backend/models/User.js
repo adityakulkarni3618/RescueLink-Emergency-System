@@ -30,6 +30,18 @@ module.exports = (sequelize) => {
     mobile: {
       type: DataTypes.STRING
     },
+    city: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    lat: {
+      type: DataTypes.FLOAT,
+      allowNull: true
+    },
+    lng: {
+      type: DataTypes.FLOAT,
+      allowNull: true
+    },
     hospital_id: {
       type: DataTypes.UUID,
       allowNull: true

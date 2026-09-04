@@ -2113,6 +2113,8 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
           hospitalGps = { lat: found.lat || data.lat, lng: found.lng || data.lng };
         }
 
+        if (hospitalGps) setHospitalGps(hospitalGps);
+
         if (socket) socket.emit('register-hospital', {
           hospitalId: found.hospitalId,
           name: found.name,
@@ -4195,7 +4197,7 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
                           routeGeometry={routePath ? { type: 'LineString', coordinates: routePath.map(p => [p[1] || p.lng, p[0] || p.lat]) } : null}
                           ambulancePosition={location ? { lat: location.lat, lng: location.lng, heading: location.heading } : null}
                           originMarker={incidentLocation}
-                          destinationMarker={hospitalGps || activeHospital?.pos}
+                          destinationMarker={hospitalGps || (authHospital?.lat && authHospital?.lng ? { lat: authHospital.lat, lng: authHospital.lng } : activeHospital?.pos)}
                           junctions={[]}
                           mode="hospital"
                         />

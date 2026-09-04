@@ -107,32 +107,56 @@ export default function LiveRouteMap({
     }
 
     let coords = [];
-    if (routeGeometry && routeGeometry.coordinates) {
-      coords = routeGeometry.coordinates.map(c => [c[1], c[0]]); // GeoJSON [lng, lat] -> Leaflet [lat, lng]
-    } else if (Array.isArray(routeGeometry)) {
-      coords = routeGeometry.map(p => parseLatLng(p)).filter(Boolean);
+    if (routeGeometry) {
+      let rawList = [];
+      if (Array.isArray(routeGeometry)) {
+        rawList = routeGeometry;
+      } else if (routeGeometry.coordinates && Array.isArray(routeGeometry.coordinates)) {
+        rawList = routeGeometry.coordinates.map(c => (Array.isArray(c) ? [c[1], c[0]] : c));
+      }
+
+      coords = rawList
+        .map(p => parseLatLng(p))
+        .filter(p => p !== null && typeof p[0] === 'number' && !isNaN(p[0]) && typeof p[1] === 'number' && !isNaN(p[1]));
     }
 
-    if (coords.length > 0) {
-      routeGlowPolylineRef.current = L.polyline(coords, {
-        color: '#ff3333',
-        weight: 10,
-        opacity: 0.35,
-        lineCap: 'round',
-        lineJoin: 'round'
-      }).addTo(map);
+    if (coords.length >= 2) {
+      try {
+        routeGlowPolylineRef.current = L.polyline(coords, {
+          color: '#ff3333',
+          weight: 10,
+          opacity: 0.35,
+          lineCap: 'round',
+          lineJoin: 'round'
+        }).addTo(map);
 
-      routePolylineRef.current = L.polyline(coords, {
-        color: '#ffffff',
-        weight: 3,
-        opacity: 0.95,
-        lineCap: 'round',
-        lineJoin: 'round'
-      }).addTo(map);
+        routePolylineRef.current = L.polyline(coords, {
+          color: '#ffffff',
+          weight: 3,
+          opacity: 0.95,
+          lineCap: 'round',
+          lineJoin: 'round'
+        }).addTo(map);
 
-      map.fitBounds(routePolylineRef.current.getBounds(), { padding: [40, 40] });
+        map.fitBounds(routePolylineRef.current.getBounds(), { padding: [40, 40] });
+      } catch (err) {
+        console.warn('[LiveRouteMap] Error rendering polyline bounds:', err);
+      }
+    } else {
+      // Auto-center map on the panel entity position when no route is active
+      let targetCenter = null;
+      if (mode === 'hospital' && isValidLatLng(destinationMarker)) targetCenter = parseLatLng(destinationMarker);
+      else if (mode === 'user' && isValidLatLng(originMarker)) targetCenter = parseLatLng(originMarker);
+      else if (mode === 'driver' && isValidLatLng(ambulancePosition)) targetCenter = parseLatLng(ambulancePosition);
+      else if (isValidLatLng(ambulancePosition)) targetCenter = parseLatLng(ambulancePosition);
+      else if (isValidLatLng(originMarker)) targetCenter = parseLatLng(originMarker);
+      else if (isValidLatLng(destinationMarker)) targetCenter = parseLatLng(destinationMarker);
+
+      if (targetCenter) {
+        map.setView(targetCenter, 14, { animate: true });
+      }
     }
-  }, [routeGeometry]);
+  }, [routeGeometry, ambulancePosition, originMarker, destinationMarker, mode]);
 
   // 3. Update Markers (Ambulance, Patient, Hospital, Extra Fleet)
   useEffect(() => {
