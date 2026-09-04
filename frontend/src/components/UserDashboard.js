@@ -349,6 +349,24 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
       return { lat: 12.9716, lng: 77.5946 }; // Bengaluru Fallback
     };
 
+    // Check if user has registered location coordinates in profile
+    let profileLoc = null;
+    try {
+      const uStr = sessionStorage.getItem('rescuelink_user') || localStorage.getItem('rescuelink_user');
+      if (uStr) {
+        const u = JSON.parse(uStr);
+        if (u.lat && u.lng && !isNaN(parseFloat(u.lat)) && !isNaN(parseFloat(u.lng))) {
+          profileLoc = { lat: parseFloat(u.lat), lng: parseFloat(u.lng) };
+        }
+      }
+    } catch (e) {}
+
+    if (profileLoc) {
+      setUserLocation(profileLoc);
+      setLocationMethod('Registered Profile Location');
+      setMapCenter([profileLoc.lat, profileLoc.lng]);
+    }
+
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -359,14 +377,15 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
         },
         async (err) => {
           console.warn('User Location Denied/Error', err);
-          const loc = await fetchIpLocation();
-          setUserLocation(loc);
-          setMapCenter([loc.lat, loc.lng]);
+          if (!profileLoc) {
+            const loc = await fetchIpLocation();
+            setUserLocation(loc);
+            setMapCenter([loc.lat, loc.lng]);
+          }
         },
         { enableHighAccuracy: true, timeout: 5000 }
       );
-    } else {
-      // Manual Fallback: Place user in a neutral city center if GPS is missing/blocked
+    } else if (!profileLoc) {
       console.warn('Geolocation not supported/blocked - Using Manual Fallback');
       fetchIpLocation().then(loc => {
         setUserLocation(loc);

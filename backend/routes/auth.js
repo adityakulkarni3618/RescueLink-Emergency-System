@@ -772,9 +772,24 @@ router.post('/register-ambulance', async (req, res) => {
  * @desc Register a new patient profile with speakeasy 2FA setup
  */
 router.post('/register-patient', async (req, res) => {
-  const { name, email, password, mobile, abhaNumber, abhaAddress, bloodGroup, allergies, chronicConditions, dob, gender, emergencyContactName, emergencyContactRelationship, emergencyContactPhone, insuranceProvider, policyNumber, groupNumber, consentToShareData } = req.body;
+  const { name, email, password, mobile, city, lat, lng, abhaNumber, abhaAddress, bloodGroup, allergies, chronicConditions, dob, gender, emergencyContactName, emergencyContactRelationship, emergencyContactPhone, insuranceProvider, policyNumber, groupNumber, consentToShareData } = req.body;
   if (!name || !email || !password) {
     return res.status(400).json({ error: 'Name, email, and password are required' });
+  }
+
+  let finalLat = parseFloat(lat);
+  let finalLng = parseFloat(lng);
+  if ((!finalLat || !finalLng) && city) {
+    try {
+      const { geocodeAddress } = require('../utils/geocoder');
+      const coords = await geocodeAddress(city);
+      if (coords) {
+        finalLat = coords.lat;
+        finalLng = coords.lng;
+      }
+    } catch (e) {
+      console.warn('[AUTH] Patient city geocode warning:', e.message);
+    }
   }
 
   try {
@@ -795,6 +810,9 @@ router.post('/register-patient', async (req, res) => {
       password: passwordHash,
       role: 'patient',
       mobile: mobile || '',
+      city: city || null,
+      lat: !isNaN(finalLat) ? finalLat : null,
+      lng: !isNaN(finalLng) ? finalLng : null,
       totp_secret: setupData.secret,
       is_active: true,
       abha_number: abhaNumber || null,
