@@ -68,15 +68,19 @@ router.post('/login', validate(loginBody), async (req, res) => {
     let ambulanceUnit = null;
 
     if (!user) {
-      const { Ambulance } = require('../utils/db');
-      const cleanVehicleNo = loginIdentifier.replace(/[\s\-]+/g, '').toUpperCase();
-      const rawAmbulances = await Ambulance.findAll();
-      ambulanceUnit = rawAmbulances.find(a => 
-        a.vehicleNo === loginIdentifier || 
-        a.vehicleNo.replace(/[\s\-]+/g, '').toUpperCase() === cleanVehicleNo
-      );
-      if (ambulanceUnit) {
-        isAmbulanceTableLogin = true;
+      try {
+        const { Ambulance } = require('../utils/db');
+        const cleanVehicleNo = loginIdentifier.replace(/[\s\-]+/g, '').toUpperCase();
+        const rawAmbulances = await Ambulance.findAll();
+        ambulanceUnit = rawAmbulances.find(a => 
+          a.vehicleNo === loginIdentifier || 
+          a.vehicleNo.replace(/[\s\-]+/g, '').toUpperCase() === cleanVehicleNo
+        );
+        if (ambulanceUnit) {
+          isAmbulanceTableLogin = true;
+        }
+      } catch (ambSearchErr) {
+        console.warn('[AUTH WARNING] Failed to search ambulance units table:', ambSearchErr.message);
       }
     }
     
