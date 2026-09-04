@@ -227,14 +227,8 @@ router.post('/login', validate(loginBody), async (req, res) => {
       };
     } else if (user && user.role === 'paramedic') {
       const cleanNo = user.email ? user.email.replace('@rescuelink.com', '').toUpperCase() : '';
-      const amb = await Ambulance.findOne({
-        where: {
-          [require('sequelize').Op.or]: [
-            { vehicleNo: cleanNo },
-            { driverName: user.name }
-          ]
-        }
-      });
+      const rawAmbs = await Ambulance.findAll();
+      const amb = rawAmbs.find(a => a.vehicleNo === cleanNo || a.driverName === user.name);
       if (amb) {
         extraData = {
           id: amb.id,
