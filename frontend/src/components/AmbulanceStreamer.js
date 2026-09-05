@@ -997,7 +997,7 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
     try {
       const cleanId = loginId.trim().toLowerCase();
       // ENTERPRISE AUTH: Request cryptographic JWT from backend
-      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
+      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system-4d85.onrender.com');
       const res = await fetch(`${SERVER_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
