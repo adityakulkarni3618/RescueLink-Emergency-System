@@ -2062,7 +2062,8 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
     const inputPass = loginPass.trim();
 
     try {
-      const res = await fetch('/api/auth/login', {
+      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
+      const res = await fetch(`${SERVER_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: inputId, password: inputPass, role: 'hospital' })
@@ -2465,6 +2466,23 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
     socket.on('error-alert', (data) => {
       if (data && data.message && data.message.startsWith('PENDING_APPROVAL')) {
         setIsPendingApproval(true);
+      }
+    });
+
+    socket.on('system-notifications', (notifs) => {
+      if (Array.isArray(notifs) && notifs.length > 0) {
+        notifs.forEach(n => {
+          if (n.data && (n.data.id || n.data.reqId)) {
+            const req = n.data;
+            setRequestQueue(prev => {
+              if (prev.find(r => r.id === req.id)) return prev;
+              return [...prev, req];
+            });
+            setIncomingRequest(prev => prev || req);
+            playAlertBeep();
+            showAlert(`🏥 SYSTEM NOTIFICATION: Incoming Emergency Admission Request!`);
+          }
+        });
       }
     });
 

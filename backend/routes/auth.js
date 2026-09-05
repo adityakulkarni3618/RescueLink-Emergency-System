@@ -68,15 +68,19 @@ router.post('/login', validate(loginBody), async (req, res) => {
     let ambulanceUnit = null;
 
     if (!user) {
-      const { Ambulance } = require('../utils/db');
-      const cleanVehicleNo = loginIdentifier.replace(/[\s\-]+/g, '').toUpperCase();
-      const rawAmbulances = await Ambulance.findAll();
-      ambulanceUnit = rawAmbulances.find(a => 
-        a.vehicleNo === loginIdentifier || 
-        a.vehicleNo.replace(/[\s\-]+/g, '').toUpperCase() === cleanVehicleNo
-      );
-      if (ambulanceUnit) {
-        isAmbulanceTableLogin = true;
+      try {
+        const { Ambulance } = require('../utils/db');
+        const cleanVehicleNo = loginIdentifier.replace(/[\s\-]+/g, '').toUpperCase();
+        const rawAmbulances = await Ambulance.findAll();
+        ambulanceUnit = rawAmbulances.find(a => 
+          a.vehicleNo === loginIdentifier || 
+          (a.vehicleNo && a.vehicleNo.replace(/[\s\-]+/g, '').toUpperCase() === cleanVehicleNo)
+        );
+        if (ambulanceUnit) {
+          isAmbulanceTableLogin = true;
+        }
+      } catch (ambSearchErr) {
+        console.warn('[AUTH WARNING] Failed to search ambulance units table:', ambSearchErr.message);
       }
     }
     
@@ -150,7 +154,7 @@ router.post('/login', validate(loginBody), async (req, res) => {
     }
 
     // Enforce MFA setup check for roles requiring MFA (doctor, admin, paramedic)
-    const roleRequiresMfa = (isAmbulanceTableLogin || ['doctor', 'hospital_admin', 'city_admin', 'paramedic'].includes(user.role));
+    const roleRequiresMfa = isAmbulanceTableLogin || (user && ['doctor', 'hospital_admin', 'city_admin', 'paramedic'].includes(user.role));
     const requiresMfaEnforcement = roleRequiresMfa && process.env.DISABLE_MFA !== 'true' && req.body.bypassMFA !== true && process.env.NODE_ENV !== 'test';
     
     if (requiresMfaEnforcement && (!mfaSecret || !isMfaFullySetup)) {
@@ -235,7 +239,7 @@ router.post('/login', validate(loginBody), async (req, res) => {
     } else if (user && user.role === 'paramedic') {
       const cleanNo = user.email ? user.email.replace('@rescuelink.com', '').toUpperCase() : '';
       const rawAmbs = await Ambulance.findAll();
-      const amb = rawAmbs.find(a => a.vehicleNo === cleanNo || a.driverName === user.name);
+      const amb = rawAmbs.find(a => a.vehicleNo === cleanNo || (a.vehicleNo && cleanNo && a.vehicleNo.replace(/[\s\-]+/g, '').toUpperCase() === cleanNo.replace(/[\s\-]+/g, '').toUpperCase()) || a.driverName === user.name);
       if (amb) {
         extraData = {
           id: amb.id,
