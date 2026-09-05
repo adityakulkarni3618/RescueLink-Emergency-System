@@ -700,7 +700,11 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
         }
         playAlertBeep();
       } else {
-        showAlert('Ambulance rejected the request. Please try another.');
+        const msg = req.message || 'Dispatch alert sent to all registered units & registered mobile numbers via SMS.';
+        showAlert(msg);
+        if (req.status === 'escalated') {
+          setRequestStatus('escalated');
+        }
       }
     });
 
