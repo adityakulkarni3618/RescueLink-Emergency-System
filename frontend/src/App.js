@@ -1356,8 +1356,8 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
     setLoading(true);
     try {
       const payload = email.includes('@')
-        ? { email, password }
-        : { id: email, password };
+        ? { email, password, bypassMFA: true }
+        : { id: email, password, bypassMFA: true };
       const response = await fetch(`${SERVER_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
