@@ -2468,6 +2468,23 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
       }
     });
 
+    socket.on('system-notifications', (notifs) => {
+      if (Array.isArray(notifs) && notifs.length > 0) {
+        notifs.forEach(n => {
+          if (n.data && (n.data.id || n.data.reqId)) {
+            const req = n.data;
+            setRequestQueue(prev => {
+              if (prev.find(r => r.id === req.id)) return prev;
+              return [...prev, req];
+            });
+            setIncomingRequest(prev => prev || req);
+            playAlertBeep();
+            showAlert(`🏥 SYSTEM NOTIFICATION: Incoming Emergency Admission Request!`);
+          }
+        });
+      }
+    });
+
     socket.on('hospital-request-taken', (data) => {
       const { reqId, acceptedBy } = data;
       setRequestQueue(prev => prev.filter(r => r.id !== reqId));

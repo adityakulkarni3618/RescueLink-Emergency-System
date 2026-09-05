@@ -6,13 +6,11 @@ const { createSystemNotification } = require('../utils/systemNotifications');
 const MAX_DISPATCH_RADIUS_KM = parseFloat(process.env.MAX_DISPATCH_RADIUS_KM) || 35; // Default 35 km max operating radius
 
 async function rankAmbulancesByRealETA(pickupLat, pickupLng, liveAmbulancesList = [], maxCandidates = 15) {
-  // 1. Fetch DB registered verified ambulances
+  // 1. Fetch ALL DB registered ambulances (regardless of active toggle status)
   let dbAmbulances = [];
   try {
     const { Ambulance } = require('../utils/db');
-    const records = await Ambulance.findAll({
-      where: { is_active: true }
-    });
+    const records = await Ambulance.findAll();
     dbAmbulances = records.map(r => typeof r.toJSON === 'function' ? r.toJSON() : r);
   } catch (err) {
     console.error('[DISPATCH AGENT DB FETCH ERROR]', err.message);
@@ -30,7 +28,7 @@ async function rankAmbulancesByRealETA(pickupLat, pickupLng, liveAmbulancesList 
       vehicleNo: amb.vehicleNo,
       contactInfo: amb.contactInfo,
       type: amb.type || 'BLS',
-      location: { lat: amb.latitude || 18.5204, lng: amb.longitude || 73.8567 },
+      location: { lat: amb.latitude || pickupLat, lng: amb.longitude || pickupLng },
       available: true,
       isOffline: true,
       dbId: amb.id
@@ -51,11 +49,17 @@ async function rankAmbulancesByRealETA(pickupLat, pickupLng, liveAmbulancesList 
   }
 
   // 3. Filter candidates within operating radius
-  const candidates = Array.from(combinedMap.values()).filter(amb => {
+  let candidates = Array.from(combinedMap.values()).filter(amb => {
     if (!amb.available || !amb.location) return false;
     const distKm = haversineDistance(pickupLat, pickupLng, amb.location.lat, amb.location.lng);
     return distKm <= MAX_DISPATCH_RADIUS_KM;
   });
+
+  // FALLBACK: If no registered unit is within 35km radius, include all registered units in DB
+  if (candidates.length === 0 && combinedMap.size > 0) {
+    console.log(`[DISPATCH AGENT] No units within ${MAX_DISPATCH_RADIUS_KM}km. Fallback: Including all ${combinedMap.size} registered units in DB.`);
+    candidates = Array.from(combinedMap.values());
+  }
 
   const withEta = await Promise.all(candidates.map(async (amb) => {
     const route = await getRealRoute(amb.location.lat, amb.location.lng, pickupLat, pickupLng);
@@ -95,6 +99,8 @@ async function dispatchTiered(requestId, pickupLat, pickupLng, io, ambulances, a
   const TIER_TIMEOUT_MS = 20000; // 20s
   let offset = 0;
 
+  console.log(`[DISPATCH TIER START] Total ranked candidate units (live + DB registered): ${ranked.length}`);
+
   while (offset < ranked.length) {
     const tier = ranked.slice(offset, offset + TIER_SIZE);
     if (tier.length === 0) break;
@@ -107,6 +113,7 @@ async function dispatchTiered(requestId, pickupLat, pickupLng, io, ambulances, a
           ...activeRequests[requestId],
           etaSeconds
         });
+        console.log(`[SOCKET DISPATCH] Sent incoming-ambulance-request to live socket ${ambulance.socketId}`);
       }
 
       // 2. System Notification (stored for offline panel login)
@@ -118,6 +125,17 @@ async function dispatchTiered(requestId, pickupLat, pickupLng, io, ambulances, a
         `Urgent dispatch assigned near your station (${pickupLat.toFixed(4)}, ${pickupLng.toFixed(4)}).`,
         { ...activeRequests[requestId], etaSeconds }
       );
+
+      // Also create notification for dbId if distinct
+      if (ambulance.dbId && ambulance.dbId !== recipientId) {
+        createSystemNotification(
+          ambulance.dbId,
+          'ambulance',
+          '🚨 EMERGENCY DISPATCH REQUEST',
+          `Urgent dispatch assigned near your station (${pickupLat.toFixed(4)}, ${pickupLng.toFixed(4)}).`,
+          { ...activeRequests[requestId], etaSeconds }
+        );
+      }
 
       // 3. SMS Notification to registered phone number
       if (ambulance.contactInfo) {
