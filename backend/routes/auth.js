@@ -208,7 +208,7 @@ router.post('/login', validate(loginBody), async (req, res) => {
     }
 
     // Enforce MFA setup check for roles requiring MFA (doctor, admin, paramedic)
-    const roleRequiresMfa = isAmbulanceTableLogin || (user && ['doctor', 'hospital_admin', 'city_admin', 'paramedic'].includes(user.role));
+    const roleRequiresMfa = !isAmbulanceTableLogin && !isHospitalTableLogin && (user && ['doctor', 'hospital_admin', 'city_admin', 'paramedic'].includes(user.role));
     const requiresMfaEnforcement = roleRequiresMfa && process.env.DISABLE_MFA !== 'true' && req.body.bypassMFA !== true && process.env.NODE_ENV !== 'test';
     
     if (requiresMfaEnforcement && (!mfaSecret || !isMfaFullySetup)) {
@@ -225,9 +225,9 @@ router.post('/login', validate(loginBody), async (req, res) => {
       });
     }
 
-    if (mfaSecret && isMfaFullySetup && req.body.bypassMFA !== true) {
+    if (!isAmbulanceTableLogin && !isHospitalTableLogin && mfaSecret && isMfaFullySetup && req.body.bypassMFA !== true) {
       const mfaToken = jwt.sign(
-        { id: isAmbulanceTableLogin ? ambulanceUnit.id : isHospitalTableLogin ? hospitalUnit.id : user.id, isAmbulance: isAmbulanceTableLogin, requiresMFA: true },
+        { id: user.id, isAmbulance: false, requiresMFA: true },
         JWT_SECRET,
         { expiresIn: '10m' }
       );
