@@ -2878,6 +2878,10 @@ export default function App() {
   });
 
   const [role, setRole] = useState(() => {
+    const hash = window.location.hash.replace('#', '').split('/')[0];
+    if (['user', 'ambulance', 'hospital', 'admin', 'family', 'corridor'].includes(hash)) {
+      return hash;
+    }
     const urlParams = new URLSearchParams(window.location.search);
     const urlRole = urlParams.get('role');
     if (urlRole) {
@@ -2917,17 +2921,8 @@ export default function App() {
   const [globalAlertData, setGlobalAlertData] = useState(null);
   const [emergencyBroadcast, setEmergencyBroadcast] = useState(null);
   const [showSecurityModal, setShowSecurityModal] = useState(false);
-  const [loginTargetRole, setLoginTargetRole] = useState(() => localStorage.getItem('loginTargetRole') || null);
-  const [isRegisterMode, setIsRegisterMode] = useState(() => localStorage.getItem('isRegisterMode') === 'true');
-
-  useEffect(() => {
-    if (loginTargetRole) localStorage.setItem('loginTargetRole', loginTargetRole);
-    else localStorage.removeItem('loginTargetRole');
-  }, [loginTargetRole]);
-
-  useEffect(() => {
-    localStorage.setItem('isRegisterMode', isRegisterMode);
-  }, [isRegisterMode]);
+  const [loginTargetRole, setLoginTargetRole] = useState(null);
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
 
   const [currentHash, setCurrentHash] = useState(() => window.location.hash);
 
