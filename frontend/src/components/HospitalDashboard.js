@@ -2062,7 +2062,8 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
     const inputPass = loginPass.trim();
 
     try {
-      const res = await fetch('/api/auth/login', {
+      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
+      const res = await fetch(`${SERVER_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: inputId, password: inputPass, role: 'hospital' })

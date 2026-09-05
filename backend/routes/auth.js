@@ -74,7 +74,7 @@ router.post('/login', validate(loginBody), async (req, res) => {
         const rawAmbulances = await Ambulance.findAll();
         ambulanceUnit = rawAmbulances.find(a => 
           a.vehicleNo === loginIdentifier || 
-          a.vehicleNo.replace(/[\s\-]+/g, '').toUpperCase() === cleanVehicleNo
+          (a.vehicleNo && a.vehicleNo.replace(/[\s\-]+/g, '').toUpperCase() === cleanVehicleNo)
         );
         if (ambulanceUnit) {
           isAmbulanceTableLogin = true;

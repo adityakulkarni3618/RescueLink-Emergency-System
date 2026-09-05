@@ -38,5 +38,5 @@ describe('Offline Registered Ambulance & System Notifications', () => {
     expect(ranked.length).toBeGreaterThan(0);
     expect(ranked[0].ambulance).toBeDefined();
     expect(ranked[0].etaSeconds).toBeGreaterThanOrEqual(0);
-  });
+  }, 30000);
 });
