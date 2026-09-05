@@ -1248,6 +1248,18 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
       }
     });
 
+    socket.on('system-notifications', (notifs) => {
+      if (Array.isArray(notifs) && notifs.length > 0) {
+        const latestEmergency = notifs.find(n => n.data && (n.data.reqId || n.data.id));
+        if (latestEmergency) {
+          const req = latestEmergency.data;
+          setIncomingRequest(req);
+          playAlertBeep();
+          showAlert(`🚨 SYSTEM NOTIFICATION: Emergency Dispatch Request assigned to your registered unit!`);
+        }
+      }
+    });
+
     const onVitalsUpdate = (data) => {
       if (vitalsSourceRef.current === 'LIVE' && data) {
         if (data.reqId && data.reqId !== assignedUserRef.current?.id) return;
