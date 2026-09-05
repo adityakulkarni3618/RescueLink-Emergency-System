@@ -76,10 +76,12 @@ router.post('/login', validate(loginBody), async (req, res) => {
     }
     let isAmbulanceTableLogin = false;
     let ambulanceUnit = null;
+    let isHospitalTableLogin = false;
+    let hospitalUnit = null;
 
     if (!user) {
       try {
-        const { Ambulance } = require('../utils/db');
+        const { Ambulance, Hospital } = require('../utils/db');
         const cleanVehicleNo = (loginIdentifier || '').replace(/[\s\-]+/g, '').toUpperCase();
         const rawAmbulances = await Ambulance.findAll();
         if (Array.isArray(rawAmbulances)) {
@@ -93,8 +95,24 @@ router.post('/login', validate(loginBody), async (req, res) => {
         if (ambulanceUnit) {
           isAmbulanceTableLogin = true;
         }
-      } catch (ambSearchErr) {
-        console.warn('[AUTH WARNING] Failed to search ambulance units table:', ambSearchErr.message);
+
+        if (!ambulanceUnit) {
+          const rawHospitals = await Hospital.findAll();
+          if (Array.isArray(rawHospitals)) {
+            hospitalUnit = rawHospitals.find(h => 
+              h && (
+                (h.email && h.email.toLowerCase() === loginIdentifier.toLowerCase()) ||
+                (h.contact_number && h.contact_number === loginIdentifier) ||
+                (h.name && h.name.toLowerCase() === loginIdentifier.toLowerCase())
+              )
+            );
+          }
+          if (hospitalUnit) {
+            isHospitalTableLogin = true;
+          }
+        }
+      } catch (searchErr) {
+        console.warn('[AUTH WARNING] Failed to search entity tables:', searchErr.message);
       }
     }
     
@@ -108,7 +126,7 @@ router.post('/login', validate(loginBody), async (req, res) => {
     const cleanIdUpper = (loginIdentifier || '').replace(/[\s\-]+/g, '').toUpperCase();
     const isStaticAmbulanceId = /^AMB-10[1-5]$/i.test(loginIdentifier) || cleanIdUpper === 'MH12AB1234' || cleanIdUpper === 'AMB101';
     
-    if (!user && !ambulanceUnit && isStaticAmbulanceId) {
+    if (!user && !ambulanceUnit && !hospitalUnit && isStaticAmbulanceId) {
       isAmbulanceTableLogin = true;
       ambulanceUnit = {
         id: 'amb_demo_unit_1',
@@ -121,7 +139,7 @@ router.post('/login', validate(loginBody), async (req, res) => {
       };
     }
 
-    if (!user && !ambulanceUnit) {
+    if (!user && !ambulanceUnit && !hospitalUnit) {
       console.log(`[AUTH] User not found: ${loginIdentifier}`);
       return res.status(404).json({ error: 'Account not found. Please register first.' });
     }
@@ -136,6 +154,14 @@ router.post('/login', validate(loginBody), async (req, res) => {
         isMatch = await bcrypt.compare(password, ambulanceUnit.password);
       } else {
         isMatch = (password === ambulanceUnit.password);
+      }
+    } else if (isHospitalTableLogin) {
+      if (!hospitalUnit.password) {
+        isMatch = true; // Auto-pass if hospital was created without custom password
+      } else if (typeof hospitalUnit.password === 'string' && (hospitalUnit.password.startsWith('$2a$') || hospitalUnit.password.startsWith('$2b$'))) {
+        isMatch = await bcrypt.compare(password, hospitalUnit.password);
+      } else {
+        isMatch = (password === hospitalUnit.password);
       }
     } else {
       if (!user || !user.password) {
@@ -152,13 +178,13 @@ router.post('/login', validate(loginBody), async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const mfaSecret = isAmbulanceTableLogin ? ambulanceUnit.totp_secret : user.totp_secret;
+    const mfaSecret = isAmbulanceTableLogin ? ambulanceUnit.totp_secret : isHospitalTableLogin ? hospitalUnit.totp_secret : user.totp_secret;
 
     // Check if user has completed MFA setup (has backup codes)
     let isMfaFullySetup = false;
     if (mfaSecret) {
-      if (isAmbulanceTableLogin) {
-        isMfaFullySetup = true; // Ambulance units with totp_secret set have completed MFA setup
+      if (isAmbulanceTableLogin || isHospitalTableLogin) {
+        isMfaFullySetup = true;
       } else {
         const parseCodes = (bc) => {
           if (!bc) return [];
@@ -175,8 +201,8 @@ router.post('/login', validate(loginBody), async (req, res) => {
       }
     }
 
-    const isActive = isAmbulanceTableLogin ? ambulanceUnit.is_active : user.is_active;
-    if (!isActive && isMfaFullySetup) {
+    const isActive = isAmbulanceTableLogin ? ambulanceUnit.is_active : isHospitalTableLogin ? hospitalUnit.is_active : user.is_active;
+    if (isActive === false && isMfaFullySetup) {
       console.log(`[AUTH] Login blocked: Account pending approval for ${loginIdentifier}`);
       return res.status(403).json({ error: 'PENDING_APPROVAL: Account registration is pending administrative approval.' });
     }
@@ -188,7 +214,7 @@ router.post('/login', validate(loginBody), async (req, res) => {
     if (requiresMfaEnforcement && (!mfaSecret || !isMfaFullySetup)) {
       console.log(`[AUTH] MFA setup required/unverified for: ${loginIdentifier}`);
       const setupToken = jwt.sign(
-        { id: isAmbulanceTableLogin ? ambulanceUnit.id : user.id, isAmbulance: isAmbulanceTableLogin, requiresMfaSetup: true },
+        { id: isAmbulanceTableLogin ? ambulanceUnit.id : isHospitalTableLogin ? hospitalUnit.id : user.id, isAmbulance: isAmbulanceTableLogin, requiresMfaSetup: true },
         JWT_SECRET,
         { expiresIn: '10m' }
       );
@@ -201,9 +227,9 @@ router.post('/login', validate(loginBody), async (req, res) => {
 
     if (mfaSecret && isMfaFullySetup && req.body.bypassMFA !== true) {
       const mfaToken = jwt.sign(
-        { id: isAmbulanceTableLogin ? ambulanceUnit.id : user.id, isAmbulance: isAmbulanceTableLogin, requiresMFA: true },
+        { id: isAmbulanceTableLogin ? ambulanceUnit.id : isHospitalTableLogin ? hospitalUnit.id : user.id, isAmbulance: isAmbulanceTableLogin, requiresMFA: true },
         JWT_SECRET,
-        { expiresIn: '5m' }
+        { expiresIn: '10m' }
       );
       return res.json({
         requiresMFA: true,
@@ -212,21 +238,28 @@ router.post('/login', validate(loginBody), async (req, res) => {
     }
 
     // Generate short-lived Access Token & rotated Refresh Token
+    const targetId = isAmbulanceTableLogin ? ambulanceUnit.id : isHospitalTableLogin ? hospitalUnit.id : user.id;
+    const targetName = isAmbulanceTableLogin ? ambulanceUnit.driverName : isHospitalTableLogin ? hospitalUnit.name : user.name;
+    const targetEmail = isAmbulanceTableLogin ? ambulanceUnit.vehicleNo : isHospitalTableLogin ? hospitalUnit.email || hospitalUnit.name : user.email;
+    const targetRole = isAmbulanceTableLogin ? 'paramedic' : isHospitalTableLogin ? 'hospital_admin' : user.role;
+    const targetHospitalId = isAmbulanceTableLogin ? null : isHospitalTableLogin ? hospitalUnit.id : user.hospital_id;
+
     const accessToken = jwt.sign(
       {
-        id: isAmbulanceTableLogin ? ambulanceUnit.id : user.id,
-        name: isAmbulanceTableLogin ? ambulanceUnit.driverName : user.name,
-        email: isAmbulanceTableLogin ? ambulanceUnit.vehicleNo : user.email,
-        role: isAmbulanceTableLogin ? 'paramedic' : user.role,
-        hospital_id: isAmbulanceTableLogin ? null : user.hospital_id,
-        isAmbulance: isAmbulanceTableLogin
+        id: targetId,
+        name: targetName,
+        email: targetEmail,
+        role: targetRole,
+        hospital_id: targetHospitalId,
+        isAmbulance: isAmbulanceTableLogin,
+        isHospital: isHospitalTableLogin
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
 
     let refreshToken = '';
-    if (!isAmbulanceTableLogin) {
+    if (!isAmbulanceTableLogin && !isHospitalTableLogin) {
       refreshToken = await generateAndSaveRefreshToken(user);
     } else {
       refreshToken = crypto.randomBytes(40).toString('hex');
@@ -234,10 +267,10 @@ router.post('/login', validate(loginBody), async (req, res) => {
 
     try {
       await AuditLog.create({
-        user_id: isAmbulanceTableLogin ? null : user.id,
+        user_id: user ? user.id : null,
         action: 'LOGIN',
-        resource: isAmbulanceTableLogin ? 'Ambulance' : 'User',
-        resource_id: isAmbulanceTableLogin ? (ambulanceUnit ? ambulanceUnit.id : null) : (user ? user.id : null),
+        resource: isAmbulanceTableLogin ? 'Ambulance' : isHospitalTableLogin ? 'Hospital' : 'User',
+        resource_id: targetId,
         ip_address: req.ip || req.connection?.remoteAddress || '127.0.0.1',
         details: { email: loginIdentifier }
       });
@@ -263,6 +296,20 @@ router.post('/login', validate(loginBody), async (req, res) => {
         license_expiry: ambulanceUnit.license_expiry,
         is_system_standard: ambulanceUnit.is_system_standard,
         oxygen_capacity_liters: ambulanceUnit.oxygen_capacity_liters
+      };
+    } else if (isHospitalTableLogin && hospitalUnit) {
+      extraData = {
+        hospital_id: hospitalUnit.id,
+        total_beds: hospitalUnit.total_beds,
+        icu_beds: hospitalUnit.icu_beds,
+        ventilators: hospitalUnit.ventilators,
+        license_number: hospitalUnit.license_number,
+        departments: hospitalUnit.departments,
+        bay_capacity: hospitalUnit.bay_capacity,
+        trauma_tier: hospitalUnit.trauma_tier,
+        accreditation_id: hospitalUnit.accreditation_id,
+        city: hospitalUnit.city,
+        state: hospitalUnit.state
       };
     } else if (user && user.role === 'paramedic') {
       const cleanNo = user.email ? user.email.replace('@rescuelink.com', '').toUpperCase() : '';
@@ -313,15 +360,15 @@ router.post('/login', validate(loginBody), async (req, res) => {
       token: accessToken,
       refreshToken,
       user: {
-        id: isAmbulanceTableLogin ? ambulanceUnit.id : user.id,
-        name: isAmbulanceTableLogin ? ambulanceUnit.driverName : user.name,
-        email: isAmbulanceTableLogin ? ambulanceUnit.vehicleNo : user.email,
-        role: isAmbulanceTableLogin ? 'paramedic' : user.role,
-        hospital_id: isAmbulanceTableLogin ? null : user.hospital_id,
-        mobile: isAmbulanceTableLogin ? ambulanceUnit.contactInfo : user.mobile,
-        city: isAmbulanceTableLogin ? null : user?.city,
-        lat: isAmbulanceTableLogin ? ambulanceUnit?.latitude : user?.lat,
-        lng: isAmbulanceTableLogin ? ambulanceUnit?.longitude : user?.lng,
+        id: targetId,
+        name: targetName,
+        email: targetEmail,
+        role: targetRole,
+        hospital_id: targetHospitalId,
+        mobile: isAmbulanceTableLogin ? ambulanceUnit.contactInfo : isHospitalTableLogin ? hospitalUnit.contact_number : user?.mobile,
+        city: isAmbulanceTableLogin ? null : isHospitalTableLogin ? hospitalUnit.city : user?.city,
+        lat: isAmbulanceTableLogin ? ambulanceUnit?.latitude : isHospitalTableLogin ? hospitalUnit?.lat : user?.lat,
+        lng: isAmbulanceTableLogin ? ambulanceUnit?.longitude : isHospitalTableLogin ? hospitalUnit?.lng : user?.lng,
         ...extraData
       }
     });
