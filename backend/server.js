@@ -2153,8 +2153,8 @@ io.on('connection', (socket) => {
     // who connected via JWT (auto-joined hospital rooms) but may not have fired register-hospital yet.
     try {
       const { createSystemNotification } = require('./utils/systemNotifications');
-      const allActiveHospitals = await Hospital.findAll({ where: { is_active: true } });
-      allActiveHospitals.forEach(h => {
+      const allHospitals = await Hospital.findAll();
+      allHospitals.forEach(h => {
         io.to(`hospital:${h.id}`).emit('incoming-hospital-request', activeRequests[reqId]);
         createSystemNotification(
           h.id,
@@ -2163,14 +2163,15 @@ io.on('connection', (socket) => {
           `New patient emergency request near your facility (${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)}).`,
           activeRequests[reqId]
         );
-        if (h.contact_number) {
+        const phone = h.contact_number || h.contactInfo || h.phone;
+        if (phone) {
           const smsMsg = `🏥 *RESCUELINK INCOMING EMERGENCY*:\nPatient ${patientDetails.name || 'Emergency Case'} requesting admission near your facility.\nPlease log into your RescueLink panel to review details.`;
-          whatsappService.sendSMS(h.contact_number, smsMsg).catch(err => {
-            console.warn(`[HOSPITAL SMS FAIL] Failed to send SMS to ${h.contact_number}: ${err.message}`);
+          whatsappService.sendSMS(phone, smsMsg).catch(err => {
+            console.warn(`[HOSPITAL SMS FAIL] Failed to send SMS to ${phone}: ${err.message}`);
           });
         }
       });
-      console.log(`[DISPATCH] Broadcast patient request & SMS to ${allActiveHospitals.length} registered hospitals.`);
+      console.log(`[DISPATCH] Broadcast patient request & SMS to ${allHospitals.length} registered hospitals in DB.`);
     } catch (hospBroadcastErr) {
       console.error('[DISPATCH] Failed to broadcast to hospital rooms from DB:', hospBroadcastErr.message);
     }
