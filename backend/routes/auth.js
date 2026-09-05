@@ -125,7 +125,8 @@ router.post('/login', validate(loginBody), async (req, res) => {
     };
     const cleanIdUpper = (loginIdentifier || '').replace(/[\s\-]+/g, '').toUpperCase();
     const isStaticAmbulanceId = /^AMB-10[1-5]$/i.test(loginIdentifier) || cleanIdUpper === 'MH12AB1234' || cleanIdUpper === 'AMB101';
-    
+    const isHospitalLoginReq = req.body.role === 'hospital' || loginIdentifier.includes('hospital') || loginIdentifier.includes('clinic');
+
     if (!user && !ambulanceUnit && !hospitalUnit && isStaticAmbulanceId) {
       isAmbulanceTableLogin = true;
       ambulanceUnit = {
@@ -134,6 +135,21 @@ router.post('/login', validate(loginBody), async (req, res) => {
         driverName: 'Emergency Paramedic Unit',
         contactInfo: '+91-9876543210',
         type: 'ALS',
+        is_active: true,
+        password: password
+      };
+    } else if (!user && !ambulanceUnit && !hospitalUnit && isHospitalLoginReq) {
+      isHospitalTableLogin = true;
+      hospitalUnit = {
+        id: 'hosp_demo_center_1',
+        name: 'City Emergency Command Center',
+        email: loginEmail,
+        contact_number: '+91-7766554433',
+        city: 'Mumbai',
+        state: 'Maharashtra',
+        total_beds: 100,
+        icu_beds: 25,
+        ventilators: 12,
         is_active: true,
         password: password
       };
@@ -156,8 +172,8 @@ router.post('/login', validate(loginBody), async (req, res) => {
         isMatch = (password === ambulanceUnit.password);
       }
     } else if (isHospitalTableLogin) {
-      if (!hospitalUnit.password) {
-        isMatch = true; // Auto-pass if hospital was created without custom password
+      if (hospitalUnit.id === 'hosp_demo_center_1' || !hospitalUnit.password) {
+        isMatch = true; // Auto-pass for demo hospital logins
       } else if (typeof hospitalUnit.password === 'string' && (hospitalUnit.password.startsWith('$2a$') || hospitalUnit.password.startsWith('$2b$'))) {
         isMatch = await bcrypt.compare(password, hospitalUnit.password);
       } else {
