@@ -1914,6 +1914,18 @@ io.on('connection', (socket) => {
     }
 
     io.to('admin_warroom').emit('ambulances-update', getCombinedAmbulances());
+
+    // Deliver any pending system notifications for this registered ambulance
+    try {
+      const { getPendingNotifications, clearDeliveredNotifications } = require('./utils/systemNotifications');
+      const pendingNotifs = getPendingNotifications(unitId);
+      if (pendingNotifs.length > 0) {
+        socket.emit('system-notifications', pendingNotifs);
+        clearDeliveredNotifications(unitId);
+      }
+    } catch (notifErr) {
+      console.warn('[SYSTEM NOTIF DELIVER ERROR]', notifErr.message);
+    }
   });
 
   socket.on('toggle-active-duty', async (data) => {
@@ -2015,6 +2027,18 @@ io.on('connection', (socket) => {
     });
 
     io.to('admin_warroom').to('global_hospitals').emit('hospitals-update', hospitals);
+
+    // Deliver any pending system notifications for this registered hospital
+    try {
+      const { getPendingNotifications, clearDeliveredNotifications } = require('./utils/systemNotifications');
+      const pendingNotifs = getPendingNotifications(id);
+      if (pendingNotifs.length > 0) {
+        socket.emit('system-notifications', pendingNotifs);
+        clearDeliveredNotifications(id);
+      }
+    } catch (notifErr) {
+      console.warn('[SYSTEM NOTIF DELIVER ERROR]', notifErr.message);
+    }
   });
 
   socket.on('register-user', (data) => {
@@ -2128,11 +2152,25 @@ io.on('connection', (socket) => {
     // CRITICAL FIX: Also broadcast via hospital:<id> rooms to reach hospital staff
     // who connected via JWT (auto-joined hospital rooms) but may not have fired register-hospital yet.
     try {
-      const allActiveHospitals = await Hospital.findAll({ where: { is_active: true }, attributes: ['id'] });
+      const { createSystemNotification } = require('./utils/systemNotifications');
+      const allActiveHospitals = await Hospital.findAll({ where: { is_active: true } });
       allActiveHospitals.forEach(h => {
         io.to(`hospital:${h.id}`).emit('incoming-hospital-request', activeRequests[reqId]);
+        createSystemNotification(
+          h.id,
+          'hospital',
+          '🏥 INCOMING EMERGENCY ADMISSION REQUEST',
+          `New patient emergency request near your facility (${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)}).`,
+          activeRequests[reqId]
+        );
+        if (h.contact_number) {
+          const smsMsg = `🏥 *RESCUELINK INCOMING EMERGENCY*:\nPatient ${patientDetails.name || 'Emergency Case'} requesting admission near your facility.\nPlease log into your RescueLink panel to review details.`;
+          whatsappService.sendSMS(h.contact_number, smsMsg).catch(err => {
+            console.warn(`[HOSPITAL SMS FAIL] Failed to send SMS to ${h.contact_number}: ${err.message}`);
+          });
+        }
       });
-      console.log(`[DISPATCH] Broadcast patient request to ${allActiveHospitals.length} registered hospital rooms.`);
+      console.log(`[DISPATCH] Broadcast patient request & SMS to ${allActiveHospitals.length} registered hospitals.`);
     } catch (hospBroadcastErr) {
       console.error('[DISPATCH] Failed to broadcast to hospital rooms from DB:', hospBroadcastErr.message);
     }
