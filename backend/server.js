@@ -15,10 +15,31 @@ const compression = require('compression');
 const app = express();
 const server = http.createServer(app);
 
+const rawAllowed = [
+  process.env.FRONTEND_URL,
+  process.env.CLIENT_URL,
+  process.env.CORS_ORIGIN,
+  process.env.ALLOWED_ORIGINS,
+  'https://rescue-link-emergency-system.vercel.app',
+  'https://rescuelink-emergency-system.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:5000'
+].filter(Boolean);
+
+const allowedOrigins = Array.from(new Set(
+  rawAllowed.flatMap(item => item.split(',').map(s => s.trim().replace(/\/$/, ''))).filter(Boolean)
+));
+
+logger.info(`[CORS] Configured allowed origins: ${allowedOrigins.join(', ')}`);
+
 const corsOptions = {
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
-    return callback(null, origin);
+    const normalizedOrigin = origin.replace(/\/$/, '');
+    if (allowedOrigins.includes(normalizedOrigin) || normalizedOrigin.endsWith('.vercel.app')) {
+      return callback(null, normalizedOrigin);
+    }
+    return callback(null, normalizedOrigin);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
@@ -56,6 +77,7 @@ app.use((req, res, next) => {
 app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
 
 
 // Sentry Error Tracking Setup (Production Visibility)
@@ -646,15 +668,23 @@ app.use((err, req, res, next) => {
 
 // Server already created at top
 const io = new Server(server, {
+  path: '/socket.io',
   cors: {
-    origin: (origin, callback) => {
+    origin: function (origin, callback) {
       if (!origin) return callback(null, true);
-      return callback(null, origin);
+      const normalizedOrigin = origin.replace(/\/$/, '');
+      if (allowedOrigins.includes(normalizedOrigin) || normalizedOrigin.endsWith('.vercel.app')) {
+        return callback(null, normalizedOrigin);
+      }
+      return callback(null, normalizedOrigin);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
-  }
+  },
+  transports: ['polling', 'websocket'],
+  allowEIO3: true
 });
+
 
 app.set('socketio', io);
 
