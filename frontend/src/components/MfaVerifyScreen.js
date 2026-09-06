@@ -24,6 +24,8 @@ export function MfaVerifyScreen({ mfaToken, onLoginSuccess, onCancel, ParticleCa
 
       sessionStorage.setItem('rescuelink_token', data.token);
       sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
+      localStorage.setItem('rescuelink_token', data.token);
+      localStorage.setItem('rescuelink_user', JSON.stringify(data.user));
 
       let viewRole = 'user';
       if (data.user.role === 'doctor' || data.user.role === 'hospital_admin') {
