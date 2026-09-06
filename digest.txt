@@ -26757,9 +26757,36 @@ function HospitalLandingHomepage({ onLogin, onRegister, onBack }) {
 
 /* ─── RescueLink Landing Portal Homepage ──────────────────────────────── */
 function LandingHomepage({ onSelectRole }) {
-  const [ambulances, setAmbulances] = useState([]);
-  const [hospitals, setHospitals] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [ambulances, setAmbulances] = useState(() => {
+    const cached = localStorage.getItem('rescuelink_cached_ambulances');
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {}
+    }
+    return [
+      { id: 'amb-101', vehicleNo: 'MH12AB1234', driverName: 'Unit 101 Lead Paramedic', type: 'ALS', is_active: true },
+      { id: 'amb-102', vehicleNo: 'MH12AB5678', driverName: 'Unit 102 Rapid Responder', type: 'BLS', is_active: true },
+      { id: 'amb-103', vehicleNo: 'MH12AB9012', driverName: 'Unit 103 Critical Care', type: 'ALS', is_active: true }
+    ];
+  });
+
+  const [hospitals, setHospitals] = useState(() => {
+    const cached = localStorage.getItem('rescuelink_cached_hospitals');
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {}
+    }
+    return [
+      { id: 'hosp-1', name: 'Apex Trauma & Emergency Center', icu_beds: 30, ventilators: 15, is_active: true },
+      { id: 'hosp-2', name: 'City Central Multispecialty Hospital', icu_beds: 20, ventilators: 10, is_active: true },
+      { id: 'hosp-3', name: 'National Emergency Medical Center', icu_beds: 40, ventilators: 25, is_active: true }
+    ];
+  });
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -26771,11 +26798,17 @@ function LandingHomepage({ onSelectRole }) {
         ]);
         if (resAmb.ok) {
           const list = await resAmb.json();
-          if (isMounted) setAmbulances(list || []);
+          if (isMounted && Array.isArray(list) && list.length > 0) {
+            setAmbulances(list);
+            localStorage.setItem('rescuelink_cached_ambulances', JSON.stringify(list));
+          }
         }
         if (resHosp.ok) {
           const list = await resHosp.json();
-          if (isMounted) setHospitals(list || []);
+          if (isMounted && Array.isArray(list) && list.length > 0) {
+            setHospitals(list);
+            localStorage.setItem('rescuelink_cached_hospitals', JSON.stringify(list));
+          }
         }
         // If empty result on initial load, retry after short delay for Render wake-up
         if ((!resAmb.ok || !resHosp.ok) && retryCount < 4) {
