@@ -4842,6 +4842,7 @@ FILE: backend\data\audit_log.txt
 [2026-09-06T10:29:23.678Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 [2026-09-06T10:32:38.485Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 [2026-09-06T10:42:31.185Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
+[2026-09-06T10:48:40.766Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 
 
 ================================================
@@ -5000,39 +5001,39 @@ FILE: backend\data\consent_ledger_test.json
 [
   {
     "index": 0,
-    "timestamp": "2026-09-06T10:42:29.424Z",
+    "timestamp": "2026-09-06T10:48:39.051Z",
     "action": "GENESIS_CHAIN_INITIALIZED",
     "patientId": "00000000-0000-0000-0000-000000000000",
     "previousHash": "0",
-    "hash": "e153caf38e558b5f30e04fce784d93ba4ed94e34334808d0131497b561ec42b8",
-    "signature": "THaZ+fZ6IkJxbL2nSqCScvpB2Hj7DwkmNIKbfJ7Hnkv0Lcfajm0RxX9kWm8OELvJ5iWf85qUuaavNwJERFK+51sa5JAUFGPo5S+/M18RsP9YCqxmKEs3C7EJbV6c52A7VOhrZ9F5SyhohHxFWtC2phQW0NW4rMeIt2oKRNOK+BT9F1lYf15APVmiH28UoTAT3JZLVil7AM16Re9sNB5pIVXJKn5Mc9toUNStLFS/wtvWaImwKJkhd3ExX1AhaCcaxztS5DW8bCs29YUAhk8hmz2k/m5Z4jsFpkej/CdHVygCzen8D2UBTymw6F2mE9GyelDEt9z/IVeeUPpl7Czz2g=="
+    "hash": "71bff93da06ad414f2e6eef55df4dad44568288f9d09d42763e4e13b66ba9afe",
+    "signature": "RHjmtRSryM4vhJF0YsbzqLTaKbrVVQX6hrP+6xhPSBD9vDPPQ1DtgE7S5IJhIHhm8l7ceKS4hytZZoOKbMb1kVeRcmftpE29k6TKZyWJ8QJAbhquyaUa3qgyA3Twf2O1R+gdU6+XDTAKrmNyLvzhe90Cn1KL+1pR/aJ1qzvoqrLAHAogyrlnv9osT967KVnaZYG+H+vQdUlo36fSKt6nnJmDmeA0X3L2vqiyGI/lwAnuebr3IrUxsU5Nm8yhY0HXdVfCviTwZJBLFNFhwHztrok5v5NxTkuD30wQzu+34vumZLwHKW457qEbsbyLNxXHiqzbKEjWGKXiZfy7LJYgeQ=="
   },
   {
     "index": 1,
-    "timestamp": "2026-09-06T10:42:29.434Z",
+    "timestamp": "2026-09-06T10:48:39.061Z",
     "action": "CONSENT_GRANTED",
     "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "e153caf38e558b5f30e04fce784d93ba4ed94e34334808d0131497b561ec42b8",
-    "hash": "0de543e3bd80ae4650d9e8463c8d27a702ad46e7375a070f62838a38d3ea7c4b",
-    "signature": "VvXWTLG9D13EF0Zl3jbe4qug92YWMy/2ThAnRZjduTEjRytZTMd//ggndbhUBqTYyB5c+3Z55fgR3+CFJvT4F5PwMAgSeZdXKMdXy9bg7GaCNc+7+DSxuqknkBLin0ZEkjqztEYs9xmPQJQVitSkDpoWl9DJzUS7NUnEZv7AQKId+1i4VgrMWi2fn4TNdoCDFva2Rkgqq9wijAJwKMkAmQ0SMoVaZ9vF4PSEP5Cz5TygsCObgQpxedwX523Bh8gmrb58JQate/8PoFXNoT+FwEQwNsVYelEWczktapX7Kj4KtBmwuM5PDP2v9FzVJ3fWgeMopRvweBFiM1AFy5AGxA=="
+    "previousHash": "71bff93da06ad414f2e6eef55df4dad44568288f9d09d42763e4e13b66ba9afe",
+    "hash": "504a5ded22c8863bb129bfae09ffee0fb725f7affe6c7e7629728220319b586a",
+    "signature": "bOe8iooBHe1LOzzVXbis1izjigZXyOP1hhJbBsKyi9A2ZpsQSNNrVsQ5o3vml7lHUlMRo3t8A1oHRjmzmzs4CUN6Ap9i7QjUQR9CeQvAWB+Q4xwERMO2a0qiqMXE/zl7JL05AsVWTUptF21qSJkMvAdmaZh472h0EUFTYyVBJTBdl1J5BAXI37uk9ObrbTyclJwPbAiwn6vyA3+COoYp+8d7bSw0cXYG0Xrf+FtQ0O0xGZF0FY8w5Md9n7DIgxo1fh9WVpq+ipcoYqDpwCJIyox8A5PpRay7FFjsOF44vt4iMN3GIOnJngmfB6UzRrO3Qk0cGrvtFSCcjyM4Rrtz6Q=="
   },
   {
     "index": 2,
-    "timestamp": "2026-09-06T10:42:29.481Z",
+    "timestamp": "2026-09-06T10:48:39.100Z",
     "action": "CONSENT_REVOKED",
     "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "0de543e3bd80ae4650d9e8463c8d27a702ad46e7375a070f62838a38d3ea7c4b",
-    "hash": "a54dca0af452c1fc61a8b4ccab51ed45b0c9da4eafe1787970250612a649fb96",
-    "signature": "RGFnZJS9a6DQnVro8ysVUrJoY1nmmMrUT75UG/xkXQGnkMJjv0hYKllILR2CVOIgZaDphfyTM7CNTJtUonKvr7ARrRH8uShqvc/+XVbU+0EJpbz+L0MNcjZeEmTnuEFgcwdAZE0rTBawVx6jevBjgsRzvgMOPAyQHXZhP4eNRfndzaVPEJsh6NUMhjK+F60QaYMgpWfkXenzDmvtr1uAEdtgHr8d4wb3pkp314XiUlygy0Uk6p7scpuVXqsJRBdwrxe8mBW54ISzIhG6mkoZTRoFiDOtVsKjD9/GojlS49RqMQ424aIHVD4HQTiLPARmHtMkZvurmD2YW7NlIM6XBA=="
+    "previousHash": "504a5ded22c8863bb129bfae09ffee0fb725f7affe6c7e7629728220319b586a",
+    "hash": "3883a7cc1f647687cbb3a01e4d0d4f0bc1bfc12e5ab999a1cc794f8ef564c143",
+    "signature": "dTm7yhaUiG0tBM1J6g1ni3wkea5zUbTqvBxui4+TURIyP93L0wz2BLuXuEyVxITgD6xIsWLSkDJwz73n/SqMGWaX5VjPVoXNxOXgf8p6ur7B/GjdXtFnioo1IowQZRsWy6+XPzr0ENye3YKE1/LRrFSbIiajZ9Z05ZSYCtLSswZj2ZQQkEUvySBlLMU+IrPTkhm5xSECXuSxF9Pvyi1T75EwSUyLMzwgsjLW2JkjQI0lumdLdPhxCMKoirlsjy/Z6mRYZ2g5x5M02OEKOfoxadEwfm9m9BKlVqc5U7BSfSbaM2+uvuLURq1V4l0yxAOKoAMQb/T1rNeJ3rCQmNGpzQ=="
   },
   {
     "index": 3,
-    "timestamp": "2026-09-06T10:42:29.486Z",
+    "timestamp": "2026-09-06T10:48:39.105Z",
     "action": "CONSENT_REVOKED",
     "patientId": "8b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "a54dca0af452c1fc61a8b4ccab51ed45b0c9da4eafe1787970250612a649fb96",
-    "hash": "ca2a3f35f06bb12110b0efc21e32850ca8522ef7443837d20197a7630e1c398b",
-    "signature": "arAPNm+TIfpsKJc6qTR2R/O6ZFU54xHzOJoXLlh841VAOIXwxMbTngcUlYAanHh4P9poxIL2nHYO+uVUloTWJ2meR3BYhfCtdxNy0hCR3b3NecElI2JzFjCfK5YXSpGsgE6J27KmE0gRk3lLP5rQJb3Hjm4PCFbTbnq9IyKTN7+DExg/FcvDCvcllhatVktJhDNMZUGs0/+KkIDG6GrH9VNbb/bdkKAy7S6HX9+ER+AQP7NEX8TGjnzx+JjkUHmOE/FI3S5QHxv8QYeo8uj3R+82SIWM3OHncatadgYifT7954uJwi+ccq2KbyclmI+ih9Nrx1c/b3Bro2gWqlvMvQ=="
+    "previousHash": "3883a7cc1f647687cbb3a01e4d0d4f0bc1bfc12e5ab999a1cc794f8ef564c143",
+    "hash": "c49d948398e8219fc79d559fb0cd01785bcae59facbf7d209f52d668ab94eb7a",
+    "signature": "RZrup9RyTAcWV7POlxd1FtW5wsgEvFqYxHTyBr8fXbgQ8XXDRvfC3sS5cu08mLot+bOU6b2hfQzec/e7DMWu7DNnijjx0+hFIM1WKr4UNMIl876xfhTbskpW0JACQHqVQhLeWudvc9/4n2aa9/LIBVPunt0PVthmrG8Gzg5gDXhSrIk4VwTYciXWMjAx8cR12e/rIm2MpZOsk87wezoa0wYN+uV+USYAqhJZ4yjnX+BlAoKxTuQXvRDLHnjee/k+ztSVUKD0Y4WAtKwApmA3RK/bcOmuNROHyghcB1O40HQKJZuS5ksfh3yGAx1iBq3VVXfVMLm9L7SinTz3Vi+9wQ=="
   }
 ]
 
@@ -9524,28 +9525,58 @@ router.post('/verify-mfa', async (req, res) => {
   try {
     const decoded = jwt.verify(mfaToken, JWT_SECRET);
     if (!decoded.requiresMFA) {
-      return res.status(400).json({ error: 'Invalid MFA token structure' });
+      return res.status(400).json({ error: 'Invalid MFA session token structure' });
     }
 
-    let user = await User.findByPk(decoded.id);
+    let user = null;
     let ambulanceUnit = null;
+    let hospitalUnit = null;
     let isAmbulance = decoded.isAmbulance || false;
+    let isHospital = decoded.isHospital || false;
+
+    try {
+      user = await User.findByPk(decoded.id);
+    } catch (e) {}
 
     if (!user) {
-      const { Ambulance } = require('../utils/db');
-      ambulanceUnit = await Ambulance.findByPk(decoded.id);
-      if (ambulanceUnit && ambulanceUnit.is_active) {
-        isAmbulance = true;
+      const { Ambulance, Hospital } = require('../utils/db');
+      try {
+        ambulanceUnit = await Ambulance.findByPk(decoded.id);
+        if (ambulanceUnit) isAmbulance = true;
+      } catch (e) {}
+
+      if (!ambulanceUnit) {
+        try {
+          hospitalUnit = await Hospital.findByPk(decoded.id);
+          if (hospitalUnit) isHospital = true;
+        } catch (e) {}
       }
     }
 
-    if (!user && !ambulanceUnit) {
-      return res.status(401).json({ error: 'User or Ambulance not found or inactive' });
+    // Demo/Static unit fallback lookup
+    if (!user && !ambulanceUnit && !hospitalUnit && isAmbulance && decoded.id === 'amb_demo_unit_1') {
+      ambulanceUnit = {
+        id: 'amb_demo_unit_1',
+        vehicleNo: 'MH12AB1234',
+        driverName: 'Emergency Paramedic Unit',
+        contactInfo: '+91-9876543210',
+        type: 'ALS',
+        is_active: true
+      };
+    }
+
+    const activeEntity = isAmbulance ? ambulanceUnit : isHospital ? hospitalUnit : user;
+    if (!activeEntity) {
+      return res.status(404).json({ error: 'Account record not found or session has expired.' });
     }
 
     let isCodeValid = false;
     let isBackupUsed = false;
-    const mfaSecret = isAmbulance ? ambulanceUnit.totp_secret : user.totp_secret;
+    const mfaSecret = activeEntity.totp_secret;
+
+    if (!mfaSecret) {
+      return res.status(400).json({ error: '2FA TOTP is not enabled for this account. Please complete MFA setup first.' });
+    }
 
     // 1. Check if it matches a standard 6-digit TOTP
     if (totpCode.length === 6) {
@@ -9553,7 +9584,7 @@ router.post('/verify-mfa', async (req, res) => {
       isCodeValid = twoFactor.verifyTOTP(mfaSecret, totpCode);
     } 
     // 2. Check if it's an 8-character recovery code (User only)
-    else if (totpCode.length === 8 && !isAmbulance) {
+    else if (totpCode.length === 8 && user) {
       const backupCodes = user.backup_codes || [];
       for (let i = 0; i < backupCodes.length; i++) {
         const match = await bcrypt.compare(totpCode.toUpperCase(), backupCodes[i]);
@@ -9571,7 +9602,7 @@ router.post('/verify-mfa', async (req, res) => {
     }
 
     if (!isCodeValid) {
-      return res.status(400).json({ error: 'Invalid verification code' });
+      return res.status(400).json({ error: 'Invalid 6-digit verification code. Please check your authenticator app code.' });
     }
 
     // Generate token
@@ -23441,6 +23472,11 @@ function encryptSecret(text) {
  * Decrypts ciphertext using AES-256-CBC.
  */
 function decryptSecret(text) {
+  if (!text || typeof text !== 'string') return null;
+  if (!text.includes(':')) {
+    // Plain unencrypted base32 secret
+    return text;
+  }
   try {
     const textParts = text.split(':');
     const iv = Buffer.from(textParts.shift(), 'hex');
@@ -23451,7 +23487,7 @@ function decryptSecret(text) {
     return decrypted.toString();
   } catch (err) {
     console.error('[2FA DECRYPT ERROR]', err.message);
-    throw new Error('Failed to decrypt TOTP secret');
+    return text; // Fallback to raw text if decryption fails
   }
 }
 
@@ -23478,13 +23514,20 @@ async function generateSecret(userId, userEmail) {
  * Verifies a TOTP token against the encrypted secret.
  */
 function verifyTOTP(encryptedSecret, token) {
-  const decrypted = decryptSecret(encryptedSecret);
-  return speakeasy.totp.verify({
-    secret: decrypted,
-    encoding: 'base32',
-    token,
-    window: 4
-  });
+  if (!encryptedSecret || !token) return false;
+  try {
+    const decrypted = decryptSecret(encryptedSecret);
+    if (!decrypted) return false;
+    return speakeasy.totp.verify({
+      secret: decrypted,
+      encoding: 'base32',
+      token,
+      window: 4
+    });
+  } catch (err) {
+    console.error('[2FA VERIFY ERROR]', err.message);
+    return false;
+  }
 }
 
 /**
@@ -42419,6 +42462,8 @@ export function MfaVerifyScreen({ mfaToken, onLoginSuccess, onCancel, ParticleCa
 
       sessionStorage.setItem('rescuelink_token', data.token);
       sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
+      localStorage.setItem('rescuelink_token', data.token);
+      localStorage.setItem('rescuelink_user', JSON.stringify(data.user));
 
       let viewRole = 'user';
       if (data.user.role === 'doctor' || data.user.role === 'hospital_admin') {
