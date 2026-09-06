@@ -4841,6 +4841,7 @@ FILE: backend\data\audit_log.txt
 [2026-09-03T09:47:44.270Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 [2026-09-06T10:29:23.678Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 [2026-09-06T10:32:38.485Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
+[2026-09-06T10:42:31.185Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 
 
 ================================================
@@ -4999,39 +5000,39 @@ FILE: backend\data\consent_ledger_test.json
 [
   {
     "index": 0,
-    "timestamp": "2026-09-06T10:32:36.973Z",
+    "timestamp": "2026-09-06T10:42:29.424Z",
     "action": "GENESIS_CHAIN_INITIALIZED",
     "patientId": "00000000-0000-0000-0000-000000000000",
     "previousHash": "0",
-    "hash": "fd2d1f6f909af20b96e3ef2d77e8da23d468c88495fe0e124022aeb50238d126",
-    "signature": "IMrDiVM2sBDsWTyyZVHDDhsMf8yvP9c06jEkLaNjl/9u6uJpiYBE0Xxn39KMQfGoAWapFMBlSCwz9U/PngYYnFhp9uPEHL+XzQpsz/o+CSgUrHOVlhEjD+gG686wSpbCeKGn1MG9ZFP+XxMgkEg5WeFf/VEXzt8hV0SSIHF2kF3ZN76jmq1O4vdmk80QP/T0hc4eOOuqg3F1vBpNt5oFNc3ULhTbrxA+vVmPZBOSbUirAiCUQAf6dU1siJE01ucn+gywpGO7eLq+3nbS5uoXX3914jHuRgRXznyvquKZ7JB/4j6G5EDwg2MLIjWziNpkW0dB3CE/lWuahnn4x7pQIw=="
+    "hash": "e153caf38e558b5f30e04fce784d93ba4ed94e34334808d0131497b561ec42b8",
+    "signature": "THaZ+fZ6IkJxbL2nSqCScvpB2Hj7DwkmNIKbfJ7Hnkv0Lcfajm0RxX9kWm8OELvJ5iWf85qUuaavNwJERFK+51sa5JAUFGPo5S+/M18RsP9YCqxmKEs3C7EJbV6c52A7VOhrZ9F5SyhohHxFWtC2phQW0NW4rMeIt2oKRNOK+BT9F1lYf15APVmiH28UoTAT3JZLVil7AM16Re9sNB5pIVXJKn5Mc9toUNStLFS/wtvWaImwKJkhd3ExX1AhaCcaxztS5DW8bCs29YUAhk8hmz2k/m5Z4jsFpkej/CdHVygCzen8D2UBTymw6F2mE9GyelDEt9z/IVeeUPpl7Czz2g=="
   },
   {
     "index": 1,
-    "timestamp": "2026-09-06T10:32:36.980Z",
+    "timestamp": "2026-09-06T10:42:29.434Z",
     "action": "CONSENT_GRANTED",
     "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "fd2d1f6f909af20b96e3ef2d77e8da23d468c88495fe0e124022aeb50238d126",
-    "hash": "f0f655b7cc7139edb63d7b098b9d229cdf26c64b6d0872e0f3e3b1b3f12d3357",
-    "signature": "ajLl/CGIgD0V93em9yYktIvtxnZOr73Fi2TlHptmJxJGLC7xDJS5Rtib/1YarpklNPO/uMWdwmdjR/zbuanZGKT5DhcH8I0siFeoCm75iE8BsQdw78YvQ4ZSsNPDpWIDoWOBT3jTTn4mnenRE5567urWaiHx+hH6DBvoOnW8foaL91GRdUd1lG1SORpJRAVAqLUTSt3N3a/wcqeSyPdG7iwvEh6AuR3wXJiqTDA0+ScokI4z2tdKhanhEJB05YsdaCNxRy9XTkQh7JahhaFEuFZrk8TDAJZ4AKIDbNIbesASchWBpjPQn1GCKtray6uIUKFaPpz/dehwR038V6O0YQ=="
+    "previousHash": "e153caf38e558b5f30e04fce784d93ba4ed94e34334808d0131497b561ec42b8",
+    "hash": "0de543e3bd80ae4650d9e8463c8d27a702ad46e7375a070f62838a38d3ea7c4b",
+    "signature": "VvXWTLG9D13EF0Zl3jbe4qug92YWMy/2ThAnRZjduTEjRytZTMd//ggndbhUBqTYyB5c+3Z55fgR3+CFJvT4F5PwMAgSeZdXKMdXy9bg7GaCNc+7+DSxuqknkBLin0ZEkjqztEYs9xmPQJQVitSkDpoWl9DJzUS7NUnEZv7AQKId+1i4VgrMWi2fn4TNdoCDFva2Rkgqq9wijAJwKMkAmQ0SMoVaZ9vF4PSEP5Cz5TygsCObgQpxedwX523Bh8gmrb58JQate/8PoFXNoT+FwEQwNsVYelEWczktapX7Kj4KtBmwuM5PDP2v9FzVJ3fWgeMopRvweBFiM1AFy5AGxA=="
   },
   {
     "index": 2,
-    "timestamp": "2026-09-06T10:32:37.021Z",
+    "timestamp": "2026-09-06T10:42:29.481Z",
     "action": "CONSENT_REVOKED",
     "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "f0f655b7cc7139edb63d7b098b9d229cdf26c64b6d0872e0f3e3b1b3f12d3357",
-    "hash": "1c17f455e9f64080a3c080e2eb08bedef4dc4385a9cca7c6790cfcbdf2562aca",
-    "signature": "G/q/njE/9g0PKn4gYpPvV0DZXNYZ/VFsCC8mUw8qNOlW7UWQv29ydfUrz0iJQmAxth0tFhCd1cnhFpGvxclulCf4vjzxDtdKA4pTm6Eq9splnsOapL66Qp5DKci+W/eAuhBXmg2p4kiIe6gkH5p5wUYpjgjLej+zZklZwp2Txi67k5KSHmHqcIZr30oY10yOOTiF6FXbKoIw6Ns4vuHfJoOgtC1AH0cADxPyoCyoMp+8vUp2JBVnOL7ReOoPiMPJm1zDiy/uveQyWZde8wcrJk0LaJY3f7afIQ0n5EU5uy0xneJ7yHs4/hTAYtBg9v0BIXUlxJq7/TW1hK/UT4KxWw=="
+    "previousHash": "0de543e3bd80ae4650d9e8463c8d27a702ad46e7375a070f62838a38d3ea7c4b",
+    "hash": "a54dca0af452c1fc61a8b4ccab51ed45b0c9da4eafe1787970250612a649fb96",
+    "signature": "RGFnZJS9a6DQnVro8ysVUrJoY1nmmMrUT75UG/xkXQGnkMJjv0hYKllILR2CVOIgZaDphfyTM7CNTJtUonKvr7ARrRH8uShqvc/+XVbU+0EJpbz+L0MNcjZeEmTnuEFgcwdAZE0rTBawVx6jevBjgsRzvgMOPAyQHXZhP4eNRfndzaVPEJsh6NUMhjK+F60QaYMgpWfkXenzDmvtr1uAEdtgHr8d4wb3pkp314XiUlygy0Uk6p7scpuVXqsJRBdwrxe8mBW54ISzIhG6mkoZTRoFiDOtVsKjD9/GojlS49RqMQ424aIHVD4HQTiLPARmHtMkZvurmD2YW7NlIM6XBA=="
   },
   {
     "index": 3,
-    "timestamp": "2026-09-06T10:32:37.025Z",
+    "timestamp": "2026-09-06T10:42:29.486Z",
     "action": "CONSENT_REVOKED",
     "patientId": "8b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "1c17f455e9f64080a3c080e2eb08bedef4dc4385a9cca7c6790cfcbdf2562aca",
-    "hash": "bd1b91fb94e7f612413c005a141e84a48f1274d999d90e17c5b54258a2c8a50a",
-    "signature": "IJLgjYFlM5MCXWZkhmr7wSBvbzod8z1xK8GkxEV3FFq0b+nnO7wAnqyNtW96NQe/HpDzK2r0f3MApPERvxm59iAV+ZgOkogj6EW8maQ5B+bGfU1BqUBxw4z2R1Kitx2jAQG0QZzQnkVDZhpDo8XBUNNI3Vd8Csq5FWu0JIxXQrfng8dCUBACprNIvqWZxdLQxL8uBLsWp/noO4zeCgun3T5bQrfWsDiGUbFhkV9dzcmaxXeUXP+q1YYIIv+C3vnvZCA+8TTzhVaMOS/prSkGxTHOqnk9nwuL4MaJmOmwDVkZmlf8ix6a3TGwpYpQjiB/PdYxNC3lkTpNe9w750XYXA=="
+    "previousHash": "a54dca0af452c1fc61a8b4ccab51ed45b0c9da4eafe1787970250612a649fb96",
+    "hash": "ca2a3f35f06bb12110b0efc21e32850ca8522ef7443837d20197a7630e1c398b",
+    "signature": "arAPNm+TIfpsKJc6qTR2R/O6ZFU54xHzOJoXLlh841VAOIXwxMbTngcUlYAanHh4P9poxIL2nHYO+uVUloTWJ2meR3BYhfCtdxNy0hCR3b3NecElI2JzFjCfK5YXSpGsgE6J27KmE0gRk3lLP5rQJb3Hjm4PCFbTbnq9IyKTN7+DExg/FcvDCvcllhatVktJhDNMZUGs0/+KkIDG6GrH9VNbb/bdkKAy7S6HX9+ER+AQP7NEX8TGjnzx+JjkUHmOE/FI3S5QHxv8QYeo8uj3R+82SIWM3OHncatadgYifT7954uJwi+ccq2KbyclmI+ih9Nrx1c/b3Bro2gWqlvMvQ=="
   }
 ]
 
@@ -9353,9 +9354,10 @@ router.post('/login', validate(loginBody), async (req, res) => {
       });
     }
 
-    if (!isAmbulanceTableLogin && !isHospitalTableLogin && mfaSecret && isMfaFullySetup && req.body.bypassMFA !== true) {
+    if (mfaSecret && isMfaFullySetup && req.body.bypassMFA !== true) {
+      const targetId = isAmbulanceTableLogin ? ambulanceUnit.id : isHospitalTableLogin ? hospitalUnit.id : user.id;
       const mfaToken = jwt.sign(
-        { id: user.id, isAmbulance: false, requiresMFA: true },
+        { id: targetId, isAmbulance: isAmbulanceTableLogin, isHospital: isHospitalTableLogin, requiresMFA: true },
         JWT_SECRET,
         { expiresIn: '10m' }
       );
@@ -25783,8 +25785,8 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
     setLoading(true);
     try {
       const payload = email.includes('@')
-        ? { email, password, role: defaultRole, bypassMFA: true }
-        : { id: email, password, role: defaultRole, bypassMFA: true };
+        ? { email, password, role: defaultRole }
+        : { id: email, password, role: defaultRole };
       const response = await fetch(`${SERVER_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -27433,10 +27435,11 @@ export default function App() {
       auth: { token },
       query: { role },
       transports: ['polling', 'websocket'],
-      reconnectionAttempts: 15,
-
+      reconnection: true,
+      reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
+      timeout: 20000
     });
 
     setSocket(newSocket);
