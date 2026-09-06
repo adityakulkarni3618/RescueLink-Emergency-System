@@ -9,8 +9,10 @@ const { JWT_SECRET } = require('../utils/config');
  */
 function verifyToken(requiredRoles = []) {
   return async (req, res, next) => {
+    if (req.method === 'OPTIONS') return next();
     try {
       const authHeader = req.headers['authorization'];
+
       const token = authHeader && authHeader.split(' ')[1];
 
       if (!token) {
