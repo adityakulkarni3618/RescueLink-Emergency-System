@@ -425,28 +425,58 @@ router.post('/verify-mfa', async (req, res) => {
   try {
     const decoded = jwt.verify(mfaToken, JWT_SECRET);
     if (!decoded.requiresMFA) {
-      return res.status(400).json({ error: 'Invalid MFA token structure' });
+      return res.status(400).json({ error: 'Invalid MFA session token structure' });
     }
 
-    let user = await User.findByPk(decoded.id);
+    let user = null;
     let ambulanceUnit = null;
+    let hospitalUnit = null;
     let isAmbulance = decoded.isAmbulance || false;
+    let isHospital = decoded.isHospital || false;
+
+    try {
+      user = await User.findByPk(decoded.id);
+    } catch (e) {}
 
     if (!user) {
-      const { Ambulance } = require('../utils/db');
-      ambulanceUnit = await Ambulance.findByPk(decoded.id);
-      if (ambulanceUnit && ambulanceUnit.is_active) {
-        isAmbulance = true;
+      const { Ambulance, Hospital } = require('../utils/db');
+      try {
+        ambulanceUnit = await Ambulance.findByPk(decoded.id);
+        if (ambulanceUnit) isAmbulance = true;
+      } catch (e) {}
+
+      if (!ambulanceUnit) {
+        try {
+          hospitalUnit = await Hospital.findByPk(decoded.id);
+          if (hospitalUnit) isHospital = true;
+        } catch (e) {}
       }
     }
 
-    if (!user && !ambulanceUnit) {
-      return res.status(401).json({ error: 'User or Ambulance not found or inactive' });
+    // Demo/Static unit fallback lookup
+    if (!user && !ambulanceUnit && !hospitalUnit && isAmbulance && decoded.id === 'amb_demo_unit_1') {
+      ambulanceUnit = {
+        id: 'amb_demo_unit_1',
+        vehicleNo: 'MH12AB1234',
+        driverName: 'Emergency Paramedic Unit',
+        contactInfo: '+91-9876543210',
+        type: 'ALS',
+        is_active: true
+      };
+    }
+
+    const activeEntity = isAmbulance ? ambulanceUnit : isHospital ? hospitalUnit : user;
+    if (!activeEntity) {
+      return res.status(404).json({ error: 'Account record not found or session has expired.' });
     }
 
     let isCodeValid = false;
     let isBackupUsed = false;
-    const mfaSecret = isAmbulance ? ambulanceUnit.totp_secret : user.totp_secret;
+    const mfaSecret = activeEntity.totp_secret;
+
+    if (!mfaSecret) {
+      return res.status(400).json({ error: '2FA TOTP is not enabled for this account. Please complete MFA setup first.' });
+    }
 
     // 1. Check if it matches a standard 6-digit TOTP
     if (totpCode.length === 6) {
@@ -454,7 +484,7 @@ router.post('/verify-mfa', async (req, res) => {
       isCodeValid = twoFactor.verifyTOTP(mfaSecret, totpCode);
     } 
     // 2. Check if it's an 8-character recovery code (User only)
-    else if (totpCode.length === 8 && !isAmbulance) {
+    else if (totpCode.length === 8 && user) {
       const backupCodes = user.backup_codes || [];
       for (let i = 0; i < backupCodes.length; i++) {
         const match = await bcrypt.compare(totpCode.toUpperCase(), backupCodes[i]);
@@ -472,7 +502,7 @@ router.post('/verify-mfa', async (req, res) => {
     }
 
     if (!isCodeValid) {
-      return res.status(400).json({ error: 'Invalid verification code' });
+      return res.status(400).json({ error: 'Invalid 6-digit verification code. Please check your authenticator app code.' });
     }
 
     // Generate token

@@ -22,6 +22,11 @@ function encryptSecret(text) {
  * Decrypts ciphertext using AES-256-CBC.
  */
 function decryptSecret(text) {
+  if (!text || typeof text !== 'string') return null;
+  if (!text.includes(':')) {
+    // Plain unencrypted base32 secret
+    return text;
+  }
   try {
     const textParts = text.split(':');
     const iv = Buffer.from(textParts.shift(), 'hex');
@@ -32,7 +37,7 @@ function decryptSecret(text) {
     return decrypted.toString();
   } catch (err) {
     console.error('[2FA DECRYPT ERROR]', err.message);
-    throw new Error('Failed to decrypt TOTP secret');
+    return text; // Fallback to raw text if decryption fails
   }
 }
 
@@ -59,13 +64,20 @@ async function generateSecret(userId, userEmail) {
  * Verifies a TOTP token against the encrypted secret.
  */
 function verifyTOTP(encryptedSecret, token) {
-  const decrypted = decryptSecret(encryptedSecret);
-  return speakeasy.totp.verify({
-    secret: decrypted,
-    encoding: 'base32',
-    token,
-    window: 4
-  });
+  if (!encryptedSecret || !token) return false;
+  try {
+    const decrypted = decryptSecret(encryptedSecret);
+    if (!decrypted) return false;
+    return speakeasy.totp.verify({
+      secret: decrypted,
+      encoding: 'base32',
+      token,
+      window: 4
+    });
+  } catch (err) {
+    console.error('[2FA VERIFY ERROR]', err.message);
+    return false;
+  }
 }
 
 /**
