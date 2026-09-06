@@ -255,9 +255,10 @@ router.post('/login', validate(loginBody), async (req, res) => {
       });
     }
 
-    if (!isAmbulanceTableLogin && !isHospitalTableLogin && mfaSecret && isMfaFullySetup && req.body.bypassMFA !== true) {
+    if (mfaSecret && isMfaFullySetup && req.body.bypassMFA !== true) {
+      const targetId = isAmbulanceTableLogin ? ambulanceUnit.id : isHospitalTableLogin ? hospitalUnit.id : user.id;
       const mfaToken = jwt.sign(
-        { id: user.id, isAmbulance: false, requiresMFA: true },
+        { id: targetId, isAmbulance: isAmbulanceTableLogin, isHospital: isHospitalTableLogin, requiresMFA: true },
         JWT_SECRET,
         { expiresIn: '10m' }
       );
