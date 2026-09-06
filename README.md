@@ -35,22 +35,27 @@ graph TD
 
 ---
 
-## 2. Real-World Healthcare Features & Capabilities
+## 2. Current Implementation Status (Implemented vs Mocked)
 
-- **🚨 Guest Emergency Dispatch (Authentication Bypass)**: Instant SOS dispatch triggering geolocation capture and immediate ambulance routing without requiring account setup or passwords during acute crises.
-- **🚖 Uber/Ola Style Radial Dispatch Engine**: 10 km ambulance radial dispatch and 20 km hospital search with single-accept lock and automated cancellation recovery re-broadcasting.
-- **🛡️ War Room Credentials Verification Gate**: Registration approval workflow for hospitals and ambulances. Newly registered units remain in `PENDING_VERIFICATION` status until inspected and approved by the City Administrator in the War Room.
-- **🛸 Drone AED Dispatch Network**: Autonomous aerial drone AED dispatch protocol for rapid airway and defibrillator deployment to emergency sites.
-- **📱 Lockscreen QR Emergency Health Passport**: Offline QR code health passport for instant first-responder access to ABHA ID, blood group, allergies, and emergency contacts without device unlock.
-- **🏥 Multi-Hospital 108 Capacity Auto-Balancing**: Dynamic bed, ICU, and ventilator capacity calculation with automated patient load balancing across city hospital networks.
-- **🗺️ Zero-Token Leaflet Map Engine**: High-contrast, zero-token Leaflet map layer using OpenStreetMap and Esri tiles with dark-mode CSS filtering for 100% reliable rendering without API key limits.
-- **⚡ HTTP Gzip Response Compression**: Native Express Gzip compression reducing payload sizes by 75%–80% to protect cloud egress bandwidth limits.
-- **🧍 Patient Emer-Health Profile Management**: Full patient portal allowing management of ABDM ABHA IDs, blood groups, allergies, chronic conditions, next-of-kin emergency contact numbers, and insurance policies.
-- **🚑 Certified Ambulance & Crew Management**: Paramedic license tracking, expiration dates, oxygen capacity (liters), and standard EMS vehicle safety compliance checks.
-- **🏥 Hospital Trauma Tier Routing**: Clinical Trauma Center Ratings (Tier 1 Comprehensive, Tier 2 Major, Tier 3 General ER) combined with JCI/NABH national accreditation tracking for intelligent AI destination routing.
-- **🛡️ DPDP Act 2023 & HIPAA Compliance**: Application-layer AES-256-GCM encryption for PHI/PII, dynamic consent revocation, automated 3-year record purge policies, and immutable cryptographic audit logs.
-- **🚦 AI Emergency Corridor & Dynamic Signal Preemption**: Dynamic traffic signal override synchronizer with Kalman filter GPS drift smoothing, HMAC-SHA256 telemetry signature checks, and automatic watchdog timeouts to prevent city-wide traffic locks.
+To ensure full transparency on what is actively running in this codebase versus what is mocked or planned on the roadmap, here is the implementation status:
 
+### ✅ Fully Implemented & Functional in Codebase
+- **🚨 Guest Emergency Dispatch (Authentication Bypass)**: Functional. Instant SOS dispatch triggering geolocation capture and immediate ambulance routing.
+- **🚖 Radial Dispatch Engine**: Functional. Ambulance and hospital search algorithms with automated routing.
+- **🛡️ War Room Verification Gate**: Functional. Admin approval workflows for new hospital/ambulance accounts (`is_active: false` until verified).
+- **📱 QR Emergency Health Passport**: Functional. Offline QR code generation for patient profiles.
+- **🗺️ Zero-Token Leaflet Map Engine**: Functional. Leaflet maps with custom CSS dark-mode filtering for reliable rendering without API keys.
+- **⚡ HTTP Gzip Response Compression**: Functional. Express Gzip compression actively running on Render.
+- **🧍 Patient Emer-Health Profile Management**: Functional. Full patient portal backed by PostgreSQL.
+- **🚑 Ambulance & Crew Management**: Functional. Dashboards for paramedics to receive dispatches.
+- **🛡️ DPDP Act 2023 & HIPAA Compliance Structure**: Functional. AES-256-GCM application-layer encryption for PHI/PII and automated retention policies.
+
+### 🚧 Mocked / Roadmap / External Hardware (From Digest)
+- **🛸 Drone AED Dispatch Network**: **Not Implemented**. Mentioned in design documents but there is no active physical drone hardware integration.
+- **🚦 Traffic Signal Preemption (Emergency Corridor)**: **Simulated**. The backend calculates junction intersections (`emergencyCorridor.js`), but it does NOT actually override real-world municipal traffic lights.
+- **🏥 ABDM / FHIR Clinical Interoperability**: **Simulated / Sandbox**. The code (`abdm.js`, `fhirConverter.js`) handles FHIR bundles, but requires paid/government-approved credentials to interact with real Indian Govt gateways.
+- **💓 Hardware Vitals Monitors (Philips/GE)**: **Simulated**. The `vitalsBridge.js` sends mock HL7 waveforms unless you connect a physical Web-Bluetooth device to the browser.
+- **Multi-Hospital Capacity Auto-Balancing**: **Basic**. The dashboard calculates theoretical loads, but true inter-hospital automated transfers require deeper municipal API integrations.
 ---
 
 ## 3. Tech Stack
