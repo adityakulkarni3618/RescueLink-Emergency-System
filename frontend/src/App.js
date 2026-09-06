@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
+import { API_BASE_URL, SOCKET_URL } from './config/api';
 import AmbulanceStreamer from './components/AmbulanceStreamer';
 import HospitalDashboard from './components/HospitalDashboard';
 import UserDashboard from './components/UserDashboard';
@@ -12,8 +13,8 @@ import { MfaVerifyScreen } from './components/MfaVerifyScreen';
 import CorridorPanel from './components/CorridorPanel';
 import SimulationDashboard from './components/SimulationDashboard';
 
-const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system-4d85.onrender.com');
-const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system-4d85.onrender.com');
+const SERVER_URL = API_BASE_URL;
+
 
 // Global fetch request interceptor for JWT auth
 const originalFetch = window.fetch;
@@ -2948,8 +2949,7 @@ export default function App() {
 
   // Cold start warm-up: Ping the Render backend directly on page load to initiate wake-up sequence
   useEffect(() => {
-    const warmUpUrl = SOCKET_URL || 'https://rescuelink-emergency-system.onrender.com';
-    fetch(`${warmUpUrl}/health`)
+    fetch(`${API_BASE_URL}/health`)
       .then(res => res.json())
       .then(data => console.log('[SERVER WARM-UP] Render server active:', data))
       .catch(err => console.warn('[SERVER WARM-UP] Warm-up ping initiated:', err.message));

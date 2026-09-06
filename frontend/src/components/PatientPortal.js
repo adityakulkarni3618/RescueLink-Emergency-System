@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import QrPassportModal from './QrPassportModal';
+import { API_BASE_URL } from '../config/api';
 
-const getServerUrl = () => process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
+const getServerUrl = () => API_BASE_URL;
+
 
 export default function PatientPortal() {
   const [activeTab, setActiveTab] = useState('overview');
