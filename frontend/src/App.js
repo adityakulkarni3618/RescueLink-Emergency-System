@@ -1361,8 +1361,8 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
     setLoading(true);
     try {
       const payload = email.includes('@')
-        ? { email, password, role: defaultRole, bypassMFA: true }
-        : { id: email, password, role: defaultRole, bypassMFA: true };
+        ? { email, password, role: defaultRole }
+        : { id: email, password, role: defaultRole };
       const response = await fetch(`${SERVER_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -3011,10 +3011,11 @@ export default function App() {
       auth: { token },
       query: { role },
       transports: ['polling', 'websocket'],
-      reconnectionAttempts: 15,
-
+      reconnection: true,
+      reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
+      timeout: 20000
     });
 
     setSocket(newSocket);
