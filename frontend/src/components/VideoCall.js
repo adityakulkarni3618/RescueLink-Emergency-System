@@ -1,12 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import DailyIframe from '@daily-co/daily-js';
 import axios from 'axios';
+import { API_BASE_URL } from '../config/api';
 
 /**
  * Premium WebRTC Telemedicine Component utilizing Daily.co SDK.
  * Supports User, Paramedic, Hospital, and Admin roles.
  */
 const VideoCall = ({ socket, role, missionId: reqId }) => {
+
   const [inCall, setInCall] = useState(false);
   const [calling, setCalling] = useState(false);
   const [incomingUrl, setIncomingUrl] = useState(null);
@@ -106,8 +108,7 @@ const VideoCall = ({ socket, role, missionId: reqId }) => {
 
     try {
       const token = sessionStorage.getItem('rescuelink_token') || sessionStorage.getItem('rescuelink_token') || '';
-      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
-      const res = await axios.post(`${SERVER_URL}/api/video/create-room`, { reqId }, {
+      const res = await axios.post(`${API_BASE_URL}/api/video/create-room`, { reqId }, {
         headers: { Authorization: `Bearer ${token}` }
       });
 

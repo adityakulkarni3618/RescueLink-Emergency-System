@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../config/api';
 
-const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
+const SERVER_URL = API_BASE_URL;
+
 
 export default function VerificationPanel({ token, socket }) {
   const [pendingAmbulances, setPendingAmbulances] = useState([]);

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { API_BASE_URL } from '../config/api';
 
 export function MfaVerifyScreen({ mfaToken, onLoginSuccess, onCancel, ParticleCanvas }) {
   const [totpCode, setTotpCode] = useState('');
@@ -9,9 +10,9 @@ export function MfaVerifyScreen({ mfaToken, onLoginSuccess, onCancel, ParticleCa
     e.preventDefault();
     setError('');
     setLoading(true);
-    const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
     try {
-      const response = await fetch(`${SERVER_URL}/api/auth/verify-mfa`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/verify-mfa`, {
+
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mfaToken, totpCode })

@@ -9,6 +9,8 @@ import AmbulanceMarketplace from './AmbulanceMarketplace';
 import PatientPortal from './PatientPortal';
 import GoodSamaritanPanel from './GoodSamaritanPanel';
 import DroneDispatchPanel from './DroneDispatchPanel';
+import { API_BASE_URL } from '../config/api';
+
 
 const isValidLatLng = (loc) => {
   if (!loc) return false;
@@ -182,7 +184,8 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
   const [showAccountSettings, setShowAccountSettings] = useState(false);
   const [sosConfirmData, setSosConfirmData] = useState(null); // { phone } — pending SOS confirm
   const [abortConfirm, setAbortConfirm] = useState(false); // pending abort confirm
-  const SERVER_URL_CONST = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
+  const SERVER_URL_CONST = API_BASE_URL;
+
 
   useEffect(() => {
     const syncUserHash = () => {
@@ -452,8 +455,8 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
     setTempNationalId(nationalId);
     
     try {
-      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
-      const res = await fetch(`${SERVER_URL}/api/auth/lookup-abha/${nationalId}`);
+      const res = await fetch(`${API_BASE_URL}/api/auth/lookup-abha/${nationalId}`);
+
       const data = await res.json();
       
       if (res.ok) {

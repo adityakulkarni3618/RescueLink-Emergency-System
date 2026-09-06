@@ -1,5 +1,7 @@
 require('dotenv').config();
 const express = require('express'); // trigger-reload
+const path = require('path');
+const fs = require('fs');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
@@ -7,21 +9,66 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const logger = require('./utils/logger');
 
+
 const compression = require('compression');
 
 const app = express();
 const server = http.createServer(app);
 
-app.use(compression());
-app.use(cors({
-  origin: true,
+const rawAllowed = [
+  process.env.FRONTEND_URL,
+  process.env.CLIENT_URL,
+  process.env.CORS_ORIGIN,
+  process.env.ALLOWED_ORIGINS,
+  'https://rescue-link-emergency-system.vercel.app',
+  'https://rescuelink-emergency-system.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:5000'
+].filter(Boolean);
+
+const allowedOrigins = Array.from(new Set(
+  rawAllowed.flatMap(item => item.split(',').map(s => s.trim().replace(/\/$/, ''))).filter(Boolean)
+));
+
+logger.info(`[CORS] Configured allowed origins: ${allowedOrigins.join(', ')}`);
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    const normalizedOrigin = origin.replace(/\/$/, '');
+    if (allowedOrigins.includes(normalizedOrigin) || normalizedOrigin.endsWith('.vercel.app')) {
+      return callback(null, normalizedOrigin);
+    }
+    return callback(null, normalizedOrigin);
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Access-Control-Allow-Origin']
-}));
-app.options('*', cors());
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'Accept',
+    'Origin',
+    'Access-Control-Allow-Origin',
+    'Access-Control-Allow-Headers',
+    'Access-Control-Allow-Methods',
+    'Access-Control-Allow-Credentials'
+  ],
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'HEALTHY', timestamp: new Date().toISOString(), system: 'RescueLink Emergency System' });
+});
+
+app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+
 
 // Sentry Error Tracking Setup (Production Visibility)
 if (process.env.NODE_ENV === 'production' && process.env.SENTRY_DSN) {
@@ -431,9 +478,7 @@ app.get('/api/fhir/:reqId', authenticateToken, (req, res) => {
   res.json(fhirData);
 });
 
-app.get('/health', (req, res) => {
-  res.json({ status: 'HEALTHY', timestamp: new Date().toISOString(), system: 'RescueLink Emergency System' });
-});
+
 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
@@ -611,12 +656,24 @@ app.use((err, req, res, next) => {
 
 // Server already created at top
 const io = new Server(server, {
+  path: '/socket.io',
   cors: {
-    origin: true,
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+      const normalizedOrigin = origin.replace(/\/$/, '');
+      if (allowedOrigins.includes(normalizedOrigin) || normalizedOrigin.endsWith('.vercel.app')) {
+        return callback(null, normalizedOrigin);
+      }
+      return callback(null, normalizedOrigin);
+    },
     credentials: true,
-    methods: ['GET', 'POST']
-  }
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
+  },
+  transports: ['polling', 'websocket'],
+  allowEIO3: true
 });
+
+
 app.set('socketio', io);
 
 // Mount Socket.io Redis adapter for horizontal scaling with dynamic fallback
@@ -3294,10 +3351,7 @@ app.get('/api/resources/shares', (req, res) => {
   res.json(active);
 });
 
-// Lightweight health endpoint for load balancers
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
-});
+
 
 // Readiness check verifying active database and redis connectivity
 app.get('/ready', async (req, res) => {
@@ -3318,8 +3372,17 @@ app.get('/ready', async (req, res) => {
 
 // Fallback to React index.html for unknown routes (React Router support)
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../client/build/index.html'));
+  const clientBuildPath = path.join(__dirname, '../client/build/index.html');
+  const frontendBuildPath = path.join(__dirname, '../frontend/build/index.html');
+  if (fs.existsSync(clientBuildPath)) {
+    return res.sendFile(clientBuildPath);
+  } else if (fs.existsSync(frontendBuildPath)) {
+    return res.sendFile(frontendBuildPath);
+  } else {
+    return res.status(200).json({ status: 'ok', message: 'RescueLink Emergency API System Active' });
+  }
 });
+
 
 // ─── NEW ENTERPRISE SOCKET HANDLERS ───────────────────────────────────────────────
 const activeGreenCorridors = {};

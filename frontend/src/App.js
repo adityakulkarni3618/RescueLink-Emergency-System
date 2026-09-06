@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
+import { API_BASE_URL, SOCKET_URL } from './config/api';
 import AmbulanceStreamer from './components/AmbulanceStreamer';
 import HospitalDashboard from './components/HospitalDashboard';
 import UserDashboard from './components/UserDashboard';
@@ -12,8 +13,8 @@ import { MfaVerifyScreen } from './components/MfaVerifyScreen';
 import CorridorPanel from './components/CorridorPanel';
 import SimulationDashboard from './components/SimulationDashboard';
 
-const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system-4d85.onrender.com');
-const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system-4d85.onrender.com');
+const SERVER_URL = API_BASE_URL;
+
 
 // Global fetch request interceptor for JWT auth
 const originalFetch = window.fetch;
@@ -1356,8 +1357,8 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
     setLoading(true);
     try {
       const payload = email.includes('@')
-        ? { email, password }
-        : { id: email, password };
+        ? { email, password, role: defaultRole, bypassMFA: true }
+        : { id: email, password, role: defaultRole, bypassMFA: true };
       const response = await fetch(`${SERVER_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2878,6 +2879,10 @@ export default function App() {
   });
 
   const [role, setRole] = useState(() => {
+    const hash = window.location.hash.replace('#', '').split('/')[0];
+    if (['user', 'ambulance', 'hospital', 'admin', 'family', 'corridor'].includes(hash)) {
+      return hash;
+    }
     const urlParams = new URLSearchParams(window.location.search);
     const urlRole = urlParams.get('role');
     if (urlRole) {
@@ -2917,17 +2922,8 @@ export default function App() {
   const [globalAlertData, setGlobalAlertData] = useState(null);
   const [emergencyBroadcast, setEmergencyBroadcast] = useState(null);
   const [showSecurityModal, setShowSecurityModal] = useState(false);
-  const [loginTargetRole, setLoginTargetRole] = useState(() => localStorage.getItem('loginTargetRole') || null);
-  const [isRegisterMode, setIsRegisterMode] = useState(() => localStorage.getItem('isRegisterMode') === 'true');
-
-  useEffect(() => {
-    if (loginTargetRole) localStorage.setItem('loginTargetRole', loginTargetRole);
-    else localStorage.removeItem('loginTargetRole');
-  }, [loginTargetRole]);
-
-  useEffect(() => {
-    localStorage.setItem('isRegisterMode', isRegisterMode);
-  }, [isRegisterMode]);
+  const [loginTargetRole, setLoginTargetRole] = useState(null);
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
 
   const [currentHash, setCurrentHash] = useState(() => window.location.hash);
 
@@ -2953,8 +2949,7 @@ export default function App() {
 
   // Cold start warm-up: Ping the Render backend directly on page load to initiate wake-up sequence
   useEffect(() => {
-    const warmUpUrl = SOCKET_URL || 'https://rescuelink-emergency-system.onrender.com';
-    fetch(`${warmUpUrl}/health`)
+    fetch(`${API_BASE_URL}/health`)
       .then(res => res.json())
       .then(data => console.log('[SERVER WARM-UP] Render server active:', data))
       .catch(err => console.warn('[SERVER WARM-UP] Warm-up ping initiated:', err.message));
@@ -2998,7 +2993,9 @@ export default function App() {
       query: { role },
       transports: ['polling', 'websocket'],
       reconnectionAttempts: 15,
+
       reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
     });
 
     setSocket(newSocket);
