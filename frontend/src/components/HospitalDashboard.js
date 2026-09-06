@@ -1791,15 +1791,6 @@ function HandoverModal({ patient, vitals, notes, onClose, previousReports, onSav
   );
 }
 
-/* ─── Hospital Credentials DB (Demo) ─────────────────────────────────── */
-const HOSPITAL_CREDENTIALS = [
-  { hospitalId: 'HOSP-001', password: 'rescue123', name: 'Manipal Global Trauma Center', adminName: 'Dr. Sarah Mitchell', internalId: 'manipal-trauma', lat: 12.9592, lng: 77.6444 },
-  { hospitalId: 'HOSP-002', password: 'rescue123', name: "St. John's Medical College", adminName: 'Dr. James Wilson', internalId: 'st-johns', lat: 12.9344, lng: 77.6111 },
-  { hospitalId: 'HOSP-003', password: 'rescue123', name: 'Apollo Hospital Bengaluru', adminName: 'Dr. Emily Chen', internalId: 'apollo-bengaluru', lat: 12.8958, lng: 77.5983 },
-  { hospitalId: 'HOSP-004', password: 'rescue123', name: 'Metropolitan Multispeciality', adminName: 'Dr. David Foster', internalId: 'metro-multi', lat: 12.9716, lng: 77.5946 },
-  { hospitalId: 'HOSP-005', password: 'rescue123', name: 'Cardiac & Neuro Institute', adminName: 'Dr. Maria Garcia', internalId: 'cardiac-neuro', lat: 13.0116, lng: 77.5501 },
-];
-
 export default function HospitalDashboard({ socket, connected, onLogout, onSwitchRole, onShowSecurity }) {
   const [isAuthenticated, setIsAuthenticated] = useState(true);
 
@@ -2077,15 +2068,13 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
       if (res.ok && data.token) {
         sessionStorage.setItem('rescuelink_token', data.token);
 
-        // Find in local registry for UI metadata or fallback to response
         const found = {
-          ...(HOSPITAL_CREDENTIALS.find(c => c.hospitalId === inputId) || {
-            name: data.user?.role === 'doctor' ? 'Manipal Global Trauma Center' : 'Emergency Center',
-            adminName: data.user?.name || 'Dr. Command',
-            internalId: (data.user?.hospital_id || inputId).toLowerCase(),
-            lat: data.lat || 18.5204,
-            lng: data.lng || 73.8567
-          })
+          hospitalId: data.user?.hospital_id || inputId,
+          name: data.user?.name || (data.user?.role === 'doctor' ? 'Manipal Global Trauma Center' : 'Emergency Center'),
+          adminName: data.user?.name || 'Dr. Command',
+          internalId: (data.user?.hospital_id || inputId).toLowerCase(),
+          lat: data.lat || 12.9592,
+          lng: data.lng || 77.6444
         };
 
         // Always overwrite hospitalId with the real database UUID returned by the server
@@ -2164,13 +2153,12 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
     const finalInputId = loginId || user.hospital_id || 'HOSP-GENERIC';
 
     const found = {
-      ...(HOSPITAL_CREDENTIALS.find(c => c.hospitalId === finalInputId) || {
-        name: user.role === 'doctor' ? 'Manipal Global Trauma Center' : 'Emergency Center',
-        adminName: user.name || 'Dr. Command',
-        internalId: finalInputId.toLowerCase(),
-        lat: user.lat || 18.5204,
-        lng: user.lng || 73.8567
-      })
+      hospitalId: user.hospital_id || finalInputId,
+      name: user.name || (user.role === 'doctor' ? 'Manipal Global Trauma Center' : 'Emergency Center'),
+      adminName: user.name || 'Dr. Command',
+      internalId: (user.hospital_id || finalInputId).toLowerCase(),
+      lat: user.lat || 12.9592,
+      lng: user.lng || 77.6444
     };
 
     // Always overwrite hospitalId with the real database UUID returned by the server
@@ -2296,12 +2284,9 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
     try {
       // RESTORE AUTH STATE
       if (data.hospitalId) {
-        const found = HOSPITAL_CREDENTIALS.find(c => c.hospitalId === data.hospitalId);
-        if (found) {
-          console.log(`[RECOVERY] Restoring hospital auth: ${found.hospitalId}`);
-          setAuthHospital(found);
-          if (found.internalId) setActiveHospitalId(found.internalId);
-        }
+        console.log(`[RECOVERY] Restoring hospital auth: ${data.hospitalId}`);
+        setAuthHospital(prev => ({ ...(prev || {}), hospitalId: data.hospitalId }));
+        setActiveHospitalId(String(data.hospitalId).toLowerCase());
       }
 
       setActiveMissionId(data.id);
