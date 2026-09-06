@@ -2275,7 +2275,8 @@ function LandingHomepage({ onSelectRole }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchRegistry = async () => {
+    let isMounted = true;
+    const fetchRegistry = async (retryCount = 0) => {
       try {
         const [resAmb, resHosp] = await Promise.all([
           fetch(`${SERVER_URL}/api/ambulances`),
@@ -2283,24 +2284,38 @@ function LandingHomepage({ onSelectRole }) {
         ]);
         if (resAmb.ok) {
           const list = await resAmb.json();
-          setAmbulances(list);
+          if (isMounted) setAmbulances(list || []);
         }
         if (resHosp.ok) {
           const list = await resHosp.json();
-          setHospitals(list);
+          if (isMounted) setHospitals(list || []);
+        }
+        // If empty result on initial load, retry after short delay for Render wake-up
+        if ((!resAmb.ok || !resHosp.ok) && retryCount < 4) {
+          setTimeout(() => {
+            if (isMounted) fetchRegistry(retryCount + 1);
+          }, 3000);
         }
       } catch (err) {
         console.warn('[WIDGET FETCH ERROR]', err.message);
+        if (retryCount < 4) {
+          setTimeout(() => {
+            if (isMounted) fetchRegistry(retryCount + 1);
+          }, 3000);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
     fetchRegistry();
     const interval = setInterval(() => {
       if (document.hidden) return;
       fetchRegistry();
-    }, 60000);
-    return () => clearInterval(interval);
+    }, 15000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   return (
