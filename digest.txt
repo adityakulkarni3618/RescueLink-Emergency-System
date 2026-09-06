@@ -1,3 +1,5 @@
+RescueLink Implementation Disclaimer: See README.md for a detailed breakdown of what is fully functional in the codebase vs what is simulated/mocked for demo purposes.
+
 RescueLink Emergency System - Full Codebase Digest
 Generated from: c:\Users\Aditya Kulkarni\Downloads\Health-care-system
 Total files: 176
@@ -44122,5 +44124,6 @@ echo "  Then open http://localhost:3000 in TWO"
 echo "  browser windows for the full demo!"
 echo "────────────────────────────────────────────"
 echo ""
+
 
 
