@@ -1,11 +1,14 @@
 require('dotenv').config();
 const express = require('express'); // trigger-reload
+const path = require('path');
+const fs = require('fs');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const logger = require('./utils/logger');
+
 
 const compression = require('compression');
 
@@ -3328,8 +3331,17 @@ app.get('/ready', async (req, res) => {
 
 // Fallback to React index.html for unknown routes (React Router support)
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../client/build/index.html'));
+  const clientBuildPath = path.join(__dirname, '../client/build/index.html');
+  const frontendBuildPath = path.join(__dirname, '../frontend/build/index.html');
+  if (fs.existsSync(clientBuildPath)) {
+    return res.sendFile(clientBuildPath);
+  } else if (fs.existsSync(frontendBuildPath)) {
+    return res.sendFile(frontendBuildPath);
+  } else {
+    return res.status(200).json({ status: 'ok', message: 'RescueLink Emergency API System Active' });
+  }
 });
+
 
 // ─── NEW ENTERPRISE SOCKET HANDLERS ───────────────────────────────────────────────
 const activeGreenCorridors = {};
