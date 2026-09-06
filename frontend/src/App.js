@@ -2991,9 +2991,10 @@ export default function App() {
     const newSocket = io(SOCKET_URL, {
       auth: { token },
       query: { role },
-      transports: ['polling', 'websocket'],
+      transports: ['websocket', 'polling'],
       reconnectionAttempts: 15,
       reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
     });
 
     setSocket(newSocket);
