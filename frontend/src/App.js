@@ -16,11 +16,15 @@ import SimulationDashboard from './components/SimulationDashboard';
 const SERVER_URL = API_BASE_URL;
 
 
-// Global fetch request interceptor for JWT auth
+// Global fetch request interceptor for JWT auth and API URL qualification
 const originalFetch = window.fetch;
-window.fetch = async function (url, options = {}) {
+window.fetch = async function (input, options = {}) {
+  let url = typeof input === 'string' ? input : (input instanceof URL ? input.toString() : input?.url || '');
+  if (url.startsWith('/api/')) {
+    url = `${API_BASE_URL}${url}`;
+  }
   const token = sessionStorage.getItem('rescuelink_token') || localStorage.getItem('rescuelink_token');
-  if (token && url.toString().includes(SERVER_URL)) {
+  if (token && url.includes(SERVER_URL)) {
     options.headers = options.headers || {};
     if (!options.headers['Authorization'] && !options.headers['authorization']) {
       options.headers['Authorization'] = `Bearer ${token}`;
