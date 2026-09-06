@@ -10,8 +10,10 @@ import { exportMetricsToExcel } from '../utils/excelExporter';
 import PhysiologicalWaveforms from './PhysiologicalWaveforms';
 import VerificationPanel from './VerificationPanel';
 import { MfaVerifyScreen } from './MfaVerifyScreen';
+import { API_BASE_URL } from '../config/api';
 
-const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
+const SERVER_URL = API_BASE_URL;
+
 
 function KpiCard({ label, value, unit, color, icon }) {
   return (
@@ -106,8 +108,7 @@ export default function WarRoom({ socket, connected, onLogout, onSwitchRole, onS
       if (!loc || !loc.lat || !loc.lng) return;
       setAiLoading(true);
       try {
-        const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
-        const res = await fetch(`${SERVER_URL}/api/ai/predictive-hospital`, {
+        const res = await fetch(`${API_BASE_URL}/api/ai/predictive-hospital`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -261,8 +262,7 @@ export default function WarRoom({ socket, connected, onLogout, onSwitchRole, onS
 
   const handleLogin = async () => {
     try {
-      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
-      const res = await fetch(`${SERVER_URL}/api/auth/login`, {
+      const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: 'admin@rescuelink.com', password: loginPass, role: 'admin' })
@@ -366,7 +366,6 @@ export default function WarRoom({ socket, connected, onLogout, onSwitchRole, onS
 
     const poll = async () => {
       try {
-        const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
         const headers = { 'Authorization': `Bearer ${token || ''}` };
         const [statusRes, analyticsRes] = await Promise.all([
           fetch('/api/status', { headers }),
@@ -739,10 +738,10 @@ export default function WarRoom({ socket, connected, onLogout, onSwitchRole, onS
               <div style={{ fontFamily: "'Orbitron'", fontSize: 13, color: '#00ff88', marginBottom: 12 }}>🔐 DPDP ACT 2023 - RIGHT TO ERASURE & AUDIT CENTER</div>
               
               {/* Review pending erasures */}
-              <PendingErasureReviews SERVER_URL_CONST={process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com')} />
+              <PendingErasureReviews SERVER_URL_CONST={API_BASE_URL} />
               
               {/* General Consent Access Logs */}
-              <ConsentAccessLogs SERVER_URL_CONST={process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com')} />
+              <ConsentAccessLogs SERVER_URL_CONST={API_BASE_URL} />
             </div>
           )}
 
@@ -1087,7 +1086,6 @@ function RegistryPanel() {
   const [toast, setToast] = useState(null);
   const [deleteConfirmModal, setDeleteConfirmModal] = useState(null); // {row, action: 'suspend'|'delete'}
 
-  const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
   const token = sessionStorage.getItem('rescuelink_token') || '';
   const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
 
@@ -1707,8 +1705,6 @@ function AuthorityRegistrationForm() {
   const [authorities, setAuthorities] = useState([]);
   const [listLoading, setListLoading] = useState(true);
 
-  const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
-
   const fetchAuthorities = async () => {
     setListLoading(true);
     try {
@@ -1861,8 +1857,7 @@ function LedgerExplorer() {
     setVerifying(true);
     try {
       const token = sessionStorage.getItem('rescuelink_token');
-      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
-      const res = await fetch(`${SERVER_URL}/api/audit/verify`, {
+      const res = await fetch(`${API_BASE_URL}/api/audit/verify`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const d = await res.json();
@@ -1881,8 +1876,7 @@ function LedgerExplorer() {
   const fetchLogs = async () => {
     setLoading(true);
     try {
-      const SERVER_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://rescuelink-emergency-system.onrender.com');
-      const res = await fetch(`${SERVER_URL}/api/audit/blockchain-explorer`);
+      const res = await fetch(`${API_BASE_URL}/api/audit/blockchain-explorer`);
       const data = await res.json();
       if (res.ok) {
         setLogs(data);
