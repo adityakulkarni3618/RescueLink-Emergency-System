@@ -27744,7 +27744,7 @@ export default function App() {
     );
   }
 
-  if (!role && !loginTargetRole) {
+  if (!role) {
     return (
       <div className="app-root">
         <style>{styles}</style>
@@ -27752,73 +27752,19 @@ export default function App() {
           setLoginTargetRole(selRole);
           window.location.hash = selRole;
         }} />
+        {loginTargetRole && (
+          <LoginScreen
+            defaultRole={loginTargetRole}
+            onLoginSuccess={handleLoginSuccess}
+            onMfaSetup={(setupToken) => setMfaSetupToken(setupToken)}
+            onMfaVerify={(mfaToken) => setMfaVerifyToken(mfaToken)}
+            onClose={() => { setLoginTargetRole(null); window.location.hash = ''; }}
+            defaultIsRegister={isRegisterMode}
+          />
+        )}
         <ThemeSwitcher />
       </div>
     );
-  }
-
-  if (!token) {
-    if (currentHash === '#select-role') {
-      return (
-        <div className="app-root">
-          <style>{styles}</style>
-          <RoleSelector onSelect={(selRole) => {
-            sessionStorage.setItem('rescueLinkRole', selRole);
-            setRole(selRole);
-            window.location.hash = selRole;
-          }} />
-          <ThemeSwitcher />
-        </div>
-      );
-    }
-
-    if (loginTargetRole === 'ambulance' || (currentHash === '#ambulance' && loginTargetRole)) {
-      return (
-        <div className="app-root">
-          <style>{styles}</style>
-          <AmbulanceLandingHomepage
-            onLogin={() => { setIsRegisterMode(false); setLoginTargetRole('ambulance'); }}
-            onRegister={() => { setIsRegisterMode(true); setLoginTargetRole('ambulance'); }}
-            onBack={() => { window.location.hash = ''; setRole(null); setLoginTargetRole(null); setIsRegisterMode(false); }}
-          />
-          {loginTargetRole === 'ambulance' && (
-            <LoginScreen
-              defaultRole="ambulance"
-              onLoginSuccess={handleLoginSuccess}
-              onMfaSetup={(setupToken) => setMfaSetupToken(setupToken)}
-              onMfaVerify={(mfaToken) => setMfaVerifyToken(mfaToken)}
-              onClose={() => { setLoginTargetRole(null); }}
-              defaultIsRegister={isRegisterMode}
-            />
-          )}
-          <ThemeSwitcher />
-        </div>
-      );
-    }
-
-    if (loginTargetRole === 'hospital' || (currentHash === '#hospital' && loginTargetRole)) {
-      return (
-        <div className="app-root">
-          <style>{styles}</style>
-          <HospitalLandingHomepage
-            onLogin={() => { setIsRegisterMode(false); setLoginTargetRole('hospital'); }}
-            onRegister={() => { setIsRegisterMode(true); setLoginTargetRole('hospital'); }}
-            onBack={() => { window.location.hash = ''; setRole(null); setLoginTargetRole(null); setIsRegisterMode(false); }}
-          />
-          {loginTargetRole === 'hospital' && (
-            <LoginScreen
-              defaultRole="hospital"
-              onLoginSuccess={handleLoginSuccess}
-              onMfaSetup={(setupToken) => setMfaSetupToken(setupToken)}
-              onMfaVerify={(mfaToken) => setMfaVerifyToken(mfaToken)}
-              onClose={() => { setLoginTargetRole(null); }}
-              defaultIsRegister={isRegisterMode}
-            />
-          )}
-          <ThemeSwitcher />
-        </div>
-      );
-    }
   }
 
   return (
