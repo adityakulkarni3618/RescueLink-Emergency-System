@@ -3866,5 +3866,14 @@ async function gracefulShutdown(signal) {
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
+// Production Crash Guards: Catch unhandled errors without crashing Node process on Render free instances
+process.on('uncaughtException', (err) => {
+  console.error('[SERVER CRASH GUARD] Uncaught Exception caught:', err.stack || err.message || err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[SERVER CRASH GUARD] Unhandled Rejection caught at:', promise, 'reason:', reason);
+});
+
 module.exports = { app, server, startServer, gracefulShutdown };
 // Nodemon trigger comment - reload and restart server successfully
