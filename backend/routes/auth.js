@@ -769,6 +769,49 @@ router.put('/profile', verifyToken(), async (req, res) => {
  * @route POST /api/auth/guest-emergency
  * @desc Quick bypass login to request emergency dispatch under a guest token
  */
+router.post('/demo-token', async (req, res) => {
+  const { role } = req.body;
+  const targetRole = ['ambulance', 'hospital', 'admin', 'family', 'user'].includes(role) ? role : 'ambulance';
+  const demoId = `demo-${targetRole}-${require('crypto').randomBytes(4).toString('hex')}`;
+  
+  let mappedDbRole = 'paramedic';
+  let isAmbulance = true;
+  if (targetRole === 'hospital') { mappedDbRole = 'doctor'; isAmbulance = false; }
+  else if (targetRole === 'admin') { mappedDbRole = 'city_admin'; isAmbulance = false; }
+  else if (targetRole === 'family') { mappedDbRole = 'family'; isAmbulance = false; }
+  else if (targetRole === 'user') { mappedDbRole = 'patient'; isAmbulance = false; }
+
+  try {
+    const accessToken = jwt.sign(
+      {
+        id: demoId,
+        name: `Demo ${targetRole.toUpperCase()} Console`,
+        email: `${demoId}@rescuelink-demo.com`,
+        role: mappedDbRole,
+        hospital_id: targetRole === 'hospital' ? 'hosp-1' : null,
+        isAmbulance,
+        isDemo: true
+      },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    return res.json({
+      token: accessToken,
+      user: {
+        id: demoId,
+        name: `Demo ${targetRole.toUpperCase()} Console`,
+        email: `${demoId}@rescuelink-demo.com`,
+        role: mappedDbRole,
+        isDemo: true
+      }
+    });
+  } catch (err) {
+    console.error('[AUTH ERROR] Demo token generation failed:', err);
+    return res.status(500).json({ error: 'Failed to issue demo token' });
+  }
+});
+
 router.post('/guest-emergency', async (req, res) => {
   const { phone, name } = req.body;
   const guestId = `guest-${require('crypto').randomBytes(8).toString('hex')}`;
