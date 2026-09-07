@@ -4841,9 +4841,7 @@ FILE: backend\data\audit_log.txt
 [2026-09-03T09:47:44.270Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 [2026-09-06T10:29:23.678Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 [2026-09-06T10:32:38.485Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
-[2026-09-06T10:42:31.185Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
-[2026-09-06T10:48:40.766Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
-[2026-09-06T10:56:50.148Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
+[2026-09-07T04:02:32.199Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 
 
 ================================================
@@ -5002,39 +5000,39 @@ FILE: backend\data\consent_ledger_test.json
 [
   {
     "index": 0,
-    "timestamp": "2026-09-06T10:56:48.307Z",
+    "timestamp": "2026-09-07T04:02:29.522Z",
     "action": "GENESIS_CHAIN_INITIALIZED",
     "patientId": "00000000-0000-0000-0000-000000000000",
     "previousHash": "0",
-    "hash": "2379b1cbfde1d90189a5a4eadd6112b0dd545a59ec84255c3f063c9d12cc30b1",
-    "signature": "CMk0WF0wZtlVR3Y1VCHXSpYkIJ9MvmsutAP6xLC82A7ynGHMtnPc44dGSvYOEUdpfBeL7HR5jiQew1lruOn6t2B4ukVqUYBPR7kd4n/L8fOnqg/oM1z7FrOL5AkyyBFfzWN9Er685/Y9Q6QUcTwHlJMoO4mlMifji2Ku6CL/vkkD3R3u+Wp3qrVpDF2Vu3f3yU5VkozxvJqJiBVlzMRBdJEw4sUIr34OiNPp1Xq1Euun7CtRlT3EDS0Wgrf1XnGiBTPGI3jztTFB6hL7gzGFOzt6oDpcPUj7C//Lxj4blqyT/ZSF1BK7UmuO5oifz+Sk4cJtx+1fsXtls8FnoyrH/Q=="
+    "hash": "0631f346e36f5dbda1127a43f8ca8be39f7781114b939587e73f180cc06cec96",
+    "signature": "jEi+YVIZWfapIbuE69ogkWFsQqfutQAa6scB0TT5I4OSQkeYk5PdsbtvNZ/Jw7qHEc7/ANV0XAoOHzZNN1fNuDpF38lcQzEb1prLlpMsTnSTZOvgimQs5cZirsLCUIBtwCb7rP0B7PaW6P2VgjeDDyQb0dKHwFFdX07wqOyM6DOqmaNwZjCczd9siOOTyUdjbLnZVzIjUad4omE6lTtxlXJe4mX1lTife+RzAIOYptcci2K5HmDdouI1X6cq4mD9CC9z47fLjx4HEMkZIfJkT0X6T47gZSGIEnRr8pot7SemNj74oZgkixEYhD9MtvLRpKem3YeFEwsh0CAqZydRQg=="
   },
   {
     "index": 1,
-    "timestamp": "2026-09-06T10:56:48.317Z",
+    "timestamp": "2026-09-07T04:02:29.536Z",
     "action": "CONSENT_GRANTED",
     "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "2379b1cbfde1d90189a5a4eadd6112b0dd545a59ec84255c3f063c9d12cc30b1",
-    "hash": "45f31cb3a64b816619207066157f92544a2f052894bdaddeb3dc8d4ae79ad7ed",
-    "signature": "BYQuvL0JP0TyVU6POJaq6p6WCipA+9hZS81/zZcXHgdd85b73CkIBAkTrjbtj2XL4I9XmBqQa2XECWcYIoxvSFARS1X+2CXc2XUPsjfln5OkxHmrpUvqNFk3KOa9QRtCAMnpDoLP+Y/imv5c2dgsY9DksKQoxPMajDuMVFrOySOvahRMBeTjrC4UgWyY2w1f0FkEq0g6CgzOrzw/1w9DxryoMCFbfrjoKVBqUyptaIgbyIM0N+0Arm0CMkqNC+FTnaDtKH3hBD4IAm0HxvQ0DqfVb1/UIfr0kwZ3wUSgzAOYQT5gE9/87Ha2kxYywhN+dK/13PX3pALYB7vtHUSW0g=="
+    "previousHash": "0631f346e36f5dbda1127a43f8ca8be39f7781114b939587e73f180cc06cec96",
+    "hash": "bd0f43343ce4a0f0f6d725ca9f2ba4b40b72f5bf1cd72ef12250cf4c1558c672",
+    "signature": "U0L38sP7jyWGQFswMhaArMXO1YtZlpBKM1UpI8Flbi7OCrVnagFDb2ecWusCwlqdQvDTK5psuxhpw/9RBM2B48TIgSSadCMfu07DCqEnXqkp9Lcar2UdzM0JOgAisHKzEulPp+vBbOeZ9Xn6hbhNj7gVNCJRk/fEtb+1YPJ25YvtvIYVj6tJWDojMyM2fkTPwRp2Q1c7xk7h3tJC8MHrMmrf1Bj4jm8aI3FUXaSWeLRjVx31kxTgx+8H1k9PJ94P2g+HkAuqYVw815NK+nRVFsF2mbcbP2bLoXSlHQWMLHMVtQcEAwjEc3OUQImu2FW/PyRP8pMdlLUjUlt17i1dOw=="
   },
   {
     "index": 2,
-    "timestamp": "2026-09-06T10:56:48.357Z",
+    "timestamp": "2026-09-07T04:02:29.582Z",
     "action": "CONSENT_REVOKED",
     "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "45f31cb3a64b816619207066157f92544a2f052894bdaddeb3dc8d4ae79ad7ed",
-    "hash": "fba71f4f4229dbfcf76ea01774e254e5c8dfadd880d17b31fd7287ed37837b08",
-    "signature": "NodUEc3HV+ttappaFwkYR6yOmls54xatKP30LwNmDXAITDS4MJXzXq/3N7lJJW9WJSL5XSC0WPrjZJRCin+OrXBY5ShkKKk0wew2PmYVxpNLr+2U37SvGr4iDhyr6/22lmFwQIH1X8iikanoSUDb4iy9W3+94P1CyXDvv3YNBsIRiTY4rsC7C7gbpt0z0JBeYy8uXYy25J8YtSXIYGLWLWXBAfr5g2dJrbpiH2BidxYt9QKdW6x1WUjJKrvBG0E6RRYeEZuNME91GNxhh6nQupBah8LKfIb/qbGjAzeIrKP+KrOJ/J9sFypFtndEQcrVx50ftIixlBArYRUQZMpDvg=="
+    "previousHash": "bd0f43343ce4a0f0f6d725ca9f2ba4b40b72f5bf1cd72ef12250cf4c1558c672",
+    "hash": "ed039695dc6e27f3c772e5570a08b1ef1013c4a19b871dad45a12138ea599ab7",
+    "signature": "TOKz9L/yHM/s8m/wDXdzIqQbyiaOUmegoFpqYbhgwVu7puk5xFAKqLuz3WuzPaRX1yJDBctyGV4/bZa0B5fhtvK15SRqGPpOVnQXnz9wauUG2ZMaqxTPhq/CTHwthDzVdDrz0N36Cmtj3MoTMvnzvcH+Yw3WNP+KK6ljLoeAUBkAWdEKFRXbtj2TcT7S+Z6IIohHDwAvd0Uw03hJw3ggC1AYjZ8ioAopmXzRnPYHQu2vkISzYq1x4dm7PcXA7eD/aaYvhclESpef3qoieFs90r35Raw8iG8cVF6GoTXyf0R+lC9W9d5mOAqjVxIMWiROtqYxzvdq74UWn+xL3m7Myw=="
   },
   {
     "index": 3,
-    "timestamp": "2026-09-06T10:56:48.362Z",
+    "timestamp": "2026-09-07T04:02:29.587Z",
     "action": "CONSENT_REVOKED",
     "patientId": "8b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "fba71f4f4229dbfcf76ea01774e254e5c8dfadd880d17b31fd7287ed37837b08",
-    "hash": "6543f75091ab15a768b3bb7dba95ed61b9857ee706ba8ea4a3eea8cce51590d8",
-    "signature": "Z4yFCtkX6FPJvnzciWX7gp/R9vPZoXbtc2gW1iPhyJqFB3DB06f56TwyN7dznaljFMksx4Q6hBzwFTuUciKUn7OzMQQfCZzOLvqFO8qzaXn2iNnSY3A9PD2jDc7sArRIEaIocmuSnWNK0AD1y6Arxq2r7Lp+OUC8QphalcB3CvySwo7G4YtHALeQbuGhG1CubfymMIMixnL0zMaBbWd0vq1ZpTofiqG7Ya7gyuVq7yh93XMDFMqdih4ncPyd/OefrNmPEtGosYMaOWUU6bLTGSKMmOErQurHZdArmv9oTwMn/R3OwIupUN5hbDiSI4ZnWEo2RBtoqKiMtMIupnx8Tw=="
+    "previousHash": "ed039695dc6e27f3c772e5570a08b1ef1013c4a19b871dad45a12138ea599ab7",
+    "hash": "fd2329eabc7789f9478d204bb8a35a8dd46dd50daab7d1f5a3c8f3c7e1a63195",
+    "signature": "beJsBAoSBjIRUmOmX1gHgqENOUiUhNHLrlMN+DE0x3NCsT4yfq/K6i25HNEpfolVuFXoCNbzxN/AnPEE2vvmOI5UqgP12MumeRseQ25i0b2FqRIYeHbRP+eNzh+NxGy0e1rhliWW48FT4TlekkWRsc9+nCuvUAGak9LIIogQk+Lv+33nFIw4gJ9BgGp3+SCxlZYQ7zVVrwhhjyydjNSt6YeE2WokK6iLz/lyKNritAcIg/zy0PwdaOyINGfi6wDkxCyKt4u2jiGjet3uH4F6DKbpWO3dYvanK//O9obVPD9qgX0R7zJ0Nwft43XjJEdNIQr4cxk+qZ81cGBXm88OSQ=="
   }
 ]
 
@@ -14734,10 +14732,10 @@ const corsOptions = {
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
     const normalizedOrigin = origin.replace(/\/$/, '');
-    if (allowedOrigins.includes(normalizedOrigin) || normalizedOrigin.endsWith('.vercel.app')) {
-      return callback(null, normalizedOrigin);
+    if (allowedOrigins.includes(normalizedOrigin) || normalizedOrigin.endsWith('.vercel.app') || normalizedOrigin.includes('vercel.app')) {
+      return callback(null, true);
     }
-    return callback(null, normalizedOrigin);
+    return callback(null, true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
@@ -15359,10 +15357,10 @@ const io = new Server(server, {
     origin: function (origin, callback) {
       if (!origin) return callback(null, true);
       const normalizedOrigin = origin.replace(/\/$/, '');
-      if (allowedOrigins.includes(normalizedOrigin) || normalizedOrigin.endsWith('.vercel.app')) {
-        return callback(null, normalizedOrigin);
+      if (allowedOrigins.includes(normalizedOrigin) || normalizedOrigin.endsWith('.vercel.app') || normalizedOrigin.includes('vercel.app')) {
+        return callback(null, true);
       }
-      return callback(null, normalizedOrigin);
+      return callback(null, true);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']

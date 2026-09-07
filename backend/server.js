@@ -36,10 +36,10 @@ const corsOptions = {
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
     const normalizedOrigin = origin.replace(/\/$/, '');
-    if (allowedOrigins.includes(normalizedOrigin) || normalizedOrigin.endsWith('.vercel.app')) {
-      return callback(null, normalizedOrigin);
+    if (allowedOrigins.includes(normalizedOrigin) || normalizedOrigin.endsWith('.vercel.app') || normalizedOrigin.includes('vercel.app')) {
+      return callback(null, true);
     }
-    return callback(null, normalizedOrigin);
+    return callback(null, true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
@@ -661,10 +661,10 @@ const io = new Server(server, {
     origin: function (origin, callback) {
       if (!origin) return callback(null, true);
       const normalizedOrigin = origin.replace(/\/$/, '');
-      if (allowedOrigins.includes(normalizedOrigin) || normalizedOrigin.endsWith('.vercel.app')) {
-        return callback(null, normalizedOrigin);
+      if (allowedOrigins.includes(normalizedOrigin) || normalizedOrigin.endsWith('.vercel.app') || normalizedOrigin.includes('vercel.app')) {
+        return callback(null, true);
       }
-      return callback(null, normalizedOrigin);
+      return callback(null, true);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
