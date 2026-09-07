@@ -3037,25 +3037,7 @@ export default function App() {
     return () => window.removeEventListener('hashchange', handleHash);
   }, []);
 
-  // Auto-acquire demo socket token if visiting role view as guest/unauthenticated
-  useEffect(() => {
-    if (role && !token) {
-      fetch(`${SERVER_URL}/api/auth/demo-token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role })
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data.token) {
-            setToken(data.token);
-            sessionStorage.setItem('rescuelink_token', data.token);
-            sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
-          }
-        })
-        .catch(err => console.warn('[DEMO TOKEN ERROR]', err.message));
-    }
-  }, [role, token]);
+
 
   useEffect(() => {
     if (!role || !token) return;
@@ -3087,21 +3069,15 @@ export default function App() {
     newSocket.on('connect_error', (err) => {
       console.error('[SOCKET ERROR] Connection failed:', err.message);
       if (err.message?.toLowerCase().includes('unauthorized') || err.message?.toLowerCase().includes('expired')) {
-        console.warn('[SOCKET] Token invalid. Acquiring new demo session token...');
-        fetch(`${SERVER_URL}/api/auth/demo-token`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ role })
-        })
-          .then(res => res.json())
-          .then(data => {
-            if (data.token) {
-              setToken(data.token);
-              sessionStorage.setItem('rescuelink_token', data.token);
-              sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
-            }
-          })
-          .catch(e => console.warn('[DEMO REFRESH FAILED]', e));
+        console.warn('[SOCKET] Session expired or unauthorized. Clearing storage and redirecting to login...');
+        sessionStorage.removeItem('rescuelink_token');
+        sessionStorage.removeItem('rescuelink_user');
+        sessionStorage.removeItem('rescueLinkRole');
+        localStorage.removeItem('rescuelink_token');
+        localStorage.removeItem('rescuelink_user');
+        localStorage.removeItem('rescueLinkRole');
+        setToken(null);
+        setRole(null);
       }
     });
 
@@ -3216,7 +3192,69 @@ export default function App() {
     );
   }
 
-  if (!role) {
+  if (!token || !role) {
+    if (currentHash === '#select-role') {
+      return (
+        <div className="app-root">
+          <style>{styles}</style>
+          <RoleSelector onSelect={(selRole) => {
+            sessionStorage.setItem('rescueLinkRole', selRole);
+            setRole(selRole);
+            window.location.hash = selRole;
+          }} />
+          <ThemeSwitcher />
+        </div>
+      );
+    }
+
+    if (currentHash === '#ambulance' || loginTargetRole === 'ambulance') {
+      return (
+        <div className="app-root">
+          <style>{styles}</style>
+          <AmbulanceLandingHomepage
+            onLogin={() => { setIsRegisterMode(false); setLoginTargetRole('ambulance'); }}
+            onRegister={() => { setIsRegisterMode(true); setLoginTargetRole('ambulance'); }}
+            onBack={() => { window.location.hash = ''; setRole(null); setLoginTargetRole(null); setIsRegisterMode(false); }}
+          />
+          {loginTargetRole === 'ambulance' && (
+            <LoginScreen
+              defaultRole="ambulance"
+              onLoginSuccess={handleLoginSuccess}
+              onMfaSetup={(setupToken) => setMfaSetupToken(setupToken)}
+              onMfaVerify={(mfaToken) => setMfaVerifyToken(mfaToken)}
+              onClose={() => { setLoginTargetRole(null); }}
+              defaultIsRegister={isRegisterMode}
+            />
+          )}
+          <ThemeSwitcher />
+        </div>
+      );
+    }
+
+    if (currentHash === '#hospital' || loginTargetRole === 'hospital') {
+      return (
+        <div className="app-root">
+          <style>{styles}</style>
+          <HospitalLandingHomepage
+            onLogin={() => { setIsRegisterMode(false); setLoginTargetRole('hospital'); }}
+            onRegister={() => { setIsRegisterMode(true); setLoginTargetRole('hospital'); }}
+            onBack={() => { window.location.hash = ''; setRole(null); setLoginTargetRole(null); setIsRegisterMode(false); }}
+          />
+          {loginTargetRole === 'hospital' && (
+            <LoginScreen
+              defaultRole="hospital"
+              onLoginSuccess={handleLoginSuccess}
+              onMfaSetup={(setupToken) => setMfaSetupToken(setupToken)}
+              onMfaVerify={(mfaToken) => setMfaVerifyToken(mfaToken)}
+              onClose={() => { setLoginTargetRole(null); }}
+              defaultIsRegister={isRegisterMode}
+            />
+          )}
+          <ThemeSwitcher />
+        </div>
+      );
+    }
+
     return (
       <div className="app-root">
         <style>{styles}</style>
