@@ -210,25 +210,10 @@ router.post('/login', validate(loginBody), async (req, res) => {
 
     const mfaSecret = isAmbulanceTableLogin ? ambulanceUnit.totp_secret : isHospitalTableLogin ? hospitalUnit.totp_secret : user.totp_secret;
 
-    // Check if user has completed MFA setup (has backup codes)
+    // Check if user/unit has completed MFA setup (has totp_secret configured)
     let isMfaFullySetup = false;
-    if (mfaSecret) {
-      if (isAmbulanceTableLogin || isHospitalTableLogin) {
-        isMfaFullySetup = true;
-      } else {
-        const parseCodes = (bc) => {
-          if (!bc) return [];
-          if (Array.isArray(bc)) return bc;
-          if (typeof bc === 'string') {
-            try { return JSON.parse(bc); } catch (e) { return []; }
-          }
-          return [];
-        };
-        const codes = parseCodes(user ? user.backup_codes : null);
-        if (codes.length > 0) {
-          isMfaFullySetup = true;
-        }
-      }
+    if (mfaSecret && typeof mfaSecret === 'string' && mfaSecret.trim() !== '') {
+      isMfaFullySetup = true;
     }
 
     const isActive = isAmbulanceTableLogin ? ambulanceUnit.is_active : isHospitalTableLogin ? hospitalUnit.is_active : user.is_active;
