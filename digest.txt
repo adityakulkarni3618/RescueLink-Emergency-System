@@ -4842,6 +4842,7 @@ FILE: backend\data\audit_log.txt
 [2026-09-06T10:29:23.678Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 [2026-09-06T10:32:38.485Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 [2026-09-07T04:02:32.199Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
+[2026-09-07T08:27:05.079Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 
 
 ================================================
@@ -5000,39 +5001,39 @@ FILE: backend\data\consent_ledger_test.json
 [
   {
     "index": 0,
-    "timestamp": "2026-09-07T04:22:17.631Z",
+    "timestamp": "2026-09-07T08:27:02.690Z",
     "action": "GENESIS_CHAIN_INITIALIZED",
     "patientId": "00000000-0000-0000-0000-000000000000",
     "previousHash": "0",
-    "hash": "9d40ec32875698f10632e893b950943d6a39381173c37ec2c32e91dce89b911e",
-    "signature": "eSficbiqWlwz7RGAb4CLhgu2qAH1gTJYb2qDNVFk4XjqPWNq4FyYuhfzbZuG3mzkiwLeoMjzBq3Bq9k08aRvkNxOn/hpGJ1+EeC3/iyM6VSZX/8mJEMG80mjONrAjTLAAiXZv8CNlUOBk/lqzMorjBklkzr6VElIr2/V6FRTtxPl5NrgEbG0ma7ErfRcHDda7llmCdDgiGUJEy8Hzh2eFK8/R6GNqIXNSSPRS47vTsizF4GMD9Kn/N/2mixLN+IRB+PN3DMJSsRyvPKrZJOXenFwhIR2E/0JHfB0ObHZkOu8WnhsOGgLTXbPr0QqotlsAFmZ+/xDrMFRlgD+ntw34A=="
+    "hash": "9756db1b2aa74a75ae8f566ab3ed261d19f4b3832463f29dee7a212c90bc7237",
+    "signature": "NEwEBcI0/XzaUxZTmymY0djQ5SjNas55ufx3UHfK61hp/EGbvQ9UPSWwXUldNtFZu79nF810YrtRuqoFcLEIE7lWAw37p2wWvUViOJO1VXhMUR7lLKG9xUyiZuC7D9tmfeqrNnbLyeJ5xhtitPjCunGLlmt35SVKR/hOSJLQjDydeMTq0/5RXwkDj9IzvBfAJ9nK/AVb5Yb4DwpHYDrJb3EFNz9keStbXbLo9JuDQuMcn88d6OnKllicvGeDNCt/gFGF/5GuDP+ds/xqvAbNUSZ8UpTDhTkzvsMSDocXlfK73RxA26Ik8RKhTN2ghwG9FETxY810D5jUh80xUZJhTw=="
   },
   {
     "index": 1,
-    "timestamp": "2026-09-07T04:22:17.640Z",
+    "timestamp": "2026-09-07T08:27:02.701Z",
     "action": "CONSENT_GRANTED",
     "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "9d40ec32875698f10632e893b950943d6a39381173c37ec2c32e91dce89b911e",
-    "hash": "b8976c262770728e2921fa5087d88650c1488e3bd20e7ba63a5fef8bd05d5828",
-    "signature": "JAFlEjnED6B4+LD8VvD9cfSmbVpnt4om1rOKmpU/82D+eQa8uVhjCpKxUIepjtwDbrffgVEihzS/1Sm/JfPOLEfG5Pww9wx2PR0/6ctbclzyHf50QhhSKG70kb8uKhYYTtOwTJhuidonYWiMBWDCG/IoNS7UapYFYtL7EVu0bPkR/uSZ9u1qBPJpWe6N7KdPEb3Lpw9MQa0rzD6EIUqPfU8/P3Mq9hAM7PFTZkDPPLmwMH6o056R7eELzglj0hFutdjHVQGIgY9f9U9c1R1ZF0A+MGKSCbkJzb0untNX5CFnn7cFOnPpQeOOEEZGgreTj3QcYs+IUFpF7WBi3WlKcg=="
+    "previousHash": "9756db1b2aa74a75ae8f566ab3ed261d19f4b3832463f29dee7a212c90bc7237",
+    "hash": "8d88ea8ba349fd8e8c5e690522081ddbcee13086a1495b5bdd91d51c879afbd5",
+    "signature": "bUblvyE7UV/4vr9nYpWT5XUZ3/mLOK+sB7oIQGYRx8itFrYS9iPlhkYELk/V4Y/3ZTZwNy6wTmFaF/GjEEqCC6jVfdOPHTMAchfELek2JL1A2w0qSdaxyS3QWpQtOpQciCV+NrjnSAKU1PGucFHf0sbPe+ZicW8hcwG3mXQmKwnPMvzMnSQyS7D+5A1hW61P0sMw5D7j4HGyG4JqCvjesKLiIZdXQzN6H/bTgVw5wBvov90n1LjYdBevB7s3L5xYKklx19UF/bMD1UsTnRudFA+8QWWTk1CuP+qJnBAqE5jaJ2AMWR1nc+1CQ8ymGX4mMSwp+NPUxq6ICq9MyEwNSA=="
   },
   {
     "index": 2,
-    "timestamp": "2026-09-07T04:22:17.676Z",
+    "timestamp": "2026-09-07T08:27:02.734Z",
     "action": "CONSENT_REVOKED",
     "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "b8976c262770728e2921fa5087d88650c1488e3bd20e7ba63a5fef8bd05d5828",
-    "hash": "c64463f02a3faf4560b8d0187a21786e0c7db1af2011f70d1993ab9095154791",
-    "signature": "b9P4p3mST9OXJUZCHxF/Xw255q4Zq10kyxpIvLpzyRgNUKruv1U811bgaqg7VBKy1RtnMNtArK1kJXK6CPCy2/PnfKCvHbmnUeDe2qgwVLQnTlDlFlfnI7SJp1N9T1LAU5z33XSGZYGQrROc+XBP4Byg1fp/R7TOuQq8M9/gUauPdRRXQjKQrYjp3hQAz/+tbpF8erEhg6K0P2Yv4a13Rskst4ex/SOQtgWQ47KL08RC5c0hWXjyHZiadXkWgfhE1e0VNU1/cqrv068Uven5IdBkCemRPeRcRPN+rS/iCdrZ/93kbXI3gTOTUuBxMD+MYbTDoYrA2hir6QzMbcVmTw=="
+    "previousHash": "8d88ea8ba349fd8e8c5e690522081ddbcee13086a1495b5bdd91d51c879afbd5",
+    "hash": "86b65b6aa7d16954de93b510b6b7c3ee4c3407a28ce55325c66894c2d7644941",
+    "signature": "VEpkhVwrwLI0Yi/URTl0G2V+1OHETIkhCUCCioqcWDDiy9AZTxS7zZCS80Zex3Q4WAo0/GjI8/XLm0+Ur0eWf/z7YVBrcZZKy1TUtWkwbVTdfSvYYoMuW0aP+Fv7tTbah+5CH3cDU42EzaF/vFOum0OWZHSpJcRJKBSvjAiWk7H3P+2rglVohRh7/uXZW9nFWzOCMIrmWTwtK5PghD2n7vXje1A0Kg3NSy/ft4NWy6Ox8RTNggAUg0kvDquaQtp+q2rXdXr/235riZN/Aoen/9lSe+aBcwFsHF/yLAeZ7DJbptwqBTcMxf3kNSdmXzU7xSmFH4ItHwoZipZJnq+trw=="
   },
   {
     "index": 3,
-    "timestamp": "2026-09-07T04:22:17.679Z",
+    "timestamp": "2026-09-07T08:27:02.738Z",
     "action": "CONSENT_REVOKED",
     "patientId": "8b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "c64463f02a3faf4560b8d0187a21786e0c7db1af2011f70d1993ab9095154791",
-    "hash": "d335d357ed576a7790f2147c9a8be2da49ff9b57c5dbd541f5276ace40b1fce1",
-    "signature": "Nv2xoOCij85AQqpKGQvSLRkMegjwUkPI0uunIlzOYsOZCYYR7y626AjdDTe0+WdEOmLkgtmBUiHVfFK+OZ6KrbKCaUA7sKf7gAleWJBxXdPASBbkwhiFHroLW87nWko3UBPqXG/9DBktrJqquTM0E6zjMU1f1PpyPs2jzmmjLNlaD58sOYONHywDXphQUob0sInv0IQuikPRwZXDz40hskLqMzfjuuM28pBoXAd36n+CEh/T9A+NFgJximcRIMC1wuTJzjmhy56V4Vn/mMQtuXj7fngtg9IYXsg8ykUQHkTF9RS5njGBMkI5X2Utq23Qd3n4y/oUSmWCqs+V48ykYw=="
+    "previousHash": "86b65b6aa7d16954de93b510b6b7c3ee4c3407a28ce55325c66894c2d7644941",
+    "hash": "2f65d898eece9a5c9bfbd0d0c572f8a09bb479e51decadfa5f1472ede6cfe986",
+    "signature": "Zn+g2STiXDO7KhtoCL6pnyeGgqnb9Gj1327SpbF/yPqNqN7Vfno81MXaHRtmTXxxRzGTaC/ukS6rwY+TdCRJsjxRDK/4O7EqxEGuaXsB2ihdqF07peB+E+lzULyu9dqC3WJHXEUWRIYgqM3k6u2TK7h1al9mPvsOVI/njwbA5j/3zMD9GiXLXmfoOXz0DHkLhflreL7xN7TshPS+h62K3KfoKYMMdhbXXkSozbITYzI49NrxKeTSoHOGy2EZAvWtqmuP3FCMCRnwkhfbZBJEpOGqN425vDzl97eiFuYWMYlTGUubkiWhblvU1RmUTe9MkWH0gJhm4SFpuxNKJFOFRQ=="
   }
 ]
 
@@ -9324,25 +9325,10 @@ router.post('/login', validate(loginBody), async (req, res) => {
 
     const mfaSecret = isAmbulanceTableLogin ? ambulanceUnit.totp_secret : isHospitalTableLogin ? hospitalUnit.totp_secret : user.totp_secret;
 
-    // Check if user has completed MFA setup (has backup codes)
+    // Check if user/unit has completed MFA setup (has totp_secret configured)
     let isMfaFullySetup = false;
-    if (mfaSecret) {
-      if (isAmbulanceTableLogin || isHospitalTableLogin) {
-        isMfaFullySetup = true;
-      } else {
-        const parseCodes = (bc) => {
-          if (!bc) return [];
-          if (Array.isArray(bc)) return bc;
-          if (typeof bc === 'string') {
-            try { return JSON.parse(bc); } catch (e) { return []; }
-          }
-          return [];
-        };
-        const codes = parseCodes(user ? user.backup_codes : null);
-        if (codes.length > 0) {
-          isMfaFullySetup = true;
-        }
-      }
+    if (mfaSecret && typeof mfaSecret === 'string' && mfaSecret.trim() !== '') {
+      isMfaFullySetup = true;
     }
 
     const isActive = isAmbulanceTableLogin ? ambulanceUnit.is_active : isHospitalTableLogin ? hospitalUnit.is_active : user.is_active;
