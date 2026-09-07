@@ -4842,6 +4842,7 @@ FILE: backend\data\audit_log.txt
 [2026-09-06T10:29:23.678Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 [2026-09-06T10:32:38.485Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 [2026-09-07T04:02:32.199Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
+[2026-09-07T04:22:19.398Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 
 
 ================================================
@@ -5000,39 +5001,39 @@ FILE: backend\data\consent_ledger_test.json
 [
   {
     "index": 0,
-    "timestamp": "2026-09-07T04:02:29.522Z",
+    "timestamp": "2026-09-07T04:22:17.631Z",
     "action": "GENESIS_CHAIN_INITIALIZED",
     "patientId": "00000000-0000-0000-0000-000000000000",
     "previousHash": "0",
-    "hash": "0631f346e36f5dbda1127a43f8ca8be39f7781114b939587e73f180cc06cec96",
-    "signature": "jEi+YVIZWfapIbuE69ogkWFsQqfutQAa6scB0TT5I4OSQkeYk5PdsbtvNZ/Jw7qHEc7/ANV0XAoOHzZNN1fNuDpF38lcQzEb1prLlpMsTnSTZOvgimQs5cZirsLCUIBtwCb7rP0B7PaW6P2VgjeDDyQb0dKHwFFdX07wqOyM6DOqmaNwZjCczd9siOOTyUdjbLnZVzIjUad4omE6lTtxlXJe4mX1lTife+RzAIOYptcci2K5HmDdouI1X6cq4mD9CC9z47fLjx4HEMkZIfJkT0X6T47gZSGIEnRr8pot7SemNj74oZgkixEYhD9MtvLRpKem3YeFEwsh0CAqZydRQg=="
+    "hash": "9d40ec32875698f10632e893b950943d6a39381173c37ec2c32e91dce89b911e",
+    "signature": "eSficbiqWlwz7RGAb4CLhgu2qAH1gTJYb2qDNVFk4XjqPWNq4FyYuhfzbZuG3mzkiwLeoMjzBq3Bq9k08aRvkNxOn/hpGJ1+EeC3/iyM6VSZX/8mJEMG80mjONrAjTLAAiXZv8CNlUOBk/lqzMorjBklkzr6VElIr2/V6FRTtxPl5NrgEbG0ma7ErfRcHDda7llmCdDgiGUJEy8Hzh2eFK8/R6GNqIXNSSPRS47vTsizF4GMD9Kn/N/2mixLN+IRB+PN3DMJSsRyvPKrZJOXenFwhIR2E/0JHfB0ObHZkOu8WnhsOGgLTXbPr0QqotlsAFmZ+/xDrMFRlgD+ntw34A=="
   },
   {
     "index": 1,
-    "timestamp": "2026-09-07T04:02:29.536Z",
+    "timestamp": "2026-09-07T04:22:17.640Z",
     "action": "CONSENT_GRANTED",
     "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "0631f346e36f5dbda1127a43f8ca8be39f7781114b939587e73f180cc06cec96",
-    "hash": "bd0f43343ce4a0f0f6d725ca9f2ba4b40b72f5bf1cd72ef12250cf4c1558c672",
-    "signature": "U0L38sP7jyWGQFswMhaArMXO1YtZlpBKM1UpI8Flbi7OCrVnagFDb2ecWusCwlqdQvDTK5psuxhpw/9RBM2B48TIgSSadCMfu07DCqEnXqkp9Lcar2UdzM0JOgAisHKzEulPp+vBbOeZ9Xn6hbhNj7gVNCJRk/fEtb+1YPJ25YvtvIYVj6tJWDojMyM2fkTPwRp2Q1c7xk7h3tJC8MHrMmrf1Bj4jm8aI3FUXaSWeLRjVx31kxTgx+8H1k9PJ94P2g+HkAuqYVw815NK+nRVFsF2mbcbP2bLoXSlHQWMLHMVtQcEAwjEc3OUQImu2FW/PyRP8pMdlLUjUlt17i1dOw=="
+    "previousHash": "9d40ec32875698f10632e893b950943d6a39381173c37ec2c32e91dce89b911e",
+    "hash": "b8976c262770728e2921fa5087d88650c1488e3bd20e7ba63a5fef8bd05d5828",
+    "signature": "JAFlEjnED6B4+LD8VvD9cfSmbVpnt4om1rOKmpU/82D+eQa8uVhjCpKxUIepjtwDbrffgVEihzS/1Sm/JfPOLEfG5Pww9wx2PR0/6ctbclzyHf50QhhSKG70kb8uKhYYTtOwTJhuidonYWiMBWDCG/IoNS7UapYFYtL7EVu0bPkR/uSZ9u1qBPJpWe6N7KdPEb3Lpw9MQa0rzD6EIUqPfU8/P3Mq9hAM7PFTZkDPPLmwMH6o056R7eELzglj0hFutdjHVQGIgY9f9U9c1R1ZF0A+MGKSCbkJzb0untNX5CFnn7cFOnPpQeOOEEZGgreTj3QcYs+IUFpF7WBi3WlKcg=="
   },
   {
     "index": 2,
-    "timestamp": "2026-09-07T04:02:29.582Z",
+    "timestamp": "2026-09-07T04:22:17.676Z",
     "action": "CONSENT_REVOKED",
     "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "bd0f43343ce4a0f0f6d725ca9f2ba4b40b72f5bf1cd72ef12250cf4c1558c672",
-    "hash": "ed039695dc6e27f3c772e5570a08b1ef1013c4a19b871dad45a12138ea599ab7",
-    "signature": "TOKz9L/yHM/s8m/wDXdzIqQbyiaOUmegoFpqYbhgwVu7puk5xFAKqLuz3WuzPaRX1yJDBctyGV4/bZa0B5fhtvK15SRqGPpOVnQXnz9wauUG2ZMaqxTPhq/CTHwthDzVdDrz0N36Cmtj3MoTMvnzvcH+Yw3WNP+KK6ljLoeAUBkAWdEKFRXbtj2TcT7S+Z6IIohHDwAvd0Uw03hJw3ggC1AYjZ8ioAopmXzRnPYHQu2vkISzYq1x4dm7PcXA7eD/aaYvhclESpef3qoieFs90r35Raw8iG8cVF6GoTXyf0R+lC9W9d5mOAqjVxIMWiROtqYxzvdq74UWn+xL3m7Myw=="
+    "previousHash": "b8976c262770728e2921fa5087d88650c1488e3bd20e7ba63a5fef8bd05d5828",
+    "hash": "c64463f02a3faf4560b8d0187a21786e0c7db1af2011f70d1993ab9095154791",
+    "signature": "b9P4p3mST9OXJUZCHxF/Xw255q4Zq10kyxpIvLpzyRgNUKruv1U811bgaqg7VBKy1RtnMNtArK1kJXK6CPCy2/PnfKCvHbmnUeDe2qgwVLQnTlDlFlfnI7SJp1N9T1LAU5z33XSGZYGQrROc+XBP4Byg1fp/R7TOuQq8M9/gUauPdRRXQjKQrYjp3hQAz/+tbpF8erEhg6K0P2Yv4a13Rskst4ex/SOQtgWQ47KL08RC5c0hWXjyHZiadXkWgfhE1e0VNU1/cqrv068Uven5IdBkCemRPeRcRPN+rS/iCdrZ/93kbXI3gTOTUuBxMD+MYbTDoYrA2hir6QzMbcVmTw=="
   },
   {
     "index": 3,
-    "timestamp": "2026-09-07T04:02:29.587Z",
+    "timestamp": "2026-09-07T04:22:17.679Z",
     "action": "CONSENT_REVOKED",
     "patientId": "8b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "ed039695dc6e27f3c772e5570a08b1ef1013c4a19b871dad45a12138ea599ab7",
-    "hash": "fd2329eabc7789f9478d204bb8a35a8dd46dd50daab7d1f5a3c8f3c7e1a63195",
-    "signature": "beJsBAoSBjIRUmOmX1gHgqENOUiUhNHLrlMN+DE0x3NCsT4yfq/K6i25HNEpfolVuFXoCNbzxN/AnPEE2vvmOI5UqgP12MumeRseQ25i0b2FqRIYeHbRP+eNzh+NxGy0e1rhliWW48FT4TlekkWRsc9+nCuvUAGak9LIIogQk+Lv+33nFIw4gJ9BgGp3+SCxlZYQ7zVVrwhhjyydjNSt6YeE2WokK6iLz/lyKNritAcIg/zy0PwdaOyINGfi6wDkxCyKt4u2jiGjet3uH4F6DKbpWO3dYvanK//O9obVPD9qgX0R7zJ0Nwft43XjJEdNIQr4cxk+qZ81cGBXm88OSQ=="
+    "previousHash": "c64463f02a3faf4560b8d0187a21786e0c7db1af2011f70d1993ab9095154791",
+    "hash": "d335d357ed576a7790f2147c9a8be2da49ff9b57c5dbd541f5276ace40b1fce1",
+    "signature": "Nv2xoOCij85AQqpKGQvSLRkMegjwUkPI0uunIlzOYsOZCYYR7y626AjdDTe0+WdEOmLkgtmBUiHVfFK+OZ6KrbKCaUA7sKf7gAleWJBxXdPASBbkwhiFHroLW87nWko3UBPqXG/9DBktrJqquTM0E6zjMU1f1PpyPs2jzmmjLNlaD58sOYONHywDXphQUob0sInv0IQuikPRwZXDz40hskLqMzfjuuM28pBoXAd36n+CEh/T9A+NFgJximcRIMC1wuTJzjmhy56V4Vn/mMQtuXj7fngtg9IYXsg8ykUQHkTF9RS5njGBMkI5X2Utq23Qd3n4y/oUSmWCqs+V48ykYw=="
   }
 ]
 
@@ -9883,6 +9884,49 @@ router.put('/profile', verifyToken(), async (req, res) => {
  * @route POST /api/auth/guest-emergency
  * @desc Quick bypass login to request emergency dispatch under a guest token
  */
+router.post('/demo-token', async (req, res) => {
+  const { role } = req.body;
+  const targetRole = ['ambulance', 'hospital', 'admin', 'family', 'user'].includes(role) ? role : 'ambulance';
+  const demoId = `demo-${targetRole}-${require('crypto').randomBytes(4).toString('hex')}`;
+  
+  let mappedDbRole = 'paramedic';
+  let isAmbulance = true;
+  if (targetRole === 'hospital') { mappedDbRole = 'doctor'; isAmbulance = false; }
+  else if (targetRole === 'admin') { mappedDbRole = 'city_admin'; isAmbulance = false; }
+  else if (targetRole === 'family') { mappedDbRole = 'family'; isAmbulance = false; }
+  else if (targetRole === 'user') { mappedDbRole = 'patient'; isAmbulance = false; }
+
+  try {
+    const accessToken = jwt.sign(
+      {
+        id: demoId,
+        name: `Demo ${targetRole.toUpperCase()} Console`,
+        email: `${demoId}@rescuelink-demo.com`,
+        role: mappedDbRole,
+        hospital_id: targetRole === 'hospital' ? 'hosp-1' : null,
+        isAmbulance,
+        isDemo: true
+      },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    return res.json({
+      token: accessToken,
+      user: {
+        id: demoId,
+        name: `Demo ${targetRole.toUpperCase()} Console`,
+        email: `${demoId}@rescuelink-demo.com`,
+        role: mappedDbRole,
+        isDemo: true
+      }
+    });
+  } catch (err) {
+    console.error('[AUTH ERROR] Demo token generation failed:', err);
+    return res.status(500).json({ error: 'Failed to issue demo token' });
+  }
+});
+
 router.post('/guest-emergency', async (req, res) => {
   const { phone, name } = req.body;
   const guestId = `guest-${require('crypto').randomBytes(8).toString('hex')}`;
@@ -27522,6 +27566,26 @@ export default function App() {
     return () => window.removeEventListener('hashchange', handleHash);
   }, []);
 
+  // Auto-acquire demo socket token if visiting role view as guest/unauthenticated
+  useEffect(() => {
+    if (role && !token) {
+      fetch(`${SERVER_URL}/api/auth/demo-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role })
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.token) {
+            setToken(data.token);
+            sessionStorage.setItem('rescuelink_token', data.token);
+            sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
+          }
+        })
+        .catch(err => console.warn('[DEMO TOKEN ERROR]', err.message));
+    }
+  }, [role, token]);
+
   useEffect(() => {
     if (!role || !token) return;
 
@@ -27552,14 +27616,21 @@ export default function App() {
     newSocket.on('connect_error', (err) => {
       console.error('[SOCKET ERROR] Connection failed:', err.message);
       if (err.message?.toLowerCase().includes('unauthorized') || err.message?.toLowerCase().includes('expired')) {
-        console.warn('[SOCKET] Session expired or unauthorized. Clearing storage and redirecting to login...');
-        sessionStorage.removeItem('rescuelink_token');
-        sessionStorage.removeItem('rescuelink_user');
-        sessionStorage.removeItem('rescueLinkRole');
-        localStorage.removeItem('rescuelink_token');
-        localStorage.removeItem('rescuelink_user');
-        localStorage.removeItem('rescueLinkRole');
-        window.location.reload();
+        console.warn('[SOCKET] Token invalid. Acquiring new demo session token...');
+        fetch(`${SERVER_URL}/api/auth/demo-token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ role })
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.token) {
+              setToken(data.token);
+              sessionStorage.setItem('rescuelink_token', data.token);
+              sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
+            }
+          })
+          .catch(e => console.warn('[DEMO REFRESH FAILED]', e));
       }
     });
 

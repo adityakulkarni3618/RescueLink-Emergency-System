@@ -3037,6 +3037,26 @@ export default function App() {
     return () => window.removeEventListener('hashchange', handleHash);
   }, []);
 
+  // Auto-acquire demo socket token if visiting role view as guest/unauthenticated
+  useEffect(() => {
+    if (role && !token) {
+      fetch(`${SERVER_URL}/api/auth/demo-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role })
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.token) {
+            setToken(data.token);
+            sessionStorage.setItem('rescuelink_token', data.token);
+            sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
+          }
+        })
+        .catch(err => console.warn('[DEMO TOKEN ERROR]', err.message));
+    }
+  }, [role, token]);
+
   useEffect(() => {
     if (!role || !token) return;
 
@@ -3067,14 +3087,21 @@ export default function App() {
     newSocket.on('connect_error', (err) => {
       console.error('[SOCKET ERROR] Connection failed:', err.message);
       if (err.message?.toLowerCase().includes('unauthorized') || err.message?.toLowerCase().includes('expired')) {
-        console.warn('[SOCKET] Session expired or unauthorized. Clearing storage and redirecting to login...');
-        sessionStorage.removeItem('rescuelink_token');
-        sessionStorage.removeItem('rescuelink_user');
-        sessionStorage.removeItem('rescueLinkRole');
-        localStorage.removeItem('rescuelink_token');
-        localStorage.removeItem('rescuelink_user');
-        localStorage.removeItem('rescueLinkRole');
-        window.location.reload();
+        console.warn('[SOCKET] Token invalid. Acquiring new demo session token...');
+        fetch(`${SERVER_URL}/api/auth/demo-token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ role })
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.token) {
+              setToken(data.token);
+              sessionStorage.setItem('rescuelink_token', data.token);
+              sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
+            }
+          })
+          .catch(e => console.warn('[DEMO REFRESH FAILED]', e));
       }
     });
 
