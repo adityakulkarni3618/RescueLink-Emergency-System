@@ -4842,7 +4842,6 @@ FILE: backend\data\audit_log.txt
 [2026-09-06T10:29:23.678Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 [2026-09-06T10:32:38.485Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 [2026-09-07T04:02:32.199Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
-[2026-09-07T04:22:19.398Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 
 
 ================================================
@@ -27745,7 +27744,20 @@ export default function App() {
     );
   }
 
-  if (!token || !role) {
+  if (!role && !loginTargetRole) {
+    return (
+      <div className="app-root">
+        <style>{styles}</style>
+        <LandingHomepage onSelectRole={(selRole) => {
+          setLoginTargetRole(selRole);
+          window.location.hash = selRole;
+        }} />
+        <ThemeSwitcher />
+      </div>
+    );
+  }
+
+  if (!token) {
     if (currentHash === '#select-role') {
       return (
         <div className="app-root">
@@ -27760,7 +27772,7 @@ export default function App() {
       );
     }
 
-    if (currentHash === '#ambulance' || loginTargetRole === 'ambulance') {
+    if (loginTargetRole === 'ambulance' || (currentHash === '#ambulance' && loginTargetRole)) {
       return (
         <div className="app-root">
           <style>{styles}</style>
@@ -27784,7 +27796,7 @@ export default function App() {
       );
     }
 
-    if (currentHash === '#hospital' || loginTargetRole === 'hospital') {
+    if (loginTargetRole === 'hospital' || (currentHash === '#hospital' && loginTargetRole)) {
       return (
         <div className="app-root">
           <style>{styles}</style>
@@ -27807,27 +27819,6 @@ export default function App() {
         </div>
       );
     }
-
-    return (
-      <div className="app-root">
-        <style>{styles}</style>
-        <LandingHomepage onSelectRole={(selRole) => {
-          setLoginTargetRole(selRole);
-          window.location.hash = selRole;
-        }} />
-        {loginTargetRole && (
-          <LoginScreen
-            defaultRole={loginTargetRole}
-            onLoginSuccess={handleLoginSuccess}
-            onMfaSetup={(setupToken) => setMfaSetupToken(setupToken)}
-            onMfaVerify={(mfaToken) => setMfaVerifyToken(mfaToken)}
-            onClose={() => { setLoginTargetRole(null); window.location.hash = ''; }}
-            defaultIsRegister={isRegisterMode}
-          />
-        )}
-        <ThemeSwitcher />
-      </div>
-    );
   }
 
   return (

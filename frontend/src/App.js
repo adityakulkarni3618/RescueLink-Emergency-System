@@ -3216,7 +3216,20 @@ export default function App() {
     );
   }
 
-  if (!token || !role) {
+  if (!role && !loginTargetRole) {
+    return (
+      <div className="app-root">
+        <style>{styles}</style>
+        <LandingHomepage onSelectRole={(selRole) => {
+          setLoginTargetRole(selRole);
+          window.location.hash = selRole;
+        }} />
+        <ThemeSwitcher />
+      </div>
+    );
+  }
+
+  if (!token) {
     if (currentHash === '#select-role') {
       return (
         <div className="app-root">
@@ -3231,7 +3244,7 @@ export default function App() {
       );
     }
 
-    if (currentHash === '#ambulance' || loginTargetRole === 'ambulance') {
+    if (loginTargetRole === 'ambulance' || (currentHash === '#ambulance' && loginTargetRole)) {
       return (
         <div className="app-root">
           <style>{styles}</style>
@@ -3255,7 +3268,7 @@ export default function App() {
       );
     }
 
-    if (currentHash === '#hospital' || loginTargetRole === 'hospital') {
+    if (loginTargetRole === 'hospital' || (currentHash === '#hospital' && loginTargetRole)) {
       return (
         <div className="app-root">
           <style>{styles}</style>
@@ -3278,27 +3291,6 @@ export default function App() {
         </div>
       );
     }
-
-    return (
-      <div className="app-root">
-        <style>{styles}</style>
-        <LandingHomepage onSelectRole={(selRole) => {
-          setLoginTargetRole(selRole);
-          window.location.hash = selRole;
-        }} />
-        {loginTargetRole && (
-          <LoginScreen
-            defaultRole={loginTargetRole}
-            onLoginSuccess={handleLoginSuccess}
-            onMfaSetup={(setupToken) => setMfaSetupToken(setupToken)}
-            onMfaVerify={(mfaToken) => setMfaVerifyToken(mfaToken)}
-            onClose={() => { setLoginTargetRole(null); window.location.hash = ''; }}
-            defaultIsRegister={isRegisterMode}
-          />
-        )}
-        <ThemeSwitcher />
-      </div>
-    );
   }
 
   return (
