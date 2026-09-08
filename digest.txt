@@ -4844,6 +4844,7 @@ FILE: backend\data\audit_log.txt
 [2026-09-07T04:02:32.199Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 [2026-09-07T08:27:05.079Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 [2026-09-08T05:25:44.458Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
+[2026-09-08T05:41:21.619Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 
 
 ================================================
@@ -5002,39 +5003,39 @@ FILE: backend\data\consent_ledger_test.json
 [
   {
     "index": 0,
-    "timestamp": "2026-09-08T05:25:42.116Z",
+    "timestamp": "2026-09-08T05:41:20.042Z",
     "action": "GENESIS_CHAIN_INITIALIZED",
     "patientId": "00000000-0000-0000-0000-000000000000",
     "previousHash": "0",
-    "hash": "df16e80cd74b2bf2f1b08feeea1a731a7ed929cf88d517adde9f4c71c020b868",
-    "signature": "NoEGGzjl9YjpEXv48YLvO3ysOLa26ZO7dUcU3G6LcEebcOGrj+6Py2GdTZgGJHztJkDwFIy+RI2x9f8fycjCLzzfmTpw0pN24pMSy4O+wLPlHHgWMi4AHQdeNczGYE2d21p43cdsJOKfdz7hndY4ck0GKp36Zqvkn6BVP/2ZwVsGsCEv1nApA4pdd7xC8BTBHCm7w2vir8fa3BQ1rR5yeKqbgPfJGZqZwOh30AQztEsjunluwepq5SLfg+XhGW+Ijo8OVEs81XYDB6ImfAhu7IvIJ6Brip2HXZtWUkyZ3wcIuWLAKs0BD3gdDkvhe1jf9qC2Xw4tRpz1Bi9QbRmKAg=="
+    "hash": "a8aa9b5c07d1676856e66063024eb275b38a79941f44e1edbb3411a8049fa684",
+    "signature": "H1qcLUeRQDGY9M9geKfW88EkJaYOjEta8NbN39fpV7Bd7Nr/VtcXHarctF1TtabzZ0NQuI/k9xv6iccr35cC/5ZEBBrFQfExWBBANuESGuxFz7+6JU3lbExJq3Nnlrdc3Fe6NfcYMJDqJn0WN9hfqd/iV0cti6+cz4ihGLGq/nhE5fhGh2tNWi4st5WOSd6i/yLTG6KmsK2IdfRavxMxc5IeGsFTL492fVRGqZg9b+gE2CeZ67Kx1BvUuRjLw64cnaEpCaQB2Lg2NTRL0IIQ+jDtMzFdwmVFWHcl2YVTkrIpNt4X6a1QLwyUin4FgCZGYl2gMEthc5CaoVym6aDiXg=="
   },
   {
     "index": 1,
-    "timestamp": "2026-09-08T05:25:42.127Z",
+    "timestamp": "2026-09-08T05:41:20.052Z",
     "action": "CONSENT_GRANTED",
     "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "df16e80cd74b2bf2f1b08feeea1a731a7ed929cf88d517adde9f4c71c020b868",
-    "hash": "631937ac4920b224ed54a121fbdcbb4c209679c9f09b54f8d841ef2840c348fb",
-    "signature": "ee2GIzWzV8EFuLXDThFVGBd0srlGgQDu76slJxye2K3mNO5An9cYewJ+btVP8eD3MFHKlBjTjEqaTP0Wr6kaSXle7b0Dg6vaXHbkn9zFCJ0Zc1lQbJ/23TIuCD7x34oWN6hP5czJU2AwjiSE04N6rxggnMySVrQbld0/K7q+lKurm+PiuWrsHNw662XyjYDSZ5GzF0bLP81WBljayiq1rxYGaOCFy2y2SnmNIJXjasjrwPG7EdEF3gMavlO794gyO99SsfOuxVrQE2pSLJQliuDISzJnNsyYCAX8bghb5jL1st0aH+m0W/2fUbaJZPRs0zlj//P4bLhqMBnWzC9lcg=="
+    "previousHash": "a8aa9b5c07d1676856e66063024eb275b38a79941f44e1edbb3411a8049fa684",
+    "hash": "102005815abdd5baa50afff7f325dc63c87502ea08eebac1a5002c5037729f60",
+    "signature": "Um2XRgtn5po3QsWkaAWDthBAG5uJvD7s0wI9LlP5OcKJ08BRS/rnkzeTWKLyG3QnVh1fqkcjkXnC7RRTELOPw5y0ZKsGas8eqGIn1gx0/KFoqyMGKy6oinf3RStT//r2kmRy62A8CagNwqkVaYgmQSnXMnO0UIUjAFjw+gTAVa4u39KVtdbXWI0kbu1rXRie7qItAFrEWGjiMwBu8fjVC7rsA0qqL9VaDCaE442Lr6MT1GOYwKT/+98qpqBlUwPY7oFBgrLeBGyYFyFuuKHuivcJPrsRhnTZuchvuR7mRQ0DVAeKyK+Wf7bAuqzuJYma61q+hBt4EH1UechrnB/MXg=="
   },
   {
     "index": 2,
-    "timestamp": "2026-09-08T05:25:42.166Z",
+    "timestamp": "2026-09-08T05:41:20.094Z",
     "action": "CONSENT_REVOKED",
     "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "631937ac4920b224ed54a121fbdcbb4c209679c9f09b54f8d841ef2840c348fb",
-    "hash": "d05c4eef66cef6e23d8be261db1bd684733bc18c13a3c91f9e6b22de4d7e55af",
-    "signature": "QD26atewXABNKXuyu0JcgQK+BBdpX8wkmZTmX0redpcRS58MBvemI0gqF9UDPaExJYN6AY53I/40NViw0eKWsVBtmwem0AwEj7mKTJheQetLhj1XjX3tAgXhddLON4CIJ43vQFQNba7pL3z52BBimSSyOVd6rhtu/rDzBHtqyqVsKyUNukEp3NTIA1ggViVKju8hW57eJbkTR/DUvq48efQWhsXD5xjNDHqZNSgv5j4HKajhKWNfhbwntRjXgxlx3Ib/kmIZ6hb6a4w6TXGSYBY4ny8UMwpSUGW4NsRrNTNkWzYlpJP8Oxmjn4OvOaL5ojCglv7PDm15honbQftIcQ=="
+    "previousHash": "102005815abdd5baa50afff7f325dc63c87502ea08eebac1a5002c5037729f60",
+    "hash": "6e1cc3f03159a215446364545d7ea1d5927c5dc5861cd99c07f431ed16d11446",
+    "signature": "OWdr/TFjsx+ouYow4V+F2epuyK0cXrojUMHoErNSfM9iNWO39/OgjSjK3e6P4yUyUuS6qirLvm7tm9cq6AmruGCG4okSPcyboFIWANjaLgqHOiVnxZ0dEZ7TolRmiN8Ut98AvwQU/luWC1Fh4vrlQLrOR45Hdv9wjc42G/R0AdiFUVk3cTL0e58/15c2VV7V3bZrWtXsuJVsnq1+I5w6okjYZFSxmrYs0wY4ScrevgGZYJ2HmyxmMvno+sierJbB7OWj8Z6mueOZFTlshszy5k8vDc6LB1FG2HmPb7yMjO35lQScUwVQ1MkebcMCR9f1sy47i+FTItH5T4OBW0k57A=="
   },
   {
     "index": 3,
-    "timestamp": "2026-09-08T05:25:42.171Z",
+    "timestamp": "2026-09-08T05:41:20.098Z",
     "action": "CONSENT_REVOKED",
     "patientId": "8b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "d05c4eef66cef6e23d8be261db1bd684733bc18c13a3c91f9e6b22de4d7e55af",
-    "hash": "0c060eecbd4d9c007bbeb89f454802446347c8444eada9126c6eded962d743af",
-    "signature": "lHeg+8bUR9PgmDDN1+P0cmSZODUOyv3QjHysgJkcbrGbaDhYLPaH3AYxTk0QsAnukCoVMMMWltQV5KOzSl8FRZPTpQh0wgrhjyauxrl+HrXEcdWAF+YCyFcZzsBQ5ScCg/DUvGNGtGaY9P+e3JdZTFJ0LMi8R77gxSEybFQ4ORwHC/omPOgqbADlOpa4ljkYOCsxl5g4WpWgn5NZJag6RqhDH78QS3MfW3aWw8BBRzc3kJip4tUOnua+rp298ht7JrleSYKrwwVVXBhoZrijJiZKo+sBdGxqNubY6IgZq6PmjaCydMjPPR54K7vlIj9d9vsouTOdSl3K32bX6vRvjw=="
+    "previousHash": "6e1cc3f03159a215446364545d7ea1d5927c5dc5861cd99c07f431ed16d11446",
+    "hash": "74e7f25554726b01aa6e2ab38781f2ebc0e0f0efa6c052f80968e88a674c2a58",
+    "signature": "ksE5aDQhB2UWZ807c065Jp1Q3pO1r/BeDKytcrkLkY+zBFkVkjv+MZ/LdQkZ+DJL8/GU8YVpIWplSxjx55TkUuCbS+AVnG3cKY7qNFxPl6ojPlubfSg5qqNRF6RfC1IJsG6IxnC6cxR7f8CtJUVNsnoD3PmpnlLbgEFFnInwBTcdjp9mpQ+6cKVtT6sJDNXV0zkw5AK8pvh/gJFnQVn+aye4huuOsjny0hd4oG6VjUvq/AFHsvaQWx2BYTUMNTV4ETBQFGB4sQ82r9pYfOwWkfyn9YQjpyY/Tn3DVx7wMvrexWITnpdG7unV8ovU7qZQ0I05SqM3Wk2RHDg3VdZjpw=="
   }
 ]
 
@@ -37824,6 +37825,29 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
       localStorage.removeItem('hospital_auth');
     }
   }, [authHospital]);
+
+  useEffect(() => {
+    const userStr = sessionStorage.getItem('rescuelink_user');
+    if (userStr) {
+      try {
+        const u = JSON.parse(userStr);
+        const displayName = u.hospitalName || u.name;
+        if (displayName) {
+          const newAuth = {
+            hospitalId: u.hospital_id || u.id || 'hosp_demo_center_1',
+            name: displayName,
+            adminName: u.name || 'Hospital Coordinator',
+            internalId: (u.hospital_id || u.id || 'hosp_demo_center_1').toString().toLowerCase(),
+            lat: u.lat || 19.0760,
+            lng: u.lng || 72.8777,
+            ...u
+          };
+          setAuthHospital(newAuth);
+          if (newAuth.internalId) setActiveHospitalId(newAuth.internalId);
+        }
+      } catch (e) {}
+    }
+  }, []);
   const [loginId, setLoginId] = useState('');
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -38052,6 +38076,10 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
 
       if (res.ok && data.token) {
         sessionStorage.setItem('rescuelink_token', data.token);
+        if (data.user) {
+          sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
+          localStorage.setItem('rescuelink_user', JSON.stringify(data.user));
+        }
 
         const found = {
           hospitalId: data.user?.hospital_id || inputId,
@@ -38129,19 +38157,25 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
     }
   };
 
-  const handleMfaSuccess = async (viewRole, token) => {
-    const userStr = sessionStorage.getItem('rescuelink_user');
-    const user = userStr ? JSON.parse(userStr) : {};
+  const handleMfaSuccess = async (viewRole, token, userData) => {
+    let user = userData;
+    if (!user) {
+      const userStr = sessionStorage.getItem('rescuelink_user');
+      user = userStr ? JSON.parse(userStr) : {};
+    } else {
+      sessionStorage.setItem('rescuelink_user', JSON.stringify(userData));
+      localStorage.setItem('rescuelink_user', JSON.stringify(userData));
+    }
 
     sessionStorage.setItem('rescuelink_token', token);
 
-    const finalInputId = loginId || user.hospital_id || 'HOSP-GENERIC';
+    const finalInputId = loginId || user.hospital_id || user.id || 'HOSP-GENERIC';
 
     const found = {
       hospitalId: user.hospital_id || finalInputId,
       name: user.hospitalName || user.name || (user.role === 'doctor' ? 'Manipal Global Trauma Center' : 'Emergency Center'),
       adminName: user.name || 'Dr. Command',
-      internalId: (user.hospital_id || finalInputId).toLowerCase(),
+      internalId: (user.hospital_id || finalInputId).toString().toLowerCase(),
       lat: user.lat || 19.0760,
       lng: user.lng || 72.8777
     };
@@ -42610,7 +42644,7 @@ export function MfaVerifyScreen({ mfaToken, onLoginSuccess, onCancel, ParticleCa
         viewRole = 'user';
       }
 
-      onLoginSuccess(viewRole, data.token);
+      onLoginSuccess(viewRole, data.token, data.user);
     } catch (err) {
       setError(err.message || 'Invalid verification code');
     } finally {
