@@ -4843,6 +4843,7 @@ FILE: backend\data\audit_log.txt
 [2026-09-06T10:32:38.485Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 [2026-09-07T04:02:32.199Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 [2026-09-07T08:27:05.079Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
+[2026-09-08T05:25:44.458Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 
 
 ================================================
@@ -5001,39 +5002,39 @@ FILE: backend\data\consent_ledger_test.json
 [
   {
     "index": 0,
-    "timestamp": "2026-09-07T08:27:02.690Z",
+    "timestamp": "2026-09-08T05:25:42.116Z",
     "action": "GENESIS_CHAIN_INITIALIZED",
     "patientId": "00000000-0000-0000-0000-000000000000",
     "previousHash": "0",
-    "hash": "9756db1b2aa74a75ae8f566ab3ed261d19f4b3832463f29dee7a212c90bc7237",
-    "signature": "NEwEBcI0/XzaUxZTmymY0djQ5SjNas55ufx3UHfK61hp/EGbvQ9UPSWwXUldNtFZu79nF810YrtRuqoFcLEIE7lWAw37p2wWvUViOJO1VXhMUR7lLKG9xUyiZuC7D9tmfeqrNnbLyeJ5xhtitPjCunGLlmt35SVKR/hOSJLQjDydeMTq0/5RXwkDj9IzvBfAJ9nK/AVb5Yb4DwpHYDrJb3EFNz9keStbXbLo9JuDQuMcn88d6OnKllicvGeDNCt/gFGF/5GuDP+ds/xqvAbNUSZ8UpTDhTkzvsMSDocXlfK73RxA26Ik8RKhTN2ghwG9FETxY810D5jUh80xUZJhTw=="
+    "hash": "df16e80cd74b2bf2f1b08feeea1a731a7ed929cf88d517adde9f4c71c020b868",
+    "signature": "NoEGGzjl9YjpEXv48YLvO3ysOLa26ZO7dUcU3G6LcEebcOGrj+6Py2GdTZgGJHztJkDwFIy+RI2x9f8fycjCLzzfmTpw0pN24pMSy4O+wLPlHHgWMi4AHQdeNczGYE2d21p43cdsJOKfdz7hndY4ck0GKp36Zqvkn6BVP/2ZwVsGsCEv1nApA4pdd7xC8BTBHCm7w2vir8fa3BQ1rR5yeKqbgPfJGZqZwOh30AQztEsjunluwepq5SLfg+XhGW+Ijo8OVEs81XYDB6ImfAhu7IvIJ6Brip2HXZtWUkyZ3wcIuWLAKs0BD3gdDkvhe1jf9qC2Xw4tRpz1Bi9QbRmKAg=="
   },
   {
     "index": 1,
-    "timestamp": "2026-09-07T08:27:02.701Z",
+    "timestamp": "2026-09-08T05:25:42.127Z",
     "action": "CONSENT_GRANTED",
     "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "9756db1b2aa74a75ae8f566ab3ed261d19f4b3832463f29dee7a212c90bc7237",
-    "hash": "8d88ea8ba349fd8e8c5e690522081ddbcee13086a1495b5bdd91d51c879afbd5",
-    "signature": "bUblvyE7UV/4vr9nYpWT5XUZ3/mLOK+sB7oIQGYRx8itFrYS9iPlhkYELk/V4Y/3ZTZwNy6wTmFaF/GjEEqCC6jVfdOPHTMAchfELek2JL1A2w0qSdaxyS3QWpQtOpQciCV+NrjnSAKU1PGucFHf0sbPe+ZicW8hcwG3mXQmKwnPMvzMnSQyS7D+5A1hW61P0sMw5D7j4HGyG4JqCvjesKLiIZdXQzN6H/bTgVw5wBvov90n1LjYdBevB7s3L5xYKklx19UF/bMD1UsTnRudFA+8QWWTk1CuP+qJnBAqE5jaJ2AMWR1nc+1CQ8ymGX4mMSwp+NPUxq6ICq9MyEwNSA=="
+    "previousHash": "df16e80cd74b2bf2f1b08feeea1a731a7ed929cf88d517adde9f4c71c020b868",
+    "hash": "631937ac4920b224ed54a121fbdcbb4c209679c9f09b54f8d841ef2840c348fb",
+    "signature": "ee2GIzWzV8EFuLXDThFVGBd0srlGgQDu76slJxye2K3mNO5An9cYewJ+btVP8eD3MFHKlBjTjEqaTP0Wr6kaSXle7b0Dg6vaXHbkn9zFCJ0Zc1lQbJ/23TIuCD7x34oWN6hP5czJU2AwjiSE04N6rxggnMySVrQbld0/K7q+lKurm+PiuWrsHNw662XyjYDSZ5GzF0bLP81WBljayiq1rxYGaOCFy2y2SnmNIJXjasjrwPG7EdEF3gMavlO794gyO99SsfOuxVrQE2pSLJQliuDISzJnNsyYCAX8bghb5jL1st0aH+m0W/2fUbaJZPRs0zlj//P4bLhqMBnWzC9lcg=="
   },
   {
     "index": 2,
-    "timestamp": "2026-09-07T08:27:02.734Z",
+    "timestamp": "2026-09-08T05:25:42.166Z",
     "action": "CONSENT_REVOKED",
     "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "8d88ea8ba349fd8e8c5e690522081ddbcee13086a1495b5bdd91d51c879afbd5",
-    "hash": "86b65b6aa7d16954de93b510b6b7c3ee4c3407a28ce55325c66894c2d7644941",
-    "signature": "VEpkhVwrwLI0Yi/URTl0G2V+1OHETIkhCUCCioqcWDDiy9AZTxS7zZCS80Zex3Q4WAo0/GjI8/XLm0+Ur0eWf/z7YVBrcZZKy1TUtWkwbVTdfSvYYoMuW0aP+Fv7tTbah+5CH3cDU42EzaF/vFOum0OWZHSpJcRJKBSvjAiWk7H3P+2rglVohRh7/uXZW9nFWzOCMIrmWTwtK5PghD2n7vXje1A0Kg3NSy/ft4NWy6Ox8RTNggAUg0kvDquaQtp+q2rXdXr/235riZN/Aoen/9lSe+aBcwFsHF/yLAeZ7DJbptwqBTcMxf3kNSdmXzU7xSmFH4ItHwoZipZJnq+trw=="
+    "previousHash": "631937ac4920b224ed54a121fbdcbb4c209679c9f09b54f8d841ef2840c348fb",
+    "hash": "d05c4eef66cef6e23d8be261db1bd684733bc18c13a3c91f9e6b22de4d7e55af",
+    "signature": "QD26atewXABNKXuyu0JcgQK+BBdpX8wkmZTmX0redpcRS58MBvemI0gqF9UDPaExJYN6AY53I/40NViw0eKWsVBtmwem0AwEj7mKTJheQetLhj1XjX3tAgXhddLON4CIJ43vQFQNba7pL3z52BBimSSyOVd6rhtu/rDzBHtqyqVsKyUNukEp3NTIA1ggViVKju8hW57eJbkTR/DUvq48efQWhsXD5xjNDHqZNSgv5j4HKajhKWNfhbwntRjXgxlx3Ib/kmIZ6hb6a4w6TXGSYBY4ny8UMwpSUGW4NsRrNTNkWzYlpJP8Oxmjn4OvOaL5ojCglv7PDm15honbQftIcQ=="
   },
   {
     "index": 3,
-    "timestamp": "2026-09-07T08:27:02.738Z",
+    "timestamp": "2026-09-08T05:25:42.171Z",
     "action": "CONSENT_REVOKED",
     "patientId": "8b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "86b65b6aa7d16954de93b510b6b7c3ee4c3407a28ce55325c66894c2d7644941",
-    "hash": "2f65d898eece9a5c9bfbd0d0c572f8a09bb479e51decadfa5f1472ede6cfe986",
-    "signature": "Zn+g2STiXDO7KhtoCL6pnyeGgqnb9Gj1327SpbF/yPqNqN7Vfno81MXaHRtmTXxxRzGTaC/ukS6rwY+TdCRJsjxRDK/4O7EqxEGuaXsB2ihdqF07peB+E+lzULyu9dqC3WJHXEUWRIYgqM3k6u2TK7h1al9mPvsOVI/njwbA5j/3zMD9GiXLXmfoOXz0DHkLhflreL7xN7TshPS+h62K3KfoKYMMdhbXXkSozbITYzI49NrxKeTSoHOGy2EZAvWtqmuP3FCMCRnwkhfbZBJEpOGqN425vDzl97eiFuYWMYlTGUubkiWhblvU1RmUTe9MkWH0gJhm4SFpuxNKJFOFRQ=="
+    "previousHash": "d05c4eef66cef6e23d8be261db1bd684733bc18c13a3c91f9e6b22de4d7e55af",
+    "hash": "0c060eecbd4d9c007bbeb89f454802446347c8444eada9126c6eded962d743af",
+    "signature": "lHeg+8bUR9PgmDDN1+P0cmSZODUOyv3QjHysgJkcbrGbaDhYLPaH3AYxTk0QsAnukCoVMMMWltQV5KOzSl8FRZPTpQh0wgrhjyauxrl+HrXEcdWAF+YCyFcZzsBQ5ScCg/DUvGNGtGaY9P+e3JdZTFJ0LMi8R77gxSEybFQ4ORwHC/omPOgqbADlOpa4ljkYOCsxl5g4WpWgn5NZJag6RqhDH78QS3MfW3aWw8BBRzc3kJip4tUOnua+rp298ht7JrleSYKrwwVVXBhoZrijJiZKo+sBdGxqNubY6IgZq6PmjaCydMjPPR54K7vlIj9d9vsouTOdSl3K32bX6vRvjw=="
   }
 ]
 
@@ -9481,6 +9482,7 @@ router.post('/login', validate(loginBody), async (req, res) => {
         if (hospital) {
           extraData = {
             hospital_id: hospital.id,
+            hospitalName: hospital.name,
             total_beds: hospital.total_beds,
             icu_beds: hospital.icu_beds,
             ventilators: hospital.ventilators,
@@ -9619,21 +9621,28 @@ router.post('/verify-mfa', async (req, res) => {
     }
 
     // Generate token
+    const targetMfaId = isAmbulance ? ambulanceUnit.id : isHospital ? hospitalUnit.id : user.id;
+    const targetMfaName = isAmbulance ? ambulanceUnit.driverName : isHospital ? hospitalUnit.name : user.name;
+    const targetMfaEmail = isAmbulance ? ambulanceUnit.vehicleNo : isHospital ? (hospitalUnit.email || hospitalUnit.name) : user.email;
+    const targetMfaRole = isAmbulance ? 'paramedic' : isHospital ? 'hospital_admin' : user.role;
+    const targetMfaHospitalId = isAmbulance ? null : isHospital ? hospitalUnit.id : user.hospital_id;
+
     const accessToken = jwt.sign(
       {
-        id: isAmbulance ? ambulanceUnit.id : user.id,
-        name: isAmbulance ? ambulanceUnit.driverName : user.name,
-        email: isAmbulance ? ambulanceUnit.vehicleNo : user.email,
-        role: isAmbulance ? 'paramedic' : user.role,
-        hospital_id: isAmbulance ? null : user.hospital_id,
-        isAmbulance
+        id: targetMfaId,
+        name: targetMfaName,
+        email: targetMfaEmail,
+        role: targetMfaRole,
+        hospital_id: targetMfaHospitalId,
+        isAmbulance,
+        isHospital
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
 
     let refreshToken = '';
-    if (!isAmbulance) {
+    if (!isAmbulance && !isHospital && user) {
       refreshToken = await generateAndSaveRefreshToken(user);
     } else {
       refreshToken = crypto.randomBytes(40).toString('hex');
@@ -9641,12 +9650,12 @@ router.post('/verify-mfa', async (req, res) => {
 
     // Audit log
     await AuditLog.create({
-      user_id: isAmbulance ? null : user.id,
+      user_id: (isAmbulance || isHospital) ? null : user?.id,
       action: isBackupUsed ? 'LOGIN_MFA_BACKUP_USED' : 'LOGIN_MFA_SUCCESS',
-      resource: isAmbulance ? 'Ambulance' : 'User',
-      resource_id: isAmbulance ? ambulanceUnit.id : user.id,
+      resource: isAmbulance ? 'Ambulance' : isHospital ? 'Hospital' : 'User',
+      resource_id: targetMfaId,
       ip_address: req.ip || req.connection.remoteAddress,
-      details: { email: isAmbulance ? ambulanceUnit.vehicleNo : user.email }
+      details: { email: targetMfaEmail }
     });
 
     const { Hospital, Ambulance } = require('../utils/db');
@@ -9666,11 +9675,27 @@ router.post('/verify-mfa', async (req, res) => {
         is_system_standard: ambulanceUnit.is_system_standard,
         oxygen_capacity_liters: ambulanceUnit.oxygen_capacity_liters
       };
+    } else if (isHospital && hospitalUnit) {
+      extraData = {
+        hospital_id: hospitalUnit.id,
+        hospitalName: hospitalUnit.name,
+        total_beds: hospitalUnit.total_beds,
+        icu_beds: hospitalUnit.icu_beds,
+        ventilators: hospitalUnit.ventilators,
+        license_number: hospitalUnit.license_number,
+        departments: hospitalUnit.departments,
+        bay_capacity: hospitalUnit.bay_capacity,
+        trauma_tier: hospitalUnit.trauma_tier,
+        accreditation_id: hospitalUnit.accreditation_id,
+        city: hospitalUnit.city,
+        state: hospitalUnit.state
+      };
     } else if (user && (user.role === 'hospital_admin' || user.role === 'doctor') && user.hospital_id) {
       const hospital = await Hospital.findByPk(user.hospital_id);
       if (hospital) {
         extraData = {
           hospital_id: hospital.id,
+          hospitalName: hospital.name,
           total_beds: hospital.total_beds,
           icu_beds: hospital.icu_beds,
           ventilators: hospital.ventilators,
@@ -9689,15 +9714,16 @@ router.post('/verify-mfa', async (req, res) => {
       token: accessToken,
       refreshToken,
       user: {
-        id: isAmbulance ? ambulanceUnit.id : user.id,
-        name: isAmbulance ? ambulanceUnit.driverName : user.name,
-        email: isAmbulance ? ambulanceUnit.vehicleNo : user.email,
-        role: isAmbulance ? 'paramedic' : user.role,
-        hospital_id: isAmbulance ? null : user.hospital_id,
-        mobile: isAmbulance ? ambulanceUnit.contactInfo : user.mobile,
-        city: isAmbulance ? null : user?.city,
-        lat: isAmbulance ? ambulanceUnit?.latitude : user?.lat,
-        lng: isAmbulance ? ambulanceUnit?.longitude : user?.lng,
+        id: targetMfaId,
+        name: targetMfaName,
+        hospitalName: isHospital ? hospitalUnit.name : (extraData.hospitalName || targetMfaName),
+        email: targetMfaEmail,
+        role: targetMfaRole,
+        hospital_id: targetMfaHospitalId,
+        mobile: isAmbulance ? ambulanceUnit.contactInfo : isHospital ? hospitalUnit.contact_number : user?.mobile,
+        city: isAmbulance ? null : isHospital ? hospitalUnit.city : user?.city,
+        lat: isAmbulance ? ambulanceUnit?.latitude : isHospital ? hospitalUnit?.lat : user?.lat,
+        lng: isAmbulance ? ambulanceUnit?.longitude : isHospital ? hospitalUnit?.lng : user?.lng,
         ...extraData
       }
     });
@@ -38014,7 +38040,7 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
       const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: inputId, password: inputPass, role: 'hospital', bypassMFA: true })
+        body: JSON.stringify({ id: inputId, password: inputPass, role: 'hospital' })
       });
       const data = await res.json();
 
@@ -38113,11 +38139,11 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
 
     const found = {
       hospitalId: user.hospital_id || finalInputId,
-      name: user.name || (user.role === 'doctor' ? 'Manipal Global Trauma Center' : 'Emergency Center'),
+      name: user.hospitalName || user.name || (user.role === 'doctor' ? 'Manipal Global Trauma Center' : 'Emergency Center'),
       adminName: user.name || 'Dr. Command',
       internalId: (user.hospital_id || finalInputId).toLowerCase(),
-      lat: user.lat || 12.9592,
-      lng: user.lng || 77.6444
+      lat: user.lat || 19.0760,
+      lng: user.lng || 72.8777
     };
 
     // Always overwrite hospitalId with the real database UUID returned by the server

@@ -354,6 +354,7 @@ router.post('/login', validate(loginBody), async (req, res) => {
         if (hospital) {
           extraData = {
             hospital_id: hospital.id,
+            hospitalName: hospital.name,
             total_beds: hospital.total_beds,
             icu_beds: hospital.icu_beds,
             ventilators: hospital.ventilators,
@@ -492,21 +493,28 @@ router.post('/verify-mfa', async (req, res) => {
     }
 
     // Generate token
+    const targetMfaId = isAmbulance ? ambulanceUnit.id : isHospital ? hospitalUnit.id : user.id;
+    const targetMfaName = isAmbulance ? ambulanceUnit.driverName : isHospital ? hospitalUnit.name : user.name;
+    const targetMfaEmail = isAmbulance ? ambulanceUnit.vehicleNo : isHospital ? (hospitalUnit.email || hospitalUnit.name) : user.email;
+    const targetMfaRole = isAmbulance ? 'paramedic' : isHospital ? 'hospital_admin' : user.role;
+    const targetMfaHospitalId = isAmbulance ? null : isHospital ? hospitalUnit.id : user.hospital_id;
+
     const accessToken = jwt.sign(
       {
-        id: isAmbulance ? ambulanceUnit.id : user.id,
-        name: isAmbulance ? ambulanceUnit.driverName : user.name,
-        email: isAmbulance ? ambulanceUnit.vehicleNo : user.email,
-        role: isAmbulance ? 'paramedic' : user.role,
-        hospital_id: isAmbulance ? null : user.hospital_id,
-        isAmbulance
+        id: targetMfaId,
+        name: targetMfaName,
+        email: targetMfaEmail,
+        role: targetMfaRole,
+        hospital_id: targetMfaHospitalId,
+        isAmbulance,
+        isHospital
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
 
     let refreshToken = '';
-    if (!isAmbulance) {
+    if (!isAmbulance && !isHospital && user) {
       refreshToken = await generateAndSaveRefreshToken(user);
     } else {
       refreshToken = crypto.randomBytes(40).toString('hex');
@@ -514,12 +522,12 @@ router.post('/verify-mfa', async (req, res) => {
 
     // Audit log
     await AuditLog.create({
-      user_id: isAmbulance ? null : user.id,
+      user_id: (isAmbulance || isHospital) ? null : user?.id,
       action: isBackupUsed ? 'LOGIN_MFA_BACKUP_USED' : 'LOGIN_MFA_SUCCESS',
-      resource: isAmbulance ? 'Ambulance' : 'User',
-      resource_id: isAmbulance ? ambulanceUnit.id : user.id,
+      resource: isAmbulance ? 'Ambulance' : isHospital ? 'Hospital' : 'User',
+      resource_id: targetMfaId,
       ip_address: req.ip || req.connection.remoteAddress,
-      details: { email: isAmbulance ? ambulanceUnit.vehicleNo : user.email }
+      details: { email: targetMfaEmail }
     });
 
     const { Hospital, Ambulance } = require('../utils/db');
@@ -539,11 +547,27 @@ router.post('/verify-mfa', async (req, res) => {
         is_system_standard: ambulanceUnit.is_system_standard,
         oxygen_capacity_liters: ambulanceUnit.oxygen_capacity_liters
       };
+    } else if (isHospital && hospitalUnit) {
+      extraData = {
+        hospital_id: hospitalUnit.id,
+        hospitalName: hospitalUnit.name,
+        total_beds: hospitalUnit.total_beds,
+        icu_beds: hospitalUnit.icu_beds,
+        ventilators: hospitalUnit.ventilators,
+        license_number: hospitalUnit.license_number,
+        departments: hospitalUnit.departments,
+        bay_capacity: hospitalUnit.bay_capacity,
+        trauma_tier: hospitalUnit.trauma_tier,
+        accreditation_id: hospitalUnit.accreditation_id,
+        city: hospitalUnit.city,
+        state: hospitalUnit.state
+      };
     } else if (user && (user.role === 'hospital_admin' || user.role === 'doctor') && user.hospital_id) {
       const hospital = await Hospital.findByPk(user.hospital_id);
       if (hospital) {
         extraData = {
           hospital_id: hospital.id,
+          hospitalName: hospital.name,
           total_beds: hospital.total_beds,
           icu_beds: hospital.icu_beds,
           ventilators: hospital.ventilators,
@@ -562,15 +586,16 @@ router.post('/verify-mfa', async (req, res) => {
       token: accessToken,
       refreshToken,
       user: {
-        id: isAmbulance ? ambulanceUnit.id : user.id,
-        name: isAmbulance ? ambulanceUnit.driverName : user.name,
-        email: isAmbulance ? ambulanceUnit.vehicleNo : user.email,
-        role: isAmbulance ? 'paramedic' : user.role,
-        hospital_id: isAmbulance ? null : user.hospital_id,
-        mobile: isAmbulance ? ambulanceUnit.contactInfo : user.mobile,
-        city: isAmbulance ? null : user?.city,
-        lat: isAmbulance ? ambulanceUnit?.latitude : user?.lat,
-        lng: isAmbulance ? ambulanceUnit?.longitude : user?.lng,
+        id: targetMfaId,
+        name: targetMfaName,
+        hospitalName: isHospital ? hospitalUnit.name : (extraData.hospitalName || targetMfaName),
+        email: targetMfaEmail,
+        role: targetMfaRole,
+        hospital_id: targetMfaHospitalId,
+        mobile: isAmbulance ? ambulanceUnit.contactInfo : isHospital ? hospitalUnit.contact_number : user?.mobile,
+        city: isAmbulance ? null : isHospital ? hospitalUnit.city : user?.city,
+        lat: isAmbulance ? ambulanceUnit?.latitude : isHospital ? hospitalUnit?.lat : user?.lat,
+        lng: isAmbulance ? ambulanceUnit?.longitude : isHospital ? hospitalUnit?.lng : user?.lng,
         ...extraData
       }
     });
