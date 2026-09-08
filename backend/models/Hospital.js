@@ -76,6 +76,18 @@ module.exports = (sequelize) => {
     accreditation_id: {
       type: DataTypes.STRING,
       allowNull: true
+    },
+    email: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    password: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    totp_secret: {
+      type: DataTypes.TEXT,
+      allowNull: true
     }
   }, {
     tableName: 'hospitals',
