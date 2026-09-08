@@ -523,62 +523,60 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
 
   const generatePrognosisReport = () => {
     setGeneratingPrognosis(true);
-    setTimeout(() => {
-      let condition = "General Assessment";
-      let riskLevel = "LOW RISK";
-      let riskColor = "#00ff88";
-      let details = "";
-      let recommendations = [];
+    let condition = "General Assessment";
+    let riskLevel = "LOW RISK";
+    let riskColor = "#00ff88";
+    let details = "";
+    let recommendations = [];
 
-      const hr = latestVitals?.heartRate || 75;
-      const o2 = latestVitals?.spo2 || 98;
-      const sys = latestVitals?.systolic || 120;
-      const temp = latestVitals?.temperature || 36.6;
+    const hr = latestVitals?.heartRate || 75;
+    const o2 = latestVitals?.spo2 || 98;
+    const sys = latestVitals?.systolic || 120;
+    const temp = latestVitals?.temperature || 36.6;
 
-      if (o2 < 92 || hr > 130 || sys < 90) {
-        condition = "High Risk: Acute Cardiorespiratory Crisis";
-        riskLevel = "CRITICAL / RED";
-        riskColor = "#ff4444";
-        details = "Smart telemetry analysis shows acute deterioration. Low blood oxygenation coupled with severe tachycardia/hypotension indicates potential cardiogenic shock or respiratory failure.";
-        recommendations = [
-          "Establish high-flow oxygen therapy (15 L/min non-rebreather).",
-          "Obtain immediate arterial blood gas (ABG) & cardiac panels.",
-          "Prepare trauma bay for immediate intubation/mechanical ventilation.",
-          "Alert critical care coordinator (ICU Command) for standby bed lock."
-        ];
-      } else if (hr > 105 || o2 < 95 || sys > 145 || temp > 38.0) {
-        condition = "Moderate Risk: Elevated Hemodynamic Acuity";
-        riskLevel = "MODERATE / YELLOW";
-        riskColor = "#ffb800";
-        details = "Smart telemetry analysis shows early-stage hypertensive distress or systemic infection. Mild tachycardia & sub-optimal blood oxygen saturation require close monitoring.";
-        recommendations = [
-          "Initiate continuous vitals polling (15-min intervals).",
-          "Draw peripheral blood cultures x2 and perform septic screen.",
-          "Obtain emergency 12-lead ECG to rule out ischemic changes.",
-          "Standby IV access line hydration (0.9% Normal Saline at 100 mL/hr)."
-        ];
-      } else {
-        condition = "Normal Hemodynamic Profile";
-        riskLevel = "STABLE / GREEN";
-        riskColor = "#00ff88";
-        details = "Vitals are within physiological limits. Wearable streams indicate stable cardiovascular state. Standard emergency triage protocols apply.";
-        recommendations = [
-          "Continue routine vital sign monitoring (30-min intervals).",
-          "Verify standard electronic health record (EHR) medication reconciliation.",
-          "Clear for standard emergency room triage assessment."
-        ];
-      }
+    if (o2 < 92 || hr > 130 || sys < 90) {
+      condition = "High Risk: Acute Cardiorespiratory Crisis";
+      riskLevel = "CRITICAL / RED";
+      riskColor = "#ff4444";
+      details = "Clinical rule analysis shows acute deterioration. Low blood oxygenation coupled with severe tachycardia/hypotension indicates potential cardiogenic shock or respiratory failure.";
+      recommendations = [
+        "Establish high-flow oxygen therapy (15 L/min non-rebreather).",
+        "Obtain immediate arterial blood gas (ABG) & cardiac panels.",
+        "Prepare trauma bay for immediate intubation/mechanical ventilation.",
+        "Alert critical care coordinator (ICU Command) for standby bed lock."
+      ];
+    } else if (hr > 105 || o2 < 95 || sys > 145 || temp > 38.0) {
+      condition = "Moderate Risk: Elevated Hemodynamic Acuity";
+      riskLevel = "MODERATE / YELLOW";
+      riskColor = "#ffb800";
+      details = "Clinical rule analysis shows early-stage hypertensive distress or systemic infection. Mild tachycardia & sub-optimal blood oxygen saturation require close monitoring.";
+      recommendations = [
+        "Initiate continuous vitals polling (15-min intervals).",
+        "Draw peripheral blood cultures x2 and perform septic screen.",
+        "Obtain emergency 12-lead ECG to rule out ischemic changes.",
+        "Standby IV access line hydration (0.9% Normal Saline at 100 mL/hr)."
+      ];
+    } else {
+      condition = "Normal Hemodynamic Profile";
+      riskLevel = "STABLE / GREEN";
+      riskColor = "#00ff88";
+      details = "Vitals are within physiological limits. Wearable streams indicate stable cardiovascular state. Standard emergency triage protocols apply.";
+      recommendations = [
+        "Continue routine vital sign monitoring (30-min intervals).",
+        "Verify standard electronic health record (EHR) medication reconciliation.",
+        "Clear for standard emergency room triage assessment."
+      ];
+    }
 
-      setAiPrognosisReport({
-        condition,
-        riskLevel,
-        riskColor,
-        details,
-        recommendations,
-        generatedAt: new Date().toLocaleTimeString()
-      });
-      setGeneratingPrognosis(false);
-    }, 1500);
+    setAiPrognosisReport({
+      condition,
+      riskLevel,
+      riskColor,
+      details,
+      recommendations,
+      generatedAt: new Date().toLocaleTimeString()
+    });
+    setGeneratingPrognosis(false);
   };
 
   const riskColors = { HIGH: '#ff4444', MEDIUM: '#ffb800', LOW: '#00ff88' };
@@ -966,7 +964,7 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
           </button>
         )}
 
-        {/* AI Care Advisor Panel */}
+        {/* Clinical Decision Support Advisor Panel */}
         <button
           onClick={generatePrognosisReport}
           disabled={generatingPrognosis}
@@ -977,7 +975,7 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
             cursor: 'pointer', transition: 'all 0.2s',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
           }}>
-          <span>🧠</span> {generatingPrognosis ? 'GENERATING AI PROGNOSIS...' : 'GENERATE AI CARE PROGNOSIS'}
+          <span>🩺</span> EVALUATE CLINICAL RISK ASSESSMENT
         </button>
 
         {aiPrognosisReport && (
@@ -986,7 +984,7 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
             borderRadius: 8, padding: 12, marginTop: 10, textAlign: 'left'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: "'Orbitron'", fontSize: 10, marginBottom: 6 }}>
-              <span style={{ color: '#00c8ff' }}>AI CARE DECISION ADVISOR</span>
+              <span style={{ color: '#00c8ff' }}>CLINICAL DECISION SUPPORT</span>
               <span style={{ color: aiPrognosisReport.riskColor, fontWeight: 'bold' }}>{aiPrognosisReport.riskLevel}</span>
             </div>
             <div style={{ fontSize: 12, fontWeight: 'bold', color: '#e0eaff', marginBottom: 4 }}>
