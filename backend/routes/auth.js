@@ -378,6 +378,7 @@ router.post('/login', validate(loginBody), async (req, res) => {
       user: {
         id: targetId,
         name: targetName,
+        hospitalName: isHospitalTableLogin ? hospitalUnit.name : targetName,
         email: targetEmail,
         role: targetRole,
         hospital_id: targetHospitalId,

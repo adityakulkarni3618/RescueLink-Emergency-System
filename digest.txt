@@ -9505,6 +9505,7 @@ router.post('/login', validate(loginBody), async (req, res) => {
       user: {
         id: targetId,
         name: targetName,
+        hospitalName: isHospitalTableLogin ? hospitalUnit.name : targetName,
         email: targetEmail,
         role: targetRole,
         hospital_id: targetHospitalId,
@@ -38028,11 +38029,11 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
 
         const found = {
           hospitalId: data.user?.hospital_id || inputId,
-          name: data.user?.name || (data.user?.role === 'doctor' ? 'Manipal Global Trauma Center' : 'Emergency Center'),
-          adminName: data.user?.name || 'Dr. Command',
+          name: data.user?.hospitalName || data.user?.name || 'City Emergency Command Center',
+          adminName: data.user?.name || 'Hospital Coordinator',
           internalId: (data.user?.hospital_id || inputId).toLowerCase(),
-          lat: data.lat || 12.9592,
-          lng: data.lng || 77.6444
+          lat: data.user?.lat || data.lat || 19.0760,
+          lng: data.user?.lng || data.lng || 72.8777
         };
 
         // Always overwrite hospitalId with the real database UUID returned by the server
