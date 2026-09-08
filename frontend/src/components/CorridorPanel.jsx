@@ -47,7 +47,7 @@ export default function CorridorPanel({
   mode = 'hospital', // 'driver' | 'hospital' | 'warroom'
   onBack = null
 }) {
-  const [cityName, setCityName] = useState('VIJAYAWADA');
+  const [cityName, setCityName] = useState('METROPOLITAN REGION');
   const [junctions, setJunctions] = useState([]);
   const [logs, setLogs] = useState(['[System Boot] Preemption link established.']);
   const [realRoutePath, setRealRoutePath] = useState(null); // coordinates from OSRM
@@ -64,6 +64,35 @@ export default function CorridorPanel({
     const timestamp = new Date().toLocaleTimeString();
     setLogs(prev => [`[${timestamp}] ${text}`, ...prev.slice(0, 24)]);
   };
+
+  // Dynamically compute region city from mission coordinates via reverse geocoding
+  useEffect(() => {
+    const targetLoc = isValidLatLng(ambulanceLoc) ? ambulanceLoc : (isValidLatLng(hospitalLoc) ? hospitalLoc : (isValidLatLng(patientLoc) ? patientLoc : null));
+    if (!targetLoc) return;
+
+    const lat = targetLoc.lat !== undefined ? targetLoc.lat : targetLoc[0];
+    const lng = targetLoc.lng !== undefined ? targetLoc.lng : targetLoc[1];
+    if (!lat || !lng || isNaN(lat) || isNaN(lng)) return;
+
+    let isMounted = true;
+    const reverseGeocodeRegion = async () => {
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10`);
+        if (res.ok) {
+          const data = await res.json();
+          const detectedCity = data.address?.city || data.address?.town || data.address?.city_district || data.address?.county || data.address?.state_district || data.address?.state || 'METROPOLITAN REGION';
+          if (isMounted && detectedCity) {
+            setCityName(detectedCity.toUpperCase());
+          }
+        }
+      } catch (err) {
+        console.warn('Reverse geocode for corridor region failed:', err);
+      }
+    };
+
+    reverseGeocodeRegion();
+    return () => { isMounted = false; };
+  }, [ambulanceLoc, hospitalLoc, patientLoc]);
 
   // Fetch real route from OSRM public API with steps
   useEffect(() => {
