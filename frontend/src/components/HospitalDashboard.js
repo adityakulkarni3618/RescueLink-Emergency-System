@@ -2053,7 +2053,7 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
       const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: inputId, password: inputPass, role: 'hospital', bypassMFA: true })
+        body: JSON.stringify({ id: inputId, password: inputPass, role: 'hospital' })
       });
       const data = await res.json();
 
@@ -2152,11 +2152,11 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
 
     const found = {
       hospitalId: user.hospital_id || finalInputId,
-      name: user.name || (user.role === 'doctor' ? 'Manipal Global Trauma Center' : 'Emergency Center'),
+      name: user.hospitalName || user.name || (user.role === 'doctor' ? 'Manipal Global Trauma Center' : 'Emergency Center'),
       adminName: user.name || 'Dr. Command',
       internalId: (user.hospital_id || finalInputId).toLowerCase(),
-      lat: user.lat || 12.9592,
-      lng: user.lng || 77.6444
+      lat: user.lat || 19.0760,
+      lng: user.lng || 72.8777
     };
 
     // Always overwrite hospitalId with the real database UUID returned by the server
