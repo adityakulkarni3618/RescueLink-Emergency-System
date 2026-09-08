@@ -1408,14 +1408,19 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
         viewRole = 'user';
       }
 
-      // Role mismatch guard: prevent ambulance drivers from logging into hospital portal and vice versa
-      if (defaultRole === 'hospital' && viewRole === 'ambulance') {
-        setError('❌ Access Denied: This is a Hospital portal. Use the Ambulance Gateway to sign in as a paramedic.');
+      // Role mismatch guard: enforce strict portal security access
+      if (defaultRole === 'admin' && data.user.role !== 'city_admin') {
+        setError('❌ Access Denied: This is the Admin Gateway. Only city administrators can sign in here.');
         setLoading(false);
         return;
       }
-      if (defaultRole === 'ambulance' && viewRole === 'hospital') {
-        setError('❌ Access Denied: This is the Ambulance portal. Use the Hospital Gateway to sign in as a medical coordinator.');
+      if (defaultRole === 'hospital' && viewRole !== 'hospital') {
+        setError('❌ Access Denied: This is the Hospital portal. Use the Hospital Gateway to sign in with hospital administrator credentials.');
+        setLoading(false);
+        return;
+      }
+      if (defaultRole === 'ambulance' && viewRole !== 'ambulance') {
+        setError('❌ Access Denied: This is the Ambulance portal. Use the Ambulance Gateway to sign in as a paramedic.');
         setLoading(false);
         return;
       }
@@ -3183,6 +3188,7 @@ export default function App() {
         <style>{styles}</style>
         <MfaVerifyScreen
           mfaToken={mfaVerifyToken}
+          defaultRole={role}
           onLoginSuccess={handleLoginSuccess}
           onCancel={() => setMfaVerifyToken(null)}
           ParticleCanvas={ParticleCanvas}

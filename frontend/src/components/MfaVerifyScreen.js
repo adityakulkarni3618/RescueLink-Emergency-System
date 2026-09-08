@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { API_BASE_URL } from '../config/api';
 
-export function MfaVerifyScreen({ mfaToken, onLoginSuccess, onCancel, ParticleCanvas }) {
+export function MfaVerifyScreen({ mfaToken, defaultRole, onLoginSuccess, onCancel, ParticleCanvas }) {
   const [totpCode, setTotpCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -22,11 +22,6 @@ export function MfaVerifyScreen({ mfaToken, onLoginSuccess, onCancel, ParticleCa
         throw new Error(data.error || 'Verification failed');
       }
 
-      sessionStorage.setItem('rescuelink_token', data.token);
-      sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
-      localStorage.setItem('rescuelink_token', data.token);
-      localStorage.setItem('rescuelink_user', JSON.stringify(data.user));
-
       let viewRole = 'user';
       if (data.user.role === 'doctor' || data.user.role === 'hospital_admin') {
         viewRole = 'hospital';
@@ -39,6 +34,21 @@ export function MfaVerifyScreen({ mfaToken, onLoginSuccess, onCancel, ParticleCa
       } else if (data.user.role === 'patient') {
         viewRole = 'user';
       }
+
+      if (defaultRole === 'admin' && data.user.role !== 'city_admin') {
+        throw new Error('❌ Access Denied: This is the Admin Gateway. Only city administrators can sign in here.');
+      }
+      if (defaultRole === 'hospital' && viewRole !== 'hospital') {
+        throw new Error('❌ Access Denied: This is the Hospital portal. Use the Hospital Gateway to sign in.');
+      }
+      if (defaultRole === 'ambulance' && viewRole !== 'ambulance') {
+        throw new Error('❌ Access Denied: This is the Ambulance portal. Use the Ambulance Gateway to sign in.');
+      }
+
+      sessionStorage.setItem('rescuelink_token', data.token);
+      sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
+      localStorage.setItem('rescuelink_token', data.token);
+      localStorage.setItem('rescuelink_user', JSON.stringify(data.user));
 
       onLoginSuccess(viewRole, data.token, data.user);
     } catch (err) {
