@@ -481,7 +481,9 @@ export default function WarRoom({ socket, connected, onLogout, onSwitchRole, onS
   }
 
   const liveAmbs = Object.entries(ambulances).filter(([, a]) => !a.isSimulated);
-  const mapCenter = Object.values(ambulances).find(a => a.location)?.location || { lat: 12.9716, lng: 77.5946 };
+  const mapCenter = Object.values(ambulances).find(a => a.location || a.lat)?.location || 
+                    Object.values(hospitals).find(h => h.location || h.lat)?.location || 
+                    { lat: 18.5204, lng: 73.8567 };
 
   /* ── Main dashboard ─────────────────────────────────────────────── */
   return (
