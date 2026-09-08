@@ -385,8 +385,8 @@ router.post('/login', validate(loginBody), async (req, res) => {
         hospital_id: targetHospitalId,
         mobile: isAmbulanceTableLogin ? ambulanceUnit.contactInfo : isHospitalTableLogin ? hospitalUnit.contact_number : user?.mobile,
         city: isAmbulanceTableLogin ? null : isHospitalTableLogin ? hospitalUnit.city : user?.city,
-        lat: isAmbulanceTableLogin ? ambulanceUnit?.latitude : isHospitalTableLogin ? hospitalUnit?.lat : user?.lat,
-        lng: isAmbulanceTableLogin ? ambulanceUnit?.longitude : isHospitalTableLogin ? hospitalUnit?.lng : user?.lng,
+        lat: isAmbulanceTableLogin ? ambulanceUnit?.latitude : (hospitalUnit?.lat || extraData?.lat || user?.lat),
+        lng: isAmbulanceTableLogin ? ambulanceUnit?.longitude : (hospitalUnit?.lng || extraData?.lng || user?.lng),
         ...extraData
       }
     });
@@ -594,8 +594,8 @@ router.post('/verify-mfa', async (req, res) => {
         hospital_id: targetMfaHospitalId,
         mobile: isAmbulance ? ambulanceUnit.contactInfo : isHospital ? hospitalUnit.contact_number : user?.mobile,
         city: isAmbulance ? null : isHospital ? hospitalUnit.city : user?.city,
-        lat: isAmbulance ? ambulanceUnit?.latitude : isHospital ? hospitalUnit?.lat : user?.lat,
-        lng: isAmbulance ? ambulanceUnit?.longitude : isHospital ? hospitalUnit?.lng : user?.lng,
+        lat: isAmbulance ? ambulanceUnit?.latitude : (hospitalUnit?.lat || extraData?.lat || user?.lat),
+        lng: isAmbulance ? ambulanceUnit?.longitude : (hospitalUnit?.lng || extraData?.lng || user?.lng),
         ...extraData
       }
     });
@@ -1175,7 +1175,10 @@ router.post('/register-hospital', async (req, res) => {
       mobile: contactInfo,
       hospital_id: newHospital.id,
       totp_secret: setupData.secret,
-      is_active: true
+      is_active: true,
+      city: req.body.city || null,
+      lat: finalLat,
+      lng: finalLng
     });
     try {
       const cache = require('../utils/cache');
