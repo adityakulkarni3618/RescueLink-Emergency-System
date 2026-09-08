@@ -888,53 +888,90 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
   };
 
   const getAmbulanceDataList = () => {
-    const list = Object.entries(ambulances);
-    if (list.length > 0) return list;
+    const map = new Map();
 
     if (dbAmbulances && dbAmbulances.length > 0) {
-      return dbAmbulances.map((amb, index) => {
-        const ambLat = parseFloat(amb.latitude || amb.lat) || (userLocation ? userLocation.lat : 18.5204);
-        const ambLng = parseFloat(amb.longitude || amb.lng) || (userLocation ? userLocation.lng : 73.8567);
-        return [
-          amb.id || `AMB-${index}`,
-          {
-            id: amb.id,
-            driverName: amb.driverName || amb.name || `Driver ${amb.vehicleNo || ''}`,
-            available: amb.is_active !== false,
-            location: { lat: ambLat, lng: ambLng },
-            pos: { lat: ambLat, lng: ambLng },
-            vehicleNo: amb.vehicleNo || 'EMS Unit',
-            type: amb.type === 'ALS' ? 'Advanced Life Support' : 'Basic Life Support',
-            contactInfo: amb.contactInfo
-          }
-        ];
+      dbAmbulances.forEach((amb, index) => {
+        const id = amb.id || `AMB-${index}`;
+        const ambLat = parseFloat(amb.latitude || amb.lat);
+        const ambLng = parseFloat(amb.longitude || amb.lng);
+        const hasValidCoords = !isNaN(ambLat) && !isNaN(ambLng);
+        map.set(id, {
+          id,
+          driverName: amb.driverName || amb.name || `Driver ${amb.vehicleNo || ''}`,
+          available: amb.is_active !== false,
+          lat: hasValidCoords ? ambLat : (userLocation ? userLocation.lat : 18.5204),
+          lng: hasValidCoords ? ambLng : (userLocation ? userLocation.lng : 73.8567),
+          location: hasValidCoords ? { lat: ambLat, lng: ambLng } : (userLocation ? userLocation : { lat: 18.5204, lng: 73.8567 }),
+          pos: hasValidCoords ? { lat: ambLat, lng: ambLng } : (userLocation ? userLocation : { lat: 18.5204, lng: 73.8567 }),
+          vehicleNo: amb.vehicleNo || 'EMS Unit',
+          type: amb.type === 'ALS' ? 'Advanced Life Support' : 'Basic Life Support',
+          contactInfo: amb.contactInfo
+        });
       });
     }
 
-    return []; // Avoid returning fake virtual ambulances when real entities are present
+    if (ambulances && Object.keys(ambulances).length > 0) {
+      Object.entries(ambulances).forEach(([id, amb]) => {
+        const ambLat = parseFloat(amb.latitude || amb.lat || amb.location?.lat);
+        const ambLng = parseFloat(amb.longitude || amb.lng || amb.location?.lng);
+        const hasValidCoords = !isNaN(ambLat) && !isNaN(ambLng);
+        const existing = map.get(id) || {};
+        map.set(id, {
+          ...existing,
+          ...amb,
+          id,
+          lat: hasValidCoords ? ambLat : existing.lat,
+          lng: hasValidCoords ? ambLng : existing.lng,
+          location: hasValidCoords ? { lat: ambLat, lng: ambLng } : existing.location
+        });
+      });
+    }
+
+    return Array.from(map.entries());
   };
 
   const getHospitalsData = () => {
-    if (Object.keys(hospitals).length > 0) {
-      return hospitals;
-    }
     const formatted = {};
     if (dbHospitals && dbHospitals.length > 0) {
       dbHospitals.forEach(h => {
-        const hLat = parseFloat(h.latitude || h.lat) || (userLocation ? userLocation.lat : 18.5204);
-        const hLng = parseFloat(h.longitude || h.lng) || (userLocation ? userLocation.lng : 73.8567);
-        formatted[h.id] = {
-          id: h.id,
-          name: h.name,
-          city: h.city,
-          lat: hLat,
-          lng: hLng,
-          location: { lat: hLat, lng: hLng },
-          total_beds: h.total_beds,
-          icu_beds: h.icu_beds,
-          ventilators: h.ventilators,
-          contact_number: h.contact_number
-        };
+        const hLat = parseFloat(h.latitude || h.lat);
+        const hLng = parseFloat(h.longitude || h.lng);
+        const hasValidCoords = !isNaN(hLat) && !isNaN(hLng);
+        if (hasValidCoords) {
+          formatted[h.id] = {
+            id: h.id,
+            name: h.name,
+            city: h.city,
+            lat: hLat,
+            lng: hLng,
+            location: { lat: hLat, lng: hLng },
+            pos: { lat: hLat, lng: hLng },
+            total_beds: h.total_beds,
+            icu_beds: h.icu_beds,
+            ventilators: h.ventilators,
+            contact_number: h.contact_number
+          };
+        }
+      });
+    }
+
+    if (hospitals && Object.keys(hospitals).length > 0) {
+      Object.values(hospitals).forEach(h => {
+        const hLat = parseFloat(h.lat || h.latitude || h.location?.lat);
+        const hLng = parseFloat(h.lng || h.longitude || h.location?.lng);
+        const hasValidCoords = !isNaN(hLat) && !isNaN(hLng);
+        const targetId = h.id || h.hospitalId;
+        if (targetId) {
+          formatted[targetId] = {
+            ...(formatted[targetId] || {}),
+            ...h,
+            id: targetId,
+            lat: hasValidCoords ? hLat : (formatted[targetId]?.lat || 18.5204),
+            lng: hasValidCoords ? hLng : (formatted[targetId]?.lng || 73.8567),
+            location: hasValidCoords ? { lat: hLat, lng: hLng } : (formatted[targetId]?.location || { lat: 18.5204, lng: 73.8567 })
+          };
+        }
       });
     }
     return formatted;
