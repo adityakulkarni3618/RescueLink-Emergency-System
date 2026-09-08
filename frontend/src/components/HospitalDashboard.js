@@ -1800,7 +1800,7 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
     if (token && userStr) {
       try {
         const user = JSON.parse(userStr);
-        const displayName = user.hospitalName || user.name || 'City Emergency Command Center';
+        const displayName = user.hospitalName || (user.name ? user.name.replace(/\s+Administrator$/i, '') : null) || 'City Emergency Command Center';
         return {
           hospitalId: user.hospital_id || user.id || 'hosp_demo_center_1',
           name: displayName,
@@ -1816,7 +1816,7 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (parsed && parsed.name) return parsed;
+        if (parsed && parsed.name && parsed.name !== 'City Emergency Command Center') return parsed;
       } catch (e) {}
     }
     // Dynamic fallback for demo mode

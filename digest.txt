@@ -2,7 +2,7 @@ RescueLink Implementation Disclaimer: See README.md for a detailed breakdown of 
 
 RescueLink Emergency System - Full Codebase Digest
 Generated from: c:\Users\Aditya Kulkarni\Downloads\Health-care-system
-Total files: 212
+Total files: 214
 
 PROJECT STRUCTURE:
   .github\workflows\ci.yml
@@ -68,6 +68,8 @@ PROJECT STRUCTURE:
   backend\migrations\004_add_prescriptions.sql
   backend\migrations\005_add_emergency_registration_fields.sql
   backend\migrations\006_add_hospital_coords_and_status_enum.sql
+  backend\migrations\007_add_city_lat_lng_to_users.sql
+  backend\migrations\008_add_hospital_auth_columns.sql
   backend\models\Ambulance.js
   backend\models\AuditLog.js
   backend\models\BloodRequest.js
@@ -4845,6 +4847,7 @@ FILE: backend\data\audit_log.txt
 [2026-09-07T08:27:05.079Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 [2026-09-08T05:25:44.458Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 [2026-09-08T05:41:21.619Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
+[2026-09-08T06:26:12.329Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 
 
 ================================================
@@ -5003,39 +5006,39 @@ FILE: backend\data\consent_ledger_test.json
 [
   {
     "index": 0,
-    "timestamp": "2026-09-08T05:41:20.042Z",
+    "timestamp": "2026-09-08T06:26:10.626Z",
     "action": "GENESIS_CHAIN_INITIALIZED",
     "patientId": "00000000-0000-0000-0000-000000000000",
     "previousHash": "0",
-    "hash": "a8aa9b5c07d1676856e66063024eb275b38a79941f44e1edbb3411a8049fa684",
-    "signature": "H1qcLUeRQDGY9M9geKfW88EkJaYOjEta8NbN39fpV7Bd7Nr/VtcXHarctF1TtabzZ0NQuI/k9xv6iccr35cC/5ZEBBrFQfExWBBANuESGuxFz7+6JU3lbExJq3Nnlrdc3Fe6NfcYMJDqJn0WN9hfqd/iV0cti6+cz4ihGLGq/nhE5fhGh2tNWi4st5WOSd6i/yLTG6KmsK2IdfRavxMxc5IeGsFTL492fVRGqZg9b+gE2CeZ67Kx1BvUuRjLw64cnaEpCaQB2Lg2NTRL0IIQ+jDtMzFdwmVFWHcl2YVTkrIpNt4X6a1QLwyUin4FgCZGYl2gMEthc5CaoVym6aDiXg=="
+    "hash": "0599be59605b91530c9819d31e7d35a6ee21aea91abe8bc175a0ae9925881140",
+    "signature": "hE5HXibXYJoWOV8kIyu6zzUplGxywCV5WSTtujp4s/VLvk4oLfY6YTkiqcCJt1f5ORdiqIGVOQsSfPK+U3+iPuwBJSW6xc++ArpxDjQZCHW/2nO2oXk7ZzydgLt0RRVBkYVcHnqp1disOg6W4I8QIPstxiOKLqAUjarNW6+xIPBsKywkGNKhXjPYOiR0wQbCIF4l22+cWKNahCKGh8c47nlpLlOplx+ZoEIa/Caa4Uv8s40kN/HXq/blZaYY+RE2q0lCqux2KelLxF/gOb13ZEW70CQ0TqnZz9DQmwADJXHV0gqdDD7Jcd2DSUg4JPZOkMXsdDbAD/c/NwJnE5vDYg=="
   },
   {
     "index": 1,
-    "timestamp": "2026-09-08T05:41:20.052Z",
+    "timestamp": "2026-09-08T06:26:10.635Z",
     "action": "CONSENT_GRANTED",
     "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "a8aa9b5c07d1676856e66063024eb275b38a79941f44e1edbb3411a8049fa684",
-    "hash": "102005815abdd5baa50afff7f325dc63c87502ea08eebac1a5002c5037729f60",
-    "signature": "Um2XRgtn5po3QsWkaAWDthBAG5uJvD7s0wI9LlP5OcKJ08BRS/rnkzeTWKLyG3QnVh1fqkcjkXnC7RRTELOPw5y0ZKsGas8eqGIn1gx0/KFoqyMGKy6oinf3RStT//r2kmRy62A8CagNwqkVaYgmQSnXMnO0UIUjAFjw+gTAVa4u39KVtdbXWI0kbu1rXRie7qItAFrEWGjiMwBu8fjVC7rsA0qqL9VaDCaE442Lr6MT1GOYwKT/+98qpqBlUwPY7oFBgrLeBGyYFyFuuKHuivcJPrsRhnTZuchvuR7mRQ0DVAeKyK+Wf7bAuqzuJYma61q+hBt4EH1UechrnB/MXg=="
+    "previousHash": "0599be59605b91530c9819d31e7d35a6ee21aea91abe8bc175a0ae9925881140",
+    "hash": "8911cb3c30f1baec8a14154107e95aa9358036d64df8c2cdf71736c4191f614b",
+    "signature": "Z24VI85UkkPQehy3ZbZ+4JROSflvuiJdiVPWXVuBN/XC7s1yb40clS+sVZqRRv7DK5nJBVNMZQh6DIkY0956W8oYvFBnIC9C2uILypi8c6wrhOXf9yMM4p+33m8CnIHRD0VOZnCYTpo5oKp6ZZDDJdy+Jz72vrg2Riz7iFb5xrCqC9am6HvTMZPNaKBHgrGRQtQU1Rv0M2jS2OaD5dAly5aYw4Cnc5lDyHazeu7KmCgN+g1zHtWL9ltXvRP2LpZheKfCGHPyDtsT6x14l/UH6VTaBeB9ZB2UlKQ2c7v8f6whJU5qAOFlqlz+VwYixM0UZPgXAv7IO3hfFJPMJNtqsg=="
   },
   {
     "index": 2,
-    "timestamp": "2026-09-08T05:41:20.094Z",
+    "timestamp": "2026-09-08T06:26:10.678Z",
     "action": "CONSENT_REVOKED",
     "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "102005815abdd5baa50afff7f325dc63c87502ea08eebac1a5002c5037729f60",
-    "hash": "6e1cc3f03159a215446364545d7ea1d5927c5dc5861cd99c07f431ed16d11446",
-    "signature": "OWdr/TFjsx+ouYow4V+F2epuyK0cXrojUMHoErNSfM9iNWO39/OgjSjK3e6P4yUyUuS6qirLvm7tm9cq6AmruGCG4okSPcyboFIWANjaLgqHOiVnxZ0dEZ7TolRmiN8Ut98AvwQU/luWC1Fh4vrlQLrOR45Hdv9wjc42G/R0AdiFUVk3cTL0e58/15c2VV7V3bZrWtXsuJVsnq1+I5w6okjYZFSxmrYs0wY4ScrevgGZYJ2HmyxmMvno+sierJbB7OWj8Z6mueOZFTlshszy5k8vDc6LB1FG2HmPb7yMjO35lQScUwVQ1MkebcMCR9f1sy47i+FTItH5T4OBW0k57A=="
+    "previousHash": "8911cb3c30f1baec8a14154107e95aa9358036d64df8c2cdf71736c4191f614b",
+    "hash": "f80e70fd1ac043af84480e82d1652926209e739340060824ccff26e944204e1a",
+    "signature": "gQIKuZG28pb0oBAuhj5FLFHO78O+L9v3lW+LtOf9xvj/IXzfZTaVvD3Ys2Z2EilcdOL+8R42Wkx2wcVHT0L04xgru6yZvcKZXRj+dV3W9KFNs9Jm4WmOl0+3vVLtY38e+vtGwXZMDeW+HWkEJVuGMEai7QICYi9on3FDx6g96qyHI4zZIRZ1P9CNRGeLDwKNpGZ7p0bm1yXKoLcb5JO7gNsN02bNeUz82LgqtGB9O/oX92imN2WPomaicPfABdNUPFZhzUWCEC97fJVaDCtepU34IM1XOGQavijqzp5R0NI2sshQOzxBhfHQ9NVsoIEDWzf5+z2tQUrZZ97xZ7o60g=="
   },
   {
     "index": 3,
-    "timestamp": "2026-09-08T05:41:20.098Z",
+    "timestamp": "2026-09-08T06:26:10.683Z",
     "action": "CONSENT_REVOKED",
     "patientId": "8b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "6e1cc3f03159a215446364545d7ea1d5927c5dc5861cd99c07f431ed16d11446",
-    "hash": "74e7f25554726b01aa6e2ab38781f2ebc0e0f0efa6c052f80968e88a674c2a58",
-    "signature": "ksE5aDQhB2UWZ807c065Jp1Q3pO1r/BeDKytcrkLkY+zBFkVkjv+MZ/LdQkZ+DJL8/GU8YVpIWplSxjx55TkUuCbS+AVnG3cKY7qNFxPl6ojPlubfSg5qqNRF6RfC1IJsG6IxnC6cxR7f8CtJUVNsnoD3PmpnlLbgEFFnInwBTcdjp9mpQ+6cKVtT6sJDNXV0zkw5AK8pvh/gJFnQVn+aye4huuOsjny0hd4oG6VjUvq/AFHsvaQWx2BYTUMNTV4ETBQFGB4sQ82r9pYfOwWkfyn9YQjpyY/Tn3DVx7wMvrexWITnpdG7unV8ovU7qZQ0I05SqM3Wk2RHDg3VdZjpw=="
+    "previousHash": "f80e70fd1ac043af84480e82d1652926209e739340060824ccff26e944204e1a",
+    "hash": "8fd017fbf0843b6b23e9fa521c72163ecbff4dc5856b427a2f16334698a05d03",
+    "signature": "N5gdpnH08DoG7rwgQY7qRiXCW5BJZ/musNXVT5uigPyf/wGGBbUjpFdTw5ZVH7gzNJYRX6LOI72Wv2XeP/hfYFn+6dYtIiw1qvs6IfFquk6zwpyjwsNJI+zg97t7j5IVDSrETiYLlEyNyeZ4kkFAbQAvTL6DntzcC0xeJ4jDDnT08gDsaj7RN7luuLRk/VnMqPLgJp8zw7wRdjk9nu6hvk7KGhJk0Kva77KjruvdVon4QUiLZ64ONATzZTG0J9/n8/wVJnCzYBlfVSdiG0txbRPLF/TcGewk2wQLgrguIcBK/aQSskAJRI1nVpVcPKoeYmlUIME9YFct50aQZdJr0g=="
   }
 ]
 
@@ -6216,6 +6219,31 @@ EXCEPTION
   WHEN undefined_object THEN NULL; -- Table/type may not exist in SQLite mode, safe to skip
   WHEN others THEN NULL;           -- Skip on any other error (e.g., SQLite which has no pg_enum)
 END$$;
+
+
+================================================
+FILE: backend\migrations\007_add_city_lat_lng_to_users.sql
+================================================
+-- 007_add_city_lat_lng_to_users.sql
+-- Adds missing city, lat, lng columns to users table
+ALTER TABLE users ADD COLUMN IF NOT EXISTS city VARCHAR(255);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS lat DOUBLE PRECISION;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS lng DOUBLE PRECISION;
+
+-- Adds missing email, password, totp_secret columns to hospitals table
+ALTER TABLE hospitals ADD COLUMN IF NOT EXISTS email VARCHAR(255);
+ALTER TABLE hospitals ADD COLUMN IF NOT EXISTS password VARCHAR(255);
+ALTER TABLE hospitals ADD COLUMN IF NOT EXISTS totp_secret VARCHAR(255);
+
+
+================================================
+FILE: backend\migrations\008_add_hospital_auth_columns.sql
+================================================
+-- 008_add_hospital_auth_columns.sql
+-- Adds missing email, password, totp_secret columns to hospitals table
+ALTER TABLE hospitals ADD COLUMN IF NOT EXISTS email VARCHAR(255);
+ALTER TABLE hospitals ADD COLUMN IF NOT EXISTS password VARCHAR(255);
+ALTER TABLE hospitals ADD COLUMN IF NOT EXISTS totp_secret VARCHAR(255);
 
 
 ================================================
@@ -37788,7 +37816,7 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
     if (token && userStr) {
       try {
         const user = JSON.parse(userStr);
-        const displayName = user.hospitalName || user.name || 'City Emergency Command Center';
+        const displayName = user.hospitalName || (user.name ? user.name.replace(/\s+Administrator$/i, '') : null) || 'City Emergency Command Center';
         return {
           hospitalId: user.hospital_id || user.id || 'hosp_demo_center_1',
           name: displayName,
@@ -37804,7 +37832,7 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (parsed && parsed.name) return parsed;
+        if (parsed && parsed.name && parsed.name !== 'City Emergency Command Center') return parsed;
       } catch (e) {}
     }
     // Dynamic fallback for demo mode
