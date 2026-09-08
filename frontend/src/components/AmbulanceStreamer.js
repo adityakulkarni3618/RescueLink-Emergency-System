@@ -1102,7 +1102,16 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
         });
       }, async (err) => {
         console.warn('GPS initial fetch error:', err);
-        const fallbackLoc = await fetchIpLocation();
+        let fallbackLoc = null;
+        if (authUnit && (authUnit.lat || authUnit.latitude) && (authUnit.lng || authUnit.longitude)) {
+          fallbackLoc = {
+            lat: parseFloat(authUnit.lat || authUnit.latitude),
+            lng: parseFloat(authUnit.lng || authUnit.longitude)
+          };
+          setLocationMethod('Registered Profile Coordinates');
+        } else {
+          fallbackLoc = await fetchIpLocation();
+        }
         setLocation(fallbackLoc);
         socket.emit('location-update', fallbackLoc);
         socket.emit('register-ambulance', { 
@@ -1115,7 +1124,17 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
         });
       }, { timeout: 10000, enableHighAccuracy: true });
     } else {
-      fetchIpLocation().then(fallbackLoc => {
+      (async () => {
+        let fallbackLoc = null;
+        if (authUnit && (authUnit.lat || authUnit.latitude) && (authUnit.lng || authUnit.longitude)) {
+          fallbackLoc = {
+            lat: parseFloat(authUnit.lat || authUnit.latitude),
+            lng: parseFloat(authUnit.lng || authUnit.longitude)
+          };
+          setLocationMethod('Registered Profile Coordinates');
+        } else {
+          fallbackLoc = await fetchIpLocation();
+        }
         setLocation(fallbackLoc);
         socket.emit('location-update', fallbackLoc);
         socket.emit('register-ambulance', { 
@@ -1126,7 +1145,7 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
           driverName: authUnit?.driverName,
           token
         });
-      });
+      })();
     }
 
     socket.on('rejoin-mission', (data) => {

@@ -1872,6 +1872,11 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [fhirPreviewData, setFhirPreviewData] = useState(null);
   useEffect(() => {
+    if (authHospital && authHospital.lat && authHospital.lng && !isNaN(parseFloat(authHospital.lat)) && !isNaN(parseFloat(authHospital.lng))) {
+      setHospitalGps({ lat: parseFloat(authHospital.lat), lng: parseFloat(authHospital.lng) });
+      return;
+    }
+
     const fetchIpLocation = async () => {
       try {
         const res = await fetch('https://ipapi.co/json/');
@@ -1895,7 +1900,7 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
     } else {
       fetchIpLocation().then(loc => setHospitalGps(loc));
     }
-  }, []);
+  }, [authHospital?.lat, authHospital?.lng]);
 
   // Sync tab state with URL hash (e.g. #hospital/settings, #hospital/triage)
   useEffect(() => {
@@ -2112,18 +2117,21 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
         setLoginError('');
         if (found.internalId) setActiveHospitalId(found.internalId);
 
-        // Dynamically locate the hospital so it appears in the same city as the user for the demo
+        // Use exact registered profile coordinates
         let hospitalGps = null;
-        try {
-          const baseLoc = await fetchIpLocation();
-          // Add deterministic small offset based on hospital ID so they don't overlap
-          const hash = inputId.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
-          hospitalGps = {
-            lat: baseLoc.lat + (hash % 10) * 0.005,
-            lng: baseLoc.lng + (hash % 7) * 0.005
-          };
-        } catch (e) {
-          hospitalGps = { lat: found.lat || data.lat, lng: found.lng || data.lng };
+        if (found.lat && found.lng && !isNaN(parseFloat(found.lat)) && !isNaN(parseFloat(found.lng))) {
+          hospitalGps = { lat: parseFloat(found.lat), lng: parseFloat(found.lng) };
+        } else {
+          try {
+            const baseLoc = await fetchIpLocation();
+            const hash = inputId.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+            hospitalGps = {
+              lat: baseLoc.lat + (hash % 10) * 0.005,
+              lng: baseLoc.lng + (hash % 7) * 0.005
+            };
+          } catch (e) {
+            hospitalGps = { lat: found.lat || data.lat || 18.5204, lng: found.lng || data.lng || 73.8567 };
+          }
         }
 
         if (hospitalGps) setHospitalGps(hospitalGps);
@@ -2203,15 +2211,19 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
     if (found.internalId) setActiveHospitalId(found.internalId);
 
     let hospitalGps = null;
-    try {
-      const baseLoc = await fetchIpLocation();
-      const hash = finalInputId.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
-      hospitalGps = {
-        lat: baseLoc.lat + (hash % 10) * 0.005,
-        lng: baseLoc.lng + (hash % 7) * 0.005
-      };
-    } catch (e) {
-      hospitalGps = { lat: found.lat || user.lat, lng: found.lng || user.lng };
+    if (found.lat && found.lng && !isNaN(parseFloat(found.lat)) && !isNaN(parseFloat(found.lng))) {
+      hospitalGps = { lat: parseFloat(found.lat), lng: parseFloat(found.lng) };
+    } else {
+      try {
+        const baseLoc = await fetchIpLocation();
+        const hash = finalInputId.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+        hospitalGps = {
+          lat: baseLoc.lat + (hash % 10) * 0.005,
+          lng: baseLoc.lng + (hash % 7) * 0.005
+        };
+      } catch (e) {
+        hospitalGps = { lat: found.lat || user.lat || 18.5204, lng: found.lng || user.lng || 73.8567 };
+      }
     }
 
     if (socket) socket.emit('register-hospital', {
