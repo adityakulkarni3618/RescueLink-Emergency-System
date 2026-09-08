@@ -37843,8 +37843,8 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
           name: displayName,
           adminName: user.name || 'Hospital Coordinator',
           internalId: (user.hospital_id || user.id || 'hosp_demo_center_1').toString().toLowerCase(),
-          lat: user.lat || 19.0760,
-          lng: user.lng || 72.8777,
+          lat: user.lat,
+          lng: user.lng,
           ...user
         };
       } catch (e) {}
@@ -37862,8 +37862,8 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
       name: 'City Emergency Command Center',
       adminName: 'Hospital Coordinator',
       internalId: 'hosp_demo_center_1',
-      lat: 19.0760,
-      lng: 72.8777
+      lat: 18.5204,
+      lng: 73.8567
     };
   });
 
@@ -37887,8 +37887,8 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
             name: displayName,
             adminName: u.name || 'Hospital Coordinator',
             internalId: (u.hospital_id || u.id || 'hosp_demo_center_1').toString().toLowerCase(),
-            lat: u.lat || 19.0760,
-            lng: u.lng || 72.8777,
+            lat: u.lat,
+            lng: u.lng,
             ...u
           };
           setAuthHospital(newAuth);
@@ -37897,6 +37897,35 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
       } catch (e) {}
     }
   }, []);
+
+  // Fetch real database profile coordinates for authenticated hospital tenant
+  useEffect(() => {
+    const hydratetHospitalCoords = async () => {
+      const hid = authHospital?.hospital_id || authHospital?.hospitalId || authHospital?.id;
+      if (!hid || hid === 'hosp_demo_center_1') return;
+      try {
+        const res = await fetch(`/api/hospitals/${hid}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.lat && data.lng && !isNaN(parseFloat(data.lat)) && !isNaN(parseFloat(data.lng))) {
+            const trueLat = parseFloat(data.lat);
+            const trueLng = parseFloat(data.lng);
+            setHospitalGps({ lat: trueLat, lng: trueLng });
+            setAuthHospital(prev => ({
+              ...prev,
+              lat: trueLat,
+              lng: trueLng,
+              name: data.name || prev?.name,
+              city: data.city || prev?.city
+            }));
+          }
+        }
+      } catch (err) {
+        console.warn('[HOSPITAL DB HYDRATE] Failed to fetch hospital coordinates:', err);
+      }
+    };
+    hydratetHospitalCoords();
+  }, [authHospital?.hospital_id, authHospital?.hospitalId, authHospital?.id]);
   const [loginId, setLoginId] = useState('');
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
