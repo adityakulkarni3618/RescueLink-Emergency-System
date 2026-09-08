@@ -1837,6 +1837,29 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
       localStorage.removeItem('hospital_auth');
     }
   }, [authHospital]);
+
+  useEffect(() => {
+    const userStr = sessionStorage.getItem('rescuelink_user');
+    if (userStr) {
+      try {
+        const u = JSON.parse(userStr);
+        const displayName = u.hospitalName || u.name;
+        if (displayName) {
+          const newAuth = {
+            hospitalId: u.hospital_id || u.id || 'hosp_demo_center_1',
+            name: displayName,
+            adminName: u.name || 'Hospital Coordinator',
+            internalId: (u.hospital_id || u.id || 'hosp_demo_center_1').toString().toLowerCase(),
+            lat: u.lat || 19.0760,
+            lng: u.lng || 72.8777,
+            ...u
+          };
+          setAuthHospital(newAuth);
+          if (newAuth.internalId) setActiveHospitalId(newAuth.internalId);
+        }
+      } catch (e) {}
+    }
+  }, []);
   const [loginId, setLoginId] = useState('');
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -2065,6 +2088,10 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
 
       if (res.ok && data.token) {
         sessionStorage.setItem('rescuelink_token', data.token);
+        if (data.user) {
+          sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
+          localStorage.setItem('rescuelink_user', JSON.stringify(data.user));
+        }
 
         const found = {
           hospitalId: data.user?.hospital_id || inputId,
@@ -2142,19 +2169,25 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
     }
   };
 
-  const handleMfaSuccess = async (viewRole, token) => {
-    const userStr = sessionStorage.getItem('rescuelink_user');
-    const user = userStr ? JSON.parse(userStr) : {};
+  const handleMfaSuccess = async (viewRole, token, userData) => {
+    let user = userData;
+    if (!user) {
+      const userStr = sessionStorage.getItem('rescuelink_user');
+      user = userStr ? JSON.parse(userStr) : {};
+    } else {
+      sessionStorage.setItem('rescuelink_user', JSON.stringify(userData));
+      localStorage.setItem('rescuelink_user', JSON.stringify(userData));
+    }
 
     sessionStorage.setItem('rescuelink_token', token);
 
-    const finalInputId = loginId || user.hospital_id || 'HOSP-GENERIC';
+    const finalInputId = loginId || user.hospital_id || user.id || 'HOSP-GENERIC';
 
     const found = {
       hospitalId: user.hospital_id || finalInputId,
       name: user.hospitalName || user.name || (user.role === 'doctor' ? 'Manipal Global Trauma Center' : 'Emergency Center'),
       adminName: user.name || 'Dr. Command',
-      internalId: (user.hospital_id || finalInputId).toLowerCase(),
+      internalId: (user.hospital_id || finalInputId).toString().toLowerCase(),
       lat: user.lat || 19.0760,
       lng: user.lng || 72.8777
     };

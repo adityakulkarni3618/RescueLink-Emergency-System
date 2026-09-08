@@ -40,7 +40,7 @@ export function MfaVerifyScreen({ mfaToken, onLoginSuccess, onCancel, ParticleCa
         viewRole = 'user';
       }
 
-      onLoginSuccess(viewRole, data.token);
+      onLoginSuccess(viewRole, data.token, data.user);
     } catch (err) {
       setError(err.message || 'Invalid verification code');
     } finally {
