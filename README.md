@@ -38,6 +38,7 @@ graph TD
 ## 2. Implemented Features & Operational Checklist
 
 - **🚨 Guest Emergency Dispatch (Authentication Bypass)**: Instant SOS dispatch triggering geolocation capture and immediate ambulance routing without requiring password login.
+- **📍 Registered Profile Coordinate Map Pinning**: Dynamic position rendering for hospitals, ambulances, and user portals anchored directly to profile database latitude and longitude.
 - **🚖 Dual-Mode Radial & DB Registered Dispatch Engine**: Hybrid ambulance ranking system combining live socket units and registered database ambulances with offline notification queuing.
 - **🔔 Offline Paramedic & Hospital System Notification Queue**: In-memory and database notification queue ensuring offline dispatch alerts persist until paramedic/hospital reconnects.
 - **🛡️ War Room Verification Gate**: Admin approval workflows for newly registered hospital/ambulance accounts (`is_active: false` until verified by city admin).
