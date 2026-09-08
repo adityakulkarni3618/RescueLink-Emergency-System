@@ -6779,6 +6779,18 @@ module.exports = (sequelize) => {
     accreditation_id: {
       type: DataTypes.STRING,
       allowNull: true
+    },
+    email: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    password: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    totp_secret: {
+      type: DataTypes.TEXT,
+      allowNull: true
     }
   }, {
     tableName: 'hospitals',
@@ -10236,6 +10248,9 @@ router.post('/register-hospital', async (req, res) => {
     const newHospital = await Hospital.create({
       name,
       contact_number: contactInfo,
+      email: finalAdminEmail,
+      password: passwordHash,
+      totp_secret: setupData.secret,
       address: address || null,
       city: req.body.city || null,
       state: req.body.state || null,

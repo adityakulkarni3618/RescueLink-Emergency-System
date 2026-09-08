@@ -1121,6 +1121,9 @@ router.post('/register-hospital', async (req, res) => {
     const newHospital = await Hospital.create({
       name,
       contact_number: contactInfo,
+      email: finalAdminEmail,
+      password: passwordHash,
+      totp_secret: setupData.secret,
       address: address || null,
       city: req.body.city || null,
       state: req.body.state || null,
