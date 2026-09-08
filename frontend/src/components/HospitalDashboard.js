@@ -4240,7 +4240,7 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
                           routeGeometry={routePath ? { type: 'LineString', coordinates: routePath.map(p => [p[1] || p.lng, p[0] || p.lat]) } : null}
                           ambulancePosition={location ? { lat: location.lat, lng: location.lng, heading: location.heading } : null}
                           originMarker={incidentLocation}
-                          destinationMarker={hospitalGps || (authHospital?.lat && authHospital?.lng ? { lat: authHospital.lat, lng: authHospital.lng } : activeHospital?.pos)}
+                          destinationMarker={(authHospital?.lat && authHospital?.lng && !isNaN(parseFloat(authHospital.lat))) ? { lat: parseFloat(authHospital.lat), lng: parseFloat(authHospital.lng) } : (hospitalGps || activeHospital?.pos)}
                           junctions={[]}
                           mode="hospital"
                         />
@@ -5184,6 +5184,12 @@ function HospitalProfileSettings({ authHospital, setAuthHospital, setHospitalGps
             depts = data.departments ? (Array.isArray(data.departments) ? data.departments : JSON.parse(data.departments)) : [];
           } catch (e) {
             depts = data.departments || [];
+          }
+          if (data.lat && data.lng && !isNaN(parseFloat(data.lat)) && !isNaN(parseFloat(data.lng))) {
+            const fetchedLat = parseFloat(data.lat);
+            const fetchedLng = parseFloat(data.lng);
+            setHospitalGps({ lat: fetchedLat, lng: fetchedLng });
+            setAuthHospital(prev => ({ ...prev, lat: fetchedLat, lng: fetchedLng, name: data.name || prev?.name }));
           }
           setProfileForm({
             name: data.name || '',
