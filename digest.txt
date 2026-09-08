@@ -9505,6 +9505,7 @@ router.post('/login', validate(loginBody), async (req, res) => {
       user: {
         id: targetId,
         name: targetName,
+        hospitalName: isHospitalTableLogin ? hospitalUnit.name : targetName,
         email: targetEmail,
         role: targetRole,
         hospital_id: targetHospitalId,
@@ -37755,40 +37756,38 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
   const [isAuthenticated, setIsAuthenticated] = useState(true);
 
   const [authHospital, setAuthHospital] = useState(() => {
-    // If we have a logged-in user in sessionStorage, use their details
-    const token = sessionStorage.getItem('rescuelink_token');
-    const userStr = sessionStorage.getItem('rescuelink_user');
+    const token = sessionStorage.getItem('rescuelink_token') || localStorage.getItem('rescuelink_token');
+    const userStr = sessionStorage.getItem('rescuelink_user') || localStorage.getItem('rescuelink_user');
     if (token && userStr) {
-      const user = JSON.parse(userStr);
-      if (user.role === 'doctor' || user.role === 'hospital_admin') {
+      try {
+        const user = JSON.parse(userStr);
+        const displayName = user.hospitalName || user.name || 'City Emergency Command Center';
         return {
-          hospitalId: user.hospital_id || 'HOSP-001',
-          name: user.name || 'Manipal Global Trauma Center',
-          adminName: user.name || 'Dr. Command',
-          internalId: (user.hospital_id || 'manipal-trauma').toLowerCase(),
-          lat: user.lat || 12.9592,
-          lng: user.lng || 77.6444,
+          hospitalId: user.hospital_id || user.id || 'hosp_demo_center_1',
+          name: displayName,
+          adminName: user.name || 'Hospital Coordinator',
+          internalId: (user.hospital_id || user.id || 'hosp_demo_center_1').toString().toLowerCase(),
+          lat: user.lat || 19.0760,
+          lng: user.lng || 72.8777,
           ...user
         };
-      }
+      } catch (e) {}
     }
     const saved = localStorage.getItem('hospital_auth');
     if (saved) {
-      const parsed = JSON.parse(saved);
-      if (parsed.hospitalId && parsed.hospitalId.includes('@')) {
-        localStorage.removeItem('hospital_auth');
-        return null;
-      }
-      return parsed;
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.name) return parsed;
+      } catch (e) {}
     }
-    // Default fallback so we don't have null authHospital when bypassing the login screen
+    // Dynamic fallback for demo mode
     return {
-      hospitalId: 'HOSP-001',
-      name: 'Manipal Global Trauma Center',
-      adminName: 'Dr. Sarah Mitchell',
-      internalId: 'manipal-trauma',
-      lat: 12.9592,
-      lng: 77.6444
+      hospitalId: 'hosp_demo_center_1',
+      name: 'City Emergency Command Center',
+      adminName: 'Hospital Coordinator',
+      internalId: 'hosp_demo_center_1',
+      lat: 19.0760,
+      lng: 72.8777
     };
   });
 
@@ -38030,11 +38029,11 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
 
         const found = {
           hospitalId: data.user?.hospital_id || inputId,
-          name: data.user?.name || (data.user?.role === 'doctor' ? 'Manipal Global Trauma Center' : 'Emergency Center'),
-          adminName: data.user?.name || 'Dr. Command',
+          name: data.user?.hospitalName || data.user?.name || 'City Emergency Command Center',
+          adminName: data.user?.name || 'Hospital Coordinator',
           internalId: (data.user?.hospital_id || inputId).toLowerCase(),
-          lat: data.lat || 12.9592,
-          lng: data.lng || 77.6444
+          lat: data.user?.lat || data.lat || 19.0760,
+          lng: data.user?.lng || data.lng || 72.8777
         };
 
         // Always overwrite hospitalId with the real database UUID returned by the server
