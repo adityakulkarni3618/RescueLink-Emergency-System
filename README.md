@@ -49,6 +49,9 @@ graph TD
 - **💾 SQLite & PostgreSQL Persistence**: Persistent database storage with automatic local SQLite fallback for seamless offline resilience.
 - **🧍 Patient Emer-Health Profile Management**: Full patient portal backed by encrypted persistence for medical history, allergies, ABHA ID, and emergency contacts.
 - **🚑 Ambulance & Crew Management**: Paramedic license tracking, oxygen capacity monitoring, and standard vehicle safety compliance.
+- **🌐 Environment-Driven API Configuration**: Fully centralized API endpoint routing (`API_BASE_URL`) sourced dynamically from environment configurations with zero hardcoded deployment domains.
+- **🩺 Rule-Based Clinical Decision Support**: Real-time vital sign risk assessment offering instant clinical guidance without synthetic loading delays or misleading AI framing.
+- **🗺️ Dynamic Emergency Corridor Geocoding**: Real-time OpenStreetMap Nominatim reverse-geocoding of mission coordinates for automatic municipal corridor region resolution.
 - **🛡️ DPDP Act 2023 & HIPAA Compliance**: Application-layer AES-256-GCM encryption for PHI/PII, dynamic consent revocation, and automated retention policies.
 
 ---
