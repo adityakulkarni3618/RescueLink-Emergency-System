@@ -105,15 +105,27 @@ async function startSimulation() {
   });
 
   socket.on('corridor:preempt_junction', (data) => {
-    console.log(`[CORRIDOR] 🚦 PREEMPTING: ${data.name} (${data.distance}m away)`);
+    console.log(`[CORRIDOR] 🚦 PREEMPTING: ${data.name} (Approach: ${data.approach_direction || 'South → North'}, Dist: ${data.distance}m, State: ${data.corridor_state || data.status})`);
   });
 
   socket.on('corridor:route_cleared', (data) => {
-    console.log(`[CORRIDOR] ✅ CLEARED: ${data.name}`);
+    console.log(`[CORRIDOR] ✅ CLEARED/RESTORED: ${data.name}`);
   });
 
   socket.on('corridor:status_update', (data) => {
-    console.log(`[CORRIDOR] Status → ${data.name}: ${data.status}`);
+    console.log(`[CORRIDOR] Node Update → ${data.name}: ${data.corridor_state || data.status} (Controller: ${data.controller_status || 'ONLINE'})`);
+  });
+
+  socket.on('corridor:readiness_updated', (data) => {
+    console.log(`[CORRIDOR] Corridor Readiness: ${data.status} (Score: ${data.score}%)`);
+  });
+
+  socket.on('corridor:controller_failure', (data) => {
+    console.warn(`[CORRIDOR WARNING] Controller Failure at ${data.name}: ${data.reason}`);
+  });
+
+  socket.on('corridor:route_recommendation', (data) => {
+    console.log(`[CORRIDOR REC] ${data.details} -> Recommendation: ${data.recommendation}`);
   });
 
   // Replay ambulance movement step-by-step along real route
