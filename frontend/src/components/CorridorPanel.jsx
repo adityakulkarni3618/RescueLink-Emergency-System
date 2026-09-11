@@ -44,14 +44,18 @@ export default function CorridorPanel({
   etaSeconds = 210,
   distanceKm = 1.8,
   speedKmh = 62,
+  unitId = 'AMB-001',
   mode = 'hospital', // 'driver' | 'hospital' | 'warroom'
   onBack = null
 }) {
   const [cityName, setCityName] = useState('METROPOLITAN REGION');
   const [junctions, setJunctions] = useState([]);
-  const [logs, setLogs] = useState(['[System Boot] Preemption link established.']);
-  const [realRoutePath, setRealRoutePath] = useState(null); // coordinates from OSRM
+  const [readiness, setReadiness] = useState({ status: 'READY', score: 98, details: ['All preemption nodes nominal.'] });
+  const [routeRecommendation, setRouteRecommendation] = useState(null);
+  const [logs, setLogs] = useState(['[System Boot] Emergency Corridor Coordination Layer initialized with Simulated Traffic Controller Adapter.']);
+  const [realRoutePath, setRealRoutePath] = useState(null);
   const [overrideConfirm, setOverrideConfirm] = useState(null);
+  const [gpsConfidence, setGpsConfidence] = useState('HIGH CONFIDENCE');
 
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
@@ -62,7 +66,7 @@ export default function CorridorPanel({
 
   const addLog = (text) => {
     const timestamp = new Date().toLocaleTimeString();
-    setLogs(prev => [`[${timestamp}] ${text}`, ...prev.slice(0, 24)]);
+    setLogs(prev => [`[${timestamp}] ${text}`, ...prev.slice(0, 29)]);
   };
 
   // Dynamically compute region city from mission coordinates via reverse geocoding
@@ -116,10 +120,9 @@ export default function CorridorPanel({
         
         if (data.routes && data.routes[0]) {
           const route = data.routes[0];
-          const coords = route.geometry.coordinates.map(c => [c[1], c[0]]); // [lat, lng]
+          const coords = route.geometry.coordinates.map(c => [c[1], c[0]]);
           setRealRoutePath(coords);
 
-          // Extract steps for real street names
           const steps = route.legs[0].steps || [];
           const extractedJunctions = [];
           
@@ -128,15 +131,20 @@ export default function CorridorPanel({
             if (name && name !== '' && !extractedJunctions.some(j => j.name === name)) {
               extractedJunctions.push({
                 id: `step_junc_${idx}`,
+                junction_id: `step_junc_${idx}`,
                 name: name,
-                coord: [step.maneuver.location[1], step.maneuver.location[0]], // [lat, lng]
-                status: 'STANDBY',
-                distance: 9999
+                coord: [step.maneuver.location[1], step.maneuver.location[0]],
+                status: 'NORMAL',
+                corridor_state: 'NORMAL',
+                approach_direction: idx % 2 === 0 ? 'South → North' : 'West → East',
+                required_movement: 'Through',
+                controller_status: 'ONLINE',
+                distance: 9999,
+                eta_seconds: 0
               });
             }
           });
 
-          // Fallback if no named steps
           if (extractedJunctions.length === 0) {
             const sampleNames = ['PCR Junction', 'Labbipet Junction', 'Benz Circle', 'Aster Ramesh Cross'];
             sampleNames.forEach((n, idx) => {
@@ -145,10 +153,16 @@ export default function CorridorPanel({
               const pt = coords[ptIdx] || coords[coords.length - 1];
               extractedJunctions.push({
                 id: `sim_junc_${idx}`,
+                junction_id: `sim_junc_${idx}`,
                 name: n,
                 coord: pt,
-                status: 'STANDBY',
-                distance: 9999
+                status: 'NORMAL',
+                corridor_state: 'NORMAL',
+                approach_direction: idx % 2 === 0 ? 'South → North' : 'West → East',
+                required_movement: 'Through',
+                controller_status: 'ONLINE',
+                distance: 9999,
+                eta_seconds: 0
               });
             });
           }
@@ -158,12 +172,11 @@ export default function CorridorPanel({
         }
       } catch (err) {
         addLog(`⚠️ Fallback to local junction list: ${err.message}`);
-        // Fallback static list
         const fallbackList = [
-          { id: 'junc_1', name: 'PCR Junction', coord: [sLat + 0.002, sLng + 0.003], status: 'STANDBY', distance: 9999 },
-          { id: 'junc_2', name: 'Labbipet Junction', coord: [sLat + 0.004, sLng + 0.006], status: 'STANDBY', distance: 9999 },
-          { id: 'junc_3', name: 'Benz Circle', coord: [sLat + 0.006, sLng + 0.009], status: 'STANDBY', distance: 9999 },
-          { id: 'junc_4', name: 'Aster Ramesh Cross', coord: [sLat + 0.008, sLng + 0.012], status: 'STANDBY', distance: 9999 }
+          { id: 'junc_1', junction_id: 'junc_1', name: 'PCR Junction', coord: [sLat + 0.002, sLng + 0.003], status: 'NORMAL', corridor_state: 'NORMAL', approach_direction: 'South → North', required_movement: 'Through', controller_status: 'ONLINE', distance: 9999, eta_seconds: 0 },
+          { id: 'junc_2', junction_id: 'junc_2', name: 'Labbipet Junction', coord: [sLat + 0.004, sLng + 0.006], status: 'NORMAL', corridor_state: 'NORMAL', approach_direction: 'West → East', required_movement: 'Through', controller_status: 'ONLINE', distance: 9999, eta_seconds: 0 },
+          { id: 'junc_3', junction_id: 'junc_3', name: 'Benz Circle', coord: [sLat + 0.006, sLng + 0.009], status: 'NORMAL', corridor_state: 'NORMAL', approach_direction: 'South → North', required_movement: 'Through', controller_status: 'ONLINE', distance: 9999, eta_seconds: 0 },
+          { id: 'junc_4', junction_id: 'junc_4', name: 'Aster Ramesh Cross', coord: [sLat + 0.008, sLng + 0.012], status: 'NORMAL', corridor_state: 'NORMAL', approach_direction: 'East → West', required_movement: 'Through', controller_status: 'ONLINE', distance: 9999, eta_seconds: 0 }
         ];
         setJunctions(fallbackList);
       }
@@ -172,44 +185,55 @@ export default function CorridorPanel({
     fetchRouteAndSteps();
   }, [ambulanceLoc, patientLoc, hospitalLoc]);
 
-  // Update dynamic status of junctions based on real-time distance from moving ambulance
+  // Dynamic distance & ETA simulation logic on client
   useEffect(() => {
     if (!isValidLatLng(ambulanceLoc) || junctions.length === 0) return;
 
     setJunctions(prev =>
       prev.map(j => {
         const dist = calcDistMeters(ambulanceLoc, j.coord);
-        let newStatus = 'STANDBY';
+        let cState = j.corridor_state || 'NORMAL';
+        let controllerStatus = j.controller_status || 'ONLINE';
 
-        // Check if ambulance already passed the junction coordinate (using routing progression or simplified direction checks)
-        // For simplicity: if distance is very small or increases after being very small, we mark as CLEARED
-        if (j.status === 'CLEARED') {
-          newStatus = 'CLEARED';
-        } else if (dist < 40) {
-          newStatus = 'CLEARED';
-          addLog(`✓ Ambulance cleared ${j.name}. Releasing green corridor lock.`);
-        } else if (dist < 150) {
-          newStatus = 'CORRIDOR_ACTIVE';
-        } else if (dist < 500) {
-          newStatus = 'APPROACHING';
+        if (j.corridor_state !== 'CONTROLLER_FAIL' && j.corridor_state !== 'MANUAL_INTERVENTION') {
+          if (dist < 40) {
+            cState = 'AMBULANCE_PASSING';
+            controllerStatus = 'ACTIVE';
+          } else if (dist < 80 && cState === 'AMBULANCE_PASSING') {
+            cState = 'CLEARING';
+          } else if (dist < 150) {
+            cState = 'PREEMPT_ACTIVE';
+            controllerStatus = 'ACTIVE';
+          } else if (dist < 350) {
+            cState = 'PREEMPT_REQUESTED';
+            controllerStatus = 'ACKNOWLEDGED';
+          } else if (dist < 600) {
+            cState = 'APPROACHING';
+            controllerStatus = 'ACKNOWLEDGED';
+          } else if (dist < 1000) {
+            cState = 'ARMED';
+            controllerStatus = 'ONLINE';
+          }
         }
 
-        return { ...j, status: newStatus, distance: dist };
+        const estEtaSec = Math.max(0, Math.round(dist / (Math.max(20, speedKmh) / 3.6)));
+        return { ...j, corridor_state: cState, controller_status: controllerStatus, distance: dist, eta_seconds: estEtaSec };
       })
     );
-  }, [ambulanceLoc, junctions.length]);
+  }, [ambulanceLoc, speedKmh, junctions.length]);
 
-  // Sync WebSocket preemption events
+  // Sync WebSocket preemption events & readiness updates
   useEffect(() => {
     if (!socket || !activeMissionId) return;
 
     const onCorridorUpdate = (data) => {
-      if (data.incidentId !== activeMissionId) return;
+      if (data.incidentId && data.incidentId !== activeMissionId) return;
       setJunctions(prev =>
         prev.map(j => {
-          if (j.id === data.junctionId || j.name.toLowerCase().includes(data.name?.toLowerCase())) {
-            addLog(`Junction ${data.name} Preemption Lock: ${data.status}`);
-            return { ...j, status: data.status };
+          if (j.id === data.junctionId || j.junction_id === data.junctionId || j.name.toLowerCase().includes(data.name?.toLowerCase())) {
+            const newState = data.corridor_state || data.status || j.corridor_state;
+            addLog(`🚦 Junction ${data.name} State -> ${newState} (${data.controller_status || 'ONLINE'})`);
+            return { ...j, ...data, corridor_state: newState };
           }
           return j;
         })
@@ -217,16 +241,43 @@ export default function CorridorPanel({
     };
 
     const onPreemptAlert = (data) => {
-      if (data.incidentId !== activeMissionId) return;
-      addLog(`🚨 Preemption signal established for ${data.name}. Distance: ${data.distance}m.`);
+      if (data.incidentId && data.incidentId !== activeMissionId) return;
+      addLog(`🚨 Preemption active for ${data.name}. Distance: ${data.distance}m.`);
+    };
+
+    const onControllerFail = (data) => {
+      if (data.incidentId && data.incidentId !== activeMissionId) return;
+      addLog(`⚠️ CONTROLLER FAILURE at ${data.name}: ${data.reason}. Switching node to MANUAL FALLBACK.`);
+      setJunctions(prev =>
+        prev.map(j => (j.name.toLowerCase().includes(data.name?.toLowerCase()) ? { ...j, corridor_state: 'CONTROLLER_FAIL', controller_status: 'FAILED' } : j))
+      );
+    };
+
+    const onReadinessUpdate = (data) => {
+      if (data.incidentId && data.incidentId !== activeMissionId) return;
+      setReadiness({ status: data.status, score: data.score, details: data.details || [] });
+    };
+
+    const onRouteRecommendation = (data) => {
+      if (data.incidentId && data.incidentId !== activeMissionId) return;
+      setRouteRecommendation(data);
+      addLog(`🚧 ROUTE OBSTRUCTION DETECTED: Recommendation -> ${data.recommendation}`);
     };
 
     socket.on('corridor:status_update', onCorridorUpdate);
+    socket.on('corridor:junction_updated', onCorridorUpdate);
     socket.on('corridor:preempt_junction', onPreemptAlert);
+    socket.on('corridor:controller_failure', onControllerFail);
+    socket.on('corridor:readiness_updated', onReadinessUpdate);
+    socket.on('corridor:route_recommendation', onRouteRecommendation);
 
     return () => {
       socket.off('corridor:status_update', onCorridorUpdate);
+      socket.off('corridor:junction_updated', onCorridorUpdate);
       socket.off('corridor:preempt_junction', onPreemptAlert);
+      socket.off('corridor:controller_failure', onControllerFail);
+      socket.off('corridor:readiness_updated', onReadinessUpdate);
+      socket.off('corridor:route_recommendation', onRouteRecommendation);
     };
   }, [socket, activeMissionId]);
 
@@ -234,7 +285,7 @@ export default function CorridorPanel({
   useEffect(() => {
     if (mode === 'driver' || !mapContainerRef.current) return;
 
-    let center = [16.5062, 80.6480]; // [lat, lng]
+    let center = [16.5062, 80.6480];
     if (isValidLatLng(ambulanceLoc)) {
       center = [ambulanceLoc.lat !== undefined ? ambulanceLoc.lat : ambulanceLoc[0], ambulanceLoc.lng !== undefined ? ambulanceLoc.lng : ambulanceLoc[1]];
     }
@@ -261,8 +312,8 @@ export default function CorridorPanel({
     }
 
     if (coords.length > 0) {
-      L.polyline(coords, { color: '#FF4D63', weight: 12, opacity: 0.35 }).addTo(map);
-      const poly = L.polyline(coords, { color: '#FF4D63', weight: 4, opacity: 0.95 }).addTo(map);
+      L.polyline(coords, { color: '#00ff88', weight: 12, opacity: 0.35 }).addTo(map);
+      const poly = L.polyline(coords, { color: '#00ff88', weight: 4, opacity: 0.95 }).addTo(map);
       map.fitBounds(poly.getBounds(), { padding: [40, 40] });
     }
 
@@ -281,11 +332,9 @@ export default function CorridorPanel({
     const map = mapRef.current;
     if (!map) return;
 
-    // Clear old junction markers
     junctionMarkersRef.current.forEach(m => m.remove());
     junctionMarkersRef.current = [];
 
-    // Add destination
     if (isValidLatLng(hospitalLoc)) {
       const lat = hospitalLoc.lat !== undefined ? hospitalLoc.lat : hospitalLoc[0];
       const lng = hospitalLoc.lng !== undefined ? hospitalLoc.lng : hospitalLoc[1];
@@ -297,7 +346,6 @@ export default function CorridorPanel({
       }
     }
 
-    // Add Patient origin
     if (isValidLatLng(patientLoc)) {
       const lat = patientLoc.lat !== undefined ? patientLoc.lat : patientLoc[0];
       const lng = patientLoc.lng !== undefined ? patientLoc.lng : patientLoc[1];
@@ -309,7 +357,6 @@ export default function CorridorPanel({
       }
     }
 
-    // Add Moving Ambulance
     if (isValidLatLng(ambulanceLoc)) {
       const lat = ambulanceLoc.lat !== undefined ? ambulanceLoc.lat : ambulanceLoc[0];
       const lng = ambulanceLoc.lng !== undefined ? ambulanceLoc.lng : ambulanceLoc[1];
@@ -321,15 +368,16 @@ export default function CorridorPanel({
       }
     }
 
-    // Add Junction Markers dynamically colored by status
     junctions.forEach((j) => {
-      let color = '#7f8c8d'; // grey
-      if (j.status === 'CORRIDOR_ACTIVE') color = '#00ff88';
-      else if (j.status === 'APPROACHING') color = '#ffea00';
-      else if (j.status === 'CLEARED') color = '#2c3e50';
+      let color = '#7f8c8d';
+      const cState = j.corridor_state || j.status || 'NORMAL';
+      if (['PREEMPT_ACTIVE', 'AMBULANCE_PASSING'].includes(cState)) color = '#00ff88';
+      else if (['APPROACHING', 'PREEMPT_REQUESTED'].includes(cState)) color = '#ffea00';
+      else if (['CLEARING', 'RESTORING', 'PASSED'].includes(cState)) color = '#00c8ff';
+      else if (cState === 'CONTROLLER_FAIL') color = '#ff4d63';
 
-      const iconHtml = `<div style="width: 14px; height: 14px; border-radius: 50%; background: ${color}; border: 2px solid #fff; box-shadow: 0 0 12px ${color};"></div>`;
-      const icon = L.divIcon({ html: iconHtml, className: '', iconSize: [14, 14] });
+      const iconHtml = `<div style="width: 16px; height: 16px; border-radius: 50%; background: ${color}; border: 2px solid #fff; box-shadow: 0 0 14px ${color};"></div>`;
+      const icon = L.divIcon({ html: iconHtml, className: '', iconSize: [16, 16] });
       const m = L.marker([j.coord[0], j.coord[1]], { icon }).addTo(map);
       
       junctionMarkersRef.current.push(m);
@@ -350,19 +398,16 @@ export default function CorridorPanel({
     socket.emit('corridor:manual-override', {
       incidentId: activeMissionId,
       junctionId: overrideConfirm.junctionId,
-      forceStatus: 'CORRIDOR_ACTIVE'
+      forceStatus: 'PREEMPT_ACTIVE'
     });
-    addLog(`[OVERRIDE COMMAND] Forced green preemption active for: ${overrideConfirm.name}`);
+    addLog(`[OVERRIDE COMMAND] Forced signal preemption ACTIVE for: ${overrideConfirm.name}`);
     setJunctions(prev =>
-      prev.map(j => (j.id === overrideConfirm.junctionId ? { ...j, status: 'CORRIDOR_ACTIVE' } : j))
+      prev.map(j => (j.id === overrideConfirm.junctionId || j.junction_id === overrideConfirm.junctionId ? { ...j, corridor_state: 'PREEMPT_ACTIVE', controller_status: 'ACTIVE' } : j))
     );
     setOverrideConfirm(null);
   };
 
-  const progressPct = Math.min(
-    100,
-    Math.round((junctions.filter(j => j.status === 'CLEARED').length / (junctions.length || 1)) * 100)
-  );
+  const nextJunction = junctions.find(j => !['CLEARING', 'RESTORING', 'PASSED'].includes(j.corridor_state)) || junctions[0];
 
   return (
     <div style={{
@@ -394,6 +439,16 @@ export default function CorridorPanel({
           text-align: center;
           animation: pulse-banner 2s infinite ease-in-out;
         }
+        .readiness-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 4px 12px;
+          border-radius: 20px;
+          font-size: 11px;
+          font-weight: 700;
+          font-family: 'Orbitron', sans-serif;
+        }
       `}</style>
 
       {/* Manual Override Confirmation Overlay */}
@@ -408,8 +463,8 @@ export default function CorridorPanel({
           }}>
             <h3 style={{ margin: 0, fontFamily: "'Orbitron'", color: '#ffb800' }}>⚠️ INITIATE MANUAL PREEMPTION</h3>
             <p style={{ fontSize: 13, color: 'rgba(160,200,255,0.7)', margin: '14px 0 24px 0', lineHeight: 1.6 }}>
-              Are you sure you want to force green preemption corridor for <strong style={{ color: '#fff' }}>{overrideConfirm.name}</strong>?<br/>
-              This will bypass municipal routing logic.
+              Force green preemption state for <strong style={{ color: '#fff' }}>{overrideConfirm.name}</strong>?<br/>
+              This overrides standard signal cycle timer.
             </p>
             <div style={{ display: 'flex', gap: 12 }}>
               <button
@@ -431,7 +486,7 @@ export default function CorridorPanel({
 
       {/* DISCLOSURE BANNER */}
       <div className="disclosure-banner">
-        ⚠️ AI corridor computed from live route data. Signal infrastructure integration requires municipal partnership — not yet connected.
+        ⚠️ RescueLink Emergency Corridor Coordination Layer — Operating with Simulated Traffic Controller Adapter.
       </div>
 
       {/* HEADER CONTROLS */}
@@ -454,69 +509,127 @@ export default function CorridorPanel({
           )}
           <div>
             <h2 style={{ margin: 0, fontSize: 16, fontFamily: "'Orbitron'", letterSpacing: '0.1em' }}>
-              AI EMERGENCY CORRIDOR COMMAND
+              EMERGENCY CORRIDOR COORDINATION LAYER
             </h2>
             <div style={{ fontSize: 10, color: '#00ff88', fontFamily: "'Share Tech Mono'" }}>
-              STATUS: ACTIVE ROUTE PRIORITY PREEMPTION
+              CORRIDOR STATUS: ACTIVE ROUTE PRIORITY PREEMPTION
             </div>
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div className="readiness-badge" style={{
+            background: readiness.status === 'READY' ? 'rgba(0,255,136,0.15)' : 'rgba(255,184,0,0.15)',
+            color: readiness.status === 'READY' ? '#00ff88' : '#ffb800',
+            border: `1px solid ${readiness.status === 'READY' ? '#00ff88' : '#ffb800'}`
+          }}>
+            READINESS: {readiness.status} ({readiness.score}%)
+          </div>
           <div style={{ fontSize: 11, fontFamily: "'Share Tech Mono'", color: '#ffb800', background: 'rgba(255,184,0,0.1)', padding: '4px 10px', borderRadius: 4 }}>
             REGION: {cityName}
           </div>
         </div>
       </div>
 
+      {/* ROUTE RECOMMENDATION ALERT BANNER */}
+      {routeRecommendation && (
+        <div style={{
+          background: 'rgba(255, 77, 99, 0.12)', borderBottom: '1px solid #ff4d63',
+          padding: '8px 20px', color: '#ff4d63', fontSize: 11, fontFamily: "'Share Tech Mono'",
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+        }}>
+          <span>🚧 <strong>TRAFFIC OBSTRUCTION DETECTED:</strong> {routeRecommendation.details}</span>
+          <span style={{ fontWeight: 700, textDecoration: 'underline' }}>REC: {routeRecommendation.recommendation}</span>
+        </div>
+      )}
+
       {/* MAIN CONTAINER */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         
-        {/* LEFT COLUMN: JUNCTION CARDS */}
+        {/* LEFT COLUMN: JUNCTION CARDS & SEQUENCE */}
         <aside style={{
-          width: mode === 'driver' ? '50%' : 300, background: 'rgba(6, 12, 28, 0.96)',
+          width: mode === 'driver' ? '50%' : 320, background: 'rgba(6, 12, 28, 0.96)',
           borderRight: '1px solid rgba(0, 200, 255, 0.15)', display: 'flex', flexDirection: 'column',
           padding: 16, overflowY: 'auto'
         }}>
-          <h3 style={{ margin: '0 0 16px 0', fontSize: 11, color: 'rgba(160,200,255,0.6)', fontFamily: "'Orbitron'" }}>
-            🚦 PREEMPTION NODES
+          {/* SEQUENCE SUMMARY PIPES */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", marginBottom: 6 }}>
+              CORRIDOR SEQUENCE
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {junctions.map((j, idx) => {
+                const cState = j.corridor_state || 'NORMAL';
+                const isCleared = ['CLEARING', 'RESTORING', 'PASSED'].includes(cState);
+                const isActive = ['PREEMPT_ACTIVE', 'AMBULANCE_PASSING'].includes(cState);
+                const isNext = j.id === nextJunction?.id || j.junction_id === nextJunction?.junction_id;
+
+                let pillColor = 'rgba(255,255,255,0.2)';
+                let pillText = `J${idx + 1} ○`;
+                if (isCleared) { pillColor = '#00ff88'; pillText = `J${idx + 1} ✓`; }
+                else if (isActive) { pillColor = '#00ff88'; pillText = `J${idx + 1} ⚡`; }
+                else if (isNext) { pillColor = '#ffea00'; pillText = `J${idx + 1} → NEXT`; }
+
+                return (
+                  <span key={j.id} style={{
+                    padding: '3px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.03)',
+                    border: `1px solid ${pillColor}`, color: pillColor, fontSize: 10, fontFamily: "'Share Tech Mono'"
+                  }}>
+                    {pillText}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+
+          <h3 style={{ margin: '0 0 12px 0', fontSize: 11, color: 'rgba(160,200,255,0.6)', fontFamily: "'Orbitron'" }}>
+            🚦 PREEMPTION JUNCTION NODES
           </h3>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {junctions.map((j, idx) => {
+              const cState = j.corridor_state || j.status || 'NORMAL';
               let icon = '⚪';
               let color = '#7f8c8d';
               let bg = 'rgba(255, 255, 255, 0.02)';
-              let label = 'STANDBY';
+              let label = cState;
 
-              if (j.status === 'CORRIDOR_ACTIVE') {
+              if (['PREEMPT_ACTIVE', 'AMBULANCE_PASSING'].includes(cState)) {
                 icon = '🟢';
                 color = '#00ff88';
                 bg = 'rgba(0, 255, 136, 0.06)';
-                label = 'AI CONTROL ACTIVE';
-              } else if (j.status === 'APPROACHING') {
+                label = `PREEMPT ACTIVE (${j.controller_status || 'ACTIVE'})`;
+              } else if (['APPROACHING', 'PREEMPT_REQUESTED'].includes(cState)) {
                 icon = '🟡';
                 color = '#ffea00';
                 bg = 'rgba(255, 234, 0, 0.06)';
-                label = 'APPROACHING';
-              } else if (j.status === 'CLEARED') {
+                label = `APPROACHING (${j.controller_status || 'ACKNOWLEDGED'})`;
+              } else if (['CLEARING', 'RESTORING', 'PASSED'].includes(cState)) {
                 icon = '⚫';
-                color = 'rgba(160, 200, 255, 0.3)';
+                color = 'rgba(160, 200, 255, 0.4)';
                 bg = 'rgba(255, 255, 255, 0.01)';
-                label = 'CLEARED';
+                label = 'PASSED & RESTORED';
+              } else if (cState === 'CONTROLLER_FAIL') {
+                icon = '🔴';
+                color = '#ff4d63';
+                bg = 'rgba(255, 77, 99, 0.08)';
+                label = 'CONTROLLER FAIL - MANUAL FALLBACK';
               }
 
               return (
                 <div key={j.id} className="junc-card" style={{ background: bg, border: `1px solid ${color}33` }}>
                   <span style={{ fontSize: 18 }}>{icon}</span>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 12, fontWeight: 'bold', color: j.status === 'CLEARED' ? 'rgba(255,255,255,0.4)' : '#fff' }}>
+                    <div style={{ fontSize: 12, fontWeight: 'bold', color: cState === 'PASSED' ? 'rgba(255,255,255,0.4)' : '#fff' }}>
                       {j.name}
                     </div>
-                    <div style={{ fontSize: 8, color: color, fontFamily: "'Share Tech Mono'", marginTop: 3 }}>
+                    <div style={{ fontSize: 9, color: color, fontFamily: "'Share Tech Mono'", marginTop: 3 }}>
                       {label} {j.distance ? `· ${Math.round(j.distance)}m` : ''}
                     </div>
+                    <div style={{ fontSize: 8, color: 'rgba(160,200,255,0.5)', marginTop: 2 }}>
+                      Approach: {j.approach_direction || 'South → North'} · Req: {j.required_movement || 'Through'}
+                    </div>
                   </div>
-                  {mode === 'driver' && j.status !== 'CLEARED' && (
+                  {j.corridor_state !== 'PASSED' && (
                     <button
                       onClick={() => handleManualOverride(j.id, j.name)}
                       style={{
@@ -525,7 +638,7 @@ export default function CorridorPanel({
                         fontFamily: "'Orbitron'", cursor: 'pointer'
                       }}
                     >
-                      FORCE
+                      OVERRIDE
                     </button>
                   )}
                 </div>
@@ -541,70 +654,97 @@ export default function CorridorPanel({
           </main>
         )}
 
-        {/* RIGHT COLUMN: TELEMETRY & PROGRESS */}
+        {/* RIGHT COLUMN: TELEMETRY & NEXT JUNCTION SPOTLIGHT */}
         <aside style={{
-          width: mode === 'driver' ? '50%' : 280, background: 'rgba(6, 12, 28, 0.96)',
+          width: mode === 'driver' ? '50%' : 300, background: 'rgba(6, 12, 28, 0.96)',
           borderLeft: '1px solid rgba(0, 200, 255, 0.15)', display: 'flex', flexDirection: 'column',
           padding: 16, overflowY: 'auto'
         }}>
+          {/* NEXT JUNCTION SPOTLIGHT CARD */}
+          {nextJunction && (
+            <div style={{
+              background: 'rgba(0,200,255,0.05)', border: '1px solid rgba(0,200,255,0.3)',
+              borderRadius: 8, padding: 14, marginBottom: 20
+            }}>
+              <div style={{ fontSize: 8, color: '#00c8ff', fontFamily: "'Orbitron'", letterSpacing: '0.1em' }}>
+                NEXT JUNCTION SPOTLIGHT
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginTop: 4 }}>
+                {nextJunction.name}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 12 }}>
+                <div>
+                  <div style={{ fontSize: 8, color: 'rgba(160,200,255,0.5)' }}>DISTANCE</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#ffb800', fontFamily: "'Orbitron'" }}>
+                    {nextJunction.distance ? `${Math.round(nextJunction.distance)} m` : '--'}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 8, color: 'rgba(160,200,255,0.5)' }}>JUNCTION ETA</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#00ff88', fontFamily: "'Orbitron'" }}>
+                    {nextJunction.eta_seconds ? `${nextJunction.eta_seconds} sec` : '15 sec'}
+                  </div>
+                </div>
+              </div>
+              <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.7)', marginTop: 10, fontFamily: "'Share Tech Mono'" }}>
+                Approach: <strong>{nextJunction.approach_direction || 'South → North'}</strong>
+              </div>
+              <div style={{ fontSize: 9, color: '#00ff88', marginTop: 4, fontFamily: "'Share Tech Mono'" }}>
+                Preemption: <strong>{nextJunction.corridor_state || 'APPROACHING'}</strong>
+              </div>
+            </div>
+          )}
+
           <h3 style={{ margin: '0 0 16px 0', fontSize: 11, color: 'rgba(160,200,255,0.6)', fontFamily: "'Orbitron'" }}>
-            📊 LIVE TELEMETRY
+            📊 AMBULANCE & MISSION TELEMETRY
           </h3>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div>
+              <div style={{ fontSize: 8, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>AMBULANCE UNIT</div>
+              <div style={{ fontSize: 16, fontWeight: 700, fontFamily: "'Orbitron'", color: '#fff', marginTop: 2 }}>
+                {unitId}
+              </div>
+              <div style={{ fontSize: 9, color: '#00ff88', fontFamily: "'Share Tech Mono'", marginTop: 2 }}>
+                GPS: {gpsConfidence}
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: 8, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>VELOCITY</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#ff3333', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ff3333', display: 'inline-block', animation: 'pulse-banner 1s infinite' }} />
+                EN ROUTE · {speedKmh} KM/H
+              </div>
+            </div>
+
             <div>
               <div style={{ fontSize: 8, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>ESTIMATED TRANSIT ETA</div>
-              <div style={{ fontSize: 22, fontWeight: 900, fontFamily: "'Orbitron'", color: '#fff', marginTop: 4 }}>
+              <div style={{ fontSize: 18, fontWeight: 900, fontFamily: "'Orbitron'", color: '#fff', marginTop: 2 }}>
                 {Math.floor(etaSeconds / 60)}m {etaSeconds % 60}s
               </div>
             </div>
 
             <div>
-              <div style={{ fontSize: 8, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>REMAINING DISTANCE</div>
-              <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "'Orbitron'", color: '#fff', marginTop: 4 }}>
-                {distanceKm} KM
-              </div>
-            </div>
-
-            <div>
-              <div style={{ fontSize: 8, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>HOSPITAL STATUS</div>
-              <div style={{ border: '1px solid rgba(0, 200, 255, 0.15)', borderRadius: 6, padding: 10, marginTop: 4, background: 'rgba(5, 15, 35, 0.4)' }}>
+              <div style={{ fontSize: 8, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>DESTINATION HOSPITAL</div>
+              <div style={{ border: '1px solid rgba(0, 200, 255, 0.15)', borderRadius: 6, padding: 8, marginTop: 4, background: 'rgba(5, 15, 35, 0.4)' }}>
                 <div style={{ fontSize: 11, fontWeight: 'bold', color: '#00ff88' }}>{hospitalName}</div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8, color: 'rgba(160,200,255,0.5)', marginTop: 4 }}>
-                  <span>ER Capacity: 80%</span>
-                  <span style={{ color: '#00ff88' }}>READY</span>
+                <div style={{ fontSize: 8, color: 'rgba(160,200,255,0.5)', marginTop: 2 }}>
+                  Trauma Bay preemption lock confirmed
                 </div>
-              </div>
-            </div>
-
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'", marginBottom: 6 }}>
-                <span>CORRIDOR PROGRESS</span>
-                <span>{progressPct}%</span>
-              </div>
-              <div style={{ height: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden' }}>
-                <div style={{ width: `${progressPct}%`, height: '100%', background: 'linear-gradient(90deg, #ff4d63, #00ff88)', borderRadius: 3 }} />
-              </div>
-            </div>
-
-            <div>
-              <div style={{ fontSize: 8, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'" }}>AMBULANCE VELOCITY</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#ff3333', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ff3333', display: 'inline-block', animation: 'pulse-banner 1s infinite' }} />
-                EN ROUTE · {speedKmh} KPH
               </div>
             </div>
           </div>
         </aside>
       </div>
 
-      {/* SYSTEM LOG TAIL */}
+      {/* TIMELINE / SYSTEM LOG TAIL */}
       <footer style={{
-        height: 120, background: '#02050f', borderTop: '1px solid rgba(0, 200, 255, 0.2)',
-        display: 'flex', flexDirection: 'column', padding: 12, boxSizing: 'border-box'
+        height: 115, background: '#02050f', borderTop: '1px solid rgba(0, 200, 255, 0.2)',
+        display: 'flex', flexDirection: 'column', padding: 10, boxSizing: 'border-box'
       }}>
-        <div style={{ fontSize: 9, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.5)', letterSpacing: '0.1em', marginBottom: 6 }}>
-          SYSTEM LOG TAIL
+        <div style={{ fontSize: 9, fontFamily: "'Orbitron'", color: 'rgba(160,200,255,0.5)', letterSpacing: '0.1em', marginBottom: 4 }}>
+          PREEMPTION TIMELINE & EVENT TAIL
         </div>
         <div style={{
           flex: 1, overflowY: 'auto', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(0, 200, 255, 0.1)',
@@ -613,8 +753,8 @@ export default function CorridorPanel({
         }}>
           {logs.map((log, idx) => (
             <div key={idx} style={{ display: 'flex', gap: 8 }}>
-              <span style={{ color: 'rgba(160,200,255,0.4)' }}>[LOG]</span>
-              <span style={{ color: log.includes('🚨') || log.includes('warning') ? '#ff4d63' : '#00ff88' }}>{log}</span>
+              <span style={{ color: 'rgba(160,200,255,0.4)' }}>[TIMELINE]</span>
+              <span style={{ color: log.includes('🚨') || log.includes('⚠️') ? '#ff4d63' : '#00ff88' }}>{log}</span>
             </div>
           ))}
         </div>

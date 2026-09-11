@@ -1682,7 +1682,7 @@ io.on('connection', (socket) => {
       io.to(`mission_${reqId}`).emit('location-update', enrichedData);
       console.log(`[MAP] Enriched Location update routed to mission_${reqId}`);
       syncMissionToDB(reqId);
-      evaluatePreemption(reqId, data, io).catch(err => console.error('[PREEMPTION ERROR]', err));
+      evaluatePreemption(reqId, data, io, null, activeIncidentZones).catch(err => console.error('[PREEMPTION ERROR]', err));
       const { checkForBetterHospitalMidTransport } = require('./services/hospitalMatchingAgent');
       checkForBetterHospitalMidTransport(reqId, data.lat, data.lng, io, activeRequests).catch(err => console.error('[MID-TRANS CHECK ERROR]', err));
     } else {
@@ -1820,6 +1820,30 @@ io.on('connection', (socket) => {
   socket.on('webrtc-telestration', (data) => routeToMission(socket, 'webrtc-telestration', data));
   socket.on('webrtc-telestration-clear', (data) => routeToMission(socket, 'webrtc-telestration-clear', data));
   socket.on('green-corridor-status', (data) => routeToMission(socket, 'green-corridor-status', data));
+  socket.on('corridor:manual-override', async (data) => {
+    const { incidentId, junctionId, forceStatus } = data;
+    if (!incidentId || !junctionId) return;
+    try {
+      const { EmergencyCorridor } = require('./utils/db');
+      const { transitionJunctionState } = require('./utils/emergencyCorridor');
+      const junc = await EmergencyCorridor.findOne({ where: { incident_id: incidentId, junction_id: junctionId } });
+      if (junc) {
+        await transitionJunctionState(junc, forceStatus || 'MANUAL_INTERVENTION', 'Manual override requested from control room', { force: true });
+        const eventPayload = {
+          incidentId,
+          junctionId: junc.junction_id,
+          name: junc.name,
+          status: junc.status,
+          corridor_state: junc.corridor_state,
+          controller_status: junc.controller_status
+        };
+        io.to(`mission_${incidentId}`).emit('corridor:status_update', eventPayload);
+        io.to('admin_warroom').emit('corridor:status_update', eventPayload);
+      }
+    } catch (err) {
+      console.error('[MANUAL OVERRIDE ERROR]', err.message);
+    }
+  });
   socket.on('hospital-request-consent', (data) => {
     const { reqId, hospitalName } = data;
     const req = activeRequests[reqId];

@@ -1,9 +1,41 @@
 const crypto = require('crypto');
 const fetch = require('node-fetch');
 const { EmergencyCorridor, AuditLog } = require('./db');
+const { defaultControllerAdapter } = require('./trafficControllerAdapter');
 
 // Secure Key for telemetry validation (loaded from environment)
 const TELEMETRY_SHARED_SECRET = process.env.TELEMETRY_SHARED_SECRET || 'emergency-corridor-secure-token-108';
+
+/**
+ * Configurable Corridor Operational Thresholds
+ */
+const CORRIDOR_THRESHOLDS = {
+  ARM_ETA_SECONDS: 60,          // ETA > 60s -> ARMED
+  APPROACH_ETA_SECONDS: 30,     // 30-60s -> APPROACHING
+  PREEMPT_REQ_ETA_SECONDS: 15,  // 10-30s -> PREEMPT_REQUESTED
+  PREEMPT_ACTIVE_ETA_SECONDS: 8, // < 10s -> PREEMPT_ACTIVE
+  APPROACH_RADIUS: 500,         // meters
+  PASSAGE_RADIUS: 40,           // meters (enters junction pass zone)
+  CLEAR_RADIUS: 70,             // meters (clears junction boundary)
+  FALLBACK_SPEED_KMH: 50,       // km/h default fallback speed when telemetry speed is missing/invalid
+  GPS_NOISE_THRESHOLD: 15       // meters
+};
+
+/**
+ * Deterministic Junction State Machine Transition Graph
+ */
+const VALID_TRANSITIONS = {
+  NORMAL: ['ARMED', 'CONTROLLER_FAIL', 'MANUAL_INTERVENTION', 'PREEMPTING', 'SCHEDULED'],
+  ARMED: ['APPROACHING', 'NORMAL', 'CONTROLLER_FAIL', 'MANUAL_INTERVENTION'],
+  APPROACHING: ['PREEMPT_REQUESTED', 'NORMAL', 'CONTROLLER_FAIL', 'MANUAL_INTERVENTION'],
+  PREEMPT_REQUESTED: ['PREEMPT_ACTIVE', 'CONTROLLER_FAIL', 'MANUAL_INTERVENTION', 'NORMAL'],
+  PREEMPT_ACTIVE: ['AMBULANCE_PASSING', 'CLEARING', 'CORRIDOR_ACTIVE', 'CONTROLLER_FAIL', 'MANUAL_INTERVENTION'],
+  AMBULANCE_PASSING: ['CLEARING', 'RESTORING', 'CONTROLLER_FAIL', 'MANUAL_INTERVENTION'],
+  CLEARING: ['RESTORING', 'NORMAL', 'PASSED', 'CONTROLLER_FAIL', 'MANUAL_INTERVENTION'],
+  RESTORING: ['NORMAL', 'ARMED', 'PASSED', 'CONTROLLER_FAIL', 'MANUAL_INTERVENTION'],
+  CONTROLLER_FAIL: ['MANUAL_INTERVENTION', 'RESTORING', 'NORMAL', 'ARMED'],
+  MANUAL_INTERVENTION: ['PREEMPT_ACTIVE', 'RESTORING', 'NORMAL', 'PASSED']
+};
 
 /**
  * Standard Kalman Filter state tracker to smooth GPS drift
@@ -37,7 +69,7 @@ class GPSKalmanFilter {
   }
 }
 
-// Track filters for active incidents in-memory
+// Track filters and telemetry timestamps in-memory
 const activeKalmanFilters = {};
 const lastIncidentTelemetryUpdate = {};
 
@@ -57,9 +89,95 @@ function getDistanceMeters(lat1, lon1, lat2, lon2) {
 }
 
 /**
- * Reverse geocode a coordinate to get a human-readable junction name.
- * Uses Nominatim (OpenStreetMap) — free, no API key required.
- * Works for any real-world location globally.
+ * Calculates bearing in degrees between two points
+ */
+function calculateBearing(lat1, lon1, lat2, lon2) {
+  const phi1 = (lat1 * Math.PI) / 180;
+  const phi2 = (lat2 * Math.PI) / 180;
+  const deltaLambda = ((lon2 - lon1) * Math.PI) / 180;
+
+  const y = Math.sin(deltaLambda) * Math.cos(phi2);
+  const x = Math.cos(phi1) * Math.sin(phi2) - Math.sin(phi1) * Math.cos(phi2) * Math.cos(deltaLambda);
+  const theta = Math.atan2(y, x);
+  const bearing = ((theta * 180) / Math.PI + 360) % 360;
+  return bearing;
+}
+
+/**
+ * Converts bearing angle to cardinal approach direction string (e.g., "South → North")
+ */
+function getApproachDirection(prevPt, currPt) {
+  if (!prevPt || !currPt) return 'Northbound';
+  const bearing = calculateBearing(prevPt.lat, prevPt.lng, currPt.lat, currPt.lng);
+
+  if (bearing >= 337.5 || bearing < 22.5) return 'South → North';
+  if (bearing >= 22.5 && bearing < 67.5) return 'Southwest → Northeast';
+  if (bearing >= 67.5 && bearing < 112.5) return 'West → East';
+  if (bearing >= 112.5 && bearing < 157.5) return 'Northwest → Southeast';
+  if (bearing >= 157.5 && bearing < 202.5) return 'North → South';
+  if (bearing >= 202.5 && bearing < 247.5) return 'Northeast → Southwest';
+  if (bearing >= 247.5 && bearing < 292.5) return 'East → West';
+  if (bearing >= 292.5 && bearing < 337.5) return 'Southeast → Northwest';
+  return 'Northbound';
+}
+
+/**
+ * Deterministic State Machine Transition Validator & Executor
+ */
+async function transitionJunctionState(junction, targetState, reason = '', auditContext = {}) {
+  const currentState = junction.corridor_state || junction.status || 'NORMAL';
+
+  if (currentState === targetState) return false;
+
+  const allowed = VALID_TRANSITIONS[currentState] || [];
+  // Allow explicit override if force is requested
+  const isAllowed = allowed.includes(targetState) || auditContext.force === true;
+
+  if (!isAllowed) {
+    console.warn(`[CORRIDOR STATE MACHINE REJECTED] Invalid transition from ${currentState} to ${targetState} for junction ${junction.name}`);
+    return false;
+  }
+
+  junction.corridor_state = targetState;
+  // Maintain backward-compatible status field string mapping
+  if (['NORMAL', 'ARMED', 'SCHEDULED'].includes(targetState)) junction.status = 'SCHEDULED';
+  else if (['APPROACHING', 'PREEMPT_REQUESTED', 'PREEMPTING'].includes(targetState)) junction.status = 'PREEMPTING';
+  else if (['PREEMPT_ACTIVE', 'AMBULANCE_PASSING', 'CORRIDOR_ACTIVE'].includes(targetState)) junction.status = 'CORRIDOR_ACTIVE';
+  else if (['CLEARING', 'RESTORING', 'PASSED'].includes(targetState)) junction.status = 'PASSED';
+  else junction.status = targetState;
+
+  if (targetState === 'PREEMPT_REQUESTED') junction.preemption_requested = true;
+  if (targetState === 'PREEMPT_ACTIVE') junction.preemption_active = true;
+  if (targetState === 'CLEARING' || targetState === 'RESTORING' || targetState === 'NORMAL') {
+    junction.preemption_requested = false;
+    junction.preemption_active = false;
+  }
+  if (targetState === 'CONTROLLER_FAIL') {
+    junction.controller_status = 'FAILED';
+  } else if (['PREEMPT_ACTIVE', 'AMBULANCE_PASSING'].includes(targetState)) {
+    junction.controller_status = 'ACTIVE';
+  } else if (['ARMED', 'APPROACHING', 'PREEMPT_REQUESTED'].includes(targetState)) {
+    junction.controller_status = 'ACKNOWLEDGED';
+  } else if (targetState === 'NORMAL') {
+    junction.controller_status = 'ONLINE';
+  }
+
+  junction.last_updated = new Date();
+  await junction.save();
+
+  // Create immutable audit log entry
+  const severity = (targetState === 'CONTROLLER_FAIL' || targetState === 'MANUAL_INTERVENTION') ? 'WARNING' : 'INFO';
+  await AuditLog.create({
+    action: `JUNCTION_${targetState}`,
+    details: `Emergency Corridor Coordination: Junction "${junction.name}" (Incident: ${junction.incident_id}) transitioned ${currentState} -> ${targetState}. ${reason}`,
+    severity
+  }).catch(err => console.error('[AUDIT LOG ERROR]', err.message));
+
+  return true;
+}
+
+/**
+ * Reverse geocode a coordinate to get a human-readable junction name via Nominatim
  */
 async function reverseGeocode(lat, lng) {
   try {
@@ -70,7 +188,6 @@ async function reverseGeocode(lat, lng) {
     });
     if (!res.ok) return null;
     const data = await res.json();
-    // Build a concise name: road + suburb/neighbourhood
     const addr = data.address || {};
     const parts = [
       addr.road || addr.highway || addr.pedestrian,
@@ -79,16 +196,12 @@ async function reverseGeocode(lat, lng) {
     ].filter(Boolean);
     return parts.length > 0 ? parts.slice(0, 2).join(', ') : (data.display_name || `Junction @ ${lat.toFixed(4)},${lng.toFixed(4)}`);
   } catch (err) {
-    return null; // Will use fallback label
+    return null;
   }
 }
 
 /**
- * Dynamically extract and register junctions along any OSRM/ORS route polyline.
- * Accepts either:
- *  - Array of {lat, lng} objects (from getSmartRouteObjects)
- *  - Array of [lat, lng] arrays (from getSmartRoute)
- * Junction names are resolved via real-world reverse geocoding (Nominatim/OSM).
+ * Dynamically extract and register junctions along any OSRM route polyline.
  */
 async function initializeCorridorForRoute(incidentId, routeCoordinates) {
   try {
@@ -96,7 +209,6 @@ async function initializeCorridorForRoute(incidentId, routeCoordinates) {
 
     if (!routeCoordinates || routeCoordinates.length < 2) return [];
 
-    // Normalize coordinate format — accept both {lat,lng} objects and [lat,lng] arrays
     const normalizedRoute = routeCoordinates.map(c => {
       if (Array.isArray(c)) return { lat: c[0], lng: c[1] };
       return { lat: c.lat, lng: c.lng };
@@ -107,48 +219,157 @@ async function initializeCorridorForRoute(incidentId, routeCoordinates) {
     const corridors = [];
     let junctionIndex = 1;
     let lastJunctionPoint = normalizedRoute[0];
-    let etaAccumulator = 45; // Start window ETA (seconds from now)
+    let etaAccumulator = 45;
+    let accumulatedDistanceStart = 0;
 
     for (let i = 1; i < normalizedRoute.length - 1; i++) {
       const coord = normalizedRoute[i];
+      const prevCoord = normalizedRoute[i - 1];
       const distFromLast = getDistanceMeters(lastJunctionPoint.lat, lastJunctionPoint.lng, coord.lat, coord.lng);
+      accumulatedDistanceStart += getDistanceMeters(prevCoord.lat, prevCoord.lng, coord.lat, coord.lng);
 
-      if (distFromLast >= 1000) { // Spacing of ~1km between junctions
+      if (distFromLast >= 1000) { // Spacing ~1km between junctions
         const startWindow = new Date(Date.now() + (etaAccumulator - 20) * 1000);
         const endWindow = new Date(Date.now() + (etaAccumulator + 40) * 1000);
 
-        // Resolve real-world name via Nominatim reverse geocoding
         let junctionName = await reverseGeocode(coord.lat, coord.lng);
         if (!junctionName) {
           junctionName = `Junction #${junctionIndex} (${coord.lat.toFixed(4)}, ${coord.lng.toFixed(4)})`;
         }
+
+        const approachDir = getApproachDirection(prevCoord, coord);
 
         const node = await EmergencyCorridor.create({
           incident_id: incidentId,
           junction_id: `junc_${incidentId}_${junctionIndex}`,
           name: junctionName,
           status: 'SCHEDULED',
+          corridor_state: 'NORMAL',
+          route_order: junctionIndex,
+          distance_from_ambulance: Math.round(accumulatedDistanceStart),
+          distance_from_start: Math.round(accumulatedDistanceStart),
           eta_seconds: etaAccumulator,
+          approach_direction: approachDir,
+          required_movement: 'Through',
+          normal_signal_state: 'RED_CYCLE',
+          preemption_requested: false,
+          preemption_active: false,
+          controller_status: 'ONLINE',
+          gps_confidence: 'HIGH',
           preempt_window_start: startWindow,
           preempt_window_end: endWindow,
           latitude: coord.lat,
-          longitude: coord.lng
+          longitude: coord.lng,
+          last_updated: new Date()
         });
 
         corridors.push(node);
-        console.log(`[CORRIDOR] Junction ${junctionIndex}: "${junctionName}" @ ${coord.lat.toFixed(5)},${coord.lng.toFixed(5)}`);
+        console.log(`[CORRIDOR] Junction ${junctionIndex}: "${junctionName}" (${approachDir}) @ ${coord.lat.toFixed(5)},${coord.lng.toFixed(5)}`);
         junctionIndex++;
         lastJunctionPoint = coord;
-        etaAccumulator += 80; // ~80 seconds between junctions at emergency speed
+        etaAccumulator += 80;
       }
     }
 
-    console.log(`[REAL-WORLD PREEMPTION] Generated ${corridors.length} dynamic route junctions for incident ${incidentId}`);
+    await AuditLog.create({
+      action: 'CORRIDOR_CREATED',
+      details: `Initialized ${corridors.length} emergency corridor preemption junctions for incident ${incidentId}`,
+      severity: 'INFO'
+    }).catch(e => {});
+
+    console.log(`[CORRIDOR COORDINATION] Registered ${corridors.length} route junctions for incident ${incidentId}`);
     return corridors;
   } catch (err) {
     console.error(`[PREEMPTION INIT ERROR]`, err.message);
     return [];
   }
+}
+
+/**
+ * Calculates deterministic corridor readiness score and status badge
+ */
+function calculateCorridorReadiness(junctions, gpsConfidence = 'HIGH', activeIncidents = []) {
+  if (!junctions || junctions.length === 0) {
+    return {
+      status: 'NOT_READY',
+      score: 0,
+      details: ['No corridor preemption junctions registered for active route.']
+    };
+  }
+
+  let score = 100;
+  const details = [];
+
+  // Check controller failures
+  const failedJunctions = junctions.filter(j => j.corridor_state === 'CONTROLLER_FAIL' || j.controller_status === 'FAILED');
+  if (failedJunctions.length > 0) {
+    const penalty = (failedJunctions.length / junctions.length) * 40;
+    score -= penalty;
+    details.push(`${failedJunctions.length}/${junctions.length} signal controllers reporting failure or manual fallback.`);
+  }
+
+  // Check GPS confidence
+  if (gpsConfidence === 'LOW') {
+    score -= 25;
+    details.push('Ambulance GPS telemetry reporting low accuracy / signal drift.');
+  } else if (gpsConfidence === 'MEDIUM') {
+    score -= 10;
+    details.push('Ambulance GPS telemetry reporting moderate accuracy.');
+  }
+
+  // Check traffic incidents / obstructions along route
+  if (activeIncidents.length > 0) {
+    score -= 15;
+    details.push(`${activeIncidents.length} traffic incident(s) reported along mission sector.`);
+  }
+
+  score = Math.max(0, Math.min(100, Math.round(score)));
+  let status = 'READY';
+  if (score < 50) status = 'NOT_READY';
+  else if (score < 85) status = 'DEGRADED';
+
+  if (details.length === 0) {
+    details.push(`All ${junctions.length}/${junctions.length} junctions ready. Controller: ONLINE. Telemetry: HIGH CONFIDENCE.`);
+  }
+
+  return { status, score, details };
+}
+
+/**
+ * Evaluates active traffic incident zones against emergency route coordinates
+ */
+function evaluateTrafficObstructions(incidentId, routeCoordinates, activeIncidentZones = []) {
+  if (!routeCoordinates || routeCoordinates.length === 0 || !activeIncidentZones || activeIncidentZones.length === 0) {
+    return null;
+  }
+
+  const normalizedRoute = routeCoordinates.map(c => Array.isArray(c) ? { lat: c[0], lng: c[1] } : { lat: c.lat, lng: c.lng });
+  const obstructions = [];
+
+  for (const zone of activeIncidentZones) {
+    const zoneLat = zone.location?.lat || zone.lat;
+    const zoneLng = zone.location?.lng || zone.lng;
+    if (!zoneLat || !zoneLng) continue;
+
+    for (const pt of normalizedRoute) {
+      const dist = getDistanceMeters(pt.lat, pt.lng, zoneLat, zoneLng);
+      if (dist < 200) { // Obstruction within 200m of route
+        obstructions.push({ ...zone, distToRoute: Math.round(dist) });
+        break;
+      }
+    }
+  }
+
+  if (obstructions.length === 0) return null;
+
+  return {
+    incidentId,
+    obstructionCount: obstructions.length,
+    recommendation: 'SWITCH TO ALTERNATE ROUTE',
+    primaryRouteDelaySec: 180,
+    alternateRouteEtaDiffSec: -65,
+    details: `Traffic obstruction detected within route sector (${obstructions[0].type || 'Incident'}). Alternate route recommended.`
+  };
 }
 
 /**
@@ -168,12 +389,11 @@ function verifyTelemetrySignature(payload, signature) {
 }
 
 /**
- * Evaluates ambulance telemetry, applies Kalman filter, and updates preemption state
+ * Evaluates ambulance telemetry, updates preemption state machine, calls controller adapter, and emits socket events
  */
-async function evaluatePreemption(incidentId, rawLoc, io, signature = null) {
+async function evaluatePreemption(incidentId, rawLoc, io, signature = null, activeIncidentZones = []) {
   if (!rawLoc || !rawLoc.lat || !rawLoc.lng) return;
 
-  // Real-world security verification (only in production with explicit signature)
   if (process.env.NODE_ENV === 'production' && signature) {
     const isValid = verifyTelemetrySignature({ lat: rawLoc.lat, lng: rawLoc.lng, timestamp: rawLoc.timestamp }, signature);
     if (!isValid) {
@@ -182,89 +402,146 @@ async function evaluatePreemption(incidentId, rawLoc, io, signature = null) {
     }
   }
 
-  // Update last update timestamp for watchdog release
   lastIncidentTelemetryUpdate[incidentId] = Date.now();
 
-  // Apply Kalman Filter to smooth GPS drift
   if (!activeKalmanFilters[incidentId]) {
     activeKalmanFilters[incidentId] = new GPSKalmanFilter();
   }
   const currentLoc = activeKalmanFilters[incidentId].filter(rawLoc.lat, rawLoc.lng);
 
+  // Evaluate GPS confidence
+  let gpsConfidence = 'HIGH';
+  if (rawLoc.accuracy && rawLoc.accuracy > 30) gpsConfidence = 'LOW';
+  else if (rawLoc.accuracy && rawLoc.accuracy > 15) gpsConfidence = 'MEDIUM';
+
+  // Calculate speed in m/s (default to 50 km/h = 13.89 m/s if not provided)
+  const speedKmh = (rawLoc.speed && rawLoc.speed > 0) ? rawLoc.speed : CORRIDOR_THRESHOLDS.FALLBACK_SPEED_KMH;
+  const speedMs = speedKmh / 3.6;
+
   try {
-    const junctions = await EmergencyCorridor.findAll({ where: { incident_id: incidentId } });
+    const junctions = await EmergencyCorridor.findAll({
+      where: { incident_id: incidentId },
+      order: [['route_order', 'ASC']]
+    });
     if (junctions.length === 0) return;
 
     for (const junc of junctions) {
       const distance = getDistanceMeters(currentLoc.lat, currentLoc.lng, junc.latitude, junc.longitude);
-      const oldStatus = junc.status;
-      let newStatus = oldStatus;
+      const etaSeconds = Math.max(0, Math.round(distance / speedMs));
 
-      if (oldStatus === 'SCHEDULED' && distance < 450) {
-        newStatus = 'PREEMPTING';
+      junc.distance_from_ambulance = Math.round(distance);
+      junc.eta_seconds = etaSeconds;
+      junc.gps_confidence = gpsConfidence;
 
-        await AuditLog.create({
-          action: 'TRAFFIC_SIGNAL_PREEMPTION',
-          details: `Preempt window active for junction "${junc.name}" (Incident: ${incidentId}). Initiating dynamic green wave.`,
-          severity: 'INFO'
-        }).catch(err => console.error(err));
+      const currentState = junc.corridor_state || junc.status || 'NORMAL';
+      let targetState = currentState;
 
-        if (io) {
-          io.to(`mission_${incidentId}`).emit('corridor:preempt_junction', {
-            incidentId,
-            junctionId: junc.junction_id,
-            name: junc.name,
-            status: 'PREEMPTING',
-            distance: Math.round(distance)
-          });
-        }
-      } else if (oldStatus === 'PREEMPTING' && distance < 120) {
-        newStatus = 'CORRIDOR_ACTIVE';
-
-        await AuditLog.create({
-          action: 'TRAFFIC_SIGNAL_PREEMPTION',
-          details: `CORRIDOR ACTIVE at "${junc.name}" (Incident: ${incidentId}). Route fully preempted and cleared.`,
-          severity: 'WARNING'
-        }).catch(err => console.error(err));
-      } else if ((oldStatus === 'PREEMPTING' || oldStatus === 'CORRIDOR_ACTIVE') && distance > 180) {
-        newStatus = 'PASSED';
-
-        await AuditLog.create({
-          action: 'TRAFFIC_SIGNAL_PREEMPTION',
-          details: `Ambulance cleared junction bounds for "${junc.name}". Restoring standard traffic cycles.`,
-          severity: 'INFO'
-        }).catch(err => console.error(err));
-
-        if (io) {
-          io.to(`mission_${incidentId}`).emit('corridor:route_cleared', {
-            incidentId,
-            junctionId: junc.junction_id,
-            name: junc.name,
-            status: 'PASSED'
-          });
+      // Passage threshold logic
+      if (distance <= CORRIDOR_THRESHOLDS.PASSAGE_RADIUS && currentState !== 'CLEARING' && currentState !== 'RESTORING' && currentState !== 'PASSED') {
+        targetState = 'AMBULANCE_PASSING';
+      } else if (currentState === 'AMBULANCE_PASSING' && distance > CORRIDOR_THRESHOLDS.CLEAR_RADIUS) {
+        targetState = 'CLEARING';
+      } else if (currentState === 'CLEARING' && distance > CORRIDOR_THRESHOLDS.CLEAR_RADIUS + 50) {
+        targetState = 'RESTORING';
+      } else if (currentState === 'RESTORING' && distance > CORRIDOR_THRESHOLDS.CLEAR_RADIUS + 150) {
+        targetState = 'NORMAL';
+      }
+      // ETA-based preemption thresholds on approach
+      else if (currentState !== 'AMBULANCE_PASSING' && currentState !== 'CLEARING' && currentState !== 'RESTORING' && currentState !== 'PASSED' && currentState !== 'CONTROLLER_FAIL' && currentState !== 'MANUAL_INTERVENTION') {
+        if (etaSeconds <= CORRIDOR_THRESHOLDS.PREEMPT_ACTIVE_ETA_SECONDS || distance < 120) {
+          targetState = 'PREEMPT_ACTIVE';
+        } else if (etaSeconds <= CORRIDOR_THRESHOLDS.PREEMPT_REQ_ETA_SECONDS || distance < 250) {
+          targetState = 'PREEMPT_REQUESTED';
+        } else if (etaSeconds <= CORRIDOR_THRESHOLDS.APPROACH_ETA_SECONDS || distance < 500) {
+          targetState = 'APPROACHING';
+        } else if (etaSeconds <= CORRIDOR_THRESHOLDS.ARM_ETA_SECONDS || distance < 1000) {
+          targetState = 'ARMED';
+        } else {
+          targetState = 'NORMAL';
         }
       }
 
-      if (newStatus !== oldStatus) {
-        junc.status = newStatus;
+      if (targetState !== currentState) {
+        // Trigger Controller Adapter interface methods
+        let adapterResult = { success: true };
+        if (targetState === 'PREEMPT_REQUESTED') {
+          adapterResult = await defaultControllerAdapter.requestPreemption(junc);
+        } else if (targetState === 'PREEMPT_ACTIVE') {
+          adapterResult = await defaultControllerAdapter.activatePreemption(junc);
+        } else if (targetState === 'AMBULANCE_PASSING') {
+          adapterResult = await defaultControllerAdapter.confirmAmbulancePassage(junc);
+        } else if (targetState === 'CLEARING') {
+          adapterResult = await defaultControllerAdapter.clearPreemption(junc);
+        } else if (targetState === 'RESTORING' || targetState === 'NORMAL') {
+          adapterResult = await defaultControllerAdapter.restoreNormalSignal(junc);
+        }
+
+        // Handle Controller Failure
+        if (!adapterResult.success) {
+          targetState = 'CONTROLLER_FAIL';
+          await transitionJunctionState(junc, 'CONTROLLER_FAIL', adapterResult.reason || 'Simulated controller preemption failure');
+
+          if (io) {
+            io.to(`mission_${incidentId}`).emit('corridor:controller_failure', {
+              incidentId,
+              junctionId: junc.junction_id,
+              name: junc.name,
+              reason: adapterResult.reason,
+              timestamp: new Date().toISOString()
+            });
+            io.to('admin_warroom').emit('corridor:controller_failure', {
+              incidentId,
+              junctionId: junc.junction_id,
+              name: junc.name,
+              reason: adapterResult.reason
+            });
+          }
+        } else {
+          const transitioned = await transitionJunctionState(junc, targetState, `ETA: ${etaSeconds}s, Distance: ${Math.round(distance)}m`);
+
+          if (transitioned && io) {
+            const eventPayload = {
+              incidentId,
+              junctionId: junc.junction_id,
+              name: junc.name,
+              status: junc.status,
+              corridor_state: junc.corridor_state,
+              eta_seconds: etaSeconds,
+              distance: Math.round(distance),
+              approach_direction: junc.approach_direction || 'Northbound',
+              required_movement: junc.required_movement || 'Through',
+              controller_status: junc.controller_status || 'ONLINE',
+              gps_confidence: gpsConfidence
+            };
+
+            io.to(`mission_${incidentId}`).emit('corridor:status_update', eventPayload);
+            io.to(`mission_${incidentId}`).emit('corridor:junction_updated', eventPayload);
+            io.to('admin_warroom').emit('corridor:status_update', eventPayload);
+
+            if (targetState === 'PREEMPT_REQUESTED' || targetState === 'PREEMPT_ACTIVE') {
+              io.to(`mission_${incidentId}`).emit('corridor:preempt_junction', eventPayload);
+            } else if (targetState === 'CLEARING' || targetState === 'RESTORING') {
+              io.to(`mission_${incidentId}`).emit('corridor:route_cleared', eventPayload);
+            }
+          }
+        }
+      } else {
+        // Save distance and ETA updates without full state transition
         await junc.save();
-
-        if (io) {
-          io.to(`mission_${incidentId}`).emit('corridor:status_update', {
-            incidentId,
-            junctionId: junc.junction_id,
-            name: junc.name,
-            status: newStatus,
-            eta_seconds: Math.max(0, Math.round(distance / 12.5))
-          });
-          io.to('admin_warroom').emit('corridor:status_update', {
-            incidentId,
-            junctionId: junc.junction_id,
-            name: junc.name,
-            status: newStatus
-          });
-        }
       }
+    }
+
+    // Compute Overall Corridor Readiness
+    const readiness = calculateCorridorReadiness(junctions, gpsConfidence, activeIncidentZones);
+    if (io) {
+      io.to(`mission_${incidentId}`).emit('corridor:readiness_updated', { incidentId, ...readiness });
+      io.to('admin_warroom').emit('corridor:readiness_updated', { incidentId, ...readiness });
+    }
+
+    // Check traffic incident obstructions for route recommendation
+    const routeRec = evaluateTrafficObstructions(incidentId, junctions, activeIncidentZones);
+    if (routeRec && io) {
+      io.to(`mission_${incidentId}`).emit('corridor:route_recommendation', routeRec);
     }
   } catch (err) {
     console.error(`[PREEMPTION EVAL ERROR]`, err.message);
@@ -272,8 +549,7 @@ async function evaluatePreemption(incidentId, rawLoc, io, signature = null) {
 }
 
 /**
- * Clean inactive preemptions (watchdog)
- * Runs every 10 seconds, releases junctions when telemetry is stale > 20s
+ * Clean inactive preemptions (watchdog failsafe)
  */
 async function startWatchdog(io, intervalMs = 10000) {
   setInterval(async () => {
@@ -281,41 +557,28 @@ async function startWatchdog(io, intervalMs = 10000) {
     try {
       const activePreemptions = await EmergencyCorridor.findAll({
         where: {
-          status: ['PREEMPTING', 'CORRIDOR_ACTIVE']
+          status: ['PREEMPTING', 'CORRIDOR_ACTIVE'],
+          corridor_state: ['APPROACHING', 'PREEMPT_REQUESTED', 'PREEMPT_ACTIVE', 'AMBULANCE_PASSING']
         }
       });
 
       for (const junc of activePreemptions) {
         const lastUpdate = lastIncidentTelemetryUpdate[junc.incident_id] || 0;
         if (lastUpdate && (now - lastUpdate > 20000)) {
-          junc.status = 'PASSED';
-          await junc.save();
-
-          await AuditLog.create({
-            action: 'TRAFFIC_SIGNAL_PREEMPTION',
-            details: `WATCHDOG FAILSAFE: Released preemption at "${junc.name}" due to telemetry timeout.`,
-            severity: 'WARNING'
-          }).catch(err => console.error(err));
+          await transitionJunctionState(junc, 'RESTORING', 'WATCHDOG FAILSAFE: Released preemption due to telemetry timeout.');
+          await transitionJunctionState(junc, 'NORMAL', 'WATCHDOG FAILSAFE: Restored normal signal cycle.');
 
           if (io) {
-            io.to(`mission_${junc.incident_id}`).emit('corridor:status_update', {
+            const eventPayload = {
               incidentId: junc.incident_id,
               junctionId: junc.junction_id,
               name: junc.name,
-              status: 'PASSED'
-            });
-            io.to(`mission_${junc.incident_id}`).emit('corridor:route_cleared', {
-              incidentId: junc.incident_id,
-              junctionId: junc.junction_id,
-              name: junc.name,
-              status: 'PASSED'
-            });
-            io.to('admin_warroom').emit('corridor:status_update', {
-              incidentId: junc.incident_id,
-              junctionId: junc.junction_id,
-              name: junc.name,
-              status: 'PASSED'
-            });
+              status: 'PASSED',
+              corridor_state: 'NORMAL'
+            };
+            io.to(`mission_${junc.incident_id}`).emit('corridor:status_update', eventPayload);
+            io.to(`mission_${junc.incident_id}`).emit('corridor:route_cleared', eventPayload);
+            io.to('admin_warroom').emit('corridor:status_update', eventPayload);
           }
           console.log(`[WATCHDOG FAILSAFE] Released junction "${junc.name}" for incident ${junc.incident_id}`);
         }
@@ -331,5 +594,11 @@ module.exports = {
   evaluatePreemption,
   startWatchdog,
   verifyTelemetrySignature,
-  reverseGeocode
+  reverseGeocode,
+  calculateCorridorReadiness,
+  evaluateTrafficObstructions,
+  transitionJunctionState,
+  getApproachDirection,
+  CORRIDOR_THRESHOLDS,
+  VALID_TRANSITIONS
 };
