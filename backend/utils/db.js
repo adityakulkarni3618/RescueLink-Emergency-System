@@ -1,8 +1,8 @@
 const { Sequelize } = require('sequelize');
 const { execSync } = require('child_process');
 
-let useSqlite = process.env.FORCE_SQLITE === 'true';
-if (process.env.RENDER === 'true' || process.env.NODE_ENV === 'production') {
+let useSqlite = process.env.FORCE_SQLITE === 'true' || process.env.NODE_ENV === 'test';
+if ((process.env.RENDER === 'true' || process.env.NODE_ENV === 'production') && process.env.FORCE_SQLITE !== 'true') {
   console.log('[DB] Running on Render or Production. Forcing PostgreSQL dialect.');
   useSqlite = false;
 }
@@ -215,6 +215,7 @@ async function syncDatabase() {
 
     // Ensure model structures and SQL migrations run safely across environments
     await sequelize.sync();
+    await EmergencyCorridor.sync({ alter: true }).catch(e => console.warn('[DB] EmergencyCorridor alter sync:', e.message));
 
     // Run SQL DDL Migrations
     const runMigrations = require('../scripts/run-migrations');
