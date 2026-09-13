@@ -6,7 +6,7 @@ const cache = require('../utils/cache');
 
 const ALL_HOSPITALS_CACHE_KEY = 'hospitals:all';
 
-const SEED_HOSPITAL_KEYWORDS = ['City General', 'Apollo', 'Manipal', 'Apex', 'National', 'Fortis', 'Max'];
+const SEED_HOSPITAL_KEYWORDS = ['City General', 'Apollo', 'Manipal', 'Apex', 'National', 'Fortis', 'Max', 'Aditya K Hospital'];
 
 /**
  * @route GET /api/hospitals

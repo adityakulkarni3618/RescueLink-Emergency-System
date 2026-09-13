@@ -48,7 +48,7 @@ async function findAmbulanceByPkOrUser(idOrUuid) {
   return amb;
 }
 
-const SEED_AMBULANCE_PREFIXES = ['AMB-', 'MH12'];
+const SEED_AMBULANCE_PREFIXES = ['AMB-', 'MH12', 'KA-01-EQ-9999'];
 
 /**
  * @route GET /api/ambulances
