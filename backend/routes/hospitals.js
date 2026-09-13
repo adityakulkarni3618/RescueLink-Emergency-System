@@ -21,18 +21,8 @@ router.get('/', async (req, res) => {
       order: [['createdAt', 'DESC']]
     });
 
-    if (!hospitals || hospitals.length === 0) {
-      const defaultHospitals = [
-        { id: 'hosp_default_1', name: 'Apex Trauma & Emergency Center', city: 'Mumbai', state: 'Maharashtra', lat: 19.0760, lng: 72.8777, contact_number: '+91-22-26543210', total_beds: 120, icu_beds: 30, ventilators: 15, is_active: true, verification_status: 'APPROVED' },
-        { id: 'hosp_default_2', name: 'City Central Multispecialty Hospital', city: 'Pune', state: 'Maharashtra', lat: 18.5204, lng: 73.8567, contact_number: '+91-20-25432100', total_beds: 85, icu_beds: 20, ventilators: 10, is_active: true, verification_status: 'APPROVED' },
-        { id: 'hosp_default_3', name: 'National Emergency Medical Center', city: 'Bengaluru', state: 'Karnataka', lat: 12.9716, lng: 77.5946, contact_number: '+91-80-23456789', total_beds: 150, icu_beds: 40, ventilators: 25, is_active: true, verification_status: 'APPROVED' }
-      ];
-      try {
-        await Hospital.bulkCreate(defaultHospitals, { ignoreDuplicates: true });
-        hospitals = await Hospital.findAll({ order: [['createdAt', 'DESC']] });
-      } catch (e) {
-        hospitals = defaultHospitals;
-      }
+    if (!hospitals) {
+      hospitals = [];
     }
 
     const plainHospitals = hospitals.map(h => typeof h.toJSON === 'function' ? h.toJSON() : h);

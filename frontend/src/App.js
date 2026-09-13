@@ -1257,25 +1257,13 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
     fetch(`${SERVER_URL}/api/hospitals`)
       .then(res => res.json())
       .then(data => {
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           setHospitalsList(data);
-        } else {
-          setHospitalsList([
-            { id: 'hosp-1', name: 'Apollo Trauma & Emergency Center' },
-            { id: 'hosp-2', name: 'City General Hospital' },
-            { id: 'hosp-3', name: 'Max Super Speciality Hospital' },
-            { id: 'hosp-4', name: 'Fortis Acute Care Unit' }
-          ]);
         }
       })
       .catch(err => {
         console.error('Failed to fetch hospitals list', err);
-        setHospitalsList([
-          { id: 'hosp-1', name: 'Apollo Trauma & Emergency Center' },
-          { id: 'hosp-2', name: 'City General Hospital' },
-          { id: 'hosp-3', name: 'Max Super Speciality Hospital' },
-          { id: 'hosp-4', name: 'Fortis Acute Care Unit' }
-        ]);
+        setHospitalsList([]);
       });
   }, []);
 
@@ -2280,14 +2268,10 @@ function LandingHomepage({ onSelectRole }) {
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       } catch (e) {}
     }
-    return [
-      { id: 'amb-101', vehicleNo: 'MH12AB1234', driverName: 'Unit 101 Lead Paramedic', type: 'ALS', is_active: true },
-      { id: 'amb-102', vehicleNo: 'MH12AB5678', driverName: 'Unit 102 Rapid Responder', type: 'BLS', is_active: true },
-      { id: 'amb-103', vehicleNo: 'MH12AB9012', driverName: 'Unit 103 Critical Care', type: 'ALS', is_active: true }
-    ];
+    return [];
   });
 
   const [hospitals, setHospitals] = useState(() => {
@@ -2295,14 +2279,10 @@ function LandingHomepage({ onSelectRole }) {
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       } catch (e) {}
     }
-    return [
-      { id: 'hosp-1', name: 'Apex Trauma & Emergency Center', icu_beds: 30, ventilators: 15, is_active: true },
-      { id: 'hosp-2', name: 'City Central Multispecialty Hospital', icu_beds: 20, ventilators: 10, is_active: true },
-      { id: 'hosp-3', name: 'National Emergency Medical Center', icu_beds: 40, ventilators: 25, is_active: true }
-    ];
+    return [];
   });
   const [loading, setLoading] = useState(false);
 
@@ -2316,14 +2296,14 @@ function LandingHomepage({ onSelectRole }) {
         ]);
         if (resAmb.ok) {
           const list = await resAmb.json();
-          if (isMounted && Array.isArray(list) && list.length > 0) {
+          if (isMounted && Array.isArray(list)) {
             setAmbulances(list);
             localStorage.setItem('rescuelink_cached_ambulances', JSON.stringify(list));
           }
         }
         if (resHosp.ok) {
           const list = await resHosp.json();
-          if (isMounted && Array.isArray(list) && list.length > 0) {
+          if (isMounted && Array.isArray(list)) {
             setHospitals(list);
             localStorage.setItem('rescuelink_cached_hospitals', JSON.stringify(list));
           }

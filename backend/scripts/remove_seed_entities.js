@@ -1,14 +1,27 @@
 /**
  * remove_seed_entities.js
- * One-time script: deletes ONLY the auto-seeded demo hospitals, ambulances and
- * their associated user accounts from Neon PostgreSQL.
+ * One-time script: deletes ALL auto-seeded / demo hospitals, ambulances and
+ * their associated user accounts.
  * User-registered entities are NOT touched.
  */
 
-const { Hospital, Ambulance, User, sequelize, syncDatabase } = require('../utils/db');
+const { Hospital, Ambulance, User, syncDatabase } = require('../utils/db');
+const { Op } = require('sequelize');
 
-// These are the exact IDs used in seed_db.js — ONLY these will be deleted
-const SEEDED_HOSPITAL_IDS = [
+const SEEDED_HOSPITAL_NAMES = [
+  'City General Trauma Center',
+  'Apollo Multispecialty ER',
+  'Manipal Apex Hospital',
+  'Apex Trauma & Emergency Center',
+  'City Central Multispecialty Hospital',
+  'National Emergency Medical Center',
+  'Apollo Trauma & Emergency Center',
+  'City General Hospital',
+  'Max Super Speciality Hospital',
+  'Fortis Acute Care Unit'
+];
+
+const SEEDED_HOSPITAL_UUIDS = [
   'd3b07384-d113-4956-a5d2-000000000001',
   'd3b07384-d113-4956-a5d2-000000000002',
   'd3b07384-d113-4956-a5d2-000000000003',
@@ -16,7 +29,18 @@ const SEEDED_HOSPITAL_IDS = [
   'd3b07384-d113-4956-a5d2-000000000005'
 ];
 
-const SEEDED_AMBULANCE_IDS = [
+const SEEDED_AMBULANCE_VEHICLES = [
+  'AMB-101',
+  'AMB-102',
+  'AMB-103',
+  'AMB-104',
+  'AMB-105',
+  'MH12AB1234',
+  'MH12AB5678',
+  'MH12AB9012'
+];
+
+const SEEDED_AMBULANCE_UUIDS = [
   'e3b07384-d113-4956-a5d2-000000000001',
   'e3b07384-d113-4956-a5d2-000000000002',
   'e3b07384-d113-4956-a5d2-000000000003',
@@ -34,7 +58,10 @@ const SEEDED_USER_EMAILS = [
   'amb-102@rescuelink.com',
   'amb-103@rescuelink.com',
   'amb-104@rescuelink.com',
-  'amb-105@rescuelink.com'
+  'amb-105@rescuelink.com',
+  'mh12ab1234@rescuelink.com',
+  'mh12ab5678@rescuelink.com',
+  'mh12ab9012@rescuelink.com'
 ];
 
 async function removeSeedEntities() {
@@ -42,21 +69,36 @@ async function removeSeedEntities() {
     await syncDatabase();
     console.log('[CLEANUP] Connected to database.');
 
-    // Delete seeded hospital admin users
+    // Delete seeded hospital admin / paramedic users
     const deletedUsers = await User.destroy({
-      where: { email: SEEDED_USER_EMAILS }
+      where: {
+        [Op.or]: [
+          { email: { [Op.in]: SEEDED_USER_EMAILS } },
+          { name: { [Op.in]: SEEDED_HOSPITAL_NAMES } }
+        ]
+      }
     });
     console.log(`[CLEANUP] Deleted ${deletedUsers} seeded user accounts.`);
 
-    // Delete seeded hospitals
+    // Delete seeded hospitals by UUID or name
     const deletedHospitals = await Hospital.destroy({
-      where: { id: SEEDED_HOSPITAL_IDS }
+      where: {
+        [Op.or]: [
+          { id: { [Op.in]: SEEDED_HOSPITAL_UUIDS } },
+          { name: { [Op.in]: SEEDED_HOSPITAL_NAMES } }
+        ]
+      }
     });
     console.log(`[CLEANUP] Deleted ${deletedHospitals} seeded demo hospitals.`);
 
-    // Delete seeded ambulances
+    // Delete seeded ambulances by UUID or vehicleNo
     const deletedAmbulances = await Ambulance.destroy({
-      where: { id: SEEDED_AMBULANCE_IDS }
+      where: {
+        [Op.or]: [
+          { id: { [Op.in]: SEEDED_AMBULANCE_UUIDS } },
+          { vehicleNo: { [Op.in]: SEEDED_AMBULANCE_VEHICLES } }
+        ]
+      }
     });
     console.log(`[CLEANUP] Deleted ${deletedAmbulances} seeded demo ambulances.`);
 
