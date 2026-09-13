@@ -1,5 +1,3 @@
-const { SerialPort } = require('serialport');
-const { ReadlineParser } = require('@serialport/parser-readline');
 const tf = require('@tensorflow/tfjs');
 const dotenv = require('dotenv');
 dotenv.config();
@@ -128,6 +126,8 @@ function initVitalsBridge(io, activeRequests) {
   if (serialPath) {
     console.log(`[VITALS BRIDGE] Attempting to connect to serial port: ${serialPath}`);
     try {
+      const { SerialPort } = require('serialport');
+      const { ReadlineParser } = require('@serialport/parser-readline');
       portInstance = new SerialPort({
         path: serialPath,
         baudRate: 9600,

@@ -32387,8 +32387,6 @@ module.exports = {
 ================================================
 FILE: backend\utils\vitalsBridge.js
 ================================================
-const { SerialPort } = require('serialport');
-const { ReadlineParser } = require('@serialport/parser-readline');
 const tf = require('@tensorflow/tfjs');
 const dotenv = require('dotenv');
 dotenv.config();
@@ -32517,6 +32515,8 @@ function initVitalsBridge(io, activeRequests) {
   if (serialPath) {
     console.log(`[VITALS BRIDGE] Attempting to connect to serial port: ${serialPath}`);
     try {
+      const { SerialPort } = require('serialport');
+      const { ReadlineParser } = require('@serialport/parser-readline');
       portInstance = new SerialPort({
         path: serialPath,
         baudRate: 9600,
@@ -33179,8 +33179,10 @@ FROM node:18-alpine AS builder
 
 WORKDIR /usr/src/app
 
+RUN apk add --no-cache python3 make g++ gcc
+
 COPY backend/package*.json ./
-RUN npm install --omit=dev
+RUN npm install --omit=dev || npm install --omit=dev --legacy-peer-deps
 
 FROM node:18-alpine
 
