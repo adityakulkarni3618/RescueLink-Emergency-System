@@ -3,16 +3,15 @@ FROM node:18-slim AS builder
 
 WORKDIR /usr/src/app
 
-COPY backend/package*.json package*.json ./
+COPY backend/package*.json ./
 RUN npm install --omit=dev --no-audit --no-fund
 
 FROM node:18-slim
 
 WORKDIR /usr/src/app
 
-COPY --from=builder /usr/src/app/node_modules ./node_modules
 COPY backend/ .
-COPY . .
+COPY --from=builder /usr/src/app/node_modules ./node_modules
 
 ENV NODE_ENV=production
 ENV PORT=5000
@@ -20,5 +19,3 @@ ENV PORT=5000
 EXPOSE 5000
 
 CMD ["node", "server.js"]
-
-

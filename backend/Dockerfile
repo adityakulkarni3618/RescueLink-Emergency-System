@@ -10,8 +10,8 @@ FROM node:18-slim
 
 WORKDIR /usr/src/app
 
-COPY --from=builder /usr/src/app/node_modules ./node_modules
 COPY . .
+COPY --from=builder /usr/src/app/node_modules ./node_modules
 
 ENV NODE_ENV=production
 ENV PORT=5000
