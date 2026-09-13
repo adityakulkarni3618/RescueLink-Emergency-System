@@ -3661,35 +3661,34 @@ async function startServer() {
       try {
         const { Hospital, Ambulance } = require('./utils/db');
         const { Op } = require('sequelize');
-        const seedHospNames = [
-          'City General Trauma Center', 'Apollo Multispecialty ER', 'Manipal Apex Hospital',
-          'Apex Trauma & Emergency Center', 'City Central Multispecialty Hospital',
-          'National Emergency Medical Center', 'Apollo Trauma & Emergency Center',
-          'City General Hospital', 'Max Super Speciality Hospital', 'Fortis Acute Care Unit'
-        ];
+
+        // Always invalidate response cache on server startup
+        try {
+          const cache = require('./utils/cache');
+          await cache.del('hospitals:all');
+        } catch (cErr) {}
+
+        const seedKeywords = ['City General', 'Apollo', 'Manipal', 'Apex', 'National', 'Fortis', 'Max'];
         const delH = await Hospital.destroy({
           where: {
             [Op.or]: [
-              { name: { [Op.in]: seedHospNames } },
+              ...seedKeywords.map(kw => ({ name: { [Op.like]: `%${kw}%` } })),
               { id: { [Op.in]: ['hosp_default_1', 'hosp_default_2', 'hosp_default_3', 'hosp-1', 'hosp-2', 'hosp-3', 'hosp-4'] } }
             ]
           }
         });
+
         const delA = await Ambulance.destroy({
           where: {
             [Op.or]: [
-              { vehicleNo: { [Op.in]: ['AMB-101', 'AMB-102', 'AMB-103', 'AMB-104', 'AMB-105', 'MH12AB1234', 'MH12AB5678', 'MH12AB9012'] } },
+              { vehicleNo: { [Op.like]: 'AMB-%' } },
+              { vehicleNo: { [Op.like]: 'MH12%' } },
               { id: { [Op.in]: ['amb_default_1', 'amb_default_2', 'amb_default_3', 'amb-101', 'amb-102', 'amb-103'] } }
             ]
           }
         });
-        if (delH > 0 || delA > 0) {
-          console.log(`[BOOT PURGE] Cleaned up ${delH} demo hospitals and ${delA} demo ambulances from server database.`);
-          try {
-            const cache = require('./utils/cache');
-            await cache.del('hospitals:all');
-          } catch (cErr) {}
-        }
+
+        console.log(`[BOOT PURGE] Database sweep complete. Removed ${delH} demo hospitals and ${delA} demo ambulances.`);
       } catch (purgeErr) {
         console.warn('[BOOT PURGE WARNING]', purgeErr.message);
       }

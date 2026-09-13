@@ -12,11 +12,6 @@ const ALL_HOSPITALS_CACHE_KEY = 'hospitals:all';
  */
 router.get('/', async (req, res) => {
   try {
-    const cached = await cache.get(ALL_HOSPITALS_CACHE_KEY);
-    if (cached && Array.isArray(cached) && cached.length > 0) {
-      return res.json(cached);
-    }
-
     let hospitals = await Hospital.findAll({
       order: [['createdAt', 'DESC']]
     });
@@ -26,7 +21,6 @@ router.get('/', async (req, res) => {
     }
 
     const plainHospitals = hospitals.map(h => typeof h.toJSON === 'function' ? h.toJSON() : h);
-    await cache.set(ALL_HOSPITALS_CACHE_KEY, plainHospitals, 30);
     return res.json(plainHospitals);
   } catch (err) {
     console.error('[HOSPITALS API] Fetch hospitals error:', err.message);

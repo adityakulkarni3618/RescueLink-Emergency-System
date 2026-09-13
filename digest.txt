@@ -2,7 +2,7 @@ RescueLink Implementation Disclaimer: See README.md for a detailed breakdown of 
 
 RescueLink Emergency System - Full Codebase Digest
 Generated from: C:\Users\Aditya Kulkarni\Downloads\Health-care-system
-Total files: 236
+Total files: 237
 
 PROJECT STRUCTURE:
   .github\workflows\ci.yml
@@ -77,6 +77,7 @@ PROJECT STRUCTURE:
   backend\scripts\add_patient_user.js
   backend\scripts\backfill_hospitals.js
   backend\scripts\check_db_entities.js
+  backend\scripts\check_live_4d85.js
   backend\scripts\clear_doctors.js
   backend\scripts\corridorSimulator.js
   backend\scripts\delete_hospital.js
@@ -19057,11 +19058,6 @@ const ALL_HOSPITALS_CACHE_KEY = 'hospitals:all';
  */
 router.get('/', async (req, res) => {
   try {
-    const cached = await cache.get(ALL_HOSPITALS_CACHE_KEY);
-    if (cached && Array.isArray(cached) && cached.length > 0) {
-      return res.json(cached);
-    }
-
     let hospitals = await Hospital.findAll({
       order: [['createdAt', 'DESC']]
     });
@@ -19071,7 +19067,6 @@ router.get('/', async (req, res) => {
     }
 
     const plainHospitals = hospitals.map(h => typeof h.toJSON === 'function' ? h.toJSON() : h);
-    await cache.set(ALL_HOSPITALS_CACHE_KEY, plainHospitals, 30);
     return res.json(plainHospitals);
   } catch (err) {
     console.error('[HOSPITALS API] Fetch hospitals error:', err.message);
@@ -21267,6 +21262,29 @@ async function checkEntities() {
 }
 
 checkEntities();
+
+================================================
+FILE: backend\scripts\check_live_4d85.js
+================================================
+const https = require('https');
+
+function get(url) {
+  return new Promise((resolve) => {
+    https.get(url, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => resolve({ status: res.statusCode, body: data }));
+    }).on('error', err => resolve({ status: 500, error: err.message }));
+  });
+}
+
+async function check() {
+  const res = await get('https://rescuelink-emergency-system-4d85.onrender.com/api/hospitals');
+  console.log('STATUS:', res.status);
+  console.log('BODY:', res.body);
+}
+
+check();
 
 ================================================
 FILE: backend\scripts\clear_doctors.js
@@ -26096,35 +26114,34 @@ async function startServer() {
       try {
         const { Hospital, Ambulance } = require('./utils/db');
         const { Op } = require('sequelize');
-        const seedHospNames = [
-          'City General Trauma Center', 'Apollo Multispecialty ER', 'Manipal Apex Hospital',
-          'Apex Trauma & Emergency Center', 'City Central Multispecialty Hospital',
-          'National Emergency Medical Center', 'Apollo Trauma & Emergency Center',
-          'City General Hospital', 'Max Super Speciality Hospital', 'Fortis Acute Care Unit'
-        ];
+
+        // Always invalidate response cache on server startup
+        try {
+          const cache = require('./utils/cache');
+          await cache.del('hospitals:all');
+        } catch (cErr) {}
+
+        const seedKeywords = ['City General', 'Apollo', 'Manipal', 'Apex', 'National', 'Fortis', 'Max'];
         const delH = await Hospital.destroy({
           where: {
             [Op.or]: [
-              { name: { [Op.in]: seedHospNames } },
+              ...seedKeywords.map(kw => ({ name: { [Op.like]: `%${kw}%` } })),
               { id: { [Op.in]: ['hosp_default_1', 'hosp_default_2', 'hosp_default_3', 'hosp-1', 'hosp-2', 'hosp-3', 'hosp-4'] } }
             ]
           }
         });
+
         const delA = await Ambulance.destroy({
           where: {
             [Op.or]: [
-              { vehicleNo: { [Op.in]: ['AMB-101', 'AMB-102', 'AMB-103', 'AMB-104', 'AMB-105', 'MH12AB1234', 'MH12AB5678', 'MH12AB9012'] } },
+              { vehicleNo: { [Op.like]: 'AMB-%' } },
+              { vehicleNo: { [Op.like]: 'MH12%' } },
               { id: { [Op.in]: ['amb_default_1', 'amb_default_2', 'amb_default_3', 'amb-101', 'amb-102', 'amb-103'] } }
             ]
           }
         });
-        if (delH > 0 || delA > 0) {
-          console.log(`[BOOT PURGE] Cleaned up ${delH} demo hospitals and ${delA} demo ambulances from server database.`);
-          try {
-            const cache = require('./utils/cache');
-            await cache.del('hospitals:all');
-          } catch (cErr) {}
-        }
+
+        console.log(`[BOOT PURGE] Database sweep complete. Removed ${delH} demo hospitals and ${delA} demo ambulances.`);
       } catch (purgeErr) {
         console.warn('[BOOT PURGE WARNING]', purgeErr.message);
       }
