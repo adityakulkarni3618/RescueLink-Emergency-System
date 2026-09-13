@@ -2263,30 +2263,17 @@ function HospitalLandingHomepage({ onLogin, onRegister, onBack }) {
 
 /* ─── RescueLink Landing Portal Homepage ──────────────────────────────── */
 function LandingHomepage({ onSelectRole }) {
-  const [ambulances, setAmbulances] = useState(() => {
-    const cached = localStorage.getItem('rescuelink_cached_ambulances');
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed)) return parsed;
-      } catch (e) {}
-    }
-    return [];
-  });
-
-  const [hospitals, setHospitals] = useState(() => {
-    const cached = localStorage.getItem('rescuelink_cached_hospitals');
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed)) return parsed;
-      } catch (e) {}
-    }
-    return [];
-  });
+  const [ambulances, setAmbulances] = useState([]);
+  const [hospitals, setHospitals] = useState([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    // Clear legacy local storage cache containing demo seed entities
+    try {
+      localStorage.removeItem('rescuelink_cached_ambulances');
+      localStorage.removeItem('rescuelink_cached_hospitals');
+    } catch (e) {}
+
     let isMounted = true;
     const fetchRegistry = async (retryCount = 0) => {
       try {
@@ -2298,14 +2285,12 @@ function LandingHomepage({ onSelectRole }) {
           const list = await resAmb.json();
           if (isMounted && Array.isArray(list)) {
             setAmbulances(list);
-            localStorage.setItem('rescuelink_cached_ambulances', JSON.stringify(list));
           }
         }
         if (resHosp.ok) {
           const list = await resHosp.json();
           if (isMounted && Array.isArray(list)) {
             setHospitals(list);
-            localStorage.setItem('rescuelink_cached_hospitals', JSON.stringify(list));
           }
         }
         // If empty result on initial load, retry after short delay for Render wake-up
