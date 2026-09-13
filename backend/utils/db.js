@@ -216,6 +216,7 @@ async function syncDatabase() {
     // Ensure model structures and SQL migrations run safely across environments
     await sequelize.sync();
     await EmergencyCorridor.sync({ alter: true }).catch(e => console.warn('[DB] EmergencyCorridor alter sync:', e.message));
+    await Incident.sync({ alter: true }).catch(e => console.warn('[DB] Incident alter sync:', e.message));
 
     // Run SQL DDL Migrations
     const runMigrations = require('../scripts/run-migrations');

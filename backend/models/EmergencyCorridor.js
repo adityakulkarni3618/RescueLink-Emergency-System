@@ -90,6 +90,10 @@ module.exports = (sequelize) => {
     last_updated: {
       type: DataTypes.DATE,
       allowNull: true
+    },
+    route_version: {
+      type: DataTypes.INTEGER,
+      defaultValue: 1
     }
   }, {
     tableName: 'emergency_corridors',

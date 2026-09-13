@@ -52,6 +52,9 @@ export default function CorridorPanel({
   const [junctions, setJunctions] = useState([]);
   const [readiness, setReadiness] = useState({ status: 'READY', score: 98, details: ['All preemption nodes nominal.'] });
   const [routeRecommendation, setRouteRecommendation] = useState(null);
+  const [alternateAnalysis, setAlternateAnalysis] = useState(null);
+  const [routeDecisionStatus, setRouteDecisionStatus] = useState(null);
+  const [routeVersion, setRouteVersion] = useState(1);
   const [logs, setLogs] = useState(['[System Boot] Emergency Corridor Coordination Layer initialized with Simulated Traffic Controller Adapter.']);
   const [realRoutePath, setRealRoutePath] = useState(null);
   const [overrideConfirm, setOverrideConfirm] = useState(null);
@@ -264,12 +267,44 @@ export default function CorridorPanel({
       addLog(`🚧 ROUTE OBSTRUCTION DETECTED: Recommendation -> ${data.recommendation}`);
     };
 
+    const onAlternateAnalysis = (data) => {
+      if (data.incidentId && data.incidentId !== activeMissionId) return;
+      setAlternateAnalysis(data);
+      if (data.recommendation) {
+        setRouteRecommendation(data);
+      }
+      addLog(`🚥 Traffic Intelligence Analysis: ${data.reason}`);
+    };
+
+    const onRouteSwitched = (data) => {
+      if (data.incidentId && data.incidentId !== activeMissionId) return;
+      setRouteVersion(data.routeVersion || 2);
+      setRouteDecisionStatus('SWITCHED');
+      setAlternateAnalysis(null);
+      setRouteRecommendation(null);
+      if (data.newRouteCoordinates) {
+        setRealRoutePath(data.newRouteCoordinates.map(c => Array.isArray(c) ? [c[0], c[1]] : [c.lat, c.lng]));
+      }
+      addLog(`✅ ALTERNATE ROUTE SWITCH CONFIRMED (v${data.routeVersion || 2}) by ${data.operatorId || 'Operator'}. Rebuilt corridor junctions.`);
+    };
+
+    const onRouteRejected = (data) => {
+      if (data.incidentId && data.incidentId !== activeMissionId) return;
+      setRouteDecisionStatus('RETAINED');
+      setAlternateAnalysis(null);
+      setRouteRecommendation(null);
+      addLog(`ℹ️ PRIMARY ROUTE RETAINED by ${data.operatorId || 'Operator'}. Traffic monitoring active.`);
+    };
+
     socket.on('corridor:status_update', onCorridorUpdate);
     socket.on('corridor:junction_updated', onCorridorUpdate);
     socket.on('corridor:preempt_junction', onPreemptAlert);
     socket.on('corridor:controller_failure', onControllerFail);
     socket.on('corridor:readiness_updated', onReadinessUpdate);
     socket.on('corridor:route_recommendation', onRouteRecommendation);
+    socket.on('corridor:alternate-route-analysis', onAlternateAnalysis);
+    socket.on('corridor:route-switched', onRouteSwitched);
+    socket.on('corridor:route-switch-rejected', onRouteRejected);
 
     return () => {
       socket.off('corridor:status_update', onCorridorUpdate);
@@ -278,8 +313,30 @@ export default function CorridorPanel({
       socket.off('corridor:controller_failure', onControllerFail);
       socket.off('corridor:readiness_updated', onReadinessUpdate);
       socket.off('corridor:route_recommendation', onRouteRecommendation);
+      socket.off('corridor:alternate-route-analysis', onAlternateAnalysis);
+      socket.off('corridor:route-switched', onRouteSwitched);
+      socket.off('corridor:route-switch-rejected', onRouteRejected);
     };
   }, [socket, activeMissionId]);
+
+  const handleConfirmRouteSwitch = () => {
+    if (!socket || !activeMissionId || !alternateAnalysis?.alternateRoute?.coordinates) return;
+    socket.emit('corridor:accept-alternate-route', {
+      incidentId: activeMissionId,
+      alternateCoordinates: alternateAnalysis.alternateRoute.coordinates,
+      operatorId: mode.toUpperCase()
+    });
+    addLog(`[CONTROL ROOM ACTION] Sent SWITCH ALTERNATE command.`);
+  };
+
+  const handleKeepPrimaryRoute = () => {
+    if (!socket || !activeMissionId) return;
+    socket.emit('corridor:reject-alternate-route', {
+      incidentId: activeMissionId,
+      operatorId: mode.toUpperCase()
+    });
+    addLog(`[CONTROL ROOM ACTION] Sent KEEP PRIMARY command.`);
+  };
 
   // Leaflet Map Lifecycle
   useEffect(() => {
@@ -530,15 +587,84 @@ export default function CorridorPanel({
         </div>
       </div>
 
-      {/* ROUTE RECOMMENDATION ALERT BANNER */}
-      {routeRecommendation && (
+      {/* TRAFFIC & ROUTE INTELLIGENCE PANEL */}
+      {(alternateAnalysis || routeRecommendation || routeDecisionStatus) && (
         <div style={{
-          background: 'rgba(255, 77, 99, 0.12)', borderBottom: '1px solid #ff4d63',
-          padding: '8px 20px', color: '#ff4d63', fontSize: 11, fontFamily: "'Share Tech Mono'",
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+          background: 'rgba(6, 16, 38, 0.98)', borderBottom: '1px solid rgba(0, 200, 255, 0.3)',
+          padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: 10
         }}>
-          <span>🚧 <strong>TRAFFIC OBSTRUCTION DETECTED:</strong> {routeRecommendation.details}</span>
-          <span style={{ fontWeight: 700, textDecoration: 'underline' }}>REC: {routeRecommendation.recommendation}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 16 }}>🚥</span>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, fontFamily: "'Orbitron'", color: '#00c8ff' }}>
+                  TRAFFIC & ROUTE INTELLIGENCE (ROUTE v{routeVersion})
+                </div>
+                <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'" }}>
+                  {alternateAnalysis?.reason || routeRecommendation?.details || (routeDecisionStatus === 'SWITCHED' ? 'Alternate route active.' : 'Primary route retained.')}
+                </div>
+              </div>
+            </div>
+            {routeDecisionStatus === 'SWITCHED' && (
+              <div style={{ background: 'rgba(0,255,136,0.15)', border: '1px solid #00ff88', color: '#00ff88', padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 700, fontFamily: "'Orbitron'" }}>
+                ✓ ALTERNATE ROUTE ACTIVE (v{routeVersion})
+              </div>
+            )}
+            {routeDecisionStatus === 'RETAINED' && (
+              <div style={{ background: 'rgba(0,200,255,0.15)', border: '1px solid #00c8ff', color: '#00c8ff', padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 700, fontFamily: "'Orbitron'" }}>
+                ✓ PRIMARY ROUTE RETAINED
+              </div>
+            )}
+          </div>
+
+          {alternateAnalysis && alternateAnalysis.obstruction?.detected && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', background: 'rgba(0,0,0,0.3)', padding: 10, borderRadius: 6, border: '1px solid rgba(255,255,255,0.1)' }}>
+              <div>
+                <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.5)' }}>PRIMARY ETA (OBSTRUCTED)</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#ff4d63', fontFamily: "'Orbitron'" }}>
+                  {Math.floor(alternateAnalysis.primaryRoute.etaSeconds / 60)}m {alternateAnalysis.primaryRoute.etaSeconds % 60}s
+                  <span style={{ fontSize: 10, color: 'rgba(255,77,99,0.8)', marginLeft: 4 }}>
+                    (+{alternateAnalysis.primaryRoute.estimatedDelaySeconds}s delay)
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.5)' }}>ALTERNATE ROUTE ETA</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#00ff88', fontFamily: "'Orbitron'" }}>
+                  {Math.floor(alternateAnalysis.alternateRoute.etaSeconds / 60)}m {alternateAnalysis.alternateRoute.etaSeconds % 60}s
+                </div>
+              </div>
+
+              <div>
+                <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.5)' }}>ESTIMATED TIME SAVED</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#ffea00', fontFamily: "'Orbitron'" }}>
+                  {alternateAnalysis.comparison.timeDifferenceSeconds > 0 ? `⚡ SAVE ${alternateAnalysis.comparison.timeDifferenceSeconds} SEC` : 'NO TIME SAVED'}
+                </div>
+              </div>
+
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 10 }}>
+                <button
+                  onClick={handleConfirmRouteSwitch}
+                  style={{
+                    background: '#00ff88', color: '#000', border: 'none', padding: '8px 16px',
+                    borderRadius: 4, fontWeight: 700, fontFamily: "'Orbitron'", cursor: 'pointer', fontSize: 11
+                  }}
+                >
+                  SWITCH ROUTE
+                </button>
+                <button
+                  onClick={handleKeepPrimaryRoute}
+                  style={{
+                    background: 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.3)',
+                    padding: '8px 16px', borderRadius: 4, fontWeight: 700, fontFamily: "'Orbitron'", cursor: 'pointer', fontSize: 11
+                  }}
+                >
+                  KEEP PRIMARY
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

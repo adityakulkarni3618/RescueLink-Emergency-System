@@ -97,6 +97,18 @@ module.exports = (sequelize) => {
     attending_team_details: {
       type: DataTypes.JSON,
       allowNull: true
+    },
+    route_version: {
+      type: DataTypes.INTEGER,
+      defaultValue: 1
+    },
+    primary_route_history: {
+      type: DataTypes.JSON,
+      allowNull: true
+    },
+    alternate_route_recommendation: {
+      type: DataTypes.JSON,
+      allowNull: true
     }
   }, {
     tableName: 'incidents',

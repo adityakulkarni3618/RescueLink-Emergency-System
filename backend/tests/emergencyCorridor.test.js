@@ -8,12 +8,16 @@ const {
   transitionJunctionState,
   calculateCorridorReadiness,
   evaluateTrafficObstructions,
+  isIncidentAheadOnRoute,
+  analyzeAlternateRoute,
+  executeRouteSwitch,
+  executeKeepPrimary,
   getApproachDirection,
   CORRIDOR_THRESHOLDS,
   VALID_TRANSITIONS
 } = require('../utils/emergencyCorridor');
 const { TrafficControllerAdapter } = require('../utils/trafficControllerAdapter');
-const { EmergencyCorridor, AuditLog, syncDatabase, sequelize } = require('../utils/db');
+const { EmergencyCorridor, AuditLog, Incident, syncDatabase, sequelize } = require('../utils/db');
 
 describe('Emergency Corridor Coordination Layer Test Suite', () => {
   const testIncidentId = '00000000-0000-4000-a000-000000000999';
@@ -28,6 +32,7 @@ describe('Emergency Corridor Coordination Layer Test Suite', () => {
   afterEach(async () => {
     try {
       await EmergencyCorridor.destroy({ where: { incident_id: testIncidentId } });
+      await Incident.destroy({ where: { id: testIncidentId } });
     } catch (e) {}
   });
 
@@ -191,6 +196,107 @@ describe('Emergency Corridor Coordination Layer Test Suite', () => {
         where: { action: 'JUNCTION_ARMED' }
       });
       expect(auditEntries.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Phase B — Traffic-Aware Dynamic Alternate Emergency Corridor Tests', () => {
+    const ambLoc = { lat: 28.6139, lng: 77.2090 };
+    const destLoc = { lat: 28.6304, lng: 77.2177 };
+    const primaryRoute = [
+      { lat: 28.6139, lng: 77.2090 },
+      { lat: 28.6180, lng: 77.2110 },
+      { lat: 28.6220, lng: 77.2130 },
+      { lat: 28.6260, lng: 77.2150 },
+      { lat: 28.6304, lng: 77.2177 }
+    ];
+
+    test('Test 1: No traffic obstruction -> no alternate recommendation', async () => {
+      const result = await analyzeAlternateRoute(testIncidentId, ambLoc, destLoc, primaryRoute, []);
+      expect(result.recommendation).toBe('KEEP_PRIMARY');
+      expect(result.obstruction.detected).toBe(false);
+    });
+
+    test('Test 2: Traffic obstruction behind ambulance -> no recommendation', async () => {
+      const behindObstruction = [{ location: { lat: 28.6100, lng: 77.2050 }, type: 'Old Accident' }];
+      const result = await analyzeAlternateRoute(testIncidentId, ambLoc, destLoc, primaryRoute, behindObstruction);
+      expect(result.recommendation).toBe('KEEP_PRIMARY');
+      expect(result.obstruction.detected).toBe(false);
+    });
+
+    test('Test 3: Traffic obstruction far from route (>200m) -> no recommendation', async () => {
+      const farObstruction = [{ location: { lat: 28.6500, lng: 77.2500 }, type: 'Side Street Jam' }];
+      const result = await analyzeAlternateRoute(testIncidentId, ambLoc, destLoc, primaryRoute, farObstruction);
+      expect(result.recommendation).toBe('KEEP_PRIMARY');
+      expect(result.obstruction.detected).toBe(false);
+    });
+
+    test('Test 4 & Test 5: Obstruction affects primary route & alternate is faster -> SWITCH_ALTERNATE', async () => {
+      const activeObstruction = [{ location: { lat: 28.6220, lng: 77.2130 }, delaySec: 240, type: 'Roadwork Block' }];
+      const result = await analyzeAlternateRoute(testIncidentId, ambLoc, destLoc, primaryRoute, activeObstruction);
+      expect(result.obstruction.detected).toBe(true);
+      expect(result.recommendation).toBe('SWITCH_ALTERNATE');
+      expect(result.comparison.timeDifferenceSeconds).toBeGreaterThanOrEqual(30);
+    });
+
+    test('Test 6: Alternate route is slower -> KEEP_PRIMARY', async () => {
+      const minorObstruction = [{ location: { lat: 28.6220, lng: 77.2130 }, delaySec: 10, type: 'Minor Slowdown' }];
+      const result = await analyzeAlternateRoute(testIncidentId, ambLoc, destLoc, primaryRoute, minorObstruction);
+      expect(result.recommendation).toBe('KEEP_PRIMARY');
+    });
+
+    test('Test 8 & Test 10: Operator explicitly switches -> active route changes, routeVersion increments, junctions rebuilt', async () => {
+      let incident = await Incident.findByPk(testIncidentId);
+      if (!incident) {
+        incident = await Incident.create({
+          id: testIncidentId,
+          status: 'hospital_accepted',
+          pickup_lat: ambLoc.lat,
+          pickup_lng: ambLoc.lng,
+          hospital_lat: destLoc.lat,
+          hospital_lng: destLoc.lng,
+          route_version: 1
+        });
+      }
+
+      const altRoute = [
+        { lat: 28.6139, lng: 77.2090 },
+        { lat: 28.6170, lng: 77.2050 },
+        { lat: 28.6250, lng: 77.2100 },
+        { lat: 28.6304, lng: 77.2177 }
+      ];
+
+      const res = await executeRouteSwitch(testIncidentId, altRoute, 'TEST_OPERATOR');
+      expect(res.success).toBe(true);
+      expect(res.routeVersion).toBe(2);
+
+      const updatedIncident = await Incident.findByPk(testIncidentId);
+      expect(updatedIncident.route_version).toBe(2);
+      expect(updatedIncident.primary_route_history).not.toBeNull();
+    });
+
+    test('Test 9 & Test 13: Operator keeps primary -> active route does not change & AuditLog recorded', async () => {
+      const res = await executeKeepPrimary(testIncidentId, 'TEST_OPERATOR');
+      expect(res.success).toBe(true);
+      expect(res.decision).toBe('KEEP_PRIMARY');
+
+      const audit = await AuditLog.findOne({ where: { action: 'OPERATOR_KEPT_PRIMARY' } });
+      expect(audit).not.toBeNull();
+    });
+
+    test('Test 14: Controller failure still goes to manual intervention', async () => {
+      const junc = await EmergencyCorridor.create({
+        incident_id: testIncidentId,
+        junction_id: 'junc_fail_test',
+        name: 'Fail Test Junction',
+        status: 'SCHEDULED',
+        corridor_state: 'CONTROLLER_FAIL',
+        latitude: 28.6139,
+        longitude: 77.2090
+      });
+
+      const ok = await transitionJunctionState(junc, 'MANUAL_INTERVENTION', 'Operator override on controller failure');
+      expect(ok).toBe(true);
+      expect(junc.corridor_state).toBe('MANUAL_INTERVENTION');
     });
   });
 });
