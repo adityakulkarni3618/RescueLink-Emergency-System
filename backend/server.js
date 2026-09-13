@@ -64,6 +64,29 @@ app.get('/health', (req, res) => {
   res.json({ status: 'HEALTHY', timestamp: new Date().toISOString(), system: 'RescueLink Emergency System' });
 });
 
+app.get('/api/db-diagnostic', async (req, res) => {
+  try {
+    const { sequelize, Hospital, Ambulance, User } = require('./utils/db');
+    const dialect = sequelize.getDialect();
+    const hospitalCount = await Hospital.count();
+    const ambulanceCount = await Ambulance.count();
+    const allHospitals = await Hospital.findAll();
+    const allAmbulances = await Ambulance.findAll();
+    const allUsers = await User.findAll({ attributes: ['id', 'name', 'email', 'role'] });
+    return res.json({
+      dialect,
+      databaseUrlConfigured: !!process.env.DATABASE_URL,
+      hospitalCount,
+      ambulanceCount,
+      allHospitals,
+      allAmbulances,
+      allUsers
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message, stack: err.stack });
+  }
+});
+
 app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
