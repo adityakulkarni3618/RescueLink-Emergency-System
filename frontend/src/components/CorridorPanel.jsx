@@ -230,7 +230,7 @@ export default function CorridorPanel({
       if (data.incidentId && data.incidentId !== activeMissionId) return;
       setJunctions(prev =>
         prev.map(j => {
-          if (j.id === data.junctionId || j.junction_id === data.junctionId || j.name.toLowerCase().includes(data.name?.toLowerCase())) {
+          if (j.id === data.junctionId || j.junction_id === data.junctionId || (data.name && j.name && j.name.toLowerCase().includes(data.name.toLowerCase()))) {
             const newState = data.corridor_state || data.status || j.corridor_state;
             addLog(`🚦 Junction ${data.name} State -> ${newState} (${data.controller_status || 'ONLINE'})`);
             return { ...j, ...data, corridor_state: newState };
