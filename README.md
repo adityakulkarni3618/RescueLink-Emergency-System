@@ -37,8 +37,11 @@ graph TD
 
 ## 2. Implemented Features & Operational Checklist
 
-- **🚨 Guest Emergency Dispatch (Authentication Bypass)**: Instant SOS dispatch triggering geolocation capture and immediate ambulance routing without requiring password login.
-- **📍 Registered Profile Coordinate Map Pinning**: Dynamic position rendering for hospitals, ambulances, and user portals anchored directly to profile database latitude and longitude.
+- 🚨 **Guest Emergency Dispatch (Authentication Bypass)**: Instant SOS dispatch triggering geolocation capture and immediate ambulance routing without requiring password login.
+- 🚥 **Emergency Green Corridor Coordination Layer**: Intelligent traffic signal preemption, multi-junction signal state machines (`NORMAL → ARMED → APPROACHING → PREEMPT_REQUESTED → PREEMPT_ACTIVE → AMBULANCE_PASSING → RESTORING → CLEARING → NORMAL`), Kalman-filtered ambulance telemetry, dynamic ETA calculation, automated traffic controller fallback, readiness scoring engine, and audit logging.
+- 🚧 **Traffic-Aware Dynamic Alternate Corridor**: Real-time traffic obstruction detection ahead on remaining ambulance route, primary vs alternate route ETA comparison, safety-first recommendation engine (`SWITCH_ALTERNATE` vs `KEEP_PRIMARY`), human-in-the-loop control room confirmation, route versioning (`routeVersion`), and automatic corridor junction sequence rebuilding for the newly selected route.
+- 📊 **Corridor Operational Panel & Simulator**: Live administrative green corridor dashboard featuring traffic signal overrides, junction readiness scores, ambulance telemetry simulation engine, state machine step progression, traffic intelligence ETA badges, and simulated traffic controller adapter integration.
+- 📍 **Registered Profile Coordinate Map Pinning**: Dynamic position rendering for hospitals, ambulances, and user portals anchored directly to profile database latitude and longitude.
 - **🔒 Strict Portal Gateway Role Guards**: Role mismatch validation preventing cross-portal authentication attempts (e.g. blocking hospital credentials from logging into the Admin Gateway).
 - **🚖 Dual-Mode Radial & DB Registered Dispatch Engine**: Hybrid ambulance ranking system combining live socket units and registered database ambulances with offline notification queuing.
 - **🔔 Offline Paramedic & Hospital System Notification Queue**: In-memory and database notification queue ensuring offline dispatch alerts persist until paramedic/hospital reconnects.

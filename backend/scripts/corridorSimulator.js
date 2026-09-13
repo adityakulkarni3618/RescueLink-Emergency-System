@@ -128,8 +128,30 @@ async function startSimulation() {
     console.log(`[CORRIDOR REC] ${data.details} -> Recommendation: ${data.recommendation}`);
   });
 
+  socket.on('corridor:alternate-route-analysis', (data) => {
+    console.log(`[CORRIDOR INTELLIGENCE] Obstruction Detected! Primary ETA: ${data.primaryRoute.etaSeconds}s (+${data.primaryRoute.estimatedDelaySeconds}s delay) | Alternate ETA: ${data.alternateRoute?.etaSeconds}s | Time Saved: ${data.comparison?.timeDifferenceSeconds}s | Recommendation: ${data.recommendation}`);
+    if (data.recommendation === 'SWITCH_ALTERNATE' && data.alternateRoute?.coordinates) {
+      console.log('[SIM OPERATOR CONTROL] Auto-approving recommendation: Sending SWITCH ALTERNATE command...');
+      socket.emit('corridor:accept-alternate-route', {
+        incidentId: activeIncident.id,
+        alternateCoordinates: data.alternateRoute.coordinates,
+        operatorId: 'SIMULATED_CONTROL_ROOM'
+      });
+    }
+  });
+
+  socket.on('corridor:route-switched', (data) => {
+    console.log(`[CORRIDOR ROUTE SWITCH] ✅ Route version updated to v${data.routeVersion} by ${data.operatorId}. Rebuilt ${data.junctionCount} preemption junctions.`);
+    if (data.newRouteCoordinates && data.newRouteCoordinates.length > 0) {
+      routePoints = data.newRouteCoordinates.map(c => Array.isArray(c) ? { lat: c[0], lng: c[1] } : c);
+      index = 0; // Restart movement along new alternate route
+    }
+  });
+
   // Replay ambulance movement step-by-step along real route
   let index = 0;
+  let simulatedObstructionTriggered = false;
+
   const interval = setInterval(async () => {
     if (index >= routePoints.length) {
       console.log('\n[SIM] ✅ Ambulance reached destination. Simulation complete.');
@@ -140,6 +162,19 @@ async function startSimulation() {
 
     const pos = routePoints[index];
     console.log(`\n[SIM] Step ${index + 1}/${routePoints.length}: ${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`);
+
+    // Inject traffic obstruction at step 3 for simulation testing
+    if (index === 2 && !simulatedObstructionTriggered && process.env.SIMULATE_TRAFFIC_OBSTRUCTION !== 'false') {
+      simulatedObstructionTriggered = true;
+      console.log('\n[SIM] 🚧 Injecting simulated traffic obstruction ahead on primary route...');
+      const aheadPos = routePoints[Math.min(routePoints.length - 1, index + 3)];
+      socket.emit('corridor:simulate-traffic-obstruction', {
+        incidentId: activeIncident.id,
+        location: { lat: aheadPos.lat, lng: aheadPos.lng },
+        severity: 'HIGH',
+        type: 'Heavy Congestion / Accident Block'
+      });
+    }
 
     socket.emit('location-update', {
       reqId: activeIncident.id,
