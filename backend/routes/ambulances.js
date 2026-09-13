@@ -48,6 +48,8 @@ async function findAmbulanceByPkOrUser(idOrUuid) {
   return amb;
 }
 
+const SEED_AMBULANCE_PREFIXES = ['AMB-', 'MH12'];
+
 /**
  * @route GET /api/ambulances
  * @desc Get all registered ambulances
@@ -62,6 +64,13 @@ router.get('/', async (req, res) => {
     if (!list) {
       list = [];
     }
+
+    // Strict Filter: Never return hardcoded demo ambulances
+    list = list.filter(a => {
+      if (!a || !a.vehicleNo) return false;
+      const vNo = String(a.vehicleNo).toUpperCase();
+      return !SEED_AMBULANCE_PREFIXES.some(pfx => vNo.startsWith(pfx.toUpperCase()));
+    });
 
     return res.json(list);
   } catch (err) {

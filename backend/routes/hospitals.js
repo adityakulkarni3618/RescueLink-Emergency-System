@@ -6,6 +6,8 @@ const cache = require('../utils/cache');
 
 const ALL_HOSPITALS_CACHE_KEY = 'hospitals:all';
 
+const SEED_HOSPITAL_KEYWORDS = ['City General', 'Apollo', 'Manipal', 'Apex', 'National', 'Fortis', 'Max'];
+
 /**
  * @route GET /api/hospitals
  * @desc Get all hospitals (Registered tenant list)
@@ -20,7 +22,14 @@ router.get('/', async (req, res) => {
       hospitals = [];
     }
 
-    const plainHospitals = hospitals.map(h => typeof h.toJSON === 'function' ? h.toJSON() : h);
+    let plainHospitals = hospitals.map(h => typeof h.toJSON === 'function' ? h.toJSON() : h);
+    
+    // Strict Filter: Never return hardcoded demo hospitals
+    plainHospitals = plainHospitals.filter(h => {
+      if (!h || !h.name) return false;
+      return !SEED_HOSPITAL_KEYWORDS.some(kw => h.name.toLowerCase().includes(kw.toLowerCase()));
+    });
+
     return res.json(plainHospitals);
   } catch (err) {
     console.error('[HOSPITALS API] Fetch hospitals error:', err.message);

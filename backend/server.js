@@ -108,6 +108,29 @@ const { initializeCorridorForRoute, evaluatePreemption, startWatchdog, analyzeAl
 
 const { JWT_SECRET } = require('./utils/config');
 
+// Automatic startup database purge to eliminate hardcoded demo entities
+(async () => {
+  try {
+    const { Hospital, Ambulance } = require('./utils/db');
+    const { Op } = require('sequelize');
+    const seedKeywords = ['City General', 'Apollo', 'Manipal', 'Apex', 'National', 'Fortis', 'Max'];
+    await Hospital.destroy({
+      where: {
+        [Op.or]: seedKeywords.map(kw => ({ name: { [Op.like]: `%${kw}%` } }))
+      }
+    }).catch(() => {});
+    await Ambulance.destroy({
+      where: {
+        [Op.or]: [
+          { vehicleNo: { [Op.like]: 'AMB-%' } },
+          { vehicleNo: { [Op.like]: 'MH12%' } }
+        ]
+      }
+    }).catch(() => {});
+    console.log('[STARTUP] Purged historical demo entities from DB.');
+  } catch (e) {}
+})();
+
 function authenticateToken(req, res, next) {
   return verifyToken()(req, res, next);
 }
