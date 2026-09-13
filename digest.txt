@@ -2,7 +2,7 @@ RescueLink Implementation Disclaimer: See README.md for a detailed breakdown of 
 
 RescueLink Emergency System - Full Codebase Digest
 Generated from: C:\Users\Aditya Kulkarni\Downloads\Health-care-system
-Total files: 227
+Total files: 236
 
 PROJECT STRUCTURE:
   .github\workflows\ci.yml
@@ -76,15 +76,24 @@ PROJECT STRUCTURE:
   backend\routes\videoCall.js
   backend\scripts\add_patient_user.js
   backend\scripts\backfill_hospitals.js
+  backend\scripts\check_db_entities.js
   backend\scripts\clear_doctors.js
   backend\scripts\corridorSimulator.js
   backend\scripts\delete_hospital.js
+  backend\scripts\direct_check.js
+  backend\scripts\direct_purge.js
   backend\scripts\list_hospitals.js
   backend\scripts\migrate-sqlite-to-postgres.js
+  backend\scripts\purge_live_render_db.js
   backend\scripts\remove_seed_entities.js
   backend\scripts\run-migrations.js
   backend\scripts\seed_db.js
   backend\scripts\seed.js
+  backend\scripts\test_4d85.js
+  backend\scripts\test_all_renders.js
+  backend\scripts\test_main_render.js
+  backend\scripts\test_render_endpoint.js
+  backend\scripts\test_render_routes.js
   backend\scripts\verify-deployment.js
   backend\server.js
   backend\services\dispatchAgent.js
@@ -21229,6 +21238,37 @@ async function backfill() {
 backfill().then(() => process.exit(0));
 
 ================================================
+FILE: backend\scripts\check_db_entities.js
+================================================
+const { Hospital, Ambulance, User, syncDatabase } = require('../utils/db');
+
+async function checkEntities() {
+  try {
+    await syncDatabase();
+    console.log('[CHECK] Connected to database.');
+
+    const hospitals = await Hospital.findAll({ raw: true });
+    console.log('\n--- HOSPITALS IN DATABASE (' + hospitals.length + ') ---');
+    hospitals.forEach(h => {
+      console.log(`ID: ${h.id} | Name: "${h.name}" | Status: ${h.verification_status} | Active: ${h.is_active}`);
+    });
+
+    const ambulances = await Ambulance.findAll({ raw: true });
+    console.log('\n--- AMBULANCES IN DATABASE (' + ambulances.length + ') ---');
+    ambulances.forEach(a => {
+      console.log(`ID: ${a.id} | VehicleNo: "${a.vehicleNo}" | Driver: "${a.driverName}" | Active: ${a.is_active}`);
+    });
+
+    process.exit(0);
+  } catch (err) {
+    console.error('[CHECK ERROR]', err);
+    process.exit(1);
+  }
+}
+
+checkEntities();
+
+================================================
 FILE: backend\scripts\clear_doctors.js
 ================================================
 const { User, Hospital } = require('../utils/db');
@@ -21504,6 +21544,75 @@ const targetName = process.argv.slice(2).join(' ');
 deleteHospital(targetName || 'Shaikh Memorial Hospital');
 
 ================================================
+FILE: backend\scripts\direct_check.js
+================================================
+const { Hospital, Ambulance } = require('../utils/db');
+
+async function directCheck() {
+  try {
+    console.log('[DIRECT CHECK] Fetching records...');
+    const hospitals = await Hospital.findAll({ raw: true });
+    console.log(`\n=== HOSPITALS IN POSTGRES DB (${hospitals.length}) ===`);
+    hospitals.forEach(h => console.log(`- ID: ${h.id} | Name: "${h.name}"`));
+
+    const ambulances = await Ambulance.findAll({ raw: true });
+    console.log(`\n=== AMBULANCES IN POSTGRES DB (${ambulances.length}) ===`);
+    ambulances.forEach(a => console.log(`- ID: ${a.id} | VehicleNo: "${a.vehicleNo}" | Driver: "${a.driverName}"`));
+
+    process.exit(0);
+  } catch (err) {
+    console.error('[DIRECT CHECK ERROR]', err);
+    process.exit(1);
+  }
+}
+
+directCheck();
+
+================================================
+FILE: backend\scripts\direct_purge.js
+================================================
+const { Hospital, Ambulance, User } = require('../utils/db');
+const { Op } = require('sequelize');
+
+async function directPurge() {
+  try {
+    console.log('[DIRECT PURGE] Purging demo seed entities from Neon PostgreSQL database...');
+
+    const seedHospitalKeywords = ['City General', 'Apollo', 'Manipal', 'Apex', 'National', 'Fortis', 'Max'];
+    const whereHosp = {
+      [Op.or]: seedHospitalKeywords.map(kw => ({ name: { [Op.like]: `%${kw}%` } }))
+    };
+
+    const deletedHospitals = await Hospital.destroy({ where: whereHosp });
+    console.log(`[DIRECT PURGE] Deleted ${deletedHospitals} demo hospitals.`);
+
+    const whereAmb = {
+      [Op.or]: [
+        { vehicleNo: { [Op.like]: 'AMB-%' } },
+        { vehicleNo: { [Op.like]: 'MH12%' } }
+      ]
+    };
+
+    const deletedAmbulances = await Ambulance.destroy({ where: whereAmb });
+    console.log(`[DIRECT PURGE] Deleted ${deletedAmbulances} demo ambulances.`);
+
+    const remainingHospitals = await Hospital.findAll({ raw: true });
+    const remainingAmbulances = await Ambulance.findAll({ raw: true });
+
+    console.log(`\n✅ Remaining in database:`);
+    console.log(`  Hospitals (${remainingHospitals.length}):`, remainingHospitals.map(h => h.name));
+    console.log(`  Ambulances (${remainingAmbulances.length}):`, remainingAmbulances.map(a => a.vehicleNo));
+
+    process.exit(0);
+  } catch (err) {
+    console.error('[DIRECT PURGE ERROR]', err);
+    process.exit(1);
+  }
+}
+
+directPurge();
+
+================================================
 FILE: backend\scripts\list_hospitals.js
 ================================================
 require('dotenv').config();
@@ -21657,6 +21766,77 @@ async function migrate() {
 }
 
 migrate();
+
+================================================
+FILE: backend\scripts\purge_live_render_db.js
+================================================
+const { Hospital, Ambulance, User, syncDatabase } = require('../utils/db');
+const { Op } = require('sequelize');
+
+async function purgeLiveDb() {
+  try {
+    await syncDatabase();
+    console.log('[PURGE] Connected to Neon PostgreSQL database.');
+
+    const allHospitals = await Hospital.findAll({ raw: true });
+    console.log(`\nFound ${allHospitals.length} hospitals in database:`);
+    allHospitals.forEach(h => console.log(`  ID: ${h.id} | Name: "${h.name}"`));
+
+    const allAmbulances = await Ambulance.findAll({ raw: true });
+    console.log(`\nFound ${allAmbulances.length} ambulances in database:`);
+    allAmbulances.forEach(a => console.log(`  ID: ${a.id} | VehicleNo: "${a.vehicleNo}" | Driver: "${a.driverName}"`));
+
+    // Delete ALL demo / seeded hospitals except manually registered ones
+    // Manually registered hospital is "Aditya K" or user registered ones
+    // Delete any hospital whose name contains 'City General', 'Apollo', 'Manipal', 'Apex', 'National', 'Fortis', 'Max'
+    const seedHospitalKeywords = ['City General', 'Apollo', 'Manipal', 'Apex', 'National', 'Fortis', 'Max'];
+    
+    let deletedHospitalsCount = 0;
+    for (const h of allHospitals) {
+      if (seedHospitalKeywords.some(kw => h.name.includes(kw))) {
+        await Hospital.destroy({ where: { id: h.id } });
+        console.log(`[DELETED SEEDED HOSPITAL] ${h.name} (${h.id})`);
+        deletedHospitalsCount++;
+      }
+    }
+
+    // Delete any demo ambulances (AMB-101 .. AMB-105, MH12AB...)
+    let deletedAmbulancesCount = 0;
+    for (const a of allAmbulances) {
+      if (a.vehicleNo.startsWith('AMB-') || a.vehicleNo.startsWith('MH12')) {
+        await Ambulance.destroy({ where: { id: a.id } });
+        console.log(`[DELETED SEEDED AMBULANCE] ${a.vehicleNo} (${a.id})`);
+        deletedAmbulancesCount++;
+      }
+    }
+
+    // Also delete any associated user accounts for seed entities
+    const deletedUsers = await User.destroy({
+      where: {
+        [Op.or]: [
+          { email: { [Op.like]: 'hosp-%@rescuelink.com' } },
+          { email: { [Op.like]: 'amb-%@rescuelink.com' } },
+          { email: { [Op.like]: 'mh12%@rescuelink.com' } }
+        ]
+      }
+    });
+
+    console.log(`\n[PURGE COMPLETE] Deleted ${deletedHospitalsCount} demo hospitals, ${deletedAmbulancesCount} demo ambulances, ${deletedUsers} seed user accounts.`);
+
+    const remainingHospitals = await Hospital.findAll({ raw: true });
+    const remainingAmbulances = await Ambulance.findAll({ raw: true });
+    console.log(`\n✅ Remaining in live database:`);
+    console.log(`  Hospitals (${remainingHospitals.length}):`, remainingHospitals.map(h => h.name));
+    console.log(`  Ambulances (${remainingAmbulances.length}):`, remainingAmbulances.map(a => a.vehicleNo));
+
+    process.exit(0);
+  } catch (err) {
+    console.error('[PURGE ERROR]', err);
+    process.exit(1);
+  }
+}
+
+purgeLiveDb();
 
 ================================================
 FILE: backend\scripts\remove_seed_entities.js
@@ -21993,6 +22173,142 @@ const { fork } = require('child_process');
 
 console.log('[SEED DEPRECATION] seed.js is deprecated. Redirecting to seed_db.js...');
 fork(path.join(__dirname, 'seed_db.js'));
+
+================================================
+FILE: backend\scripts\test_4d85.js
+================================================
+const https = require('https');
+
+function get(url) {
+  return new Promise((resolve) => {
+    https.get(url, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => resolve({ status: res.statusCode, body: data }));
+    }).on('error', err => resolve({ status: 500, error: err.message }));
+  });
+}
+
+async function test() {
+  console.log('/api/hospitals ->', await get('https://rescuelink-emergency-system-4d85.onrender.com/api/hospitals'));
+  console.log('/api/ambulances ->', await get('https://rescuelink-emergency-system-4d85.onrender.com/api/ambulances'));
+}
+
+test();
+
+================================================
+FILE: backend\scripts\test_all_renders.js
+================================================
+const https = require('https');
+
+function get(url) {
+  return new Promise((resolve) => {
+    const req = https.get(url, { timeout: 10000 }, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => resolve({ url, status: res.statusCode, body: data.slice(0, 300) }));
+    });
+    req.on('error', err => resolve({ url, status: 500, error: err.message }));
+    req.on('timeout', () => { req.destroy(); resolve({ url, status: 408, error: 'timeout' }); });
+  });
+}
+
+async function test() {
+  const urls = [
+    'https://rescuelink-emergency-system.onrender.com/api/hospitals',
+    'https://rescuelink-emergency-system-4d85.onrender.com/api/hospitals',
+    'https://rescue-link-emergency-system-4d85.onrender.com/api/hospitals'
+  ];
+  for (const u of urls) {
+    console.log(await get(u));
+  }
+}
+
+test();
+
+================================================
+FILE: backend\scripts\test_main_render.js
+================================================
+const https = require('https');
+
+function get(url) {
+  return new Promise((resolve) => {
+    https.get(url, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => resolve({ status: res.statusCode, body: data }));
+    }).on('error', err => resolve({ status: 500, error: err.message }));
+  });
+}
+
+async function test() {
+  console.log('--- TESTING https://rescuelink-emergency-system.onrender.com ---');
+  console.log('/api/hospitals ->', await get('https://rescuelink-emergency-system.onrender.com/api/hospitals'));
+  console.log('/api/ambulances ->', await get('https://rescuelink-emergency-system.onrender.com/api/ambulances'));
+}
+
+test();
+
+================================================
+FILE: backend\scripts\test_render_endpoint.js
+================================================
+const https = require('https');
+
+function fetchJson(url) {
+  return new Promise((resolve, reject) => {
+    https.get(url, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          resolve({ statusCode: res.statusCode, body: JSON.parse(data) });
+        } catch (e) {
+          resolve({ statusCode: res.statusCode, body: data });
+        }
+      });
+    }).on('error', reject);
+  });
+}
+
+async function runTest() {
+  console.log('Testing live Render backend API endpoints...\n');
+  
+  const hospRes = await fetchJson('https://rescue-link-emergency-system-4d85.onrender.com/api/hospitals');
+  console.log('GET /api/hospitals -> Status:', hospRes.statusCode);
+  console.log('Body:', JSON.stringify(hospRes.body, null, 2));
+
+  console.log('\n----------------------------------------\n');
+
+  const ambRes = await fetchJson('https://rescue-link-emergency-system-4d85.onrender.com/api/ambulances');
+  console.log('GET /api/ambulances -> Status:', ambRes.statusCode);
+  console.log('Body:', JSON.stringify(ambRes.body, null, 2));
+}
+
+runTest();
+
+================================================
+FILE: backend\scripts\test_render_routes.js
+================================================
+const https = require('https');
+
+function get(url) {
+  return new Promise((resolve) => {
+    https.get(url, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => resolve({ status: res.statusCode, body: data }));
+    }).on('error', err => resolve({ status: 500, error: err.message }));
+  });
+}
+
+async function test() {
+  console.log('/ ->', await get('https://rescue-link-emergency-system-4d85.onrender.com/'));
+  console.log('/health ->', await get('https://rescue-link-emergency-system-4d85.onrender.com/health'));
+  console.log('/api ->', await get('https://rescue-link-emergency-system-4d85.onrender.com/api'));
+  console.log('/api/hospitals ->', await get('https://rescue-link-emergency-system-4d85.onrender.com/api/hospitals'));
+}
+
+test();
 
 ================================================
 FILE: backend\scripts\verify-deployment.js
@@ -25776,7 +26092,42 @@ async function startServer() {
         console.log('[BOOTSTRAP] Super admin already exists. Skipping creation.');
       }
 
-      // Auto-bootstrap demo entities removed: only manually registered entities are loaded.
+      // Auto-purge any historical demo/seeded entities on boot so only manually registered entities exist
+      try {
+        const { Hospital, Ambulance } = require('./utils/db');
+        const { Op } = require('sequelize');
+        const seedHospNames = [
+          'City General Trauma Center', 'Apollo Multispecialty ER', 'Manipal Apex Hospital',
+          'Apex Trauma & Emergency Center', 'City Central Multispecialty Hospital',
+          'National Emergency Medical Center', 'Apollo Trauma & Emergency Center',
+          'City General Hospital', 'Max Super Speciality Hospital', 'Fortis Acute Care Unit'
+        ];
+        const delH = await Hospital.destroy({
+          where: {
+            [Op.or]: [
+              { name: { [Op.in]: seedHospNames } },
+              { id: { [Op.in]: ['hosp_default_1', 'hosp_default_2', 'hosp_default_3', 'hosp-1', 'hosp-2', 'hosp-3', 'hosp-4'] } }
+            ]
+          }
+        });
+        const delA = await Ambulance.destroy({
+          where: {
+            [Op.or]: [
+              { vehicleNo: { [Op.in]: ['AMB-101', 'AMB-102', 'AMB-103', 'AMB-104', 'AMB-105', 'MH12AB1234', 'MH12AB5678', 'MH12AB9012'] } },
+              { id: { [Op.in]: ['amb_default_1', 'amb_default_2', 'amb_default_3', 'amb-101', 'amb-102', 'amb-103'] } }
+            ]
+          }
+        });
+        if (delH > 0 || delA > 0) {
+          console.log(`[BOOT PURGE] Cleaned up ${delH} demo hospitals and ${delA} demo ambulances from server database.`);
+          try {
+            const cache = require('./utils/cache');
+            await cache.del('hospitals:all');
+          } catch (cErr) {}
+        }
+      } catch (purgeErr) {
+        console.warn('[BOOT PURGE WARNING]', purgeErr.message);
+      }
     } catch (bootstrapErr) {
       console.error('[BOOTSTRAP] Failed to auto-create super admin:', bootstrapErr.message);
     }

@@ -3657,7 +3657,42 @@ async function startServer() {
         console.log('[BOOTSTRAP] Super admin already exists. Skipping creation.');
       }
 
-      // Auto-bootstrap demo entities removed: only manually registered entities are loaded.
+      // Auto-purge any historical demo/seeded entities on boot so only manually registered entities exist
+      try {
+        const { Hospital, Ambulance } = require('./utils/db');
+        const { Op } = require('sequelize');
+        const seedHospNames = [
+          'City General Trauma Center', 'Apollo Multispecialty ER', 'Manipal Apex Hospital',
+          'Apex Trauma & Emergency Center', 'City Central Multispecialty Hospital',
+          'National Emergency Medical Center', 'Apollo Trauma & Emergency Center',
+          'City General Hospital', 'Max Super Speciality Hospital', 'Fortis Acute Care Unit'
+        ];
+        const delH = await Hospital.destroy({
+          where: {
+            [Op.or]: [
+              { name: { [Op.in]: seedHospNames } },
+              { id: { [Op.in]: ['hosp_default_1', 'hosp_default_2', 'hosp_default_3', 'hosp-1', 'hosp-2', 'hosp-3', 'hosp-4'] } }
+            ]
+          }
+        });
+        const delA = await Ambulance.destroy({
+          where: {
+            [Op.or]: [
+              { vehicleNo: { [Op.in]: ['AMB-101', 'AMB-102', 'AMB-103', 'AMB-104', 'AMB-105', 'MH12AB1234', 'MH12AB5678', 'MH12AB9012'] } },
+              { id: { [Op.in]: ['amb_default_1', 'amb_default_2', 'amb_default_3', 'amb-101', 'amb-102', 'amb-103'] } }
+            ]
+          }
+        });
+        if (delH > 0 || delA > 0) {
+          console.log(`[BOOT PURGE] Cleaned up ${delH} demo hospitals and ${delA} demo ambulances from server database.`);
+          try {
+            const cache = require('./utils/cache');
+            await cache.del('hospitals:all');
+          } catch (cErr) {}
+        }
+      } catch (purgeErr) {
+        console.warn('[BOOT PURGE WARNING]', purgeErr.message);
+      }
     } catch (bootstrapErr) {
       console.error('[BOOTSTRAP] Failed to auto-create super admin:', bootstrapErr.message);
     }
