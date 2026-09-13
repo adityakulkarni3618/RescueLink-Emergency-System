@@ -2,7 +2,7 @@ RescueLink Implementation Disclaimer: See README.md for a detailed breakdown of 
 
 RescueLink Emergency System - Full Codebase Digest
 Generated from: C:\Users\Aditya Kulkarni\Downloads\Health-care-system
-Total files: 237
+Total files: 238
 
 PROJECT STRUCTURE:
   .github\workflows\ci.yml
@@ -78,6 +78,7 @@ PROJECT STRUCTURE:
   backend\scripts\backfill_hospitals.js
   backend\scripts\check_db_entities.js
   backend\scripts\check_live_4d85.js
+  backend\scripts\clean_sqlite.js
   backend\scripts\clear_doctors.js
   backend\scripts\corridorSimulator.js
   backend\scripts\delete_hospital.js
@@ -21337,6 +21338,56 @@ async function check() {
 check();
 
 ================================================
+FILE: backend\scripts\clean_sqlite.js
+================================================
+const { Sequelize } = require('sequelize');
+const path = require('path');
+
+const sqlitePath = path.resolve(__dirname, '../data/rescuelink.sqlite');
+const sequelize = new Sequelize({
+  dialect: 'sqlite',
+  storage: sqlitePath,
+  logging: false
+});
+
+async function cleanSqlite() {
+  try {
+    await sequelize.authenticate();
+    console.log('[SQLITE CLEAN] Connected to SQLite database at:', sqlitePath);
+
+    try {
+      await sequelize.query(`DELETE FROM Hospitals`);
+      console.log('[SQLITE CLEAN] Purged all hospitals from SQLite');
+    } catch(e) {
+      console.log('[SQLITE CLEAN] Hospitals cleanup note:', e.message);
+    }
+
+    try {
+      await sequelize.query(`DELETE FROM Ambulances`);
+      console.log('[SQLITE CLEAN] Purged all ambulances from SQLite');
+    } catch(e) {
+      console.log('[SQLITE CLEAN] Ambulances cleanup note:', e.message);
+    }
+
+    try {
+      const [hList] = await sequelize.query(`SELECT id, name FROM Hospitals`);
+      console.log('[SQLITE CLEAN] Remaining Hospitals in SQLite:', hList);
+    } catch(e) {}
+
+    try {
+      const [aList] = await sequelize.query(`SELECT id, vehicleNo FROM Ambulances`);
+      console.log('[SQLITE CLEAN] Remaining Ambulances in SQLite:', aList);
+    } catch(e) {}
+
+    await sequelize.close();
+  } catch(err) {
+    console.error('[SQLITE CLEAN ERROR]', err.message);
+  }
+}
+
+cleanSqlite();
+
+================================================
 FILE: backend\scripts\clear_doctors.js
 ================================================
 const { User, Hospital } = require('../utils/db');
@@ -29125,36 +29176,12 @@ FILE: backend\utils\db.js
 const { Sequelize } = require('sequelize');
 const { execSync } = require('child_process');
 
-let useSqlite = process.env.FORCE_SQLITE === 'true' || process.env.NODE_ENV === 'test';
-if ((process.env.RENDER === 'true' || process.env.NODE_ENV === 'production') && process.env.FORCE_SQLITE !== 'true') {
-  console.log('[DB] Running on Render or Production. Forcing PostgreSQL dialect.');
-  useSqlite = false;
-}
-const dbHost = process.env.DB_HOST || 'localhost';
-const dbPort = process.env.DB_PORT || 5432;
-
-// ── Persistent Neon Cloud PostgreSQL ──────────────────────────────────────────
-// This is the AUTHORITATIVE production database. All registered entities
-// (hospitals, ambulances, users) live here and survive server restarts.
-// The DATABASE_URL env variable on Render/Vercel, if set, will be used instead.
-// If not set, we fall back to the hardcoded Neon URL so data is NEVER lost.
 const NEON_URL = "postgresql://neondb_owner:npg_YlSeb1kgv6PB@ep-shiny-dust-axomvx38-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require";
-const databaseUrl = process.env.DATABASE_URL || NEON_URL; // Allow environment variable override
+const databaseUrl = process.env.DATABASE_URL || NEON_URL;
 
-if (!useSqlite && !databaseUrl) {
-  try {
-    // Run a quick synchronous TCP socket check to verify database connectivity
-    const checkCmd = `node -e "
-      const net = require('net');
-      const socket = net.connect(${dbPort}, '${dbHost}', () => process.exit(0));
-      socket.on('error', () => process.exit(1));
-      socket.setTimeout(2000, () => { socket.destroy(); process.exit(1); });
-    "`;
-    execSync(checkCmd, { stdio: 'ignore' });
-  } catch (e) {
-    console.log(`[DB] PostgreSQL not detected or unreachable on ${dbHost}:${dbPort}. Falling back to SQLite database.`);
-    useSqlite = true;
-  }
+let useSqlite = process.env.FORCE_SQLITE === 'true' || process.env.NODE_ENV === 'test';
+if (databaseUrl && process.env.FORCE_SQLITE !== 'true' && process.env.NODE_ENV !== 'test') {
+  useSqlite = false;
 }
 
 const sequelize = useSqlite
