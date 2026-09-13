@@ -1,36 +1,12 @@
 const { Sequelize } = require('sequelize');
 const { execSync } = require('child_process');
 
-let useSqlite = process.env.FORCE_SQLITE === 'true' || process.env.NODE_ENV === 'test';
-if ((process.env.RENDER === 'true' || process.env.NODE_ENV === 'production') && process.env.FORCE_SQLITE !== 'true') {
-  console.log('[DB] Running on Render or Production. Forcing PostgreSQL dialect.');
-  useSqlite = false;
-}
-const dbHost = process.env.DB_HOST || 'localhost';
-const dbPort = process.env.DB_PORT || 5432;
-
-// ── Persistent Neon Cloud PostgreSQL ──────────────────────────────────────────
-// This is the AUTHORITATIVE production database. All registered entities
-// (hospitals, ambulances, users) live here and survive server restarts.
-// The DATABASE_URL env variable on Render/Vercel, if set, will be used instead.
-// If not set, we fall back to the hardcoded Neon URL so data is NEVER lost.
 const NEON_URL = "postgresql://neondb_owner:npg_YlSeb1kgv6PB@ep-shiny-dust-axomvx38-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require";
-const databaseUrl = process.env.DATABASE_URL || NEON_URL; // Allow environment variable override
+const databaseUrl = process.env.DATABASE_URL || NEON_URL;
 
-if (!useSqlite && !databaseUrl) {
-  try {
-    // Run a quick synchronous TCP socket check to verify database connectivity
-    const checkCmd = `node -e "
-      const net = require('net');
-      const socket = net.connect(${dbPort}, '${dbHost}', () => process.exit(0));
-      socket.on('error', () => process.exit(1));
-      socket.setTimeout(2000, () => { socket.destroy(); process.exit(1); });
-    "`;
-    execSync(checkCmd, { stdio: 'ignore' });
-  } catch (e) {
-    console.log(`[DB] PostgreSQL not detected or unreachable on ${dbHost}:${dbPort}. Falling back to SQLite database.`);
-    useSqlite = true;
-  }
+let useSqlite = process.env.FORCE_SQLITE === 'true' || process.env.NODE_ENV === 'test';
+if (databaseUrl && process.env.FORCE_SQLITE !== 'true' && process.env.NODE_ENV !== 'test') {
+  useSqlite = false;
 }
 
 const sequelize = useSqlite
