@@ -2,12 +2,12 @@ const { Sequelize } = require('sequelize');
 const { execSync } = require('child_process');
 
 const NEON_URL = "postgresql://neondb_owner:npg_YlSeb1kgv6PB@ep-shiny-dust-axomvx38-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require";
-const databaseUrl = process.env.DATABASE_URL || NEON_URL;
 
-let useSqlite = process.env.FORCE_SQLITE === 'true' || process.env.NODE_ENV === 'test';
-if (databaseUrl && process.env.FORCE_SQLITE !== 'true' && process.env.NODE_ENV !== 'test') {
-  useSqlite = false;
-}
+// Authoritative Production Database: Always use Neon PostgreSQL unless running Jest unit tests
+let useSqlite = process.env.NODE_ENV === 'test';
+const databaseUrl = (process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('postgres'))
+  ? process.env.DATABASE_URL
+  : NEON_URL;
 
 const sequelize = useSqlite
   ? new Sequelize({
