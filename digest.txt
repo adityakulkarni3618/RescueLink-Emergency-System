@@ -15796,6 +15796,8 @@ async function findAmbulanceByPkOrUser(idOrUuid) {
   return amb;
 }
 
+const SEED_AMBULANCE_PREFIXES = ['AMB-', 'MH12'];
+
 /**
  * @route GET /api/ambulances
  * @desc Get all registered ambulances
@@ -15810,6 +15812,13 @@ router.get('/', async (req, res) => {
     if (!list) {
       list = [];
     }
+
+    // Strict Filter: Never return hardcoded demo ambulances
+    list = list.filter(a => {
+      if (!a || !a.vehicleNo) return false;
+      const vNo = String(a.vehicleNo).toUpperCase();
+      return !SEED_AMBULANCE_PREFIXES.some(pfx => vNo.startsWith(pfx.toUpperCase()));
+    });
 
     return res.json(list);
   } catch (err) {
@@ -19112,6 +19121,8 @@ const cache = require('../utils/cache');
 
 const ALL_HOSPITALS_CACHE_KEY = 'hospitals:all';
 
+const SEED_HOSPITAL_KEYWORDS = ['City General', 'Apollo', 'Manipal', 'Apex', 'National', 'Fortis', 'Max'];
+
 /**
  * @route GET /api/hospitals
  * @desc Get all hospitals (Registered tenant list)
@@ -19126,7 +19137,14 @@ router.get('/', async (req, res) => {
       hospitals = [];
     }
 
-    const plainHospitals = hospitals.map(h => typeof h.toJSON === 'function' ? h.toJSON() : h);
+    let plainHospitals = hospitals.map(h => typeof h.toJSON === 'function' ? h.toJSON() : h);
+    
+    // Strict Filter: Never return hardcoded demo hospitals
+    plainHospitals = plainHospitals.filter(h => {
+      if (!h || !h.name) return false;
+      return !SEED_HOSPITAL_KEYWORDS.some(kw => h.name.toLowerCase().includes(kw.toLowerCase()));
+    });
+
     return res.json(plainHospitals);
   } catch (err) {
     console.error('[HOSPITALS API] Fetch hospitals error:', err.message);
@@ -22735,6 +22753,29 @@ const { initializeCorridorForRoute, evaluatePreemption, startWatchdog, analyzeAl
 // It is disabled here for standalone dev. In production with PM2, enable it in a cluster entrypoint.
 
 const { JWT_SECRET } = require('./utils/config');
+
+// Automatic startup database purge to eliminate hardcoded demo entities
+(async () => {
+  try {
+    const { Hospital, Ambulance } = require('./utils/db');
+    const { Op } = require('sequelize');
+    const seedKeywords = ['City General', 'Apollo', 'Manipal', 'Apex', 'National', 'Fortis', 'Max'];
+    await Hospital.destroy({
+      where: {
+        [Op.or]: seedKeywords.map(kw => ({ name: { [Op.like]: `%${kw}%` } }))
+      }
+    }).catch(() => {});
+    await Ambulance.destroy({
+      where: {
+        [Op.or]: [
+          { vehicleNo: { [Op.like]: 'AMB-%' } },
+          { vehicleNo: { [Op.like]: 'MH12%' } }
+        ]
+      }
+    }).catch(() => {});
+    console.log('[STARTUP] Purged historical demo entities from DB.');
+  } catch (e) {}
+})();
 
 function authenticateToken(req, res, next) {
   return verifyToken()(req, res, next);
