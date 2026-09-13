@@ -2,7 +2,7 @@ RescueLink Implementation Disclaimer: See README.md for a detailed breakdown of 
 
 RescueLink Emergency System - Full Codebase Digest
 Generated from: C:\Users\Aditya Kulkarni\Downloads\Health-care-system
-Total files: 238
+Total files: 239
 
 PROJECT STRUCTURE:
   .github\workflows\ci.yml
@@ -14,6 +14,7 @@ PROJECT STRUCTURE:
   backend\data\consent_ledger_test.json
   backend\data\consent_ledger.json
   backend\data\patients.json
+  backend\Dockerfile
   backend\docs\RescueLink_Postman_Collection.json
   backend\jest.config.js
   backend\middleware\auth.js
@@ -915,6 +916,31 @@ FILE: backend\data\patients.json
     "riskLevel": "LOW"
   }
 }
+
+================================================
+FILE: backend\Dockerfile
+================================================
+# Production Dockerfile for Backend Service
+FROM node:18-slim AS builder
+
+WORKDIR /usr/src/app
+
+COPY package*.json ./
+RUN npm install --omit=dev --no-audit --no-fund
+
+FROM node:18-slim
+
+WORKDIR /usr/src/app
+
+COPY --from=builder /usr/src/app/node_modules ./node_modules
+COPY . .
+
+ENV NODE_ENV=production
+ENV PORT=5000
+
+EXPOSE 5000
+
+CMD ["node", "server.js"]
 
 ================================================
 FILE: backend\docs\RescueLink_Postman_Collection.json
@@ -33290,7 +33316,7 @@ FROM node:18-slim AS builder
 
 WORKDIR /usr/src/app
 
-COPY backend/package*.json ./
+COPY backend/package*.json package*.json ./
 RUN npm install --omit=dev --no-audit --no-fund
 
 FROM node:18-slim
@@ -33299,6 +33325,7 @@ WORKDIR /usr/src/app
 
 COPY --from=builder /usr/src/app/node_modules ./node_modules
 COPY backend/ .
+COPY . .
 
 ENV NODE_ENV=production
 ENV PORT=5000
@@ -33306,6 +33333,7 @@ ENV PORT=5000
 EXPOSE 5000
 
 CMD ["node", "server.js"]
+
 
 
 ================================================
