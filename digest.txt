@@ -23987,6 +23987,8 @@ io.on('connection', (socket) => {
       if (!activeRequests[reqId].incidentNotes) activeRequests[reqId].incidentNotes = [];
       activeRequests[reqId].incidentNotes.push(fullNote);
       io.to(`mission_${reqId}`).emit('incident-note', fullNote);
+    }
+  });
   // Phase B Socket.IO Handlers for Traffic-Aware Alternate Corridor
   socket.on('corridor:request-route-analysis', async (data) => {
     const { incidentId, activeObstructions } = data || {};
