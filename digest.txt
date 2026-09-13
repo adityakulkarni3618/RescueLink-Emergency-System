@@ -605,39 +605,39 @@ FILE: backend\data\consent_ledger_test.json
 [
   {
     "index": 0,
-    "timestamp": "2026-09-13T09:24:46.661Z",
+    "timestamp": "2026-09-13T09:33:49.191Z",
     "action": "GENESIS_CHAIN_INITIALIZED",
     "patientId": "00000000-0000-0000-0000-000000000000",
     "previousHash": "0",
-    "hash": "a269507abf46aed4bf1d741d25059d926e73df82a6ad2987f7776561ce3b8c8f",
-    "signature": "b8cHw6xr+T38qPsk7lveLCctEEu6VGswYQua7bt4yEN0FRQYqaoR1arGUMH7EbfAhv/4ldTMdDRHL6By31SJG0WqsKBhQDqB4xKlzGKxjdezn9dALI6aN50czIfM2GKI3hOHNEA7kLT4KgyniYeWwZqd/wQ8fusrvPGKOqbAQpaOpv08DfBmU5FKMBH/+FQ3ph1YcJKMOJlt5SW7gNsuCQ/TaAmhmnTqG5+0CzKzrpKVTQcza34EWJEtaMVhHSYZi6uWTdBrhzRgkTR45JMAc1qmERcsmZFStRh2p6wkPi7xSUkVUSq3n1fA1sh7m+34DJMHH2fjdvbimAQojCl97w=="
+    "hash": "a544d07596a2531d79cdb5ab6cbe8b4ef80cf94a81b5b71ac0c8b5f2533efd55",
+    "signature": "KZpUKe6GEZRNiwXf7kdWiKHmnjjsmRZeg2Jghd09WPieBeQi0Cszc+E6vE3ZX1SkPy5f2hd5aHajlP/pa7oeVc0dEpliGwXzK3waaCuPLtM5l33JW0m6dmiY3Q7es98bSzgxai+X7+4VRQPC7ga38Z9ZrYnmXfgnhrs6kFIqOBVzWfk2xYS0qXZiIRb2a2ZzTXY0Ryk9cuFSMjbqts7kknNjUsQExXKIVnxnAhYWtTC9k1LYzxkseRy/+fGwYunWcNkUmKuFSX0wQsxh/PD0y+g4g2ie87eqZlMpRkBT8oHOcxB0a0/ryGXoRx0XFIetCRA0Mpvii1IEbBrZVynwpA=="
   },
   {
     "index": 1,
-    "timestamp": "2026-09-13T09:24:46.674Z",
+    "timestamp": "2026-09-13T09:33:49.204Z",
     "action": "CONSENT_GRANTED",
     "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "a269507abf46aed4bf1d741d25059d926e73df82a6ad2987f7776561ce3b8c8f",
-    "hash": "16d1617ff296269db117940572e4435386ef38df0b2caa1b4e4bd44fd772b6e6",
-    "signature": "FrQEy2FUPLItk3jNtSGuGouJ63b0mch5KXhyin0c3yiHxawVFn8A/rKPTQymAvhpJY3kf8q8De+1YJXwAHon/0FxU/QQ/8k77owUIqnXEheRlPIXiCCmyL5fhgh1HEvlVmHBizK0Kvo2O6r4DH4Dsj91jQCb+l47JYeAwNNrhPFT0/ZMfHoTwIyAGGsuJ1VbZweb4D6sY9HMq0ziwxilhTCpgT2y0tybT5e33C91vY5Ky4y+yDIvDOyXXjKIZqmBQcqzVv2ZXBxquqL+WCiilGBUCEkjf5VO8MjlleNlJdWEkGEAaDOV7WqVpbTAmSP9oPWJKbz8V/NSsoE6vej2sg=="
+    "previousHash": "a544d07596a2531d79cdb5ab6cbe8b4ef80cf94a81b5b71ac0c8b5f2533efd55",
+    "hash": "0202d75bfee3d6a11423ac32b0e450450cdf8bdceb2cc5356f91381ad9d0a9df",
+    "signature": "U+4Ea5myRqkN0TqDHEmaagxRTMffkXbwbcsBM8Ho3pXDxuaqKKXJkPGh3/x9eaMnl5G+lBuk+SVedMoKQKENmHGj53Ry+CM26hARbNZJVoesD5TUAD3lwv9kTcsoGKWQ/9PP5sz8rZvtlRmLfZHqTbdum998ehvtD2v3eNkLSve4r39AW7hHta6S8JTfN8YKRjQ/cJpk+/xyTQvCGNwpRgRmOxFhri+HR2O8h4pvBRiMksZ0m51o6Ryxr5O0I7XBnX6ZTGmUM98ATcJTeu38zIoWG2aRPhMHK7t/eNTzBr0jxp4Eby//h2M9tyfGrHz1yJYgj6KRajoKfRFOPfZ0JQ=="
   },
   {
     "index": 2,
-    "timestamp": "2026-09-13T09:24:46.727Z",
+    "timestamp": "2026-09-13T09:33:49.261Z",
     "action": "CONSENT_REVOKED",
     "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "16d1617ff296269db117940572e4435386ef38df0b2caa1b4e4bd44fd772b6e6",
-    "hash": "5da7aaacf4a0de9ac116352ce4b9fcc3ea95ff85df526601aae0319fac3bccb5",
-    "signature": "OX/XNH7GPhFBIjmYghTKl4FdhSAiriox93PuBVfIU6BnGUIkqTS1htJZeqgjdWzFdHlVu9ylc/ZjQC7yTrXgju+aoetxpTLqLB/L442JUGFu4pLMGAzdISa4rTRNGZHZc3174TKNx8v1ofs4AOdzO+OkHaA9S9uJjLFU/qctt3A8iXeJcSecw2f+tysxBpPvT/Z9BTgzRc+OAV8cDUnyCNjWnduDGWnCYUod3ezmrKyrrN/y4HHWZUTzgiEDD+eMUVySmlPzXY5LwwG9y6W0vnhSPtt6TtmfKPR2WrwFkSBMJhZ1lC3sLb4UZk4Fzf3qAuWVj1QQT3ABs25yZ50P/Q=="
+    "previousHash": "0202d75bfee3d6a11423ac32b0e450450cdf8bdceb2cc5356f91381ad9d0a9df",
+    "hash": "9406954ce50030481379848dac97b1e885f81ac7aeb24153d60a2066a187b857",
+    "signature": "jEQhQTgMDhnl/gs9nILpitXnm07VZJiu6xSY8BpyUNK793QH83yx3RU0DurlALBO1ihB44xiRpiiARro0N7Gt3Li8lhQ5b0V8yVakHpAwG6Q9JeTHh+LvFJnGy8pvwvQNnYJazc1ADzqY40oLfctOdNafUaP/FLYCGxR75HIPuqnSNtShJ5aMrMepnejqSJo3UCH+ju/3En5bk92imKUhU3KXuQ/XKv446J4CpFBgfwHrKJGFXqrK97b/Q0duE6IKcPr1YITAl5dZt5aYmPosm93swN4bGYvIz4txphECui5qGjL3g2/cthuWWM3XsAIFnOY71FIfT5T9/W1YzoKAA=="
   },
   {
     "index": 3,
-    "timestamp": "2026-09-13T09:24:46.733Z",
+    "timestamp": "2026-09-13T09:33:49.267Z",
     "action": "CONSENT_REVOKED",
     "patientId": "8b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "5da7aaacf4a0de9ac116352ce4b9fcc3ea95ff85df526601aae0319fac3bccb5",
-    "hash": "9a3db2f79dc4499727e96b41017fd242a76a58467daa5d5ad56f7a8180d2ce17",
-    "signature": "QNyq/GA2VofjixA2vcBAR8PS2B4RBzTt6uxLCETbJV5Io/Z3zL5RNnzuKpYhbA5MepnZB/9Xc4iryO/LkWZZb7fyYi4ViF3cPUG8BJMFFiMHB4xywjd0z2e9sI3ihrCCi6VXUfejAXnEwUrtq3cxOE2GV+jHTcK/508k0XG16OnJ3lcpEgygCn3pWorUjVIYyLBkgnPskyjG4BCwILLiVxDOFX/Fl8cCSoSWsdHHB8pX8GqYctHH5NY1HSFrcBx+C7BTXe8j6QXyviNqIsC+CpJ13UR2eFJHm3+LjYRjrYuBVM6AHbkeXRKRzARDqrbXz3YaTdcwskk6acZ+/06ztw=="
+    "previousHash": "9406954ce50030481379848dac97b1e885f81ac7aeb24153d60a2066a187b857",
+    "hash": "a0c97110ef18c6c09ebd5f6694d36cd7b1185e9e9499901cb1a775bf0d379cb4",
+    "signature": "Dx+tfxHg9BeBowmsplb9KC4fJZo5BOGhT8zcooqzhU9hJW3Bj3DxyZdTpuEr1GDZ8YL+iMDcbhf2QKpWAEMk/VSPlQoOkxVyQtq7xu1TYQmH6e7Z3AwtT4a5CREHHlTf/zOPAX7Cj63wxpho3WKDyTbjoWl5lGp7DYgi37OSb4cJnXpDzd4yAtpPF7yX/Ey6tgkEjdlBbM+OvYyxu5gzpCYblotJ4OeQvzM/mpLiPHzDi5yPj2OauG1DRMe1sd6fIpDS2MaMfYuBbNEERYQU8DOuZ/IsJFjvM1qe3M1zCWZa3FcEJlTEGtcN8Q3vwsP53kBQVLMo0iUgcBKp8NfgDw=="
   }
 ]
 
@@ -15737,19 +15737,8 @@ router.get('/', async (req, res) => {
       raw: true
     });
 
-    if (!list || list.length === 0) {
-      const passwordHash = await bcrypt.hash('password123', 10);
-      const defaultAmbulances = [
-        { id: 'amb_default_1', vehicleNo: 'MH12AB1234', driverName: 'Unit 101 Lead Paramedic', contactInfo: '+91-9876543210', type: 'ALS', password: passwordHash, is_active: true, verification_status: 'APPROVED', latitude: 18.5204, longitude: 73.8567 },
-        { id: 'amb_default_2', vehicleNo: 'MH12AB5678', driverName: 'Unit 102 Rapid Responder', contactInfo: '+91-9876543211', type: 'BLS', password: passwordHash, is_active: true, verification_status: 'APPROVED', latitude: 18.5304, longitude: 73.8467 },
-        { id: 'amb_default_3', vehicleNo: 'MH12AB9012', driverName: 'Unit 103 Critical Care', contactInfo: '+91-9876543212', type: 'ALS', password: passwordHash, is_active: true, verification_status: 'APPROVED', latitude: 18.5104, longitude: 73.8667 }
-      ];
-      try {
-        await Ambulance.bulkCreate(defaultAmbulances, { ignoreDuplicates: true });
-        list = await Ambulance.findAll({ order: [['createdAt', 'DESC']], raw: true });
-      } catch (e) {
-        list = defaultAmbulances;
-      }
+    if (!list) {
+      list = [];
     }
 
     return res.json(list);
@@ -19068,18 +19057,8 @@ router.get('/', async (req, res) => {
       order: [['createdAt', 'DESC']]
     });
 
-    if (!hospitals || hospitals.length === 0) {
-      const defaultHospitals = [
-        { id: 'hosp_default_1', name: 'Apex Trauma & Emergency Center', city: 'Mumbai', state: 'Maharashtra', lat: 19.0760, lng: 72.8777, contact_number: '+91-22-26543210', total_beds: 120, icu_beds: 30, ventilators: 15, is_active: true, verification_status: 'APPROVED' },
-        { id: 'hosp_default_2', name: 'City Central Multispecialty Hospital', city: 'Pune', state: 'Maharashtra', lat: 18.5204, lng: 73.8567, contact_number: '+91-20-25432100', total_beds: 85, icu_beds: 20, ventilators: 10, is_active: true, verification_status: 'APPROVED' },
-        { id: 'hosp_default_3', name: 'National Emergency Medical Center', city: 'Bengaluru', state: 'Karnataka', lat: 12.9716, lng: 77.5946, contact_number: '+91-80-23456789', total_beds: 150, icu_beds: 40, ventilators: 25, is_active: true, verification_status: 'APPROVED' }
-      ];
-      try {
-        await Hospital.bulkCreate(defaultHospitals, { ignoreDuplicates: true });
-        hospitals = await Hospital.findAll({ order: [['createdAt', 'DESC']] });
-      } catch (e) {
-        hospitals = defaultHospitals;
-      }
+    if (!hospitals) {
+      hospitals = [];
     }
 
     const plainHospitals = hospitals.map(h => typeof h.toJSON === 'function' ? h.toJSON() : h);
@@ -21684,15 +21663,28 @@ FILE: backend\scripts\remove_seed_entities.js
 ================================================
 /**
  * remove_seed_entities.js
- * One-time script: deletes ONLY the auto-seeded demo hospitals, ambulances and
- * their associated user accounts from Neon PostgreSQL.
+ * One-time script: deletes ALL auto-seeded / demo hospitals, ambulances and
+ * their associated user accounts.
  * User-registered entities are NOT touched.
  */
 
-const { Hospital, Ambulance, User, sequelize, syncDatabase } = require('../utils/db');
+const { Hospital, Ambulance, User, syncDatabase } = require('../utils/db');
+const { Op } = require('sequelize');
 
-// These are the exact IDs used in seed_db.js — ONLY these will be deleted
-const SEEDED_HOSPITAL_IDS = [
+const SEEDED_HOSPITAL_NAMES = [
+  'City General Trauma Center',
+  'Apollo Multispecialty ER',
+  'Manipal Apex Hospital',
+  'Apex Trauma & Emergency Center',
+  'City Central Multispecialty Hospital',
+  'National Emergency Medical Center',
+  'Apollo Trauma & Emergency Center',
+  'City General Hospital',
+  'Max Super Speciality Hospital',
+  'Fortis Acute Care Unit'
+];
+
+const SEEDED_HOSPITAL_UUIDS = [
   'd3b07384-d113-4956-a5d2-000000000001',
   'd3b07384-d113-4956-a5d2-000000000002',
   'd3b07384-d113-4956-a5d2-000000000003',
@@ -21700,7 +21692,18 @@ const SEEDED_HOSPITAL_IDS = [
   'd3b07384-d113-4956-a5d2-000000000005'
 ];
 
-const SEEDED_AMBULANCE_IDS = [
+const SEEDED_AMBULANCE_VEHICLES = [
+  'AMB-101',
+  'AMB-102',
+  'AMB-103',
+  'AMB-104',
+  'AMB-105',
+  'MH12AB1234',
+  'MH12AB5678',
+  'MH12AB9012'
+];
+
+const SEEDED_AMBULANCE_UUIDS = [
   'e3b07384-d113-4956-a5d2-000000000001',
   'e3b07384-d113-4956-a5d2-000000000002',
   'e3b07384-d113-4956-a5d2-000000000003',
@@ -21718,7 +21721,10 @@ const SEEDED_USER_EMAILS = [
   'amb-102@rescuelink.com',
   'amb-103@rescuelink.com',
   'amb-104@rescuelink.com',
-  'amb-105@rescuelink.com'
+  'amb-105@rescuelink.com',
+  'mh12ab1234@rescuelink.com',
+  'mh12ab5678@rescuelink.com',
+  'mh12ab9012@rescuelink.com'
 ];
 
 async function removeSeedEntities() {
@@ -21726,21 +21732,36 @@ async function removeSeedEntities() {
     await syncDatabase();
     console.log('[CLEANUP] Connected to database.');
 
-    // Delete seeded hospital admin users
+    // Delete seeded hospital admin / paramedic users
     const deletedUsers = await User.destroy({
-      where: { email: SEEDED_USER_EMAILS }
+      where: {
+        [Op.or]: [
+          { email: { [Op.in]: SEEDED_USER_EMAILS } },
+          { name: { [Op.in]: SEEDED_HOSPITAL_NAMES } }
+        ]
+      }
     });
     console.log(`[CLEANUP] Deleted ${deletedUsers} seeded user accounts.`);
 
-    // Delete seeded hospitals
+    // Delete seeded hospitals by UUID or name
     const deletedHospitals = await Hospital.destroy({
-      where: { id: SEEDED_HOSPITAL_IDS }
+      where: {
+        [Op.or]: [
+          { id: { [Op.in]: SEEDED_HOSPITAL_UUIDS } },
+          { name: { [Op.in]: SEEDED_HOSPITAL_NAMES } }
+        ]
+      }
     });
     console.log(`[CLEANUP] Deleted ${deletedHospitals} seeded demo hospitals.`);
 
-    // Delete seeded ambulances
+    // Delete seeded ambulances by UUID or vehicleNo
     const deletedAmbulances = await Ambulance.destroy({
-      where: { id: SEEDED_AMBULANCE_IDS }
+      where: {
+        [Op.or]: [
+          { id: { [Op.in]: SEEDED_AMBULANCE_UUIDS } },
+          { vehicleNo: { [Op.in]: SEEDED_AMBULANCE_VEHICLES } }
+        ]
+      }
     });
     console.log(`[CLEANUP] Deleted ${deletedAmbulances} seeded demo ambulances.`);
 
@@ -25755,39 +25776,9 @@ async function startServer() {
         console.log('[BOOTSTRAP] Super admin already exists. Skipping creation.');
       }
 
-      // Auto-bootstrap baseline system hospitals if table is empty
-      const dbModule = require('./utils/db');
-      const HospitalModel = dbModule.Hospital;
-      const AmbulanceModel = dbModule.Ambulance;
-
-      if (HospitalModel && typeof HospitalModel.count === 'function') {
-        const hospCount = await HospitalModel.count();
-        if (hospCount === 0) {
-          console.log('[BOOTSTRAP] Seeding baseline emergency hospital network...');
-          await HospitalModel.bulkCreate([
-            { name: 'City General Trauma Center', city: 'Bengaluru', state: 'Karnataka', lat: 12.9716, lng: 77.5946, contact_number: '+91-80-22221111', total_beds: 120, icu_beds: 25, ventilators: 12, is_active: true, verification_status: 'APPROVED', trauma_tier: 'Tier 1' },
-            { name: 'Apollo Multispecialty ER', city: 'Bengaluru', state: 'Karnataka', lat: 12.9352, lng: 77.6245, contact_number: '+91-80-33332222', total_beds: 90, icu_beds: 18, ventilators: 8, is_active: true, verification_status: 'APPROVED', trauma_tier: 'Tier 1' },
-            { name: 'Manipal Apex Hospital', city: 'Bengaluru', state: 'Karnataka', lat: 12.9810, lng: 77.6412, contact_number: '+91-80-44443333', total_beds: 150, icu_beds: 30, ventilators: 15, is_active: true, verification_status: 'APPROVED', trauma_tier: 'Tier 2' }
-          ]);
-        }
-      }
-
-      if (AmbulanceModel && typeof AmbulanceModel.count === 'function') {
-        const ambCount = await AmbulanceModel.count();
-        if (ambCount === 0) {
-          console.log('[BOOTSTRAP] Seeding baseline EMS ambulance fleet...');
-          const defaultPasswordHash = bcrypt.hashSync('password123', 10);
-          await AmbulanceModel.bulkCreate([
-            { vehicleNo: 'AMB-101', type: 'ALS', driverName: 'Rajesh Kumar', contactInfo: '+91-9876543210', password: defaultPasswordHash, is_active: true, verification_status: 'APPROVED', latitude: 12.9750, longitude: 77.5900, station_name: 'Central Station' },
-            { vehicleNo: 'AMB-102', type: 'BLS', driverName: 'Suresh Patil', contactInfo: '+91-9876543211', password: defaultPasswordHash, is_active: true, verification_status: 'APPROVED', latitude: 12.9680, longitude: 77.6000, station_name: 'East Station' },
-            { vehicleNo: 'AMB-103', type: 'ALS', driverName: 'Anil Sharma', contactInfo: '+91-9876543212', password: defaultPasswordHash, is_active: true, verification_status: 'APPROVED', latitude: 12.9800, longitude: 77.5850, station_name: 'North Station' },
-            { vehicleNo: 'AMB-104', type: 'BLS', driverName: 'Vikram Singh', contactInfo: '+91-9876543213', password: defaultPasswordHash, is_active: true, verification_status: 'APPROVED', latitude: 12.9550, longitude: 77.6100, station_name: 'South Station' },
-            { vehicleNo: 'AMB-105', type: 'ALS', driverName: 'Deepak Verma', contactInfo: '+91-9876543214', password: defaultPasswordHash, is_active: true, verification_status: 'APPROVED', latitude: 12.9900, longitude: 77.6300, station_name: 'Indiranagar Hub' }
-          ]);
-        }
-      }
+      // Auto-bootstrap demo entities removed: only manually registered entities are loaded.
     } catch (bootstrapErr) {
-      console.error('[BOOTSTRAP] Failed to auto-create super admin or baseline units:', bootstrapErr.message);
+      console.error('[BOOTSTRAP] Failed to auto-create super admin:', bootstrapErr.message);
     }
 
     // 2. Hydrate active in-memory state from database (clearing stale items first)
@@ -53923,25 +53914,13 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
     fetch(`${SERVER_URL}/api/hospitals`)
       .then(res => res.json())
       .then(data => {
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           setHospitalsList(data);
-        } else {
-          setHospitalsList([
-            { id: 'hosp-1', name: 'Apollo Trauma & Emergency Center' },
-            { id: 'hosp-2', name: 'City General Hospital' },
-            { id: 'hosp-3', name: 'Max Super Speciality Hospital' },
-            { id: 'hosp-4', name: 'Fortis Acute Care Unit' }
-          ]);
         }
       })
       .catch(err => {
         console.error('Failed to fetch hospitals list', err);
-        setHospitalsList([
-          { id: 'hosp-1', name: 'Apollo Trauma & Emergency Center' },
-          { id: 'hosp-2', name: 'City General Hospital' },
-          { id: 'hosp-3', name: 'Max Super Speciality Hospital' },
-          { id: 'hosp-4', name: 'Fortis Acute Care Unit' }
-        ]);
+        setHospitalsList([]);
       });
   }, []);
 
@@ -54946,14 +54925,10 @@ function LandingHomepage({ onSelectRole }) {
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       } catch (e) {}
     }
-    return [
-      { id: 'amb-101', vehicleNo: 'MH12AB1234', driverName: 'Unit 101 Lead Paramedic', type: 'ALS', is_active: true },
-      { id: 'amb-102', vehicleNo: 'MH12AB5678', driverName: 'Unit 102 Rapid Responder', type: 'BLS', is_active: true },
-      { id: 'amb-103', vehicleNo: 'MH12AB9012', driverName: 'Unit 103 Critical Care', type: 'ALS', is_active: true }
-    ];
+    return [];
   });
 
   const [hospitals, setHospitals] = useState(() => {
@@ -54961,14 +54936,10 @@ function LandingHomepage({ onSelectRole }) {
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       } catch (e) {}
     }
-    return [
-      { id: 'hosp-1', name: 'Apex Trauma & Emergency Center', icu_beds: 30, ventilators: 15, is_active: true },
-      { id: 'hosp-2', name: 'City Central Multispecialty Hospital', icu_beds: 20, ventilators: 10, is_active: true },
-      { id: 'hosp-3', name: 'National Emergency Medical Center', icu_beds: 40, ventilators: 25, is_active: true }
-    ];
+    return [];
   });
   const [loading, setLoading] = useState(false);
 
@@ -54982,14 +54953,14 @@ function LandingHomepage({ onSelectRole }) {
         ]);
         if (resAmb.ok) {
           const list = await resAmb.json();
-          if (isMounted && Array.isArray(list) && list.length > 0) {
+          if (isMounted && Array.isArray(list)) {
             setAmbulances(list);
             localStorage.setItem('rescuelink_cached_ambulances', JSON.stringify(list));
           }
         }
         if (resHosp.ok) {
           const list = await resHosp.json();
-          if (isMounted && Array.isArray(list) && list.length > 0) {
+          if (isMounted && Array.isArray(list)) {
             setHospitals(list);
             localStorage.setItem('rescuelink_cached_hospitals', JSON.stringify(list));
           }
