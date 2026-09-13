@@ -2,12 +2,14 @@ RescueLink Implementation Disclaimer: See README.md for a detailed breakdown of 
 
 RescueLink Emergency System - Full Codebase Digest
 Generated from: C:\Users\Aditya Kulkarni\Downloads\Health-care-system
-Total files: 239
+Total files: 241
 
 PROJECT STRUCTURE:
+  .dockerignore
   .github\workflows\ci.yml
   .gitignore
   BACKEND_PRODUCTION_READINESS.md
+  backend\.dockerignore
   backend\.env
   backend\.env.example
   backend\data\audit_log.txt
@@ -248,6 +250,23 @@ PROJECT STRUCTURE:
 ================================================
 
 ================================================
+FILE: .dockerignore
+================================================
+node_modules
+frontend/node_modules
+backend/node_modules
+.git
+.gitignore
+.env
+.env.*
+*.sqlite
+*.sqlite-journal
+*.log
+dist
+build
+coverage
+
+================================================
 FILE: .github\workflows\ci.yml
 ================================================
 name: RescueLink CI Pipeline
@@ -376,6 +395,18 @@ To prevent automatic and potentially unsafe schema changes during server boot on
   npm run migrate
   ```
   This executes `scripts/run-migrations.js` which applies all SQL files sequentially and updates the `migrations` tracking table. If any migration fails, the process exits with a non-zero exit code (`1`) to abort deployment.
+
+================================================
+FILE: backend\.dockerignore
+================================================
+node_modules
+.git
+.env
+.env.*
+*.sqlite
+*.sqlite-journal
+*.log
+coverage
 
 ================================================
 FILE: backend\.env
@@ -932,8 +963,8 @@ FROM node:18-slim
 
 WORKDIR /usr/src/app
 
-COPY --from=builder /usr/src/app/node_modules ./node_modules
 COPY . .
+COPY --from=builder /usr/src/app/node_modules ./node_modules
 
 ENV NODE_ENV=production
 ENV PORT=5000
@@ -33316,16 +33347,15 @@ FROM node:18-slim AS builder
 
 WORKDIR /usr/src/app
 
-COPY backend/package*.json package*.json ./
+COPY backend/package*.json ./
 RUN npm install --omit=dev --no-audit --no-fund
 
 FROM node:18-slim
 
 WORKDIR /usr/src/app
 
-COPY --from=builder /usr/src/app/node_modules ./node_modules
 COPY backend/ .
-COPY . .
+COPY --from=builder /usr/src/app/node_modules ./node_modules
 
 ENV NODE_ENV=production
 ENV PORT=5000
@@ -33333,8 +33363,6 @@ ENV PORT=5000
 EXPOSE 5000
 
 CMD ["node", "server.js"]
-
-
 
 ================================================
 FILE: Dockerfile.frontend
