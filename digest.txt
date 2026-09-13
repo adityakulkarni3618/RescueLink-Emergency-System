@@ -15781,7 +15781,7 @@ async function findAmbulanceByPkOrUser(idOrUuid) {
   return amb;
 }
 
-const SEED_AMBULANCE_PREFIXES = ['AMB-', 'MH12'];
+const SEED_AMBULANCE_PREFIXES = ['AMB-', 'MH12', 'KA-01-EQ-9999'];
 
 /**
  * @route GET /api/ambulances
@@ -19106,7 +19106,7 @@ const cache = require('../utils/cache');
 
 const ALL_HOSPITALS_CACHE_KEY = 'hospitals:all';
 
-const SEED_HOSPITAL_KEYWORDS = ['City General', 'Apollo', 'Manipal', 'Apex', 'National', 'Fortis', 'Max'];
+const SEED_HOSPITAL_KEYWORDS = ['City General', 'Apollo', 'Manipal', 'Apex', 'National', 'Fortis', 'Max', 'Aditya K Hospital'];
 
 /**
  * @route GET /api/hospitals
