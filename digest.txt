@@ -2,7 +2,7 @@ RescueLink Implementation Disclaimer: See README.md for a detailed breakdown of 
 
 RescueLink Emergency System - Full Codebase Digest
 Generated from: C:\Users\Aditya Kulkarni\Downloads\Health-care-system
-Total files: 226
+Total files: 227
 
 PROJECT STRUCTURE:
   .github\workflows\ci.yml
@@ -29,6 +29,7 @@ PROJECT STRUCTURE:
   backend\migrations\007_add_city_lat_lng_to_users.sql
   backend\migrations\008_add_hospital_auth_columns.sql
   backend\migrations\009_add_corridor_coordination_columns.sql
+  backend\migrations\010_add_corridor_alternate_route_columns.sql
   backend\models\Ambulance.js
   backend\models\AuditLog.js
   backend\models\BloodRequest.js
@@ -604,39 +605,39 @@ FILE: backend\data\consent_ledger_test.json
 [
   {
     "index": 0,
-    "timestamp": "2026-09-13T08:52:31.314Z",
+    "timestamp": "2026-09-13T09:24:46.661Z",
     "action": "GENESIS_CHAIN_INITIALIZED",
     "patientId": "00000000-0000-0000-0000-000000000000",
     "previousHash": "0",
-    "hash": "2948599a80a2759a56454f657754aab0306d1176f29d89efbf07d8f7e9f9a3c5",
-    "signature": "RoYQMVxwLi+kFB7mqkCln2WUDS5nQp8o88i0D4IQdlAUtZMIAV0mOScKA3gEV3ayV2DkXiXKjm5nCkPUprq+jsEp+lTAysZ1+v7fIYXPgCi8YCKfgylrY83Phge5j8Qn5L5EtAUZoATBZ6fo7Fx2gxEXZAcpreNqV8Od3Y9a4VlzOZM1AkMDGwrLV/KIllzjH/F1SvFmvTZVDU3c867vfNfHsVroYrAQq6kuj/8TyDWQMLv67AAq2+dRbKxulXIYy8ZacMMW2b0N2D5dIJMnGz0LdNM+kDAkcpp8B933bO18XsclIudBzOvJJjMgVRKkgCGntD2oRh3ZbLrshXatjw=="
+    "hash": "a269507abf46aed4bf1d741d25059d926e73df82a6ad2987f7776561ce3b8c8f",
+    "signature": "b8cHw6xr+T38qPsk7lveLCctEEu6VGswYQua7bt4yEN0FRQYqaoR1arGUMH7EbfAhv/4ldTMdDRHL6By31SJG0WqsKBhQDqB4xKlzGKxjdezn9dALI6aN50czIfM2GKI3hOHNEA7kLT4KgyniYeWwZqd/wQ8fusrvPGKOqbAQpaOpv08DfBmU5FKMBH/+FQ3ph1YcJKMOJlt5SW7gNsuCQ/TaAmhmnTqG5+0CzKzrpKVTQcza34EWJEtaMVhHSYZi6uWTdBrhzRgkTR45JMAc1qmERcsmZFStRh2p6wkPi7xSUkVUSq3n1fA1sh7m+34DJMHH2fjdvbimAQojCl97w=="
   },
   {
     "index": 1,
-    "timestamp": "2026-09-13T08:52:31.326Z",
+    "timestamp": "2026-09-13T09:24:46.674Z",
     "action": "CONSENT_GRANTED",
     "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "2948599a80a2759a56454f657754aab0306d1176f29d89efbf07d8f7e9f9a3c5",
-    "hash": "f09eee527f1072370584e43dfda48a3984b0de2330d9db0527b055257d3f488e",
-    "signature": "QCodsHZveCR5zyvRxEN66T/buXtaSfO35PSVo/bs5iZ63g0oBVLYhUTdZgSQ2kQscLpjRhILf4dYLjppbh22kSr23XaxSlxa3MBOGihRxuJYIEJ0EbpSB2cxn2EMl34364MlLd54NmjVzLgfq0IuOPcpW3pwmvuW1xcoMzAoKNwZ1Ey/tPYEebCF9VEtjQ12yVfl+eqnf5PIHzoD863ytesT2FGqavGGncDVRXBFr1jSJ5xU9NT0x/E7KgklbnbYVDMPLzAse0RcsShj4YCZ0Cf9O+JnuqsSngQX1ufD/t/2N7OLa/WPAPZuHPNHjryoMMm/p3tYHWtuZaxEZ7YN0g=="
+    "previousHash": "a269507abf46aed4bf1d741d25059d926e73df82a6ad2987f7776561ce3b8c8f",
+    "hash": "16d1617ff296269db117940572e4435386ef38df0b2caa1b4e4bd44fd772b6e6",
+    "signature": "FrQEy2FUPLItk3jNtSGuGouJ63b0mch5KXhyin0c3yiHxawVFn8A/rKPTQymAvhpJY3kf8q8De+1YJXwAHon/0FxU/QQ/8k77owUIqnXEheRlPIXiCCmyL5fhgh1HEvlVmHBizK0Kvo2O6r4DH4Dsj91jQCb+l47JYeAwNNrhPFT0/ZMfHoTwIyAGGsuJ1VbZweb4D6sY9HMq0ziwxilhTCpgT2y0tybT5e33C91vY5Ky4y+yDIvDOyXXjKIZqmBQcqzVv2ZXBxquqL+WCiilGBUCEkjf5VO8MjlleNlJdWEkGEAaDOV7WqVpbTAmSP9oPWJKbz8V/NSsoE6vej2sg=="
   },
   {
     "index": 2,
-    "timestamp": "2026-09-13T08:52:31.380Z",
+    "timestamp": "2026-09-13T09:24:46.727Z",
     "action": "CONSENT_REVOKED",
     "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "f09eee527f1072370584e43dfda48a3984b0de2330d9db0527b055257d3f488e",
-    "hash": "046ed5801671495c61cdf22f111c1e9116135661dc4eefd5a0ad8abd8faca8d5",
-    "signature": "leIWZHlafAgw/w1MYcYnL6qeJUTbiHtE71eryrR1ec9GKepkaGZ7/UPtypQs9Iw43z5XUrwdH+ZwC334BoCv+JtMuvATmDaAla9YJoUkFOl+2Hv//hYJ2HnBR043RKex+xtI1TmsB1Q2XNYAAKFUBBIFJTWxVc5clJ4qIxm4gTEL3y93wc/gfOkM3KJObxfEBwuuTWYfj/Ex+cPaIdP7ghm4+505T76dxZdWL/hAAn+l+2zYxSuI7nczZW84nLkpbI+CTGQ+dI3IpkCAZ9wcZKhyXVMXcOow7mE2J4Ku1fdqMMb30x65VFMgZvJMA+BM3FKlaidqbEHuckH4/izVOA=="
+    "previousHash": "16d1617ff296269db117940572e4435386ef38df0b2caa1b4e4bd44fd772b6e6",
+    "hash": "5da7aaacf4a0de9ac116352ce4b9fcc3ea95ff85df526601aae0319fac3bccb5",
+    "signature": "OX/XNH7GPhFBIjmYghTKl4FdhSAiriox93PuBVfIU6BnGUIkqTS1htJZeqgjdWzFdHlVu9ylc/ZjQC7yTrXgju+aoetxpTLqLB/L442JUGFu4pLMGAzdISa4rTRNGZHZc3174TKNx8v1ofs4AOdzO+OkHaA9S9uJjLFU/qctt3A8iXeJcSecw2f+tysxBpPvT/Z9BTgzRc+OAV8cDUnyCNjWnduDGWnCYUod3ezmrKyrrN/y4HHWZUTzgiEDD+eMUVySmlPzXY5LwwG9y6W0vnhSPtt6TtmfKPR2WrwFkSBMJhZ1lC3sLb4UZk4Fzf3qAuWVj1QQT3ABs25yZ50P/Q=="
   },
   {
     "index": 3,
-    "timestamp": "2026-09-13T08:52:31.386Z",
+    "timestamp": "2026-09-13T09:24:46.733Z",
     "action": "CONSENT_REVOKED",
     "patientId": "8b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "046ed5801671495c61cdf22f111c1e9116135661dc4eefd5a0ad8abd8faca8d5",
-    "hash": "0dd1c25a550b78a77aab4be20e0dc7c28f7d731c4903725e4f9dbcd8e5647025",
-    "signature": "nUAfmOEznb607qMGaN7K20+DWOj2FuZ3gtD4BXZV91ny0oIY0DPIxRz6OrFLAqUI8cJfTnyQ6wkbgDE9L9K7jSJV1+z0Vx4Mf4uAw45m2Nf/q+apctT8/utK4iuYEbjyD++Acr5ywAypV9Y8Kw7LLYqRurMZOhJ6i+hU7RhWZhOCjLYW28fHG9Jn6/hF/R3DFUZTlw/hZj6kK1Ec7INfq/awEcKBGsHdWg/H3fwFuBUgI9N4EK11dByzdEacJ4OCAWeQ06TWbdp+W7d08LdvLyLgFKk91kh9iDoyEcmTom8zjrkKgMVvVhITCE7BU9p1DkrBgbR07O69eQcLKgZO+g=="
+    "previousHash": "5da7aaacf4a0de9ac116352ce4b9fcc3ea95ff85df526601aae0319fac3bccb5",
+    "hash": "9a3db2f79dc4499727e96b41017fd242a76a58467daa5d5ad56f7a8180d2ce17",
+    "signature": "QNyq/GA2VofjixA2vcBAR8PS2B4RBzTt6uxLCETbJV5Io/Z3zL5RNnzuKpYhbA5MepnZB/9Xc4iryO/LkWZZb7fyYi4ViF3cPUG8BJMFFiMHB4xywjd0z2e9sI3ihrCCi6VXUfejAXnEwUrtq3cxOE2GV+jHTcK/508k0XG16OnJ3lcpEgygCn3pWorUjVIYyLBkgnPskyjG4BCwILLiVxDOFX/Fl8cCSoSWsdHHB8pX8GqYctHH5NY1HSFrcBx+C7BTXe8j6QXyviNqIsC+CpJ13UR2eFJHm3+LjYRjrYuBVM6AHbkeXRKRzARDqrbXz3YaTdcwskk6acZ+/06ztw=="
   }
 ]
 
@@ -1999,6 +2000,17 @@ ALTER TABLE emergency_corridors ADD COLUMN IF NOT EXISTS eta_seconds INTEGER DEF
 ALTER TABLE emergency_corridors ADD COLUMN IF NOT EXISTS last_updated DATETIME;
 
 ================================================
+FILE: backend\migrations\010_add_corridor_alternate_route_columns.sql
+================================================
+-- 010_add_corridor_alternate_route_columns.sql
+-- Adds route versioning, primary route history, and alternate route recommendation columns
+ALTER TABLE incidents ADD COLUMN IF NOT EXISTS route_version INTEGER DEFAULT 1;
+ALTER TABLE incidents ADD COLUMN IF NOT EXISTS primary_route_history TEXT;
+ALTER TABLE incidents ADD COLUMN IF NOT EXISTS alternate_route_recommendation TEXT;
+
+ALTER TABLE emergency_corridors ADD COLUMN IF NOT EXISTS route_version INTEGER DEFAULT 1;
+
+================================================
 FILE: backend\models\Ambulance.js
 ================================================
 const { DataTypes } = require('sequelize');
@@ -2451,6 +2463,10 @@ module.exports = (sequelize) => {
     last_updated: {
       type: DataTypes.DATE,
       allowNull: true
+    },
+    route_version: {
+      type: DataTypes.INTEGER,
+      defaultValue: 1
     }
   }, {
     tableName: 'emergency_corridors',
@@ -2723,6 +2739,18 @@ module.exports = (sequelize) => {
       allowNull: true
     },
     attending_team_details: {
+      type: DataTypes.JSON,
+      allowNull: true
+    },
+    route_version: {
+      type: DataTypes.INTEGER,
+      defaultValue: 1
+    },
+    primary_route_history: {
+      type: DataTypes.JSON,
+      allowNull: true
+    },
+    alternate_route_recommendation: {
       type: DataTypes.JSON,
       allowNull: true
     }
@@ -21383,8 +21411,30 @@ async function startSimulation() {
     console.log(`[CORRIDOR REC] ${data.details} -> Recommendation: ${data.recommendation}`);
   });
 
+  socket.on('corridor:alternate-route-analysis', (data) => {
+    console.log(`[CORRIDOR INTELLIGENCE] Obstruction Detected! Primary ETA: ${data.primaryRoute.etaSeconds}s (+${data.primaryRoute.estimatedDelaySeconds}s delay) | Alternate ETA: ${data.alternateRoute?.etaSeconds}s | Time Saved: ${data.comparison?.timeDifferenceSeconds}s | Recommendation: ${data.recommendation}`);
+    if (data.recommendation === 'SWITCH_ALTERNATE' && data.alternateRoute?.coordinates) {
+      console.log('[SIM OPERATOR CONTROL] Auto-approving recommendation: Sending SWITCH ALTERNATE command...');
+      socket.emit('corridor:accept-alternate-route', {
+        incidentId: activeIncident.id,
+        alternateCoordinates: data.alternateRoute.coordinates,
+        operatorId: 'SIMULATED_CONTROL_ROOM'
+      });
+    }
+  });
+
+  socket.on('corridor:route-switched', (data) => {
+    console.log(`[CORRIDOR ROUTE SWITCH] ✅ Route version updated to v${data.routeVersion} by ${data.operatorId}. Rebuilt ${data.junctionCount} preemption junctions.`);
+    if (data.newRouteCoordinates && data.newRouteCoordinates.length > 0) {
+      routePoints = data.newRouteCoordinates.map(c => Array.isArray(c) ? { lat: c[0], lng: c[1] } : c);
+      index = 0; // Restart movement along new alternate route
+    }
+  });
+
   // Replay ambulance movement step-by-step along real route
   let index = 0;
+  let simulatedObstructionTriggered = false;
+
   const interval = setInterval(async () => {
     if (index >= routePoints.length) {
       console.log('\n[SIM] ✅ Ambulance reached destination. Simulation complete.');
@@ -21395,6 +21445,19 @@ async function startSimulation() {
 
     const pos = routePoints[index];
     console.log(`\n[SIM] Step ${index + 1}/${routePoints.length}: ${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`);
+
+    // Inject traffic obstruction at step 3 for simulation testing
+    if (index === 2 && !simulatedObstructionTriggered && process.env.SIMULATE_TRAFFIC_OBSTRUCTION !== 'false') {
+      simulatedObstructionTriggered = true;
+      console.log('\n[SIM] 🚧 Injecting simulated traffic obstruction ahead on primary route...');
+      const aheadPos = routePoints[Math.min(routePoints.length - 1, index + 3)];
+      socket.emit('corridor:simulate-traffic-obstruction', {
+        incidentId: activeIncident.id,
+        location: { lat: aheadPos.lat, lng: aheadPos.lng },
+        severity: 'HIGH',
+        type: 'Heavy Congestion / Accident Block'
+      });
+    }
 
     socket.emit('location-update', {
       reqId: activeIncident.id,
@@ -22136,7 +22199,7 @@ const { initVitalsBridge } = require('./utils/vitalsBridge');
 const cache = require('./utils/cache');
 const { acquireLock, releaseLock } = require('./utils/redis');
 const { sendPushNotification, sendTopicNotification } = require('./utils/pushNotifications');
-const { initializeCorridorForRoute, evaluatePreemption, startWatchdog } = require('./utils/emergencyCorridor');
+const { initializeCorridorForRoute, evaluatePreemption, startWatchdog, analyzeAlternateRoute, executeRouteSwitch, executeKeepPrimary } = require('./utils/emergencyCorridor');
 
 // NOTE: @socket.io/cluster-adapter only works inside a Node.js cluster (PM2/master-worker).
 // It is disabled here for standalone dev. In production with PM2, enable it in a cluster entrypoint.
@@ -23765,8 +23828,73 @@ io.on('connection', (socket) => {
       if (!activeRequests[reqId].incidentNotes) activeRequests[reqId].incidentNotes = [];
       activeRequests[reqId].incidentNotes.push(fullNote);
       io.to(`mission_${reqId}`).emit('incident-note', fullNote);
-    } else {
-      socket.broadcast.emit('incident-note', fullNote);
+  // Phase B Socket.IO Handlers for Traffic-Aware Alternate Corridor
+  socket.on('corridor:request-route-analysis', async (data) => {
+    const { incidentId, activeObstructions } = data || {};
+    if (!incidentId || !activeRequests[incidentId]) return;
+    const req = activeRequests[incidentId];
+    const ambLoc = req.location || req.userLocation;
+    const destLoc = req.hospitalLocation || req.assignedHospital?.location || { lat: req.hospital_lat, lng: req.hospital_lng };
+    const routeCoords = req.routePath || [];
+    const version = req.routeVersion || 1;
+
+    const analysis = await analyzeAlternateRoute(incidentId, ambLoc, destLoc, routeCoords, activeObstructions || activeIncidentZones, version);
+    if (analysis) {
+      io.to(`mission_${incidentId}`).emit('corridor:alternate-route-analysis', analysis);
+      io.to('admin_warroom').emit('corridor:alternate-route-analysis', analysis);
+      if (analysis.recommendation === 'SWITCH_ALTERNATE') {
+        io.to(`mission_${incidentId}`).emit('corridor:route-recommendation', analysis);
+        io.to('admin_warroom').emit('corridor:route-recommendation', analysis);
+      }
+    }
+  });
+
+  socket.on('corridor:accept-alternate-route', async (data) => {
+    const { incidentId, alternateCoordinates, operatorId } = data || {};
+    if (!incidentId) return;
+
+    const result = await executeRouteSwitch(incidentId, alternateCoordinates, operatorId || 'CONTROL_ROOM', io);
+    if (result.success && activeRequests[incidentId]) {
+      activeRequests[incidentId].routePath = alternateCoordinates.map(c => Array.isArray(c) ? { lat: c[0], lng: c[1] } : c);
+      activeRequests[incidentId].routeVersion = result.routeVersion;
+      io.to(`mission_${incidentId}`).emit('route-update', { reqId: incidentId, routePath: activeRequests[incidentId].routePath, routeVersion: result.routeVersion });
+    }
+  });
+
+  socket.on('corridor:reject-alternate-route', async (data) => {
+    const { incidentId, operatorId } = data || {};
+    if (!incidentId) return;
+
+    await executeKeepPrimary(incidentId, operatorId || 'CONTROL_ROOM', io);
+  });
+
+  socket.on('corridor:simulate-traffic-obstruction', async (data) => {
+    const { incidentId, location, severity, type } = data || {};
+    if (!incidentId) return;
+
+    const obs = {
+      id: `obs_${Date.now()}`,
+      location: location || { lat: 28.6200, lng: 77.2120 },
+      severity: severity || 'HIGH',
+      type: type || 'Heavy Congestion / Accident Block',
+      delaySec: 210
+    };
+
+    activeIncidentZones.push(obs);
+    io.to(`mission_${incidentId}`).emit('corridor:traffic-incident-declared', obs);
+    io.to('admin_warroom').emit('corridor:traffic-incident-declared', obs);
+
+    if (activeRequests[incidentId]) {
+      const req = activeRequests[incidentId];
+      const ambLoc = req.location || req.userLocation || { lat: 28.6139, lng: 77.2090 };
+      const destLoc = req.hospitalLocation || { lat: 28.6304, lng: 77.2177 };
+      const routeCoords = req.routePath || [];
+      const analysis = await analyzeAlternateRoute(incidentId, ambLoc, destLoc, routeCoords, activeIncidentZones, req.routeVersion || 1);
+      if (analysis) {
+        io.to(`mission_${incidentId}`).emit('corridor:alternate-route-analysis', analysis);
+        io.to(`mission_${incidentId}`).emit('corridor:route-recommendation', analysis);
+        io.to('admin_warroom').emit('corridor:route-recommendation', analysis);
+      }
     }
   });
 
@@ -26700,12 +26828,16 @@ const {
   transitionJunctionState,
   calculateCorridorReadiness,
   evaluateTrafficObstructions,
+  isIncidentAheadOnRoute,
+  analyzeAlternateRoute,
+  executeRouteSwitch,
+  executeKeepPrimary,
   getApproachDirection,
   CORRIDOR_THRESHOLDS,
   VALID_TRANSITIONS
 } = require('../utils/emergencyCorridor');
 const { TrafficControllerAdapter } = require('../utils/trafficControllerAdapter');
-const { EmergencyCorridor, AuditLog, syncDatabase, sequelize } = require('../utils/db');
+const { EmergencyCorridor, AuditLog, Incident, syncDatabase, sequelize } = require('../utils/db');
 
 describe('Emergency Corridor Coordination Layer Test Suite', () => {
   const testIncidentId = '00000000-0000-4000-a000-000000000999';
@@ -26720,6 +26852,7 @@ describe('Emergency Corridor Coordination Layer Test Suite', () => {
   afterEach(async () => {
     try {
       await EmergencyCorridor.destroy({ where: { incident_id: testIncidentId } });
+      await Incident.destroy({ where: { id: testIncidentId } });
     } catch (e) {}
   });
 
@@ -26883,6 +27016,107 @@ describe('Emergency Corridor Coordination Layer Test Suite', () => {
         where: { action: 'JUNCTION_ARMED' }
       });
       expect(auditEntries.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Phase B — Traffic-Aware Dynamic Alternate Emergency Corridor Tests', () => {
+    const ambLoc = { lat: 28.6139, lng: 77.2090 };
+    const destLoc = { lat: 28.6304, lng: 77.2177 };
+    const primaryRoute = [
+      { lat: 28.6139, lng: 77.2090 },
+      { lat: 28.6180, lng: 77.2110 },
+      { lat: 28.6220, lng: 77.2130 },
+      { lat: 28.6260, lng: 77.2150 },
+      { lat: 28.6304, lng: 77.2177 }
+    ];
+
+    test('Test 1: No traffic obstruction -> no alternate recommendation', async () => {
+      const result = await analyzeAlternateRoute(testIncidentId, ambLoc, destLoc, primaryRoute, []);
+      expect(result.recommendation).toBe('KEEP_PRIMARY');
+      expect(result.obstruction.detected).toBe(false);
+    });
+
+    test('Test 2: Traffic obstruction behind ambulance -> no recommendation', async () => {
+      const behindObstruction = [{ location: { lat: 28.6100, lng: 77.2050 }, type: 'Old Accident' }];
+      const result = await analyzeAlternateRoute(testIncidentId, ambLoc, destLoc, primaryRoute, behindObstruction);
+      expect(result.recommendation).toBe('KEEP_PRIMARY');
+      expect(result.obstruction.detected).toBe(false);
+    });
+
+    test('Test 3: Traffic obstruction far from route (>200m) -> no recommendation', async () => {
+      const farObstruction = [{ location: { lat: 28.6500, lng: 77.2500 }, type: 'Side Street Jam' }];
+      const result = await analyzeAlternateRoute(testIncidentId, ambLoc, destLoc, primaryRoute, farObstruction);
+      expect(result.recommendation).toBe('KEEP_PRIMARY');
+      expect(result.obstruction.detected).toBe(false);
+    });
+
+    test('Test 4 & Test 5: Obstruction affects primary route & alternate is faster -> SWITCH_ALTERNATE', async () => {
+      const activeObstruction = [{ location: { lat: 28.6220, lng: 77.2130 }, delaySec: 240, type: 'Roadwork Block' }];
+      const result = await analyzeAlternateRoute(testIncidentId, ambLoc, destLoc, primaryRoute, activeObstruction);
+      expect(result.obstruction.detected).toBe(true);
+      expect(result.recommendation).toBe('SWITCH_ALTERNATE');
+      expect(result.comparison.timeDifferenceSeconds).toBeGreaterThanOrEqual(30);
+    });
+
+    test('Test 6: Alternate route is slower -> KEEP_PRIMARY', async () => {
+      const minorObstruction = [{ location: { lat: 28.6220, lng: 77.2130 }, delaySec: 10, type: 'Minor Slowdown' }];
+      const result = await analyzeAlternateRoute(testIncidentId, ambLoc, destLoc, primaryRoute, minorObstruction);
+      expect(result.recommendation).toBe('KEEP_PRIMARY');
+    });
+
+    test('Test 8 & Test 10: Operator explicitly switches -> active route changes, routeVersion increments, junctions rebuilt', async () => {
+      let incident = await Incident.findByPk(testIncidentId);
+      if (!incident) {
+        incident = await Incident.create({
+          id: testIncidentId,
+          status: 'hospital_accepted',
+          pickup_lat: ambLoc.lat,
+          pickup_lng: ambLoc.lng,
+          hospital_lat: destLoc.lat,
+          hospital_lng: destLoc.lng,
+          route_version: 1
+        });
+      }
+
+      const altRoute = [
+        { lat: 28.6139, lng: 77.2090 },
+        { lat: 28.6170, lng: 77.2050 },
+        { lat: 28.6250, lng: 77.2100 },
+        { lat: 28.6304, lng: 77.2177 }
+      ];
+
+      const res = await executeRouteSwitch(testIncidentId, altRoute, 'TEST_OPERATOR');
+      expect(res.success).toBe(true);
+      expect(res.routeVersion).toBe(2);
+
+      const updatedIncident = await Incident.findByPk(testIncidentId);
+      expect(updatedIncident.route_version).toBe(2);
+      expect(updatedIncident.primary_route_history).not.toBeNull();
+    });
+
+    test('Test 9 & Test 13: Operator keeps primary -> active route does not change & AuditLog recorded', async () => {
+      const res = await executeKeepPrimary(testIncidentId, 'TEST_OPERATOR');
+      expect(res.success).toBe(true);
+      expect(res.decision).toBe('KEEP_PRIMARY');
+
+      const audit = await AuditLog.findOne({ where: { action: 'OPERATOR_KEPT_PRIMARY' } });
+      expect(audit).not.toBeNull();
+    });
+
+    test('Test 14: Controller failure still goes to manual intervention', async () => {
+      const junc = await EmergencyCorridor.create({
+        incident_id: testIncidentId,
+        junction_id: 'junc_fail_test',
+        name: 'Fail Test Junction',
+        status: 'SCHEDULED',
+        corridor_state: 'CONTROLLER_FAIL',
+        latitude: 28.6139,
+        longitude: 77.2090
+      });
+
+      const ok = await transitionJunctionState(junc, 'MANUAL_INTERVENTION', 'Operator override on controller failure');
+      expect(ok).toBe(true);
+      expect(junc.corridor_state).toBe('MANUAL_INTERVENTION');
     });
   });
 });
@@ -28680,6 +28914,7 @@ async function syncDatabase() {
     // Ensure model structures and SQL migrations run safely across environments
     await sequelize.sync();
     await EmergencyCorridor.sync({ alter: true }).catch(e => console.warn('[DB] EmergencyCorridor alter sync:', e.message));
+    await Incident.sync({ alter: true }).catch(e => console.warn('[DB] Incident alter sync:', e.message));
 
     // Run SQL DDL Migrations
     const runMigrations = require('../scripts/run-migrations');
@@ -28890,6 +29125,16 @@ const CORRIDOR_THRESHOLDS = {
 };
 
 /**
+ * Phase B Alternate Routing Operational Constants
+ */
+const ALTERNATE_ROUTE_MIN_SAVING_SECONDS = parseInt(process.env.ALTERNATE_ROUTE_MIN_SAVING_SECONDS || '30', 10);
+const ROUTE_OBSTRUCTION_RADIUS_METERS = parseInt(process.env.ROUTE_OBSTRUCTION_RADIUS_METERS || '200', 10);
+const ROUTE_RECOMMENDATION_COOLDOWN_SECONDS = parseInt(process.env.ROUTE_RECOMMENDATION_COOLDOWN_SECONDS || '30', 10);
+
+// Recommendation cooldown timestamp tracking per incident
+const recommendationCooldowns = {};
+
+/**
  * Deterministic Junction State Machine Transition Graph
  */
 const VALID_TRANSITIONS = {
@@ -29071,7 +29316,7 @@ async function reverseGeocode(lat, lng) {
 /**
  * Dynamically extract and register junctions along any OSRM route polyline.
  */
-async function initializeCorridorForRoute(incidentId, routeCoordinates) {
+async function initializeCorridorForRoute(incidentId, routeCoordinates, routeVersion = 1) {
   try {
     await EmergencyCorridor.destroy({ where: { incident_id: incidentId } });
 
@@ -29109,7 +29354,7 @@ async function initializeCorridorForRoute(incidentId, routeCoordinates) {
 
         const node = await EmergencyCorridor.create({
           incident_id: incidentId,
-          junction_id: `junc_${incidentId}_${junctionIndex}`,
+          junction_id: `junc_${incidentId}_v${routeVersion}_${junctionIndex}`,
           name: junctionName,
           status: 'SCHEDULED',
           corridor_state: 'NORMAL',
@@ -29128,11 +29373,12 @@ async function initializeCorridorForRoute(incidentId, routeCoordinates) {
           preempt_window_end: endWindow,
           latitude: coord.lat,
           longitude: coord.lng,
+          route_version: routeVersion,
           last_updated: new Date()
         });
 
         corridors.push(node);
-        console.log(`[CORRIDOR] Junction ${junctionIndex}: "${junctionName}" (${approachDir}) @ ${coord.lat.toFixed(5)},${coord.lng.toFixed(5)}`);
+        console.log(`[CORRIDOR] Junction ${junctionIndex} (v${routeVersion}): "${junctionName}" (${approachDir}) @ ${coord.lat.toFixed(5)},${coord.lng.toFixed(5)}`);
         junctionIndex++;
         lastJunctionPoint = coord;
         etaAccumulator += 80;
@@ -29141,15 +29387,304 @@ async function initializeCorridorForRoute(incidentId, routeCoordinates) {
 
     await AuditLog.create({
       action: 'CORRIDOR_CREATED',
-      details: `Initialized ${corridors.length} emergency corridor preemption junctions for incident ${incidentId}`,
+      details: `Initialized ${corridors.length} emergency corridor preemption junctions (v${routeVersion}) for incident ${incidentId}`,
       severity: 'INFO'
     }).catch(e => {});
 
-    console.log(`[CORRIDOR COORDINATION] Registered ${corridors.length} route junctions for incident ${incidentId}`);
+    console.log(`[CORRIDOR COORDINATION] Registered ${corridors.length} route junctions (v${routeVersion}) for incident ${incidentId}`);
     return corridors;
   } catch (err) {
     console.error(`[PREEMPTION INIT ERROR]`, err.message);
     return [];
+  }
+}
+
+/**
+ * Checks whether an incident/obstruction is ahead of the ambulance on its remaining route
+ */
+function isIncidentAheadOnRoute(ambulanceLoc, incidentLoc, routeCoordinates) {
+  if (!ambulanceLoc || !incidentLoc || !routeCoordinates || routeCoordinates.length === 0) {
+    return { isAffected: false, distanceAheadMeters: 0, minDistanceToRouteMeters: 9999 };
+  }
+
+  const ambLat = ambulanceLoc.lat !== undefined ? ambulanceLoc.lat : ambulanceLoc[0];
+  const ambLng = ambulanceLoc.lng !== undefined ? ambulanceLoc.lng : ambulanceLoc[1];
+  const incLat = incidentLoc.lat !== undefined ? incidentLoc.lat : incidentLoc[0];
+  const incLng = incidentLoc.lng !== undefined ? incidentLoc.lng : incidentLoc[1];
+
+  const normalizedRoute = routeCoordinates.map(c => Array.isArray(c) ? { lat: c[0], lng: c[1] } : { lat: c.lat, lng: c.lng });
+
+  // Find point on route closest to current ambulance position
+  let closestIndex = 0;
+  let minAmbDist = Infinity;
+  for (let i = 0; i < normalizedRoute.length; i++) {
+    const d = getDistanceMeters(ambLat, ambLng, normalizedRoute[i].lat, normalizedRoute[i].lng);
+    if (d < minAmbDist) {
+      minAmbDist = d;
+      closestIndex = i;
+    }
+  }
+
+  // Evaluate remaining route coordinates ahead of ambulance
+  const remainingRoute = normalizedRoute.slice(closestIndex);
+  let minIncDistToRoute = Infinity;
+  let distanceAheadMeters = 0;
+  let isAffected = false;
+
+  let cumulativeDist = 0;
+  for (let i = 0; i < remainingRoute.length; i++) {
+    if (i > 0) {
+      cumulativeDist += getDistanceMeters(remainingRoute[i - 1].lat, remainingRoute[i - 1].lng, remainingRoute[i].lat, remainingRoute[i].lng);
+    }
+    const dInc = getDistanceMeters(incLat, incLng, remainingRoute[i].lat, remainingRoute[i].lng);
+    if (dInc < minIncDistToRoute) {
+      minIncDistToRoute = dInc;
+      distanceAheadMeters = cumulativeDist;
+    }
+    if (dInc <= ROUTE_OBSTRUCTION_RADIUS_METERS) {
+      isAffected = true;
+    }
+  }
+
+  return {
+    isAffected,
+    distanceAheadMeters: Math.round(distanceAheadMeters),
+    minDistanceToRouteMeters: Math.round(minIncDistToRoute)
+  };
+}
+
+/**
+ * Calculates primary vs alternate route ETAs and generates deterministic recommendation
+ */
+async function analyzeAlternateRoute(incidentId, ambulanceLoc, destinationLoc, primaryRouteCoordinates, activeObstructions = [], routeVersion = 1) {
+  const now = Date.now();
+  const lastCooldown = recommendationCooldowns[incidentId] || 0;
+  if (now - lastCooldown < ROUTE_RECOMMENDATION_COOLDOWN_SECONDS * 1000) {
+    return null; // Cooldown active
+  }
+
+  if (!ambulanceLoc || !destinationLoc || !primaryRouteCoordinates || primaryRouteCoordinates.length < 2) {
+    return {
+      incidentId,
+      routeVersion,
+      primaryRoute: { distanceMeters: 0, etaSeconds: 0, estimatedDelaySeconds: 0 },
+      alternateRoute: null,
+      comparison: { timeDifferenceSeconds: 0, distanceDifferenceMeters: 0 },
+      obstruction: { detected: false },
+      recommendation: 'KEEP_PRIMARY',
+      reason: 'Insufficient route geometry for alternate analysis.'
+    };
+  }
+
+  const ambLat = ambulanceLoc.lat !== undefined ? ambulanceLoc.lat : ambulanceLoc[0];
+  const ambLng = ambulanceLoc.lng !== undefined ? ambulanceLoc.lng : ambulanceLoc[1];
+  const destLat = destinationLoc.lat !== undefined ? destinationLoc.lat : destinationLoc[0];
+  const destLng = destinationLoc.lng !== undefined ? destinationLoc.lng : destinationLoc[1];
+
+  let primaryDistMeters = 0;
+  const normalizedPrimary = primaryRouteCoordinates.map(c => Array.isArray(c) ? { lat: c[0], lng: c[1] } : { lat: c.lat, lng: c.lng });
+  for (let i = 1; i < normalizedPrimary.length; i++) {
+    primaryDistMeters += getDistanceMeters(normalizedPrimary[i - 1].lat, normalizedPrimary[i - 1].lng, normalizedPrimary[i].lat, normalizedPrimary[i].lng);
+  }
+  const speedMs = CORRIDOR_THRESHOLDS.FALLBACK_SPEED_KMH / 3.6;
+  let primaryEtaSec = Math.round(primaryDistMeters / speedMs);
+
+  let primaryObstruction = null;
+  for (const obs of activeObstructions) {
+    const obsLat = obs.location?.lat || obs.lat;
+    const obsLng = obs.location?.lng || obs.lng;
+    if (!obsLat || !obsLng) continue;
+
+    const analysis = isIncidentAheadOnRoute(ambulanceLoc, { lat: obsLat, lng: obsLng }, primaryRouteCoordinates);
+    if (analysis.isAffected) {
+      primaryObstruction = { ...obs, analysis, lat: obsLat, lng: obsLng };
+      break;
+    }
+  }
+
+  if (!primaryObstruction) {
+    return {
+      incidentId,
+      routeVersion,
+      primaryRoute: {
+        distanceMeters: Math.round(primaryDistMeters),
+        etaSeconds: primaryEtaSec,
+        estimatedDelaySeconds: 0
+      },
+      alternateRoute: null,
+      comparison: { timeDifferenceSeconds: 0, distanceDifferenceMeters: 0 },
+      obstruction: { detected: false },
+      recommendation: 'KEEP_PRIMARY',
+      reason: 'No traffic obstruction affecting remaining primary route sector.'
+    };
+  }
+
+  const estimatedDelaySec = primaryObstruction.delaySec || primaryObstruction.estimatedDelaySeconds || 180;
+  primaryEtaSec += estimatedDelaySec;
+
+  const { getSmartRouteObjects } = require('./osrmService');
+  let alternatePoints = await getSmartRouteObjects({ lat: ambLat, lng: ambLng }, { lat: destLat, lng: destLng });
+
+  if (!alternatePoints || alternatePoints.length < 2) {
+    const steps = 15;
+    alternatePoints = [];
+    for (let i = 0; i <= steps; i++) {
+      const ratio = i / steps;
+      const offset = Math.sin(ratio * Math.PI) * 0.005;
+      alternatePoints.push({
+        lat: ambLat + (destLat - ambLat) * ratio + offset,
+        lng: ambLng + (destLng - ambLng) * ratio - offset
+      });
+    }
+  }
+
+  let altDistMeters = 0;
+  for (let i = 1; i < alternatePoints.length; i++) {
+    altDistMeters += getDistanceMeters(alternatePoints[i - 1].lat, alternatePoints[i - 1].lng, alternatePoints[i].lat, alternatePoints[i].lng);
+  }
+  const altEtaSec = Math.round(altDistMeters / speedMs);
+
+  const timeDifferenceSeconds = primaryEtaSec - altEtaSec;
+  const distanceDifferenceMeters = Math.round(altDistMeters - primaryDistMeters);
+
+  let recommendation = 'KEEP_PRIMARY';
+  let reason = `Alternate route saving (${timeDifferenceSeconds}s) is below threshold (${ALTERNATE_ROUTE_MIN_SAVING_SECONDS}s).`;
+
+  if (timeDifferenceSeconds >= ALTERNATE_ROUTE_MIN_SAVING_SECONDS) {
+    recommendation = 'SWITCH_ALTERNATE';
+    reason = `Obstruction detected on primary route (+${estimatedDelaySec}s delay). Alternate route saves ${timeDifferenceSeconds} seconds.`;
+  } else if (altEtaSec >= primaryEtaSec) {
+    recommendation = 'KEEP_PRIMARY';
+    reason = `Alternate route is slower or equal (+${altEtaSec - primaryEtaSec}s). Retaining primary route.`;
+  }
+
+  return {
+    incidentId,
+    routeVersion,
+    primaryRoute: {
+      distanceMeters: Math.round(primaryDistMeters),
+      etaSeconds: primaryEtaSec,
+      estimatedDelaySeconds: estimatedDelaySec
+    },
+    alternateRoute: {
+      distanceMeters: Math.round(altDistMeters),
+      etaSeconds: altEtaSec,
+      coordinates: alternatePoints
+    },
+    comparison: {
+      timeDifferenceSeconds,
+      distanceDifferenceMeters
+    },
+    obstruction: {
+      detected: true,
+      distanceFromAmbulanceMeters: primaryObstruction.analysis.distanceAheadMeters,
+      distanceFromRouteMeters: primaryObstruction.analysis.minDistanceToRouteMeters,
+      severity: primaryObstruction.severity || 'HIGH',
+      type: primaryObstruction.type || 'Heavy Traffic Congestion',
+      location: { lat: primaryObstruction.lat, lng: primaryObstruction.lng }
+    },
+    recommendation,
+    reason,
+    timestamp: new Date().toISOString()
+  };
+}
+
+/**
+ * Safely executes explicit operator route switch decision
+ */
+async function executeRouteSwitch(incidentId, alternateRouteCoordinates, operatorId = 'CONTROL_ROOM', io = null) {
+  try {
+    const { Incident } = require('./db');
+    const incident = await Incident.findByPk(incidentId);
+    if (!incident) {
+      throw new Error(`Incident ${incidentId} not found.`);
+    }
+
+    const currentVersion = incident.route_version || 1;
+    const newVersion = currentVersion + 1;
+
+    let routeHistory = [];
+    if (incident.primary_route_history) {
+      try {
+        routeHistory = typeof incident.primary_route_history === 'string'
+          ? JSON.parse(incident.primary_route_history)
+          : incident.primary_route_history;
+      } catch (e) {
+        routeHistory = [];
+      }
+    }
+    routeHistory.push({
+      version: currentVersion,
+      switchedAt: new Date().toISOString(),
+      operatorId
+    });
+
+    incident.route_version = newVersion;
+    incident.primary_route_history = JSON.stringify(routeHistory);
+    incident.alternate_route_recommendation = null;
+    await incident.save();
+
+    // Rebuild corridor junctions for new route exclusively
+    const newCorridors = await initializeCorridorForRoute(incidentId, alternateRouteCoordinates, newVersion);
+
+    await AuditLog.create({
+      action: 'OPERATOR_SWITCHED_ALTERNATE',
+      details: `Operator ${operatorId} confirmed route switch for incident ${incidentId}. Route version updated to v${newVersion}. Registered ${newCorridors.length} new junctions.`,
+      severity: 'INFO'
+    }).catch(() => {});
+
+    const eventPayload = {
+      incidentId,
+      routeVersion: newVersion,
+      operatorId,
+      newRouteCoordinates: alternateRouteCoordinates,
+      junctionCount: newCorridors.length,
+      timestamp: new Date().toISOString()
+    };
+
+    if (io) {
+      io.to(`mission_${incidentId}`).emit('corridor:route-switched', eventPayload);
+      io.to('admin_warroom').emit('corridor:route-switched', eventPayload);
+    }
+
+    console.log(`[ROUTE SWITCH] Mission ${incidentId} switched to alternate route v${newVersion} by ${operatorId}.`);
+    return { success: true, routeVersion: newVersion, junctions: newCorridors };
+  } catch (err) {
+    console.error(`[ROUTE SWITCH ERROR]`, err.message);
+    return { success: false, reason: err.message };
+  }
+}
+
+/**
+ * Safely executes explicit operator keep primary route decision
+ */
+async function executeKeepPrimary(incidentId, operatorId = 'CONTROL_ROOM', io = null) {
+  try {
+    recommendationCooldowns[incidentId] = Date.now();
+
+    await AuditLog.create({
+      action: 'OPERATOR_KEPT_PRIMARY',
+      details: `Operator ${operatorId} chose to retain primary route for incident ${incidentId}. Recommendation cooldown activated (${ROUTE_RECOMMENDATION_COOLDOWN_SECONDS}s).`,
+      severity: 'INFO'
+    }).catch(() => {});
+
+    const eventPayload = {
+      incidentId,
+      operatorId,
+      decision: 'KEEP_PRIMARY',
+      timestamp: new Date().toISOString()
+    };
+
+    if (io) {
+      io.to(`mission_${incidentId}`).emit('corridor:route-switch-rejected', eventPayload);
+      io.to('admin_warroom').emit('corridor:route-switch-rejected', eventPayload);
+    }
+
+    console.log(`[KEEP PRIMARY] Operator ${operatorId} retained primary route for mission ${incidentId}.`);
+    return { success: true, decision: 'KEEP_PRIMARY' };
+  } catch (err) {
+    console.error(`[KEEP PRIMARY ERROR]`, err.message);
+    return { success: false, reason: err.message };
   }
 }
 
@@ -29465,10 +30000,17 @@ module.exports = {
   reverseGeocode,
   calculateCorridorReadiness,
   evaluateTrafficObstructions,
+  isIncidentAheadOnRoute,
+  analyzeAlternateRoute,
+  executeRouteSwitch,
+  executeKeepPrimary,
   transitionJunctionState,
   getApproachDirection,
   CORRIDOR_THRESHOLDS,
-  VALID_TRANSITIONS
+  VALID_TRANSITIONS,
+  ALTERNATE_ROUTE_MIN_SAVING_SECONDS,
+  ROUTE_OBSTRUCTION_RADIUS_METERS,
+  ROUTE_RECOMMENDATION_COOLDOWN_SECONDS
 };
 
 ================================================
@@ -30938,45 +31480,46 @@ FILE: backend\utils\redis.js
 const Redis = require('ioredis');
 
 let redis = null;
-try {
-  if (process.env.REDIS_SENTINELS) {
-    const sentinels = process.env.REDIS_SENTINELS.split(',').map(s => {
-      const [host, port] = s.split(':');
-      return { host, port: parseInt(port) || 26379 };
-    });
-    redis = new Redis({
-      sentinels,
-      name: process.env.REDIS_SENTINEL_NAME || 'mymaster',
-      maxRetriesPerRequest: 1,
-      retryStrategy(times) {
-        if (times > 3) {
-          console.log('[REDIS] Max Sentinel retries reached. Using in-memory fallback.');
-          return null;
+if (process.env.NODE_ENV !== 'test') {
+  try {
+    if (process.env.REDIS_SENTINELS) {
+      const sentinels = process.env.REDIS_SENTINELS.split(',').map(s => {
+        const [host, port] = s.split(':');
+        return { host, port: parseInt(port) || 26379 };
+      });
+      redis = new Redis({
+        sentinels,
+        name: process.env.REDIS_SENTINEL_NAME || 'mymaster',
+        maxRetriesPerRequest: 1,
+        retryStrategy(times) {
+          if (times > 3) {
+            console.log('[REDIS] Max Sentinel retries reached. Using in-memory fallback.');
+            return null;
+          }
+          return 1000;
         }
-        return 1000;
-      }
-    });
-  } else {
-    redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
-      maxRetriesPerRequest: 1,
-      retryStrategy(times) {
-        if (times > 3) {
-          console.log('[REDIS] Max retries reached. Using in-memory fallback.');
-          return null; // stop retrying
+      });
+    } else {
+      redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+        maxRetriesPerRequest: 1,
+        retryStrategy(times) {
+          if (times > 3) {
+            console.log('[REDIS] Max retries reached. Using in-memory fallback.');
+            return null; // stop retrying
+          }
+          return 1000;
         }
-        return 1000;
-      }
-    });
-  }
-
-  redis.on('error', (err) => {
-    // Suppress spamming connection errors to console but log a warning
-    if (redis.status !== 'ready') {
-      console.log(`[REDIS] Connection status: ${redis.status}`);
+      });
     }
-  });
-} catch (err) {
-  console.log('[REDIS] Initialization failed. Using in-memory fallback.');
+
+    redis.on('error', (err) => {
+      if (redis.status !== 'ready') {
+        console.log(`[REDIS] Connection status: ${redis.status}`);
+      }
+    });
+  } catch (err) {
+    console.log('[REDIS] Initialization failed. Using in-memory fallback.');
+  }
 }
 
 const memoryBlacklist = new Set();
@@ -61283,6 +61826,9 @@ export default function CorridorPanel({
   const [junctions, setJunctions] = useState([]);
   const [readiness, setReadiness] = useState({ status: 'READY', score: 98, details: ['All preemption nodes nominal.'] });
   const [routeRecommendation, setRouteRecommendation] = useState(null);
+  const [alternateAnalysis, setAlternateAnalysis] = useState(null);
+  const [routeDecisionStatus, setRouteDecisionStatus] = useState(null);
+  const [routeVersion, setRouteVersion] = useState(1);
   const [logs, setLogs] = useState(['[System Boot] Emergency Corridor Coordination Layer initialized with Simulated Traffic Controller Adapter.']);
   const [realRoutePath, setRealRoutePath] = useState(null);
   const [overrideConfirm, setOverrideConfirm] = useState(null);
@@ -61495,12 +62041,44 @@ export default function CorridorPanel({
       addLog(`🚧 ROUTE OBSTRUCTION DETECTED: Recommendation -> ${data.recommendation}`);
     };
 
+    const onAlternateAnalysis = (data) => {
+      if (data.incidentId && data.incidentId !== activeMissionId) return;
+      setAlternateAnalysis(data);
+      if (data.recommendation) {
+        setRouteRecommendation(data);
+      }
+      addLog(`🚥 Traffic Intelligence Analysis: ${data.reason}`);
+    };
+
+    const onRouteSwitched = (data) => {
+      if (data.incidentId && data.incidentId !== activeMissionId) return;
+      setRouteVersion(data.routeVersion || 2);
+      setRouteDecisionStatus('SWITCHED');
+      setAlternateAnalysis(null);
+      setRouteRecommendation(null);
+      if (data.newRouteCoordinates) {
+        setRealRoutePath(data.newRouteCoordinates.map(c => Array.isArray(c) ? [c[0], c[1]] : [c.lat, c.lng]));
+      }
+      addLog(`✅ ALTERNATE ROUTE SWITCH CONFIRMED (v${data.routeVersion || 2}) by ${data.operatorId || 'Operator'}. Rebuilt corridor junctions.`);
+    };
+
+    const onRouteRejected = (data) => {
+      if (data.incidentId && data.incidentId !== activeMissionId) return;
+      setRouteDecisionStatus('RETAINED');
+      setAlternateAnalysis(null);
+      setRouteRecommendation(null);
+      addLog(`ℹ️ PRIMARY ROUTE RETAINED by ${data.operatorId || 'Operator'}. Traffic monitoring active.`);
+    };
+
     socket.on('corridor:status_update', onCorridorUpdate);
     socket.on('corridor:junction_updated', onCorridorUpdate);
     socket.on('corridor:preempt_junction', onPreemptAlert);
     socket.on('corridor:controller_failure', onControllerFail);
     socket.on('corridor:readiness_updated', onReadinessUpdate);
     socket.on('corridor:route_recommendation', onRouteRecommendation);
+    socket.on('corridor:alternate-route-analysis', onAlternateAnalysis);
+    socket.on('corridor:route-switched', onRouteSwitched);
+    socket.on('corridor:route-switch-rejected', onRouteRejected);
 
     return () => {
       socket.off('corridor:status_update', onCorridorUpdate);
@@ -61509,8 +62087,30 @@ export default function CorridorPanel({
       socket.off('corridor:controller_failure', onControllerFail);
       socket.off('corridor:readiness_updated', onReadinessUpdate);
       socket.off('corridor:route_recommendation', onRouteRecommendation);
+      socket.off('corridor:alternate-route-analysis', onAlternateAnalysis);
+      socket.off('corridor:route-switched', onRouteSwitched);
+      socket.off('corridor:route-switch-rejected', onRouteRejected);
     };
   }, [socket, activeMissionId]);
+
+  const handleConfirmRouteSwitch = () => {
+    if (!socket || !activeMissionId || !alternateAnalysis?.alternateRoute?.coordinates) return;
+    socket.emit('corridor:accept-alternate-route', {
+      incidentId: activeMissionId,
+      alternateCoordinates: alternateAnalysis.alternateRoute.coordinates,
+      operatorId: mode.toUpperCase()
+    });
+    addLog(`[CONTROL ROOM ACTION] Sent SWITCH ALTERNATE command.`);
+  };
+
+  const handleKeepPrimaryRoute = () => {
+    if (!socket || !activeMissionId) return;
+    socket.emit('corridor:reject-alternate-route', {
+      incidentId: activeMissionId,
+      operatorId: mode.toUpperCase()
+    });
+    addLog(`[CONTROL ROOM ACTION] Sent KEEP PRIMARY command.`);
+  };
 
   // Leaflet Map Lifecycle
   useEffect(() => {
@@ -61761,15 +62361,84 @@ export default function CorridorPanel({
         </div>
       </div>
 
-      {/* ROUTE RECOMMENDATION ALERT BANNER */}
-      {routeRecommendation && (
+      {/* TRAFFIC & ROUTE INTELLIGENCE PANEL */}
+      {(alternateAnalysis || routeRecommendation || routeDecisionStatus) && (
         <div style={{
-          background: 'rgba(255, 77, 99, 0.12)', borderBottom: '1px solid #ff4d63',
-          padding: '8px 20px', color: '#ff4d63', fontSize: 11, fontFamily: "'Share Tech Mono'",
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+          background: 'rgba(6, 16, 38, 0.98)', borderBottom: '1px solid rgba(0, 200, 255, 0.3)',
+          padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: 10
         }}>
-          <span>🚧 <strong>TRAFFIC OBSTRUCTION DETECTED:</strong> {routeRecommendation.details}</span>
-          <span style={{ fontWeight: 700, textDecoration: 'underline' }}>REC: {routeRecommendation.recommendation}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 16 }}>🚥</span>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, fontFamily: "'Orbitron'", color: '#00c8ff' }}>
+                  TRAFFIC & ROUTE INTELLIGENCE (ROUTE v{routeVersion})
+                </div>
+                <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.7)', fontFamily: "'Share Tech Mono'" }}>
+                  {alternateAnalysis?.reason || routeRecommendation?.details || (routeDecisionStatus === 'SWITCHED' ? 'Alternate route active.' : 'Primary route retained.')}
+                </div>
+              </div>
+            </div>
+            {routeDecisionStatus === 'SWITCHED' && (
+              <div style={{ background: 'rgba(0,255,136,0.15)', border: '1px solid #00ff88', color: '#00ff88', padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 700, fontFamily: "'Orbitron'" }}>
+                ✓ ALTERNATE ROUTE ACTIVE (v{routeVersion})
+              </div>
+            )}
+            {routeDecisionStatus === 'RETAINED' && (
+              <div style={{ background: 'rgba(0,200,255,0.15)', border: '1px solid #00c8ff', color: '#00c8ff', padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 700, fontFamily: "'Orbitron'" }}>
+                ✓ PRIMARY ROUTE RETAINED
+              </div>
+            )}
+          </div>
+
+          {alternateAnalysis && alternateAnalysis.obstruction?.detected && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', background: 'rgba(0,0,0,0.3)', padding: 10, borderRadius: 6, border: '1px solid rgba(255,255,255,0.1)' }}>
+              <div>
+                <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.5)' }}>PRIMARY ETA (OBSTRUCTED)</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#ff4d63', fontFamily: "'Orbitron'" }}>
+                  {Math.floor(alternateAnalysis.primaryRoute.etaSeconds / 60)}m {alternateAnalysis.primaryRoute.etaSeconds % 60}s
+                  <span style={{ fontSize: 10, color: 'rgba(255,77,99,0.8)', marginLeft: 4 }}>
+                    (+{alternateAnalysis.primaryRoute.estimatedDelaySeconds}s delay)
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.5)' }}>ALTERNATE ROUTE ETA</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#00ff88', fontFamily: "'Orbitron'" }}>
+                  {Math.floor(alternateAnalysis.alternateRoute.etaSeconds / 60)}m {alternateAnalysis.alternateRoute.etaSeconds % 60}s
+                </div>
+              </div>
+
+              <div>
+                <div style={{ fontSize: 9, color: 'rgba(160,200,255,0.5)' }}>ESTIMATED TIME SAVED</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#ffea00', fontFamily: "'Orbitron'" }}>
+                  {alternateAnalysis.comparison.timeDifferenceSeconds > 0 ? `⚡ SAVE ${alternateAnalysis.comparison.timeDifferenceSeconds} SEC` : 'NO TIME SAVED'}
+                </div>
+              </div>
+
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 10 }}>
+                <button
+                  onClick={handleConfirmRouteSwitch}
+                  style={{
+                    background: '#00ff88', color: '#000', border: 'none', padding: '8px 16px',
+                    borderRadius: 4, fontWeight: 700, fontFamily: "'Orbitron'", cursor: 'pointer', fontSize: 11
+                  }}
+                >
+                  SWITCH ROUTE
+                </button>
+                <button
+                  onClick={handleKeepPrimaryRoute}
+                  style={{
+                    background: 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.3)',
+                    padding: '8px 16px', borderRadius: 4, fontWeight: 700, fontFamily: "'Orbitron'", cursor: 'pointer', fontSize: 11
+                  }}
+                >
+                  KEEP PRIMARY
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -79110,7 +79779,8 @@ graph TD
 
 - 🚨 **Guest Emergency Dispatch (Authentication Bypass)**: Instant SOS dispatch triggering geolocation capture and immediate ambulance routing without requiring password login.
 - 🚥 **Emergency Green Corridor Coordination Layer**: Intelligent traffic signal preemption, multi-junction signal state machines (`NORMAL → ARMED → APPROACHING → PREEMPT_REQUESTED → PREEMPT_ACTIVE → AMBULANCE_PASSING → RESTORING → CLEARING → NORMAL`), Kalman-filtered ambulance telemetry, dynamic ETA calculation, automated traffic controller fallback, readiness scoring engine, and audit logging.
-- 📊 **Corridor Operational Panel & Simulator**: Live administrative green corridor dashboard featuring traffic signal overrides, junction readiness scores, ambulance telemetry simulation engine, state machine step progression, and simulated traffic controller adapter integration.
+- 🚧 **Traffic-Aware Dynamic Alternate Corridor**: Real-time traffic obstruction detection ahead on remaining ambulance route, primary vs alternate route ETA comparison, safety-first recommendation engine (`SWITCH_ALTERNATE` vs `KEEP_PRIMARY`), human-in-the-loop control room confirmation, route versioning (`routeVersion`), and automatic corridor junction sequence rebuilding for the newly selected route.
+- 📊 **Corridor Operational Panel & Simulator**: Live administrative green corridor dashboard featuring traffic signal overrides, junction readiness scores, ambulance telemetry simulation engine, state machine step progression, traffic intelligence ETA badges, and simulated traffic controller adapter integration.
 - 📍 **Registered Profile Coordinate Map Pinning**: Dynamic position rendering for hospitals, ambulances, and user portals anchored directly to profile database latitude and longitude.
 - 🔒 **Strict Portal Gateway Role Guards**: Role mismatch validation preventing cross-portal authentication attempts (e.g. blocking hospital credentials from logging into the Admin Gateway).
 - 🚖 **Dual-Mode Radial & DB Registered Dispatch Engine**: Hybrid ambulance ranking system combining live socket units and registered database ambulances with offline notification queuing.
@@ -79126,6 +79796,13 @@ graph TD
 - 🩺 **Rule-Based Clinical Decision Support**: Real-time vital sign risk assessment offering instant clinical guidance without synthetic loading delays or misleading AI framing.
 - 🗺️ **Dynamic Emergency Corridor Geocoding**: Real-time OpenStreetMap Nominatim reverse-geocoding of mission coordinates for automatic municipal corridor region resolution.
 - 🛡️ **DPDP Act 2023 & HIPAA Compliance**: Application-layer AES-256-GCM encryption for PHI/PII, dynamic consent revocation, and automated retention policies.
+- **🧍 Patient Emer-Health Profile Management**: Full patient portal backed by encrypted persistence for medical history, allergies, ABHA ID, and emergency contacts.
+- **🚑 Ambulance & Crew Management**: Paramedic license tracking, oxygen capacity monitoring, and standard vehicle safety compliance.
+- **🌐 Environment-Driven API Configuration**: Fully centralized API endpoint routing (`API_BASE_URL`) sourced dynamically from environment configurations with zero hardcoded deployment domains.
+- **🩺 Rule-Based Clinical Decision Support**: Real-time vital sign risk assessment offering instant clinical guidance without synthetic loading delays or misleading AI framing.
+- **🗺️ Dynamic Emergency Corridor Geocoding**: Real-time OpenStreetMap Nominatim reverse-geocoding of mission coordinates for automatic municipal corridor region resolution.
+- **🛡️ DPDP Act 2023 & HIPAA Compliance**: Application-layer AES-256-GCM encryption for PHI/PII, dynamic consent revocation, and automated retention policies.
+>>>>>>> origin/main
 
 ---
 

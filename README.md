@@ -39,7 +39,8 @@ graph TD
 
 - 🚨 **Guest Emergency Dispatch (Authentication Bypass)**: Instant SOS dispatch triggering geolocation capture and immediate ambulance routing without requiring password login.
 - 🚥 **Emergency Green Corridor Coordination Layer**: Intelligent traffic signal preemption, multi-junction signal state machines (`NORMAL → ARMED → APPROACHING → PREEMPT_REQUESTED → PREEMPT_ACTIVE → AMBULANCE_PASSING → RESTORING → CLEARING → NORMAL`), Kalman-filtered ambulance telemetry, dynamic ETA calculation, automated traffic controller fallback, readiness scoring engine, and audit logging.
-- 📊 **Corridor Operational Panel & Simulator**: Live administrative green corridor dashboard featuring traffic signal overrides, junction readiness scores, ambulance telemetry simulation engine, state machine step progression, and simulated traffic controller adapter integration.
+- 🚧 **Traffic-Aware Dynamic Alternate Corridor**: Real-time traffic obstruction detection ahead on remaining ambulance route, primary vs alternate route ETA comparison, safety-first recommendation engine (`SWITCH_ALTERNATE` vs `KEEP_PRIMARY`), human-in-the-loop control room confirmation, route versioning (`routeVersion`), and automatic corridor junction sequence rebuilding for the newly selected route.
+- 📊 **Corridor Operational Panel & Simulator**: Live administrative green corridor dashboard featuring traffic signal overrides, junction readiness scores, ambulance telemetry simulation engine, state machine step progression, traffic intelligence ETA badges, and simulated traffic controller adapter integration.
 - 📍 **Registered Profile Coordinate Map Pinning**: Dynamic position rendering for hospitals, ambulances, and user portals anchored directly to profile database latitude and longitude.
 - 🔒 **Strict Portal Gateway Role Guards**: Role mismatch validation preventing cross-portal authentication attempts (e.g. blocking hospital credentials from logging into the Admin Gateway).
 - 🚖 **Dual-Mode Radial & DB Registered Dispatch Engine**: Hybrid ambulance ranking system combining live socket units and registered database ambulances with offline notification queuing.
@@ -55,6 +56,13 @@ graph TD
 - 🩺 **Rule-Based Clinical Decision Support**: Real-time vital sign risk assessment offering instant clinical guidance without synthetic loading delays or misleading AI framing.
 - 🗺️ **Dynamic Emergency Corridor Geocoding**: Real-time OpenStreetMap Nominatim reverse-geocoding of mission coordinates for automatic municipal corridor region resolution.
 - 🛡️ **DPDP Act 2023 & HIPAA Compliance**: Application-layer AES-256-GCM encryption for PHI/PII, dynamic consent revocation, and automated retention policies.
+- **🧍 Patient Emer-Health Profile Management**: Full patient portal backed by encrypted persistence for medical history, allergies, ABHA ID, and emergency contacts.
+- **🚑 Ambulance & Crew Management**: Paramedic license tracking, oxygen capacity monitoring, and standard vehicle safety compliance.
+- **🌐 Environment-Driven API Configuration**: Fully centralized API endpoint routing (`API_BASE_URL`) sourced dynamically from environment configurations with zero hardcoded deployment domains.
+- **🩺 Rule-Based Clinical Decision Support**: Real-time vital sign risk assessment offering instant clinical guidance without synthetic loading delays or misleading AI framing.
+- **🗺️ Dynamic Emergency Corridor Geocoding**: Real-time OpenStreetMap Nominatim reverse-geocoding of mission coordinates for automatic municipal corridor region resolution.
+- **🛡️ DPDP Act 2023 & HIPAA Compliance**: Application-layer AES-256-GCM encryption for PHI/PII, dynamic consent revocation, and automated retention policies.
+>>>>>>> origin/main
 
 ---
 
