@@ -11,4 +11,5 @@ ALTER TABLE emergency_corridors ADD COLUMN IF NOT EXISTS preemption_requested BO
 ALTER TABLE emergency_corridors ADD COLUMN IF NOT EXISTS preemption_active BOOLEAN DEFAULT FALSE;
 ALTER TABLE emergency_corridors ADD COLUMN IF NOT EXISTS controller_status VARCHAR(255) DEFAULT 'ONLINE';
 ALTER TABLE emergency_corridors ADD COLUMN IF NOT EXISTS gps_confidence VARCHAR(255) DEFAULT 'HIGH';
+ALTER TABLE emergency_corridors ADD COLUMN IF NOT EXISTS eta_seconds INTEGER DEFAULT 0;
 ALTER TABLE emergency_corridors ADD COLUMN IF NOT EXISTS last_updated DATETIME;
