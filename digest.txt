@@ -19075,6 +19075,54 @@ router.get('/', async (req, res) => {
 });
 
 /**
+ * @route GET /api/hospitals/purge-demo-entities
+ * @desc Purge historical demo/seeded entities from database
+ */
+router.get('/purge-demo-entities', async (req, res) => {
+  try {
+    const { Ambulance } = require('../utils/db');
+    const { Op } = require('sequelize');
+
+    const seedKeywords = ['City General', 'Apollo', 'Manipal', 'Apex', 'National', 'Fortis', 'Max'];
+    const delH = await Hospital.destroy({
+      where: {
+        [Op.or]: [
+          ...seedKeywords.map(kw => ({ name: { [Op.like]: `%${kw}%` } })),
+          { id: { [Op.in]: ['hosp_default_1', 'hosp_default_2', 'hosp_default_3', 'hosp-1', 'hosp-2', 'hosp-3', 'hosp-4'] } }
+        ]
+      }
+    });
+
+    const delA = await Ambulance.destroy({
+      where: {
+        [Op.or]: [
+          { vehicleNo: { [Op.like]: 'AMB-%' } },
+          { vehicleNo: { [Op.like]: 'MH12%' } },
+          { id: { [Op.in]: ['amb_default_1', 'amb_default_2', 'amb_default_3', 'amb-101', 'amb-102', 'amb-103'] } }
+        ]
+      }
+    });
+
+    try {
+      await cache.del(ALL_HOSPITALS_CACHE_KEY);
+    } catch (cErr) {}
+
+    const remainingHospitals = await Hospital.findAll({ order: [['createdAt', 'DESC']] });
+    const remainingAmbulances = await Ambulance.findAll({ order: [['createdAt', 'DESC']] });
+
+    return res.json({
+      success: true,
+      message: `Purged ${delH} demo hospitals and ${delA} demo ambulances.`,
+      remainingHospitals,
+      remainingAmbulances
+    });
+  } catch (err) {
+    console.error('[PURGE ROUTE ERROR]', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/**
  * @route GET /api/hospitals/all
  * @desc Get all hospitals including inactive ones (Admin only)
  */
@@ -28720,6 +28768,7 @@ async function set(key, value, ttlSeconds = 300) {
  * Deletes a cached item.
  */
 async function del(key) {
+  localMemoryCache.delete(key);
   if (redis && redis.status === 'ready') {
     try {
       await redis.del(key);
@@ -28728,7 +28777,6 @@ async function del(key) {
       console.warn('[CACHE ERROR] DEL failed, fallback to memory:', err.message);
     }
   }
-  localMemoryCache.delete(key);
 }
 
 module.exports = {

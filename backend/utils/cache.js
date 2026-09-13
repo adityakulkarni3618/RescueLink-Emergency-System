@@ -50,6 +50,7 @@ async function set(key, value, ttlSeconds = 300) {
  * Deletes a cached item.
  */
 async function del(key) {
+  localMemoryCache.delete(key);
   if (redis && redis.status === 'ready') {
     try {
       await redis.del(key);
@@ -58,7 +59,6 @@ async function del(key) {
       console.warn('[CACHE ERROR] DEL failed, fallback to memory:', err.message);
     }
   }
-  localMemoryCache.delete(key);
 }
 
 module.exports = {
