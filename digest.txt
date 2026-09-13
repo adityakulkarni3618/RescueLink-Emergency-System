@@ -2,7 +2,7 @@ RescueLink Implementation Disclaimer: See README.md for a detailed breakdown of 
 
 RescueLink Emergency System - Full Codebase Digest
 Generated from: C:\Users\Aditya Kulkarni\Downloads\Health-care-system
-Total files: 241
+Total files: 229
 
 PROJECT STRUCTURE:
   .dockerignore
@@ -79,26 +79,15 @@ PROJECT STRUCTURE:
   backend\routes\videoCall.js
   backend\scripts\add_patient_user.js
   backend\scripts\backfill_hospitals.js
-  backend\scripts\check_db_entities.js
-  backend\scripts\check_live_4d85.js
-  backend\scripts\clean_sqlite.js
   backend\scripts\clear_doctors.js
   backend\scripts\corridorSimulator.js
   backend\scripts\delete_hospital.js
-  backend\scripts\direct_check.js
-  backend\scripts\direct_purge.js
   backend\scripts\list_hospitals.js
   backend\scripts\migrate-sqlite-to-postgres.js
-  backend\scripts\purge_live_render_db.js
   backend\scripts\remove_seed_entities.js
   backend\scripts\run-migrations.js
   backend\scripts\seed_db.js
   backend\scripts\seed.js
-  backend\scripts\test_4d85.js
-  backend\scripts\test_all_renders.js
-  backend\scripts\test_main_render.js
-  backend\scripts\test_render_endpoint.js
-  backend\scripts\test_render_routes.js
   backend\scripts\verify-deployment.js
   backend\server.js
   backend\services\dispatchAgent.js
@@ -211,7 +200,6 @@ PROJECT STRUCTURE:
   package-lock.json
   PRIVACY_POLICY.md
   README.md
-  REAL_WORLD_AUDIT.md
   REALTIME_ARCHITECTURE.md
   RENDER_BANDWIDTH_READINESS_REPORT.md
   RescueLink_Enterprise_Roadmap.md
@@ -638,9 +626,6 @@ FILE: backend\data\audit_log.txt
 [2026-09-08T07:51:08.213Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 [2026-09-08T08:14:51.841Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 [2026-09-10T18:16:42.095Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
-[2026-09-10T18:46:56.598Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
-[2026-09-10T18:55:32.017Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
-[2026-09-13T08:52:34.153Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 
 ================================================
 FILE: backend\data\consent_ledger_test.json
@@ -21359,110 +21344,6 @@ async function backfill() {
 backfill().then(() => process.exit(0));
 
 ================================================
-FILE: backend\scripts\check_db_entities.js
-================================================
-const { Hospital, Ambulance, User, syncDatabase } = require('../utils/db');
-
-async function checkEntities() {
-  try {
-    await syncDatabase();
-    console.log('[CHECK] Connected to database.');
-
-    const hospitals = await Hospital.findAll({ raw: true });
-    console.log('\n--- HOSPITALS IN DATABASE (' + hospitals.length + ') ---');
-    hospitals.forEach(h => {
-      console.log(`ID: ${h.id} | Name: "${h.name}" | Status: ${h.verification_status} | Active: ${h.is_active}`);
-    });
-
-    const ambulances = await Ambulance.findAll({ raw: true });
-    console.log('\n--- AMBULANCES IN DATABASE (' + ambulances.length + ') ---');
-    ambulances.forEach(a => {
-      console.log(`ID: ${a.id} | VehicleNo: "${a.vehicleNo}" | Driver: "${a.driverName}" | Active: ${a.is_active}`);
-    });
-
-    process.exit(0);
-  } catch (err) {
-    console.error('[CHECK ERROR]', err);
-    process.exit(1);
-  }
-}
-
-checkEntities();
-
-================================================
-FILE: backend\scripts\check_live_4d85.js
-================================================
-const https = require('https');
-
-function get(url) {
-  return new Promise((resolve) => {
-    https.get(url, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => resolve({ status: res.statusCode, body: data }));
-    }).on('error', err => resolve({ status: 500, error: err.message }));
-  });
-}
-
-async function check() {
-  const res = await get('https://rescuelink-emergency-system-4d85.onrender.com/api/hospitals');
-  console.log('STATUS:', res.status);
-  console.log('BODY:', res.body);
-}
-
-check();
-
-================================================
-FILE: backend\scripts\clean_sqlite.js
-================================================
-const { Sequelize } = require('sequelize');
-const path = require('path');
-
-const sqlitePath = path.resolve(__dirname, '../data/rescuelink.sqlite');
-const sequelize = new Sequelize({
-  dialect: 'sqlite',
-  storage: sqlitePath,
-  logging: false
-});
-
-async function cleanSqlite() {
-  try {
-    await sequelize.authenticate();
-    console.log('[SQLITE CLEAN] Connected to SQLite database at:', sqlitePath);
-
-    try {
-      await sequelize.query(`DELETE FROM Hospitals`);
-      console.log('[SQLITE CLEAN] Purged all hospitals from SQLite');
-    } catch(e) {
-      console.log('[SQLITE CLEAN] Hospitals cleanup note:', e.message);
-    }
-
-    try {
-      await sequelize.query(`DELETE FROM Ambulances`);
-      console.log('[SQLITE CLEAN] Purged all ambulances from SQLite');
-    } catch(e) {
-      console.log('[SQLITE CLEAN] Ambulances cleanup note:', e.message);
-    }
-
-    try {
-      const [hList] = await sequelize.query(`SELECT id, name FROM Hospitals`);
-      console.log('[SQLITE CLEAN] Remaining Hospitals in SQLite:', hList);
-    } catch(e) {}
-
-    try {
-      const [aList] = await sequelize.query(`SELECT id, vehicleNo FROM Ambulances`);
-      console.log('[SQLITE CLEAN] Remaining Ambulances in SQLite:', aList);
-    } catch(e) {}
-
-    await sequelize.close();
-  } catch(err) {
-    console.error('[SQLITE CLEAN ERROR]', err.message);
-  }
-}
-
-cleanSqlite();
-
-================================================
 FILE: backend\scripts\clear_doctors.js
 ================================================
 const { User, Hospital } = require('../utils/db');
@@ -21738,92 +21619,6 @@ const targetName = process.argv.slice(2).join(' ');
 deleteHospital(targetName || 'Shaikh Memorial Hospital');
 
 ================================================
-FILE: backend\scripts\direct_check.js
-================================================
-const { Hospital, Ambulance } = require('../utils/db');
-
-async function directCheck() {
-  try {
-    console.log('[DIRECT CHECK] Fetching records...');
-    const hospitals = await Hospital.findAll({ raw: true });
-    console.log(`\n=== HOSPITALS IN POSTGRES DB (${hospitals.length}) ===`);
-    hospitals.forEach(h => console.log(`- ID: ${h.id} | Name: "${h.name}"`));
-
-    const ambulances = await Ambulance.findAll({ raw: true });
-    console.log(`\n=== AMBULANCES IN POSTGRES DB (${ambulances.length}) ===`);
-    ambulances.forEach(a => console.log(`- ID: ${a.id} | VehicleNo: "${a.vehicleNo}" | Driver: "${a.driverName}"`));
-
-    process.exit(0);
-  } catch (err) {
-    console.error('[DIRECT CHECK ERROR]', err);
-    process.exit(1);
-  }
-}
-
-directCheck();
-
-================================================
-FILE: backend\scripts\direct_purge.js
-================================================
-const { Sequelize } = require('sequelize');
-const dotenv = require('dotenv');
-dotenv.config();
-
-const dbUrl = process.env.DATABASE_URL || 'postgresql://neondb_owner:npg_YlSeb1kgv6PB@ep-shiny-dust-axomvx38-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require';
-
-const sequelize = new Sequelize(dbUrl, {
-  logging: false,
-  dialectOptions: {
-    ssl: {
-      require: true,
-      rejectUnauthorized: false
-    }
-  }
-});
-
-async function purge() {
-  try {
-    await sequelize.authenticate();
-    console.log('[DB PURGE] Connected to PostgreSQL DB successfully.');
-
-    const [deletedH] = await sequelize.query(`
-      DELETE FROM hospitals 
-      WHERE name ILIKE '%City General%' 
-         OR name ILIKE '%Apollo%' 
-         OR name ILIKE '%Manipal%' 
-         OR name ILIKE '%Apex%' 
-         OR name ILIKE '%National%' 
-         OR name ILIKE '%Fortis%' 
-         OR name ILIKE '%Max%'
-      RETURNING id, name;
-    `);
-
-    console.log('[DB PURGE] Deleted hardcoded hospitals:', deletedH);
-
-    const [deletedA] = await sequelize.query(`
-      DELETE FROM ambulances 
-      WHERE "vehicleNo" ILIKE 'AMB-%' 
-         OR "vehicleNo" ILIKE 'MH12%'
-      RETURNING id, "vehicleNo";
-    `);
-
-    console.log('[DB PURGE] Deleted hardcoded ambulances:', deletedA);
-
-    const [hospitals] = await sequelize.query(`SELECT id, name, city, is_active FROM hospitals;`);
-    console.log('[DB PURGE] Current Hospitals in DB:', hospitals);
-
-    const [ambulances] = await sequelize.query(`SELECT id, "vehicleNo", driver_name FROM ambulances;`);
-    console.log('[DB PURGE] Current Ambulances in DB:', ambulances);
-
-    await sequelize.close();
-  } catch (err) {
-    console.error('[DB PURGE ERROR]', err.message);
-  }
-}
-
-purge();
-
-================================================
 FILE: backend\scripts\list_hospitals.js
 ================================================
 require('dotenv').config();
@@ -21977,77 +21772,6 @@ async function migrate() {
 }
 
 migrate();
-
-================================================
-FILE: backend\scripts\purge_live_render_db.js
-================================================
-const { Hospital, Ambulance, User, syncDatabase } = require('../utils/db');
-const { Op } = require('sequelize');
-
-async function purgeLiveDb() {
-  try {
-    await syncDatabase();
-    console.log('[PURGE] Connected to Neon PostgreSQL database.');
-
-    const allHospitals = await Hospital.findAll({ raw: true });
-    console.log(`\nFound ${allHospitals.length} hospitals in database:`);
-    allHospitals.forEach(h => console.log(`  ID: ${h.id} | Name: "${h.name}"`));
-
-    const allAmbulances = await Ambulance.findAll({ raw: true });
-    console.log(`\nFound ${allAmbulances.length} ambulances in database:`);
-    allAmbulances.forEach(a => console.log(`  ID: ${a.id} | VehicleNo: "${a.vehicleNo}" | Driver: "${a.driverName}"`));
-
-    // Delete ALL demo / seeded hospitals except manually registered ones
-    // Manually registered hospital is "Aditya K" or user registered ones
-    // Delete any hospital whose name contains 'City General', 'Apollo', 'Manipal', 'Apex', 'National', 'Fortis', 'Max'
-    const seedHospitalKeywords = ['City General', 'Apollo', 'Manipal', 'Apex', 'National', 'Fortis', 'Max'];
-    
-    let deletedHospitalsCount = 0;
-    for (const h of allHospitals) {
-      if (seedHospitalKeywords.some(kw => h.name.includes(kw))) {
-        await Hospital.destroy({ where: { id: h.id } });
-        console.log(`[DELETED SEEDED HOSPITAL] ${h.name} (${h.id})`);
-        deletedHospitalsCount++;
-      }
-    }
-
-    // Delete any demo ambulances (AMB-101 .. AMB-105, MH12AB...)
-    let deletedAmbulancesCount = 0;
-    for (const a of allAmbulances) {
-      if (a.vehicleNo.startsWith('AMB-') || a.vehicleNo.startsWith('MH12')) {
-        await Ambulance.destroy({ where: { id: a.id } });
-        console.log(`[DELETED SEEDED AMBULANCE] ${a.vehicleNo} (${a.id})`);
-        deletedAmbulancesCount++;
-      }
-    }
-
-    // Also delete any associated user accounts for seed entities
-    const deletedUsers = await User.destroy({
-      where: {
-        [Op.or]: [
-          { email: { [Op.like]: 'hosp-%@rescuelink.com' } },
-          { email: { [Op.like]: 'amb-%@rescuelink.com' } },
-          { email: { [Op.like]: 'mh12%@rescuelink.com' } }
-        ]
-      }
-    });
-
-    console.log(`\n[PURGE COMPLETE] Deleted ${deletedHospitalsCount} demo hospitals, ${deletedAmbulancesCount} demo ambulances, ${deletedUsers} seed user accounts.`);
-
-    const remainingHospitals = await Hospital.findAll({ raw: true });
-    const remainingAmbulances = await Ambulance.findAll({ raw: true });
-    console.log(`\n✅ Remaining in live database:`);
-    console.log(`  Hospitals (${remainingHospitals.length}):`, remainingHospitals.map(h => h.name));
-    console.log(`  Ambulances (${remainingAmbulances.length}):`, remainingAmbulances.map(a => a.vehicleNo));
-
-    process.exit(0);
-  } catch (err) {
-    console.error('[PURGE ERROR]', err);
-    process.exit(1);
-  }
-}
-
-purgeLiveDb();
 
 ================================================
 FILE: backend\scripts\remove_seed_entities.js
@@ -22384,142 +22108,6 @@ const { fork } = require('child_process');
 
 console.log('[SEED DEPRECATION] seed.js is deprecated. Redirecting to seed_db.js...');
 fork(path.join(__dirname, 'seed_db.js'));
-
-================================================
-FILE: backend\scripts\test_4d85.js
-================================================
-const https = require('https');
-
-function get(url) {
-  return new Promise((resolve) => {
-    https.get(url, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => resolve({ status: res.statusCode, body: data }));
-    }).on('error', err => resolve({ status: 500, error: err.message }));
-  });
-}
-
-async function test() {
-  console.log('/api/hospitals ->', await get('https://rescuelink-emergency-system-4d85.onrender.com/api/hospitals'));
-  console.log('/api/ambulances ->', await get('https://rescuelink-emergency-system-4d85.onrender.com/api/ambulances'));
-}
-
-test();
-
-================================================
-FILE: backend\scripts\test_all_renders.js
-================================================
-const https = require('https');
-
-function get(url) {
-  return new Promise((resolve) => {
-    const req = https.get(url, { timeout: 10000 }, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => resolve({ url, status: res.statusCode, body: data.slice(0, 300) }));
-    });
-    req.on('error', err => resolve({ url, status: 500, error: err.message }));
-    req.on('timeout', () => { req.destroy(); resolve({ url, status: 408, error: 'timeout' }); });
-  });
-}
-
-async function test() {
-  const urls = [
-    'https://rescuelink-emergency-system.onrender.com/api/hospitals',
-    'https://rescuelink-emergency-system-4d85.onrender.com/api/hospitals',
-    'https://rescue-link-emergency-system-4d85.onrender.com/api/hospitals'
-  ];
-  for (const u of urls) {
-    console.log(await get(u));
-  }
-}
-
-test();
-
-================================================
-FILE: backend\scripts\test_main_render.js
-================================================
-const https = require('https');
-
-function get(url) {
-  return new Promise((resolve) => {
-    https.get(url, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => resolve({ status: res.statusCode, body: data }));
-    }).on('error', err => resolve({ status: 500, error: err.message }));
-  });
-}
-
-async function test() {
-  console.log('--- TESTING https://rescuelink-emergency-system.onrender.com ---');
-  console.log('/api/hospitals ->', await get('https://rescuelink-emergency-system.onrender.com/api/hospitals'));
-  console.log('/api/ambulances ->', await get('https://rescuelink-emergency-system.onrender.com/api/ambulances'));
-}
-
-test();
-
-================================================
-FILE: backend\scripts\test_render_endpoint.js
-================================================
-const https = require('https');
-
-function fetchJson(url) {
-  return new Promise((resolve, reject) => {
-    https.get(url, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => {
-        try {
-          resolve({ statusCode: res.statusCode, body: JSON.parse(data) });
-        } catch (e) {
-          resolve({ statusCode: res.statusCode, body: data });
-        }
-      });
-    }).on('error', reject);
-  });
-}
-
-async function runTest() {
-  console.log('Testing live Render backend API endpoints...\n');
-  
-  const hospRes = await fetchJson('https://rescue-link-emergency-system-4d85.onrender.com/api/hospitals');
-  console.log('GET /api/hospitals -> Status:', hospRes.statusCode);
-  console.log('Body:', JSON.stringify(hospRes.body, null, 2));
-
-  console.log('\n----------------------------------------\n');
-
-  const ambRes = await fetchJson('https://rescue-link-emergency-system-4d85.onrender.com/api/ambulances');
-  console.log('GET /api/ambulances -> Status:', ambRes.statusCode);
-  console.log('Body:', JSON.stringify(ambRes.body, null, 2));
-}
-
-runTest();
-
-================================================
-FILE: backend\scripts\test_render_routes.js
-================================================
-const https = require('https');
-
-function get(url) {
-  return new Promise((resolve) => {
-    https.get(url, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => resolve({ status: res.statusCode, body: data }));
-    }).on('error', err => resolve({ status: 500, error: err.message }));
-  });
-}
-
-async function test() {
-  console.log('/ ->', await get('https://rescue-link-emergency-system-4d85.onrender.com/'));
-  console.log('/health ->', await get('https://rescue-link-emergency-system-4d85.onrender.com/health'));
-  console.log('/api ->', await get('https://rescue-link-emergency-system-4d85.onrender.com/api'));
-  console.log('/api/hospitals ->', await get('https://rescue-link-emergency-system-4d85.onrender.com/api/hospitals'));
-}
-
-test();
 
 ================================================
 FILE: backend\scripts\verify-deployment.js
@@ -26416,12 +26004,34 @@ async function startServer() {
     });
     console.log(`[ENTERPRISE DB] Restored ${persisted.length} active incidents into memory.`);
 
+    // ── Purge seeded demo entities from DB BEFORE preloading registry ──────────
+    try {
+      const { Hospital: HospitalModel, Ambulance: AmbulanceModel } = require('./utils/db');
+      const seedKeywords = ['City General', 'Apollo', 'Manipal', 'Apex', 'National', 'Fortis', 'Max'];
+      await HospitalModel.destroy({
+        where: {
+          [Op.or]: seedKeywords.map(kw => ({ name: { [Op.like]: `%${kw}%` } }))
+        }
+      }).catch(() => {});
+      await AmbulanceModel.destroy({
+        where: {
+          [Op.or]: [
+            { vehicleNo: { [Op.like]: 'AMB-%' } },
+            { vehicleNo: { [Op.like]: 'MH12%' } }
+          ]
+        }
+      }).catch(() => {});
+      console.log('[STARTUP] Purged historical demo entities from DB before preloading.');
+    } catch (purgeErr) {}
+
     // ── Pre-load registered hospitals from DB into in-memory registry ──────────
     // This ensures hospitals show in dashboards after restarts, even without an active socket
     try {
       const { Hospital: HospitalModel, Ambulance: AmbulanceModel } = require('./utils/db');
+      const seedKeywords = ['City General', 'Apollo', 'Manipal', 'Apex', 'National', 'Fortis', 'Max'];
       const dbHospitals = await HospitalModel.findAll({ where: { is_active: true } });
       dbHospitals.forEach(h => {
+        if (!h.name || seedKeywords.some(kw => h.name.toLowerCase().includes(kw.toLowerCase()))) return;
         const registryKey = `registry_${h.id}`;
         // Only create registry entry if no live socket is already registered for this hospital
         const alreadyLive = Object.values(hospitals).some(lh => lh.id === h.id && !lh._isRegistryEntry);
@@ -26444,10 +26054,11 @@ async function startServer() {
           };
         }
       });
-      console.log(`[ENTERPRISE DB] Pre-loaded ${dbHospitals.length} registered hospitals into memory registry.`);
+      console.log(`[ENTERPRISE DB] Pre-loaded ${Object.keys(hospitals).length} registered hospitals into memory registry.`);
 
       const dbAmbulances = await AmbulanceModel.findAll({ where: { is_active: true } });
       dbAmbulances.forEach(a => {
+        if (!a.vehicleNo || a.vehicleNo.toUpperCase().startsWith('AMB-') || a.vehicleNo.toUpperCase().startsWith('MH12')) return;
         const registryKey = `registry_amb_${a.id}`;
         const alreadyLive = Object.values(ambulances).some(la => la.unitId === a.vehicleNo && !la._isRegistryEntry);
         if (!alreadyLive) {
@@ -26468,18 +26079,16 @@ async function startServer() {
           };
         }
       });
-      console.log(`[ENTERPRISE DB] Pre-loaded ${dbAmbulances.length} registered ambulances into memory registry.`);
+      console.log(`[ENTERPRISE DB] Pre-loaded ${Object.keys(ambulances).length} registered ambulances into memory registry.`);
     } catch (preloadErr) {
       console.error('[BOOT PRELOAD ERROR] Failed to preload entities from DB:', preloadErr.message);
     }
 
-
-
     // 3. Open port to incoming connections
     const PORT = process.env.PORT || 5000;
     if (process.env.NODE_ENV !== 'test') {
-      server.listen(PORT, () => {
-        console.log(`\n🚑  Emergency Care Server running on http://localhost:${PORT}`);
+      server.listen(PORT, '0.0.0.0', () => {
+        console.log(`\n🚑  Emergency Care Server running on http://0.0.0.0:${PORT}`);
         console.log(`📡  Socket.io ready for real-time connections\n`);
       });
     }
@@ -80370,71 +79979,6 @@ cd frontend
 npm install
 npm run build
 ```
-
-================================================
-FILE: REAL_WORLD_AUDIT.md
-================================================
-# RescueLink Real-World Audit
-
-## REAL
-Features that are genuinely functional, backed by robust application logic, encryption, and persistence:
-- **PostgreSQL Data Architecture**: Full database models (`User`, `Patient`, `Ambulance`, `Hospital`, `Incident`, `VitalsHistory`, `AuditLog`, `ChronicLog`, `Consent`, `DoctorHospital`, `EmergencyCorridor`, `InsuranceClaim`, `MciTriageTag`, `MedicalDrone`, `PendingErasure`, `Prescription`) via Sequelize ORM with automatic local SQLite fallback.
-- **JWT & Multi-Factor Authentication**: Role-Based Access Control (`patient`, `doctor`, `paramedic`, `city_admin`, `hospital_admin`, `family`) with TOTP 2FA verification (`backend/utils/twoFactor.js`, `backend/routes/mfa.js`).
-- **Application-Layer Cryptography**: AES-256-GCM encryption for PHI/PII fields (`name`, `dob`, `abha_number`, `emergency_contact_mobile`, `pickup_address`) in `backend/utils/encryption.js`.
-- **Targeted Socket.IO Telemetry**: Room-restricted communication (`mission_${reqId}`, `admin_warroom`, `global_hospitals`) preventing global bandwidth leaks.
-- **Rule-Based Clinical Decision Support**: Instant deterministic clinical risk assessment based on physiological thresholds (`HospitalDashboard.js`).
-- **Audit Logging Engine**: Immutable log append engine (`backend/utils/auditLogger.js`) tracking data accesses and DPDP compliance purges.
-- **Offline Storage & Synchronization**: IndexedDB local queue on client (`frontend/src/utils/IndexedDBBridge.js`) and REST sync endpoint (`/api/sync`).
-
-## PARTIAL
-Features that work but depend on external services, tokens, or environment configuration:
-- **Geocoding & Route Navigation**: OpenStreetMap Nominatim reverse-geocoding operates live for coordinates; Mapbox routing requires `REACT_APP_MAPBOX_TOKEN`.
-- **ABDM ABHA Health Records Linking**: Includes ABDM sandbox API structures and local database lookup fallbacks (`backend/routes/abdm.js`).
-- **FHIR R4 Interoperability**: Generates valid FHIR JSON resources (`Patient`, `Encounter`, `Observation`, `Condition`) in `backend/utils/fhirConverter.js`, but lacks direct external FHIR server (e.g. HAPI FHIR) push adapter.
-- **Paramedic Mobile Application**: `RescueLinkMobile` (React Native) and `AmbulanceStreamer.js` (PWA) contain UI for jobs, GPS, and vitals, but require full operational state machine enforcement (`OFFLINE`, `AVAILABLE`, `ASSIGNED`, `EN_ROUTE_TO_PATIENT`, `AT_SCENE`, `PATIENT_ONBOARD`, `EN_ROUTE_TO_HOSPITAL`, `AT_HOSPITAL`, `HANDOVER_COMPLETE`).
-- **Telemedicine Audio/Video**: WebRTC signaling is operational via Socket.IO; Daily.co integration requires active API keys.
-
-## MOCK/SIMULATED
-Features currently using simulated data, fallback data, virtual entities, or fake API responses in development/demo mode:
-- **Simulated Ambulance Movement**: Background route simulation (`generateSimulatedAmbulanceMovement` in `backend/services/dispatchAgent.js` & `backend/server.js`) broadcasting synthetic telemetry when no real paramedic is online.
-- **Simulated Vitals Waveforms**: Synthetic physiological waveform generator in dev mode (`vitalsBridge.js`).
-- **Mock SMS / WhatsApp Notifications**: `backend/utils/whatsapp.js` outputs console logs when Twilio credentials are not set.
-- **Mock Payment Gateway**: `backend/routes/payments.js` uses test keys and mock fallback responses in dev mode.
-- **Simulated NDMA Disaster Alerts**: Mock disaster broadcast engine (`backend/utils/ndmaIntegration.js`).
-
-## BROKEN
-Features or operational gaps that must be resolved for pilot readiness:
-- **Uncontrolled Fallback Behaviors**: Lack of explicit `APP_MODE=pilot` mode enforcing that simulated ambulances/vitals never activate silently in pilot/production.
-- **Race Condition in Admission Acceptance**: Concurrent hospital admission acceptances lack atomic database locking, creating potential race conditions if two hospitals accept the same emergency dispatch simultaneously.
-- **Incomplete Paramedic State Machine**: Missing strict server-side state machine enforcement for paramedic lifecycle transitions with mandatory timestamps and audit logging.
-
-## UNSAFE FOR REAL PATIENT DATA
-- **Dev Mode Fallbacks**: Insecure default JWT and encryption keys permitted when `NODE_ENV` is not set to `production` or `pilot`.
-- **Silent Fallbacks to Mock Data**: When external APIs (e.g., ABDM) fail, system currently falls back to mock responses in dev mode instead of failing honestly with `SERVICE_UNAVAILABLE`.
-
-## REQUIRED EXTERNAL INTEGRATIONS
-- **Managed PostgreSQL Instance**: AWS RDS / Neon / DigitalOcean Managed DB with TLS enabled.
-- **Redis Cache & Session Store**: Redis cluster for Socket.IO adapter scaling and token blacklisting.
-- **Twilio SMS / WhatsApp API**: Production credentials for real SMS/WhatsApp dispatch alerts.
-- **Razorpay Live Gateway**: Production keys for emergency transport billing.
-- **ABDM Production Credentials**: Official ABDM gateway client ID, secret, and SSL certificates.
-- **Mapbox Live Access Token**: High-concurrency map tile rendering.
-
-## PILOT BLOCKERS
-1. **Absence of Explicit APP_MODE Flag**: Need `APP_MODE=pilot` (or `production`) that completely disables virtual ambulances, fake vitals, fake verification, and synthetic external success.
-2. **Real Ambulance & Paramedic Workflow**: Strict ambulance status state machine (`OFFLINE`, `AVAILABLE`, `ASSIGNED`, `EN_ROUTE_TO_PATIENT`, `AT_SCENE`, `PATIENT_ONBOARD`, `EN_ROUTE_TO_HOSPITAL`, `AT_HOSPITAL`, `HANDOVER_COMPLETE`) with zero virtual units in pilot mode.
-3. **Atomic Hospital Admission Locking**: Transactional resource reservation preventing two hospitals from accepting the same emergency.
-4. **Structured Digital Handover**: Mandatory paramedic submission and receiving hospital sign-off with immutable audit records.
-5. **Real-World Fail-Honest Behavior**: Explicit `SERVICE_UNAVAILABLE` responses when external integrations (ABDM, Twilio, Maps) are offline.
-
-## RECOMMENDED IMPLEMENTATION ORDER
-1. **Phase 1: Environment & Pilot Mode Guardrails** (`APP_MODE` environment flag, fail-honest handlers, disable simulation in pilot).
-2. **Phase 2: Operational Ambulance & Paramedic State Machine** (Database model enum updates, mobile API endpoints, socket synchronization).
-3. **Phase 3: Real GPS Telemetry Ingestion** (Mobile GPS tracking integration, battery-conscious update throttling, mission room targeting).
-4. **Phase 4: Atomic Hospital Admission & Resource Reservation** (PostgreSQL transaction locking, concurrent request protection).
-5. **Phase 5: Real Vitals Entry & Offline Synchronization** (Source attribution `manual` vs `device`, offline queue with idempotency keys).
-6. **Phase 6: Structured Digital Clinical Handover** (Paramedic handover payload, hospital receipt sign-off, audit record locking).
-7. **Phase 7: End-to-End Testing, Security Audits, & Pilot Documentation** (`PILOT_DEPLOYMENT.md`, `REAL_INTEGRATIONS.md`, end-to-end integration tests).
 
 ================================================
 FILE: REALTIME_ARCHITECTURE.md
