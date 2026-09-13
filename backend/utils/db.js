@@ -14,7 +14,7 @@ const dbPort = process.env.DB_PORT || 5432;
 // (hospitals, ambulances, users) live here and survive server restarts.
 // The DATABASE_URL env variable on Render/Vercel, if set, will be used instead.
 // If not set, we fall back to the hardcoded Neon URL so data is NEVER lost.
-const NEON_URL = "postgresql://neondb_owner:npg_YlSeb1kgv6PB@ep-shiny-dust-axomvx38-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
+const NEON_URL = "postgresql://neondb_owner:npg_YlSeb1kgv6PB@ep-shiny-dust-axomvx38-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require";
 const databaseUrl = process.env.DATABASE_URL || NEON_URL; // Allow environment variable override
 
 if (!useSqlite && !databaseUrl) {
