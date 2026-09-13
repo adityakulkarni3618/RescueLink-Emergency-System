@@ -3770,12 +3770,34 @@ async function startServer() {
     });
     console.log(`[ENTERPRISE DB] Restored ${persisted.length} active incidents into memory.`);
 
+    // ── Purge seeded demo entities from DB BEFORE preloading registry ──────────
+    try {
+      const { Hospital: HospitalModel, Ambulance: AmbulanceModel } = require('./utils/db');
+      const seedKeywords = ['City General', 'Apollo', 'Manipal', 'Apex', 'National', 'Fortis', 'Max'];
+      await HospitalModel.destroy({
+        where: {
+          [Op.or]: seedKeywords.map(kw => ({ name: { [Op.like]: `%${kw}%` } }))
+        }
+      }).catch(() => {});
+      await AmbulanceModel.destroy({
+        where: {
+          [Op.or]: [
+            { vehicleNo: { [Op.like]: 'AMB-%' } },
+            { vehicleNo: { [Op.like]: 'MH12%' } }
+          ]
+        }
+      }).catch(() => {});
+      console.log('[STARTUP] Purged historical demo entities from DB before preloading.');
+    } catch (purgeErr) {}
+
     // ── Pre-load registered hospitals from DB into in-memory registry ──────────
     // This ensures hospitals show in dashboards after restarts, even without an active socket
     try {
       const { Hospital: HospitalModel, Ambulance: AmbulanceModel } = require('./utils/db');
+      const seedKeywords = ['City General', 'Apollo', 'Manipal', 'Apex', 'National', 'Fortis', 'Max'];
       const dbHospitals = await HospitalModel.findAll({ where: { is_active: true } });
       dbHospitals.forEach(h => {
+        if (!h.name || seedKeywords.some(kw => h.name.toLowerCase().includes(kw.toLowerCase()))) return;
         const registryKey = `registry_${h.id}`;
         // Only create registry entry if no live socket is already registered for this hospital
         const alreadyLive = Object.values(hospitals).some(lh => lh.id === h.id && !lh._isRegistryEntry);
@@ -3798,10 +3820,11 @@ async function startServer() {
           };
         }
       });
-      console.log(`[ENTERPRISE DB] Pre-loaded ${dbHospitals.length} registered hospitals into memory registry.`);
+      console.log(`[ENTERPRISE DB] Pre-loaded ${Object.keys(hospitals).length} registered hospitals into memory registry.`);
 
       const dbAmbulances = await AmbulanceModel.findAll({ where: { is_active: true } });
       dbAmbulances.forEach(a => {
+        if (!a.vehicleNo || a.vehicleNo.toUpperCase().startsWith('AMB-') || a.vehicleNo.toUpperCase().startsWith('MH12')) return;
         const registryKey = `registry_amb_${a.id}`;
         const alreadyLive = Object.values(ambulances).some(la => la.unitId === a.vehicleNo && !la._isRegistryEntry);
         if (!alreadyLive) {
@@ -3822,18 +3845,16 @@ async function startServer() {
           };
         }
       });
-      console.log(`[ENTERPRISE DB] Pre-loaded ${dbAmbulances.length} registered ambulances into memory registry.`);
+      console.log(`[ENTERPRISE DB] Pre-loaded ${Object.keys(ambulances).length} registered ambulances into memory registry.`);
     } catch (preloadErr) {
       console.error('[BOOT PRELOAD ERROR] Failed to preload entities from DB:', preloadErr.message);
     }
 
-
-
     // 3. Open port to incoming connections
     const PORT = process.env.PORT || 5000;
     if (process.env.NODE_ENV !== 'test') {
-      server.listen(PORT, () => {
-        console.log(`\n🚑  Emergency Care Server running on http://localhost:${PORT}`);
+      server.listen(PORT, '0.0.0.0', () => {
+        console.log(`\n🚑  Emergency Care Server running on http://0.0.0.0:${PORT}`);
         console.log(`📡  Socket.io ready for real-time connections\n`);
       });
     }
