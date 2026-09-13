@@ -33286,14 +33286,14 @@ volumes:
 FILE: Dockerfile
 ================================================
 # Multi-stage Node production container for Backend Server
-FROM node:18-alpine AS builder
+FROM node:18-slim AS builder
 
 WORKDIR /usr/src/app
 
 COPY backend/package*.json ./
-RUN npm install --omit=dev
+RUN npm install --omit=dev --no-audit --no-fund
 
-FROM node:18-alpine
+FROM node:18-slim
 
 WORKDIR /usr/src/app
 
@@ -33306,6 +33306,7 @@ ENV PORT=5000
 EXPOSE 5000
 
 CMD ["node", "server.js"]
+
 
 ================================================
 FILE: Dockerfile.frontend
