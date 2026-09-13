@@ -101,7 +101,7 @@ const { initVitalsBridge } = require('./utils/vitalsBridge');
 const cache = require('./utils/cache');
 const { acquireLock, releaseLock } = require('./utils/redis');
 const { sendPushNotification, sendTopicNotification } = require('./utils/pushNotifications');
-const { initializeCorridorForRoute, evaluatePreemption, startWatchdog } = require('./utils/emergencyCorridor');
+const { initializeCorridorForRoute, evaluatePreemption, startWatchdog, analyzeAlternateRoute, executeRouteSwitch, executeKeepPrimary } = require('./utils/emergencyCorridor');
 
 // NOTE: @socket.io/cluster-adapter only works inside a Node.js cluster (PM2/master-worker).
 // It is disabled here for standalone dev. In production with PM2, enable it in a cluster entrypoint.
@@ -1730,8 +1730,73 @@ io.on('connection', (socket) => {
       if (!activeRequests[reqId].incidentNotes) activeRequests[reqId].incidentNotes = [];
       activeRequests[reqId].incidentNotes.push(fullNote);
       io.to(`mission_${reqId}`).emit('incident-note', fullNote);
-    } else {
-      socket.broadcast.emit('incident-note', fullNote);
+  // Phase B Socket.IO Handlers for Traffic-Aware Alternate Corridor
+  socket.on('corridor:request-route-analysis', async (data) => {
+    const { incidentId, activeObstructions } = data || {};
+    if (!incidentId || !activeRequests[incidentId]) return;
+    const req = activeRequests[incidentId];
+    const ambLoc = req.location || req.userLocation;
+    const destLoc = req.hospitalLocation || req.assignedHospital?.location || { lat: req.hospital_lat, lng: req.hospital_lng };
+    const routeCoords = req.routePath || [];
+    const version = req.routeVersion || 1;
+
+    const analysis = await analyzeAlternateRoute(incidentId, ambLoc, destLoc, routeCoords, activeObstructions || activeIncidentZones, version);
+    if (analysis) {
+      io.to(`mission_${incidentId}`).emit('corridor:alternate-route-analysis', analysis);
+      io.to('admin_warroom').emit('corridor:alternate-route-analysis', analysis);
+      if (analysis.recommendation === 'SWITCH_ALTERNATE') {
+        io.to(`mission_${incidentId}`).emit('corridor:route-recommendation', analysis);
+        io.to('admin_warroom').emit('corridor:route-recommendation', analysis);
+      }
+    }
+  });
+
+  socket.on('corridor:accept-alternate-route', async (data) => {
+    const { incidentId, alternateCoordinates, operatorId } = data || {};
+    if (!incidentId) return;
+
+    const result = await executeRouteSwitch(incidentId, alternateCoordinates, operatorId || 'CONTROL_ROOM', io);
+    if (result.success && activeRequests[incidentId]) {
+      activeRequests[incidentId].routePath = alternateCoordinates.map(c => Array.isArray(c) ? { lat: c[0], lng: c[1] } : c);
+      activeRequests[incidentId].routeVersion = result.routeVersion;
+      io.to(`mission_${incidentId}`).emit('route-update', { reqId: incidentId, routePath: activeRequests[incidentId].routePath, routeVersion: result.routeVersion });
+    }
+  });
+
+  socket.on('corridor:reject-alternate-route', async (data) => {
+    const { incidentId, operatorId } = data || {};
+    if (!incidentId) return;
+
+    await executeKeepPrimary(incidentId, operatorId || 'CONTROL_ROOM', io);
+  });
+
+  socket.on('corridor:simulate-traffic-obstruction', async (data) => {
+    const { incidentId, location, severity, type } = data || {};
+    if (!incidentId) return;
+
+    const obs = {
+      id: `obs_${Date.now()}`,
+      location: location || { lat: 28.6200, lng: 77.2120 },
+      severity: severity || 'HIGH',
+      type: type || 'Heavy Congestion / Accident Block',
+      delaySec: 210
+    };
+
+    activeIncidentZones.push(obs);
+    io.to(`mission_${incidentId}`).emit('corridor:traffic-incident-declared', obs);
+    io.to('admin_warroom').emit('corridor:traffic-incident-declared', obs);
+
+    if (activeRequests[incidentId]) {
+      const req = activeRequests[incidentId];
+      const ambLoc = req.location || req.userLocation || { lat: 28.6139, lng: 77.2090 };
+      const destLoc = req.hospitalLocation || { lat: 28.6304, lng: 77.2177 };
+      const routeCoords = req.routePath || [];
+      const analysis = await analyzeAlternateRoute(incidentId, ambLoc, destLoc, routeCoords, activeIncidentZones, req.routeVersion || 1);
+      if (analysis) {
+        io.to(`mission_${incidentId}`).emit('corridor:alternate-route-analysis', analysis);
+        io.to(`mission_${incidentId}`).emit('corridor:route-recommendation', analysis);
+        io.to('admin_warroom').emit('corridor:route-recommendation', analysis);
+      }
     }
   });
 
