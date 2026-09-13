@@ -3,10 +3,8 @@ FROM node:18-alpine AS builder
 
 WORKDIR /usr/src/app
 
-RUN apk add --no-cache python3 make g++ gcc
-
 COPY backend/package*.json ./
-RUN npm install --omit=dev || npm install --omit=dev --legacy-peer-deps
+RUN npm install --omit=dev
 
 FROM node:18-alpine
 

@@ -44,7 +44,6 @@
     "razorpay": "^2.9.6",
     "s2-geometry": "^1.2.10",
     "sequelize": "^6.37.8",
-    "serialport": "^13.0.0",
     "socket.io": "^4.7.2",
     "speakeasy": "^2.0.0",
     "sqlite3": "^5.1.7",
@@ -53,6 +52,9 @@
     "twilio": "^6.0.2",
     "uuid": "^14.0.0",
     "winston": "^3.19.0"
+  },
+  "optionalDependencies": {
+    "serialport": "^13.0.0"
   },
   "devDependencies": {
     "jest": "^30.4.2",
