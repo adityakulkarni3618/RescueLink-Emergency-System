@@ -14922,7 +14922,6 @@ FILE: backend\package.json
     "razorpay": "^2.9.6",
     "s2-geometry": "^1.2.10",
     "sequelize": "^6.37.8",
-    "serialport": "^13.0.0",
     "socket.io": "^4.7.2",
     "speakeasy": "^2.0.0",
     "sqlite3": "^5.1.7",
@@ -14931,6 +14930,9 @@ FILE: backend\package.json
     "twilio": "^6.0.2",
     "uuid": "^14.0.0",
     "winston": "^3.19.0"
+  },
+  "optionalDependencies": {
+    "serialport": "^13.0.0"
   },
   "devDependencies": {
     "jest": "^30.4.2",
@@ -21637,46 +21639,63 @@ directCheck();
 ================================================
 FILE: backend\scripts\direct_purge.js
 ================================================
-const { Hospital, Ambulance, User } = require('../utils/db');
-const { Op } = require('sequelize');
+const { Sequelize } = require('sequelize');
+const dotenv = require('dotenv');
+dotenv.config();
 
-async function directPurge() {
+const dbUrl = process.env.DATABASE_URL || 'postgresql://neondb_owner:npg_YlSeb1kgv6PB@ep-shiny-dust-axomvx38-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require';
+
+const sequelize = new Sequelize(dbUrl, {
+  logging: false,
+  dialectOptions: {
+    ssl: {
+      require: true,
+      rejectUnauthorized: false
+    }
+  }
+});
+
+async function purge() {
   try {
-    console.log('[DIRECT PURGE] Purging demo seed entities from Neon PostgreSQL database...');
+    await sequelize.authenticate();
+    console.log('[DB PURGE] Connected to PostgreSQL DB successfully.');
 
-    const seedHospitalKeywords = ['City General', 'Apollo', 'Manipal', 'Apex', 'National', 'Fortis', 'Max'];
-    const whereHosp = {
-      [Op.or]: seedHospitalKeywords.map(kw => ({ name: { [Op.like]: `%${kw}%` } }))
-    };
+    const [deletedH] = await sequelize.query(`
+      DELETE FROM hospitals 
+      WHERE name ILIKE '%City General%' 
+         OR name ILIKE '%Apollo%' 
+         OR name ILIKE '%Manipal%' 
+         OR name ILIKE '%Apex%' 
+         OR name ILIKE '%National%' 
+         OR name ILIKE '%Fortis%' 
+         OR name ILIKE '%Max%'
+      RETURNING id, name;
+    `);
 
-    const deletedHospitals = await Hospital.destroy({ where: whereHosp });
-    console.log(`[DIRECT PURGE] Deleted ${deletedHospitals} demo hospitals.`);
+    console.log('[DB PURGE] Deleted hardcoded hospitals:', deletedH);
 
-    const whereAmb = {
-      [Op.or]: [
-        { vehicleNo: { [Op.like]: 'AMB-%' } },
-        { vehicleNo: { [Op.like]: 'MH12%' } }
-      ]
-    };
+    const [deletedA] = await sequelize.query(`
+      DELETE FROM ambulances 
+      WHERE "vehicleNo" ILIKE 'AMB-%' 
+         OR "vehicleNo" ILIKE 'MH12%'
+      RETURNING id, "vehicleNo";
+    `);
 
-    const deletedAmbulances = await Ambulance.destroy({ where: whereAmb });
-    console.log(`[DIRECT PURGE] Deleted ${deletedAmbulances} demo ambulances.`);
+    console.log('[DB PURGE] Deleted hardcoded ambulances:', deletedA);
 
-    const remainingHospitals = await Hospital.findAll({ raw: true });
-    const remainingAmbulances = await Ambulance.findAll({ raw: true });
+    const [hospitals] = await sequelize.query(`SELECT id, name, city, is_active FROM hospitals;`);
+    console.log('[DB PURGE] Current Hospitals in DB:', hospitals);
 
-    console.log(`\n✅ Remaining in database:`);
-    console.log(`  Hospitals (${remainingHospitals.length}):`, remainingHospitals.map(h => h.name));
-    console.log(`  Ambulances (${remainingAmbulances.length}):`, remainingAmbulances.map(a => a.vehicleNo));
+    const [ambulances] = await sequelize.query(`SELECT id, "vehicleNo", driver_name FROM ambulances;`);
+    console.log('[DB PURGE] Current Ambulances in DB:', ambulances);
 
-    process.exit(0);
+    await sequelize.close();
   } catch (err) {
-    console.error('[DIRECT PURGE ERROR]', err);
-    process.exit(1);
+    console.error('[DB PURGE ERROR]', err.message);
   }
 }
 
-directPurge();
+purge();
 
 ================================================
 FILE: backend\scripts\list_hospitals.js
@@ -29119,7 +29138,7 @@ const dbPort = process.env.DB_PORT || 5432;
 // (hospitals, ambulances, users) live here and survive server restarts.
 // The DATABASE_URL env variable on Render/Vercel, if set, will be used instead.
 // If not set, we fall back to the hardcoded Neon URL so data is NEVER lost.
-const NEON_URL = "postgresql://neondb_owner:npg_YlSeb1kgv6PB@ep-shiny-dust-axomvx38-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
+const NEON_URL = "postgresql://neondb_owner:npg_YlSeb1kgv6PB@ep-shiny-dust-axomvx38-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require";
 const databaseUrl = process.env.DATABASE_URL || NEON_URL; // Allow environment variable override
 
 if (!useSqlite && !databaseUrl) {
@@ -33244,10 +33263,8 @@ FROM node:18-alpine AS builder
 
 WORKDIR /usr/src/app
 
-RUN apk add --no-cache python3 make g++ gcc
-
 COPY backend/package*.json ./
-RUN npm install --omit=dev || npm install --omit=dev --legacy-peer-deps
+RUN npm install --omit=dev
 
 FROM node:18-alpine
 
