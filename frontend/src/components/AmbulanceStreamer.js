@@ -1087,42 +1087,80 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
     };
 
     if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(pos => {
-        const initLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        setLocation(initLoc);
-        setLocationMethod('Native GPS');
-        socket.emit('location-update', initLoc);
-        socket.emit('register-ambulance', { 
-          location: initLoc, 
-          available: true, 
-          unitId: authUnit?.unitId,
-          vehicleNo: authUnit?.vehicleNo,
-          driverName: authUnit?.driverName,
-          token
-        });
-      }, async (err) => {
-        console.warn('GPS initial fetch error:', err);
-        let fallbackLoc = null;
-        if (authUnit && (authUnit.lat || authUnit.latitude) && (authUnit.lng || authUnit.longitude)) {
-          fallbackLoc = {
-            lat: parseFloat(authUnit.lat || authUnit.latitude),
-            lng: parseFloat(authUnit.lng || authUnit.longitude)
+      let lastFixTime = Date.now();
+      const watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const { latitude, longitude, accuracy, speed, heading } = pos.coords;
+          const initLoc = { lat: latitude, lng: longitude };
+          lastFixTime = Date.now();
+
+          setLocation(initLoc);
+          setGpsAccuracy(accuracy ? Math.round(accuracy) : null);
+          setGpsSpeed(speed !== null ? Math.round(speed * 3.6) : null);
+          setGpsHeading(heading !== null ? Math.round(heading) : null);
+          setLocationMethod('Native Mobile GPS');
+          setGpsError(null);
+
+          const telemetryPayload = {
+            latitude,
+            longitude,
+            accuracy: accuracy || 5,
+            speed: speed || 0,
+            heading: heading || 0,
+            timestamp: pos.timestamp || Date.now(),
+            unitId: authUnit?.unitId,
+            reqId: assignedUserRef.current?.id,
+            source: 'DEVICE',
+            status: 'LIVE'
           };
-          setLocationMethod('Registered Profile Coordinates');
-        } else {
-          fallbackLoc = await fetchIpLocation();
-        }
-        setLocation(fallbackLoc);
-        socket.emit('location-update', fallbackLoc);
-        socket.emit('register-ambulance', { 
-          location: fallbackLoc, 
-          available: true, 
-          unitId: authUnit?.unitId,
-          vehicleNo: authUnit?.vehicleNo,
-          driverName: authUnit?.driverName,
-          token
-        });
-      }, { timeout: 10000, enableHighAccuracy: true });
+
+          socket.emit('location-update', initLoc);
+          socket.emit('ambulance:location-update', telemetryPayload);
+          socket.emit('register-ambulance', { 
+            location: initLoc, 
+            available: true, 
+            unitId: authUnit?.unitId,
+            vehicleNo: authUnit?.vehicleNo,
+            driverName: authUnit?.driverName,
+            token
+          });
+        },
+        async (err) => {
+          console.warn('[MOBILE GPS WATCH ERROR]', err.message);
+          let fallbackLoc = null;
+          if (authUnit && (authUnit.lat || authUnit.latitude) && (authUnit.lng || authUnit.longitude)) {
+            fallbackLoc = {
+              lat: parseFloat(authUnit.lat || authUnit.latitude),
+              lng: parseFloat(authUnit.lng || authUnit.longitude)
+            };
+            setLocationMethod('Registered Profile Coordinates');
+          } else {
+            fallbackLoc = await fetchIpLocation();
+          }
+
+          if (err.code === 1) {
+            setGpsError('Location permission denied. Please grant permission for live phone GPS tracking.');
+            setLocationMethod('UNAVAILABLE');
+          } else {
+            setGpsError(`GPS fix delay: ${err.message}`);
+            setLocationMethod('STALE');
+          }
+
+          setLocation(fallbackLoc);
+          socket.emit('location-update', fallbackLoc);
+          socket.emit('register-ambulance', { 
+            location: fallbackLoc, 
+            available: true, 
+            unitId: authUnit?.unitId,
+            vehicleNo: authUnit?.vehicleNo,
+            driverName: authUnit?.driverName,
+            token
+          });
+        },
+        { timeout: 15000, enableHighAccuracy: true, maximumAge: 3000 }
+      );
+
+      geoWatchIdRef.current = watchId;
     } else {
       (async () => {
         let fallbackLoc = null;
@@ -1136,6 +1174,8 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
           fallbackLoc = await fetchIpLocation();
         }
         setLocation(fallbackLoc);
+        setLocationMethod('UNAVAILABLE');
+        setGpsError('HTML5 Geolocation is not supported in this browser.');
         socket.emit('location-update', fallbackLoc);
         socket.emit('register-ambulance', { 
           location: fallbackLoc, 

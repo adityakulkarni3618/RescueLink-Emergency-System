@@ -61,7 +61,85 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
 app.get('/health', (req, res) => {
-  res.json({ status: 'HEALTHY', timestamp: new Date().toISOString(), system: 'RescueLink Emergency System' });
+  const { APP_MODE } = require('./utils/config');
+  res.json({
+    status: 'HEALTHY',
+    mode: APP_MODE,
+    timestamp: new Date().toISOString(),
+    system: 'RescueLink Emergency Care Coordination System'
+  });
+});
+
+app.get('/health/live', (req, res) => {
+  res.json({ status: 'UP', timestamp: new Date().toISOString() });
+});
+
+app.get('/health/ready', async (req, res) => {
+  try {
+    const { sequelize } = require('./utils/db');
+    await sequelize.authenticate();
+    const { APP_MODE } = require('./utils/config');
+    return res.json({
+      status: 'READY',
+      mode: APP_MODE,
+      database: 'CONNECTED',
+      dialect: sequelize.getDialect(),
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    return res.status(503).json({
+      status: 'NOT_READY',
+      database: 'DISCONNECTED',
+      error: err.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+app.get('/api/provider-status', (req, res) => {
+  const { APP_MODE } = require('./utils/config');
+  
+  const providers = {
+    gpsProvider: {
+      type: 'GPSProvider',
+      status: 'LIVE',
+      source: 'MobileBrowserGPSProvider',
+      detail: 'HTML5 Mobile Geolocation Streamer'
+    },
+    routingProvider: {
+      type: 'RoutingProvider',
+      status: process.env.MAPBOX_TOKEN ? 'LIVE' : 'ESTIMATED',
+      provider: process.env.MAPBOX_TOKEN ? 'Mapbox Traffic API' : 'OSRM / Haversine Engine',
+      source: process.env.MAPBOX_TOKEN ? 'LIVE' : 'ESTIMATED'
+    },
+    vitalsProvider: {
+      type: 'VitalsProvider',
+      status: process.env.SERIAL_PORT_PATH ? 'LIVE' : 'SIMULATED',
+      source: process.env.SERIAL_PORT_PATH ? 'DEVICE' : 'SIMULATED',
+      detail: process.env.SERIAL_PORT_PATH ? `Serial Port ${process.env.SERIAL_PORT_PATH}` : 'SimulatorVitalsProvider'
+    },
+    trafficControllerAdapter: {
+      type: 'TrafficControllerAdapter',
+      status: process.env.CONTROLLER_MODE || 'SIMULATED',
+      source: process.env.CONTROLLER_MODE === 'MUNICIPAL' ? 'MUNICIPAL_CONTROLLER' : 'SIMULATOR'
+    },
+    smsProvider: {
+      type: 'WhatsAppService / SMPP',
+      status: (process.env.SMPP_HOST || (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_ACCOUNT_SID.startsWith('AC'))) ? 'LIVE' : 'UNAVAILABLE',
+      reason: (process.env.SMPP_HOST || (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_ACCOUNT_SID.startsWith('AC'))) ? null : 'Unconfigured telecom credentials'
+    },
+    abdmProvider: {
+      type: 'ABDMService',
+      status: (process.env.ABDM_CLIENT_ID && process.env.ABDM_CLIENT_ID !== 'SBX_000000') ? 'LIVE' : 'SANDBOX',
+      gateway: (process.env.ABDM_CLIENT_ID && process.env.ABDM_CLIENT_ID !== 'SBX_000000') ? 'ABDM Production Gateway' : 'ABDM Dev Sandbox'
+    }
+  };
+
+  return res.json({
+    appMode: APP_MODE,
+    timestamp: new Date().toISOString(),
+    providers
+  });
 });
 
 app.get('/api/db-diagnostic', async (req, res) => {
