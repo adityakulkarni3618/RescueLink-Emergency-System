@@ -20,10 +20,11 @@ class WhatsAppService {
   }
 
   async sendSMS(to, message) {
+    const { APP_MODE } = require('./config');
     try {
       const smppService = require('./smppService');
       const response = await smppService.sendSMS(to, message);
-      if (response && !response.mock) {
+      if (response && response.status === 'LIVE') {
         console.log(`[SMS-SMPP] Dispatched successfully via SMPP gateway: ${response.messageId}`);
         return response;
       }
@@ -32,8 +33,11 @@ class WhatsAppService {
     }
 
     if (this.isMock) {
+      if (APP_MODE === 'pilot' || APP_MODE === 'production') {
+        return { success: false, status: 'UNAVAILABLE', reason: 'Twilio SMS credentials unconfigured' };
+      }
       console.log(`[SMS MOCK] To: ${to} | Message: ${message}`);
-      return;
+      return { success: true, status: 'SIMULATED' };
     }
 
     const cleanTo = to.replace(/[^\d+]/g, '');
@@ -45,17 +49,21 @@ class WhatsAppService {
         to: cleanTo
       });
       console.log(`[SMS] Sent to ${cleanTo} from ${this.smsFromNumber}: ${response.sid}`);
-      return response;
+      return { success: true, status: 'LIVE', sid: response.sid };
     } catch (error) {
-      console.error(`[SMS ERROR] Failed to send to ${cleanTo} from ${this.smsFromNumber} (Account SID: ${this.accountSid ? this.accountSid.substring(0, 10) + '...' : 'none'}):`, error.message);
+      console.error(`[SMS ERROR] Failed to send to ${cleanTo} from ${this.smsFromNumber}:`, error.message);
       throw error;
     }
   }
 
   async sendMessage(to, message) {
+    const { APP_MODE } = require('./config');
     if (this.isMock) {
+      if (APP_MODE === 'pilot' || APP_MODE === 'production') {
+        return { success: false, status: 'UNAVAILABLE', reason: 'Twilio WhatsApp credentials unconfigured' };
+      }
       console.log(`[WHATSAPP MOCK] To: ${to} | Message: ${message}`);
-      return;
+      return { success: true, status: 'SIMULATED' };
     }
 
     // Clean number: strip everything except '+' and digits

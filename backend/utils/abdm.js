@@ -50,11 +50,19 @@ class ABDMService {
    * Verifies ABHA number or address.
    */
   async verifyAbhaAddress(abhaAddress) {
+    const { APP_MODE } = require('./config');
     if (!this.isLive) {
+      if (APP_MODE === 'pilot' || APP_MODE === 'production') {
+        return {
+          verified: false,
+          status: 'UNAVAILABLE',
+          reason: 'ABDM Client credentials (ABDM_CLIENT_ID / ABDM_CLIENT_SECRET) unconfigured for production gateway'
+        };
+      }
       console.log(`[ABDM MOCK] Verifying ABHA address: ${abhaAddress}`);
       // Simulate verification based on ABHA address pattern
       if (abhaAddress.includes('invalid')) {
-        return { verified: false, error: 'ABHA Address not found' };
+        return { verified: false, error: 'ABHA Address not found', status: 'SIMULATED' };
       }
       return {
         verified: true,
@@ -63,7 +71,8 @@ class ABDMService {
         gender: 'F',
         dob: '1992-08-24',
         mobile: '+919876543210',
-        healthIdNumber: '91-1234-5678-9012'
+        healthIdNumber: '91-1234-5678-9012',
+        status: 'SIMULATED'
       };
     }
 
