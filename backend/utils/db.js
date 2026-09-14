@@ -78,6 +78,10 @@ const EmergencyCorridor = require('../models/EmergencyCorridor')(sequelize);
 const GoodSamaritan = require('../models/GoodSamaritan')(sequelize);
 const MciTriageTag = require('../models/MciTriageTag')(sequelize);
 const MedicalDrone = require('../models/MedicalDrone')(sequelize);
+const ClinicalHandover = require('../models/ClinicalHandover')(sequelize);
+
+Incident.hasMany(ClinicalHandover, { foreignKey: 'incident_id', as: 'clinicalHandovers' });
+ClinicalHandover.belongsTo(Incident, { foreignKey: 'incident_id', as: 'incident' });
 
 // Define relations / associations
 Patient.hasMany(Prescription, { foreignKey: 'patient_id', as: 'prescriptions' });
@@ -193,6 +197,8 @@ async function syncDatabase() {
     await sequelize.sync();
     await EmergencyCorridor.sync({ alter: true }).catch(e => console.warn('[DB] EmergencyCorridor alter sync:', e.message));
     await Incident.sync({ alter: true }).catch(e => console.warn('[DB] Incident alter sync:', e.message));
+    await Hospital.sync({ alter: true }).catch(e => console.warn('[DB] Hospital alter sync:', e.message));
+    await ClinicalHandover.sync({ alter: true }).catch(e => console.warn('[DB] ClinicalHandover alter sync:', e.message));
 
     // Run SQL DDL Migrations
     const runMigrations = require('../scripts/run-migrations');
@@ -229,6 +235,7 @@ module.exports = {
   GoodSamaritan,
   MciTriageTag,
   MedicalDrone,
+  ClinicalHandover,
   syncDatabase,
   healthCheck,
   closeDatabase
