@@ -723,43 +723,45 @@ const io = new Server(server, {
 app.set('socketio', io);
 
 // Mount Socket.io Redis adapter for horizontal scaling with dynamic fallback
-try {
-  const { createAdapter } = require('@socket.io/redis-adapter');
-  const Redis = require('ioredis');
+if (process.env.NODE_ENV !== 'test') {
+  try {
+    const { createAdapter } = require('@socket.io/redis-adapter');
+    const Redis = require('ioredis');
 
-  const pubClient = process.env.REDIS_SENTINELS ? new Redis({
-    sentinels: process.env.REDIS_SENTINELS.split(',').map(s => {
-      const [host, port] = s.split(':');
-      return { host, port: parseInt(port) || 26379 };
-    }),
-    name: process.env.REDIS_SENTINEL_NAME || 'mymaster',
-    maxRetriesPerRequest: 1,
-    retryStrategy: (times) => times > 3 ? null : 1000
-  }) : new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
-    maxRetriesPerRequest: 1,
-    retryStrategy(times) {
-      if (times > 3) {
-        console.log('[REDIS ADAPTER] Connection timeout. Fallback to in-memory socket synchronization.');
-        return null;
+    const pubClient = process.env.REDIS_SENTINELS ? new Redis({
+      sentinels: process.env.REDIS_SENTINELS.split(',').map(s => {
+        const [host, port] = s.split(':');
+        return { host, port: parseInt(port) || 26379 };
+      }),
+      name: process.env.REDIS_SENTINEL_NAME || 'mymaster',
+      maxRetriesPerRequest: 1,
+      retryStrategy: (times) => times > 3 ? null : 1000
+    }) : new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+      maxRetriesPerRequest: 1,
+      retryStrategy(times) {
+        if (times > 3) {
+          console.log('[REDIS ADAPTER] Connection timeout. Fallback to in-memory socket synchronization.');
+          return null;
+        }
+        return 1000;
       }
-      return 1000;
-    }
-  });
-
-  pubClient.on('error', (err) => {
-    // Suppress adapter error alerts
-  });
-
-  pubClient.on('connect', () => {
-    console.log('[REDIS ADAPTER] Connected successfully, mounting Redis Pub/Sub adapter.');
-    const subClient = pubClient.duplicate();
-    subClient.on('error', (err) => {
-      // Suppress subClient adapter error alerts to prevent crashes
     });
-    io.adapter(createAdapter(pubClient, subClient));
-  });
-} catch (adapterErr) {
-  console.log('[REDIS ADAPTER] Initialization failed, using standard memory adapter:', adapterErr.message);
+
+    pubClient.on('error', (err) => {
+      // Suppress adapter error alerts
+    });
+
+    pubClient.on('connect', () => {
+      console.log('[REDIS ADAPTER] Connected successfully, mounting Redis Pub/Sub adapter.');
+      const subClient = pubClient.duplicate();
+      subClient.on('error', (err) => {
+        // Suppress subClient adapter error alerts to prevent crashes
+      });
+      io.adapter(createAdapter(pubClient, subClient));
+    });
+  } catch (adapterErr) {
+    console.log('[REDIS ADAPTER] Initialization failed, using standard memory adapter:', adapterErr.message);
+  }
 }
 
 // Socket connection rate limiting (max 5 connections per IP simultaneously)
@@ -1997,33 +1999,152 @@ io.on('connection', (socket) => {
     const req = activeRequests[reqId];
     if (req && req.resourceLocksPending) {
       if (approved) {
-        req.resourceLocks = req.resourceLocksPending;
-        
-        // Auto-decrement real hospital resources in db
+        // Atomic DB transaction & row locking to prevent double-booking concurrent reservations
+        const { Hospital, sequelize } = require('./utils/db');
+        const t = await sequelize.transaction().catch(() => null);
+
         try {
-          const { Hospital } = require('./utils/db');
-          const hosp = await Hospital.findByPk(req.hospitalId);
+          const hosp = await Hospital.findByPk(req.hospitalId, { transaction: t, lock: t ? true : false });
           if (hosp) {
+            if (req.resourceLocksPending.traumaBay && hosp.total_beds <= 0) {
+              if (t) await t.rollback();
+              io.to(`mission_${reqId}`).emit('hospital-resources-locked', { reqId, locks: {}, status: 'RESOURCE_NO_LONGER_AVAILABLE', reason: 'Trauma Bay capacity fully occupied' });
+              delete req.resourceLocksPending;
+              return;
+            }
             if (req.resourceLocksPending.traumaBay && hosp.total_beds > 0) {
               hosp.total_beds -= 1;
             }
             if (req.resourceLocksPending.ventilatorStandby && hosp.ventilators > 0) {
               hosp.ventilators -= 1;
             }
-            await hosp.save();
+            await hosp.save({ transaction: t });
+            if (t) await t.commit();
+
+            req.resourceLocks = req.resourceLocksPending;
             io.to('admin_warroom').to('global_hospitals').emit('hospitals-update', await Hospital.findAll());
+            io.to(`mission_${reqId}`).emit('hospital-resources-locked', { reqId, locks: req.resourceLocks, status: 'APPROVED' });
+          } else {
+            if (t) await t.rollback();
+            io.to(`mission_${reqId}`).emit('hospital-resources-locked', { reqId, locks: {}, status: 'DENIED' });
           }
         } catch (dbErr) {
+          if (t) await t.rollback().catch(() => {});
           console.error('[LOCK DB ERROR]', dbErr.message);
+          io.to(`mission_${reqId}`).emit('hospital-resources-locked', { reqId, locks: {}, status: 'ERROR', reason: dbErr.message });
         }
-
-        io.to(`mission_${reqId}`).emit('hospital-resources-locked', { reqId, locks: req.resourceLocks, status: 'APPROVED' });
       } else {
         io.to(`mission_${reqId}`).emit('hospital-resources-locked', { reqId, locks: {}, status: 'DENIED' });
       }
       delete req.resourceLocksPending;
       delete req.lockRequestExpires;
       syncMissionToDB(reqId);
+    }
+  });
+
+  socket.on('ambulance:update-state', async (data) => {
+    const { reqId, targetState, actor, details } = data || {};
+    if (!reqId || !targetState) return;
+
+    try {
+      const { Incident } = require('./utils/db');
+      const { transitionAmbulanceState } = require('./utils/ambulanceStateMachine');
+      const incident = await Incident.findByPk(reqId);
+      if (incident) {
+        const result = await transitionAmbulanceState(incident, targetState, actor || 'PARAMEDIC', details || '');
+        if (result.success) {
+          if (activeRequests[reqId]) {
+            activeRequests[reqId].ambulance_state = targetState;
+            activeRequests[reqId].status = incident.status;
+          }
+          const eventPayload = { reqId, currentState: targetState, status: incident.status, timestamp: new Date().toISOString() };
+          io.to(`mission_${reqId}`).emit('ambulance:state-updated', eventPayload);
+          io.to('admin_warroom').emit('ambulance:state-updated', eventPayload);
+        } else {
+          socket.emit('error-alert', { message: result.reason });
+        }
+      }
+    } catch (err) {
+      console.error('[AMBULANCE STATE ERROR]', err.message);
+    }
+  });
+
+  socket.on('handover:submit', async (data) => {
+    const { reqId, chiefComplaint, vitalsSnapshot, news2Score, interventions, observations, paramedicId } = data || {};
+    if (!reqId || !chiefComplaint) return;
+
+    try {
+      const { Incident, ClinicalHandover, AuditLog } = require('./utils/db');
+      const incident = await Incident.findByPk(reqId);
+      const hospitalId = incident ? incident.hospital_id : (activeRequests[reqId]?.hospitalId || null);
+
+      const handover = await ClinicalHandover.create({
+        incident_id: reqId,
+        hospital_id: hospitalId,
+        paramedic_id: paramedicId || socket.id,
+        chief_complaint: chiefComplaint,
+        vitals_snapshot: vitalsSnapshot || (activeRequests[reqId]?.vitalsHistory?.slice(-1)[0] || {}),
+        news2_score: news2Score || 0,
+        interventions_given: interventions || '',
+        clinical_observations: observations || '',
+        status: 'SUBMITTED',
+        submitted_at: new Date()
+      });
+
+      await AuditLog.create({
+        action: 'HANDOVER_SUBMITTED',
+        details: `Clinical SBAR Handover ${handover.id} submitted for mission ${reqId} by paramedic ${paramedicId || socket.id}`,
+        severity: 'INFO'
+      }).catch(() => {});
+
+      if (activeRequests[reqId]) {
+        activeRequests[reqId].clinicalHandover = handover;
+      }
+
+      const eventPayload = { reqId, handoverId: handover.id, handover, status: 'SUBMITTED', timestamp: new Date().toISOString() };
+      io.to(`mission_${reqId}`).emit('handover:received', eventPayload);
+      io.to('admin_warroom').emit('handover:received', eventPayload);
+      if (hospitalId) io.to(`hospital:${hospitalId}`).emit('handover:received', eventPayload);
+
+      console.log(`[CLINICAL HANDOVER] Submitted handover ${handover.id} for mission ${reqId}`);
+    } catch (err) {
+      console.error('[HANDOVER SUBMIT ERROR]', err.message);
+      socket.emit('error-alert', { message: 'Failed to submit clinical handover: ' + err.message });
+    }
+  });
+
+  socket.on('handover:acknowledge', async (data) => {
+    const { reqId, handoverId, receivingClinicianName } = data || {};
+    if (!handoverId) return;
+
+    try {
+      const { ClinicalHandover, Incident, AuditLog } = require('./utils/db');
+      const { transitionAmbulanceState } = require('./utils/ambulanceStateMachine');
+      const handover = await ClinicalHandover.findByPk(handoverId);
+      if (handover) {
+        handover.status = 'ACKNOWLEDGED';
+        handover.receiving_clinician_name = receivingClinicianName || 'Attending ER Physician';
+        handover.acknowledged_at = new Date();
+        await handover.save();
+
+        const missionId = reqId || handover.incident_id;
+        const incident = await Incident.findByPk(missionId);
+        if (incident) {
+          await transitionAmbulanceState(incident, 'HANDOVER_COMPLETE', receivingClinicianName || 'HOSPITAL', 'Clinical handover acknowledged and signed off');
+        }
+
+        await AuditLog.create({
+          action: 'HANDOVER_ACKNOWLEDGED',
+          details: `Handover ${handoverId} for mission ${missionId} acknowledged and signed off by ${receivingClinicianName || 'Attending ER Physician'}`,
+          severity: 'INFO'
+        }).catch(() => {});
+
+        const eventPayload = { reqId: missionId, handoverId, status: 'ACKNOWLEDGED', receivingClinicianName: handover.receiving_clinician_name, timestamp: new Date().toISOString() };
+        io.to(`mission_${missionId}`).emit('handover:acknowledged', eventPayload);
+        io.to('admin_warroom').emit('handover:acknowledged', eventPayload);
+      }
+    } catch (err) {
+      console.error('[HANDOVER ACK ERROR]', err.message);
     }
   });
 

@@ -90,10 +90,19 @@ RescueLink is built from the ground up for healthcare compliance audits:
 - **ABDM Sandbox Integration Guide**: [ABDM_INTEGRATION.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/docs/ABDM_INTEGRATION.md)
 - **Hardware Monitor Hookup**: [VITALS_HARDWARE_SETUP.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/docs/VITALS_HARDWARE_SETUP.md)
 - **Incident Response Manual**: [RUNBOOK.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/RUNBOOK.md)
+- **Interactive Demo Script & Guide**: [DEMO_GUIDE.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/DEMO_GUIDE.md)
+- **Real vs Simulated Integrations Matrix**: [REAL_INTEGRATIONS.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/REAL_INTEGRATIONS.md)
+- **Municipal Pilot Readiness Assessment**: [PILOT_READINESS.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/PILOT_READINESS.md)
 
 ---
 
 ## 6. Local Quickstart & Verification
+
+### Interactive End-to-End Simulation Demo
+```bash
+cd backend
+npm run demo
+```
 
 ### Backend Verification & Test Suite
 ```bash
@@ -104,7 +113,7 @@ npm test
 
 ### Frontend Verification & Build
 ```bash
-cd frontend
+cd backend/../frontend
 npm install
 npm run build
 ```

@@ -10,9 +10,13 @@ const SMPP_SOURCE_ADDR = process.env.SMPP_SOURCE_ADDR || '123456'; // Official s
  * Send SMS using official SMPP v3.4 telecom protocol
  */
 async function sendSMS(recipient, message) {
+  const { APP_MODE } = require('./config');
   if (!SMPP_HOST) {
+    if (APP_MODE === 'pilot' || APP_MODE === 'production') {
+      return { success: false, status: 'UNAVAILABLE', reason: 'SMPP Gateway host (SMPP_HOST) unconfigured for production SMS' };
+    }
     console.log(`[SMS-SMPP MOCK ALERT] Recipient: ${recipient} | Msg: "${message}"`);
-    return { success: true, mock: true };
+    return { success: true, status: 'SIMULATED', mock: true };
   }
 
   return new Promise((resolve, reject) => {
