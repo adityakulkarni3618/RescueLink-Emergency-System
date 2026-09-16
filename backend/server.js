@@ -209,8 +209,14 @@ const { initializeCorridorForRoute, evaluatePreemption, startWatchdog, analyzeAl
 
 const { JWT_SECRET } = require('./utils/config');
 
-// Automatic startup database purge to eliminate hardcoded demo entities
+// Environment-aware startup database cleanup check
 (async () => {
+  const { APP_MODE } = require('./utils/config');
+  if (APP_MODE === 'pilot' || APP_MODE === 'production') {
+    const modeLabel = APP_MODE === 'pilot' ? 'Pilot' : 'Production';
+    console.log(`[STARTUP] ${modeLabel} mode: operational data protection enabled. Demo cleanup disabled.`);
+    return;
+  }
   try {
     const { Hospital, Ambulance } = require('./utils/db');
     const { Op } = require('sequelize');
@@ -223,8 +229,7 @@ const { JWT_SECRET } = require('./utils/config');
     await Ambulance.destroy({
       where: {
         [Op.or]: [
-          { vehicleNo: { [Op.like]: 'AMB-%' } },
-          { vehicleNo: { [Op.like]: 'MH12%' } }
+          { vehicleNo: { [Op.like]: 'AMB-%' } }
         ]
       }
     }).catch(() => {});
@@ -1685,13 +1690,71 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('location-update', async (data) => {
-    if (ambulances[socket.id]) {
-      ambulances[socket.id].location = data;
-      io.to('admin_warroom').emit('ambulances-update', getCombinedAmbulances());
+  const handleLocationUpdate = async (socket, rawData) => {
+    if (!rawData) return;
+    const lat = rawData.lat !== undefined && rawData.lat !== null ? parseFloat(rawData.lat) : (rawData.latitude !== undefined && rawData.latitude !== null ? parseFloat(rawData.latitude) : null);
+    const lng = rawData.lng !== undefined && rawData.lng !== null ? parseFloat(rawData.lng) : (rawData.longitude !== undefined && rawData.longitude !== null ? parseFloat(rawData.longitude) : null);
+
+    const reqId = rawData.reqId || (Array.from(socket.rooms).find(r => r.startsWith('mission_')) || '').replace('mission_', '');
+
+    // Section 7: Security & Authorization Audit
+    if (reqId) {
+      const isRoomMember = socket.rooms.has(`mission_${reqId}`);
+      const activeReq = activeRequests[reqId];
+      let isAuthorized = isRoomMember;
+
+      if (activeReq) {
+        const isAssignedAmbulance = (activeReq.ambulanceSocket === socket.id) ||
+          (activeReq.unitId && socket.user && (activeReq.unitId === socket.user.id || activeReq.unitId === socket.user.unitId)) ||
+          (ambulances[socket.id] && activeReq.unitId === ambulances[socket.id].unitId);
+        const isRequestingUser = (activeReq.userSocket === socket.id) ||
+          (activeReq.userId && socket.user && activeReq.userId === socket.user.id);
+        const isAdmin = socket.user?.role === 'admin';
+
+        if (!isAssignedAmbulance && !isRequestingUser && !isAdmin && !isRoomMember) {
+          isAuthorized = false;
+        }
+      }
+
+      if (!isAuthorized) {
+        console.warn(`[SOCKET_SECURITY_REJECT] Location update from socket ${socket.id} rejected for target mission ${reqId}: Unauthorized entity.`);
+        socket.emit('error-alert', { message: `UNAUTHORIZED_TELEMETRY: Access denied for mission ${reqId}` });
+        return;
+      }
     }
 
-    const reqId = data.reqId || (Array.from(socket.rooms).find(r => r.startsWith('mission_')) || '').replace('mission_', '');
+    const timestamp = rawData.timestamp || Date.now();
+    const isStale = (Date.now() - timestamp) > 15000;
+    const source = rawData.source || (socket.user?.role === 'ambulance' ? 'MOBILE_BROWSER_GPS' : 'GPS');
+    const status = isStale ? 'STALE' : (rawData.status || (source === 'SIMULATOR' ? 'SIMULATED' : 'LIVE'));
+    const provenance = (source === 'MOBILE_BROWSER_GPS' || source === 'GPS' || source === 'DEVICE') ? 'REAL' : (source === 'SIMULATOR' ? 'SIMULATED' : 'ESTIMATED');
+
+    const data = {
+      ...rawData,
+      lat,
+      lng,
+      latitude: lat,
+      longitude: lng,
+      speed: rawData.speed !== undefined && rawData.speed !== null && !isNaN(rawData.speed) ? parseFloat(rawData.speed) : null,
+      heading: rawData.heading !== undefined && rawData.heading !== null && !isNaN(rawData.heading) ? parseFloat(rawData.heading) : null,
+      accuracy: rawData.accuracy !== undefined && rawData.accuracy !== null && !isNaN(rawData.accuracy) ? parseFloat(rawData.accuracy) : null,
+      timestamp,
+      source,
+      status,
+      provenance,
+      reqId
+    };
+
+    if (ambulances[socket.id]) {
+      ambulances[socket.id].location = data;
+      ambulances[socket.id].status = status;
+      ambulances[socket.id].source = source;
+      ambulances[socket.id].provenance = provenance;
+      ambulances[socket.id].timestamp = timestamp;
+      ambulances[socket.id].accuracy = data.accuracy;
+      ambulances[socket.id].speed = data.speed;
+      io.to('admin_warroom').emit('ambulances-update', getCombinedAmbulances());
+    }
 
     // Delta Compression & Rate-Limiting:
     if (reqId) {
@@ -1725,7 +1788,7 @@ io.on('connection', (socket) => {
 
       const lastPoint = req.gpsHistory[req.gpsHistory.length - 1];
       let increment = 0;
-      if (lastPoint && lastPoint.lat && lastPoint.lng) {
+      if (lastPoint && lastPoint.lat && lastPoint.lng && data.lat && data.lng) {
         increment = haversineDistance(lastPoint.lat, lastPoint.lng, data.lat, data.lng);
         if (increment > 10) increment = 0; // Guard against unrealistic GPS jumps
       }
@@ -1735,9 +1798,12 @@ io.on('connection', (socket) => {
         lat: data.lat,
         lng: data.lng,
         timestamp: Date.now(),
-        speed: data.speed || 0,
-        heading: data.heading || 0,
-        accuracy: data.accuracy || 0,
+        speed: data.speed !== null ? data.speed : 0,
+        heading: data.heading !== null ? data.heading : 0,
+        accuracy: data.accuracy !== null ? data.accuracy : 0,
+        source: data.source,
+        status: data.status,
+        provenance: data.provenance,
         accumulatedDistanceKm: parseFloat(req.accumulatedDistance.toFixed(3))
       };
       req.gpsHistory.push(gpsPoint);
@@ -1777,7 +1843,7 @@ io.on('connection', (socket) => {
       const lastFetchTime = lastEtaFetches[reqId] || 0;
       const now = Date.now();
       
-      if (destPos && destPos.lat && destPos.lng) {
+      if (destPos && destPos.lat && destPos.lng && data.lat && data.lng) {
         if (!req.lastEtaResult || (now - lastFetchTime > 12000)) {
           try {
             const etaResult = await getETA(data.lat, data.lng, destPos.lat, destPos.lng);
@@ -1804,13 +1870,17 @@ io.on('connection', (socket) => {
         destinationId: req.arrivedAtUser ? req.hospitalId : 'user'
       };
 
-      req.location = { lat: data.lat, lng: data.lng };
+      if (data.lat && data.lng) {
+        req.location = { lat: data.lat, lng: data.lng };
+      }
       io.to(`mission_${reqId}`).emit('location-update', enrichedData);
       console.log(`[MAP] Enriched Location update routed to mission_${reqId}`);
       syncMissionToDB(reqId);
-      evaluatePreemption(reqId, data, io, null, activeIncidentZones).catch(err => console.error('[PREEMPTION ERROR]', err));
-      const { checkForBetterHospitalMidTransport } = require('./services/hospitalMatchingAgent');
-      checkForBetterHospitalMidTransport(reqId, data.lat, data.lng, io, activeRequests).catch(err => console.error('[MID-TRANS CHECK ERROR]', err));
+      if (data.lat && data.lng) {
+        evaluatePreemption(reqId, data, io, null, activeIncidentZones).catch(err => console.error('[PREEMPTION ERROR]', err));
+        const { checkForBetterHospitalMidTransport } = require('./services/hospitalMatchingAgent');
+        checkForBetterHospitalMidTransport(reqId, data.lat, data.lng, io, activeRequests).catch(err => console.error('[MID-TRANS CHECK ERROR]', err));
+      }
     } else {
       if (reqId) {
         io.to(`mission_${reqId}`).emit('location-update', data);
@@ -1819,7 +1889,10 @@ io.on('connection', (socket) => {
         socket.broadcast.emit('location-update', data);
       }
     }
-  });
+  };
+
+  socket.on('location-update', async (data) => handleLocationUpdate(socket, data));
+  socket.on('ambulance:location-update', async (data) => handleLocationUpdate(socket, data));
 
   socket.on('chat-message', (data) => {
     let reqId = data.reqId;
@@ -3901,43 +3974,57 @@ async function startServer() {
         });
         console.log('[BOOTSTRAP] Super admin (admin@rescuelink.com) created automatically.');
       } else {
-        console.log('[BOOTSTRAP] Super admin already exists. Skipping creation.');
+        console.log('[BOOTSTRAP] Super admin already exists. Checking MFA secret health.');
+        if (existing.totp_secret) {
+          const twoFactor = require('./utils/twoFactor');
+          const decrypted = twoFactor.decryptSecret(existing.totp_secret);
+          if (!decrypted || decrypted === existing.totp_secret) {
+            console.log('[BOOTSTRAP] Admin totp_secret undecryptable (ENCRYPTION_KEY changed). Resetting totp_secret to null.');
+            existing.totp_secret = null;
+            existing.backup_codes = null;
+            await existing.save();
+          }
+        }
       }
 
-      // Auto-purge any historical demo/seeded entities on boot so only manually registered entities exist
-      try {
-        const { Hospital, Ambulance } = require('./utils/db');
-        const { Op } = require('sequelize');
-
-        // Always invalidate response cache on server startup
+      // Auto-purge any historical demo/seeded entities on boot (demo/dev only)
+      if (APP_MODE === 'pilot' || APP_MODE === 'production') {
+        const modeLabel = APP_MODE === 'pilot' ? 'Pilot' : 'Production';
+        console.log(`[STARTUP] ${modeLabel} mode: operational data protection enabled. Demo cleanup disabled.`);
+      } else {
         try {
-          const cache = require('./utils/cache');
-          await cache.del('hospitals:all');
-        } catch (cErr) {}
+          const { Hospital, Ambulance } = require('./utils/db');
+          const { Op } = require('sequelize');
 
-        const seedKeywords = ['City General', 'Apollo', 'Manipal', 'Apex', 'National', 'Fortis', 'Max'];
-        const delH = await Hospital.destroy({
-          where: {
-            [Op.or]: [
-              ...seedKeywords.map(kw => ({ name: { [Op.like]: `%${kw}%` } })),
-              { id: { [Op.in]: ['hosp_default_1', 'hosp_default_2', 'hosp_default_3', 'hosp-1', 'hosp-2', 'hosp-3', 'hosp-4'] } }
-            ]
-          }
-        });
+          // Always invalidate response cache on server startup
+          try {
+            const cache = require('./utils/cache');
+            await cache.del('hospitals:all');
+          } catch (cErr) {}
 
-        const delA = await Ambulance.destroy({
-          where: {
-            [Op.or]: [
-              { vehicleNo: { [Op.like]: 'AMB-%' } },
-              { vehicleNo: { [Op.like]: 'MH12%' } },
-              { id: { [Op.in]: ['amb_default_1', 'amb_default_2', 'amb_default_3', 'amb-101', 'amb-102', 'amb-103'] } }
-            ]
-          }
-        });
+          const seedKeywords = ['City General', 'Apollo', 'Manipal', 'Apex', 'National', 'Fortis', 'Max'];
+          const delH = await Hospital.destroy({
+            where: {
+              [Op.or]: [
+                ...seedKeywords.map(kw => ({ name: { [Op.like]: `%${kw}%` } })),
+                { id: { [Op.in]: ['hosp_default_1', 'hosp_default_2', 'hosp_default_3', 'hosp-1', 'hosp-2', 'hosp-3', 'hosp-4'] } }
+              ]
+            }
+          });
 
-        console.log(`[BOOT PURGE] Database sweep complete. Removed ${delH} demo hospitals and ${delA} demo ambulances.`);
-      } catch (purgeErr) {
-        console.warn('[BOOT PURGE WARNING]', purgeErr.message);
+          const delA = await Ambulance.destroy({
+            where: {
+              [Op.or]: [
+                { vehicleNo: { [Op.like]: 'AMB-%' } },
+                { id: { [Op.in]: ['amb_default_1', 'amb_default_2', 'amb_default_3', 'amb-101', 'amb-102', 'amb-103'] } }
+              ]
+            }
+          });
+
+          console.log(`[BOOT PURGE] Database sweep complete. Removed ${delH} demo hospitals and ${delA} demo ambulances.`);
+        } catch (purgeErr) {
+          console.warn('[BOOT PURGE WARNING]', purgeErr.message);
+        }
       }
     } catch (bootstrapErr) {
       console.error('[BOOTSTRAP] Failed to auto-create super admin:', bootstrapErr.message);
@@ -3994,25 +4081,26 @@ async function startServer() {
     });
     console.log(`[ENTERPRISE DB] Restored ${persisted.length} active incidents into memory.`);
 
-    // ── Purge seeded demo entities from DB BEFORE preloading registry ──────────
-    try {
-      const { Hospital: HospitalModel, Ambulance: AmbulanceModel } = require('./utils/db');
-      const seedKeywords = ['City General', 'Apollo', 'Manipal', 'Apex', 'National', 'Fortis', 'Max'];
-      await HospitalModel.destroy({
-        where: {
-          [Op.or]: seedKeywords.map(kw => ({ name: { [Op.like]: `%${kw}%` } }))
-        }
-      }).catch(() => {});
-      await AmbulanceModel.destroy({
-        where: {
-          [Op.or]: [
-            { vehicleNo: { [Op.like]: 'AMB-%' } },
-            { vehicleNo: { [Op.like]: 'MH12%' } }
-          ]
-        }
-      }).catch(() => {});
-      console.log('[STARTUP] Purged historical demo entities from DB before preloading.');
-    } catch (purgeErr) {}
+    // ── Purge seeded demo entities from DB BEFORE preloading registry (demo / dev only) ──
+    if (APP_MODE !== 'pilot' && APP_MODE !== 'production') {
+      try {
+        const { Hospital: HospitalModel, Ambulance: AmbulanceModel } = require('./utils/db');
+        const seedKeywords = ['City General', 'Apollo', 'Manipal', 'Apex', 'National', 'Fortis', 'Max'];
+        await HospitalModel.destroy({
+          where: {
+            [Op.or]: seedKeywords.map(kw => ({ name: { [Op.like]: `%${kw}%` } }))
+          }
+        }).catch(() => {});
+        await AmbulanceModel.destroy({
+          where: {
+            [Op.or]: [
+              { vehicleNo: { [Op.like]: 'AMB-%' } }
+            ]
+          }
+        }).catch(() => {});
+        console.log('[STARTUP] Purged historical demo entities from DB before preloading.');
+      } catch (purgeErr) {}
+    }
 
     // ── Pre-load registered hospitals from DB into in-memory registry ──────────
     // This ensures hospitals show in dashboards after restarts, even without an active socket
@@ -4021,7 +4109,8 @@ async function startServer() {
       const seedKeywords = ['City General', 'Apollo', 'Manipal', 'Apex', 'National', 'Fortis', 'Max'];
       const dbHospitals = await HospitalModel.findAll({ where: { is_active: true } });
       dbHospitals.forEach(h => {
-        if (!h.name || seedKeywords.some(kw => h.name.toLowerCase().includes(kw.toLowerCase()))) return;
+        const isDemoKeyword = seedKeywords.some(kw => (h.name || '').toLowerCase().includes(kw.toLowerCase()));
+        if (!h.name || (APP_MODE !== 'pilot' && APP_MODE !== 'production' && isDemoKeyword)) return;
         const registryKey = `registry_${h.id}`;
         // Only create registry entry if no live socket is already registered for this hospital
         const alreadyLive = Object.values(hospitals).some(lh => lh.id === h.id && !lh._isRegistryEntry);
@@ -4048,7 +4137,7 @@ async function startServer() {
 
       const dbAmbulances = await AmbulanceModel.findAll({ where: { is_active: true } });
       dbAmbulances.forEach(a => {
-        if (!a.vehicleNo || a.vehicleNo.toUpperCase().startsWith('AMB-') || a.vehicleNo.toUpperCase().startsWith('MH12')) return;
+        if (!a.vehicleNo || a.vehicleNo.toUpperCase().startsWith('AMB-')) return;
         const registryKey = `registry_amb_${a.id}`;
         const alreadyLive = Object.values(ambulances).some(la => la.unitId === a.vehicleNo && !la._isRegistryEntry);
         if (!alreadyLive) {

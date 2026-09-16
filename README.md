@@ -57,6 +57,10 @@ graph TD
 - 🗺️ **Dynamic Emergency Corridor Geocoding**: Real-time OpenStreetMap Nominatim reverse-geocoding of mission coordinates for automatic municipal corridor region resolution.
 - 🛡️ **DPDP Act 2023 & HIPAA Compliance**: Application-layer AES-256-GCM encryption for PHI/PII, dynamic consent revocation, and automated retention policies.
 - 🏥 **Clean User-Registered Entity Registry**: Guaranteed production environment free of hardcoded seed entities (`City General`, `Apollo`, `Manipal`, `AMB-101` .. `AMB-105`), showing exclusively user-registered hospitals and ambulances from the Neon Cloud PostgreSQL database.
+- 🔑 **Strict Multi-Factor Authentication & Account Verification Guards**: Mandated 2FA validation with role-based access controls and explicit 403 `PENDING_APPROVAL` guards that prevent unverified or pending accounts from entering active portals.
+- 🧹 **Automatic Session Auto-Purge & Storage Isolation**: Session handling isolated to `sessionStorage` with on-mount auto-purging of legacy tokens to ensure clean state isolation across reloads.
+- 🚑 **Real DB Indian Vehicle & Unit Preservation**: Native persistence and full API visibility for user-registered Indian vehicle numbers (including `MH12` regional vehicle formats) in the PostgreSQL database without synthetic filtering.
+- 📜 **Emergency Corridor Schema Synchronization**: Migration scripts (`012_fix_emergency_corridor_enum.sql`) ensuring strict database enum type safety for corridor state machines and dynamic alternate route options.
 
 ---
 

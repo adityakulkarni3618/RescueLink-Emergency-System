@@ -9,7 +9,7 @@ describe('Clinical Handover Immutability Test', () => {
   });
 
   afterAll(async () => {
-    await sequelize.close();
+    // Keep connection alive for other test suites running sequentially
   });
 
   test('should allow transition from SUBMITTED to ACKNOWLEDGED', async () => {

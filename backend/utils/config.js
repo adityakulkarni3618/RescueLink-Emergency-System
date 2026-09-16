@@ -1,5 +1,9 @@
 // config.js
 // Secure configuration manager: validates cryptographic secrets, APP_MODE, and environment parameters
+// If running under Jest test runner (NODE_ENV === 'test'), enforce test mode unless explicitly testing another mode
+if (process.env.NODE_ENV === 'test') {
+  process.env.APP_MODE = process.env.TEST_APP_MODE || 'test';
+}
 
 const appMode = (process.env.APP_MODE || (process.env.NODE_ENV === 'production' ? 'production' : 'development')).toLowerCase();
 const jwtSecret = process.env.JWT_SECRET;
@@ -7,16 +11,18 @@ const encryptionKey = process.env.ENCRYPTION_KEY;
 
 function validateAppSecurity(mode = appMode) {
   const isStrict = mode === 'production' || mode === 'pilot' || process.env.NODE_ENV === 'production';
+  const currentJwt = process.env.JWT_SECRET !== undefined ? process.env.JWT_SECRET : jwtSecret;
+  const currentEnc = process.env.ENCRYPTION_KEY !== undefined ? process.env.ENCRYPTION_KEY : encryptionKey;
   
   if (isStrict) {
     // Validate JWT Secret strength in production/pilot
-    if (!jwtSecret || jwtSecret.length < 32 || jwtSecret.includes('change_this_in_production')) {
+    if (!currentJwt || currentJwt.length < 32 || currentJwt.includes('change_this_in_production')) {
       console.error(`[FATAL SECURITY ERROR] JWT_SECRET is missing, too short (<32 chars), or uses committed defaults in ${mode} mode. Refusing to boot server.`);
       process.exit(1);
     }
 
     // Validate Application-layer Encryption Key strength in production/pilot
-    if (!encryptionKey || encryptionKey.length < 32 || encryptionKey.includes('2b7e151628aed2a6abf7158809cf4f3c')) {
+    if (!currentEnc || currentEnc.length < 32 || currentEnc.includes('2b7e151628aed2a6abf7158809cf4f3c')) {
       console.error(`[FATAL SECURITY ERROR] ENCRYPTION_KEY is missing or uses default committed values in ${mode} mode. Refusing to boot server.`);
       process.exit(1);
     }

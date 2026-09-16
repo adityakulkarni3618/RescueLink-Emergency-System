@@ -1,4 +1,9 @@
-const smpp = require('smpp');
+let smpp = null;
+try {
+  smpp = eval('require')('smpp');
+} catch (e) {
+  smpp = null;
+}
 
 const SMPP_HOST = process.env.SMPP_HOST || null;
 const SMPP_PORT = process.env.SMPP_PORT || 2775;
@@ -11,8 +16,9 @@ const SMPP_SOURCE_ADDR = process.env.SMPP_SOURCE_ADDR || '123456'; // Official s
  */
 async function sendSMS(recipient, message) {
   const { APP_MODE } = require('./config');
-  if (!SMPP_HOST) {
-    if (APP_MODE === 'pilot' || APP_MODE === 'production') {
+  const currentMode = (process.env.APP_MODE || APP_MODE || '').toLowerCase();
+  if (!SMPP_HOST || !smpp) {
+    if (currentMode === 'pilot' || currentMode === 'production') {
       return { success: false, status: 'UNAVAILABLE', reason: 'SMPP Gateway host (SMPP_HOST) unconfigured for production SMS' };
     }
     console.log(`[SMS-SMPP MOCK ALERT] Recipient: ${recipient} | Msg: "${message}"`);

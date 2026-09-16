@@ -24,10 +24,11 @@ router.get('/', async (req, res) => {
 
     let plainHospitals = hospitals.map(h => typeof h.toJSON === 'function' ? h.toJSON() : h);
     
-    // Strict Filter: Never return hardcoded demo hospitals
+    // Filter out legacy static seed IDs if present, return all real registered hospitals
+    const LEGACY_SEED_IDS = ['hosp_default_1', 'hosp_default_2', 'hosp_default_3', 'hosp-1', 'hosp-2', 'hosp-3', 'hosp-4'];
     plainHospitals = plainHospitals.filter(h => {
-      if (!h || !h.name) return false;
-      return !SEED_HOSPITAL_KEYWORDS.some(kw => h.name.toLowerCase().includes(kw.toLowerCase()));
+      if (!h || !h.id) return false;
+      return !LEGACY_SEED_IDS.includes(h.id);
     });
 
     return res.json(plainHospitals);
@@ -60,7 +61,6 @@ router.get('/purge-demo-entities', async (req, res) => {
       where: {
         [Op.or]: [
           { vehicleNo: { [Op.like]: 'AMB-%' } },
-          { vehicleNo: { [Op.like]: 'MH12%' } },
           { id: { [Op.in]: ['amb_default_1', 'amb_default_2', 'amb_default_3', 'amb-101', 'amb-102', 'amb-103'] } }
         ]
       }

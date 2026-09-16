@@ -33,7 +33,8 @@ class WhatsAppService {
     }
 
     if (this.isMock) {
-      if (APP_MODE === 'pilot' || APP_MODE === 'production') {
+      const currentMode = (process.env.APP_MODE || APP_MODE || '').toLowerCase();
+      if (currentMode === 'pilot' || currentMode === 'production') {
         return { success: false, status: 'UNAVAILABLE', reason: 'Twilio SMS credentials unconfigured' };
       }
       console.log(`[SMS MOCK] To: ${to} | Message: ${message}`);
@@ -59,7 +60,8 @@ class WhatsAppService {
   async sendMessage(to, message) {
     const { APP_MODE } = require('./config');
     if (this.isMock) {
-      if (APP_MODE === 'pilot' || APP_MODE === 'production') {
+      const currentMode = (process.env.APP_MODE || APP_MODE || '').toLowerCase();
+      if (currentMode === 'pilot' || currentMode === 'production') {
         return { success: false, status: 'UNAVAILABLE', reason: 'Twilio WhatsApp credentials unconfigured' };
       }
       console.log(`[WHATSAPP MOCK] To: ${to} | Message: ${message}`);

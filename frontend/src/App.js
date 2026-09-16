@@ -23,7 +23,7 @@ window.fetch = async function (input, options = {}) {
   if (url.startsWith('/api/')) {
     url = `${API_BASE_URL}${url}`;
   }
-  const token = sessionStorage.getItem('rescuelink_token') || localStorage.getItem('rescuelink_token');
+  const token = sessionStorage.getItem('rescuelink_token');
   if (token && url.includes(SERVER_URL)) {
     options.headers = options.headers || {};
     if (!options.headers['Authorization'] && !options.headers['authorization']) {
@@ -35,7 +35,7 @@ window.fetch = async function (input, options = {}) {
 
 // Global axios request interceptor for JWT auth
 axios.interceptors.request.use((config) => {
-  const token = sessionStorage.getItem('rescuelink_token') || localStorage.getItem('rescuelink_token');
+  const token = sessionStorage.getItem('rescuelink_token');
   if (token && config.url && config.url.includes(SERVER_URL)) {
     config.headers = config.headers || {};
     if (!config.headers['Authorization'] && !config.headers['authorization']) {
@@ -1380,8 +1380,8 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
 
       sessionStorage.setItem('rescuelink_token', data.token);
       sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
-      localStorage.setItem('rescuelink_token', data.token);
-      localStorage.setItem('rescuelink_user', JSON.stringify(data.user));
+      localStorage.removeItem('rescuelink_token');
+      localStorage.removeItem('rescuelink_user');
 
       let viewRole = 'user';
       if (data.user.role === 'doctor' || data.user.role === 'hospital_admin') {
@@ -1538,9 +1538,8 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
       sessionStorage.setItem('rescuelink_token', data.token);
       sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
       sessionStorage.setItem('guest_auto_sos', 'true'); // Flag to auto-trigger dispatch on dashboard load
-      localStorage.setItem('rescuelink_token', data.token);
-      localStorage.setItem('rescuelink_user', JSON.stringify(data.user));
-      localStorage.setItem('guest_auto_sos', 'true');
+      localStorage.removeItem('rescuelink_token');
+      localStorage.removeItem('rescuelink_user');
       onLoginSuccess('user', data.token);
     } catch (err) {
       setError(err.message || 'Failed to establish guest session');
@@ -1714,7 +1713,7 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
                   <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>
                     {defaultRole === 'ambulance' ? 'VEHICLE ID / EMAIL' : 'EMAIL ADDRESS'}
                   </label>
-                  <input type="text" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={defaultRole === 'ambulance' ? 'e.g. MH-12-AB-1234' : 'user@gmail.com'} required className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                  <input type="text" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={defaultRole === 'ambulance' ? 'e.g. KA-01-EQ-9999' : 'user@gmail.com'} required className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <label style={{ fontSize: 10, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>PASSWORD</label>
@@ -1760,7 +1759,7 @@ function LoginScreen({ defaultRole, onLoginSuccess, onMfaSetup, onMfaVerify, onC
                   <>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                       <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>VEHICLE PLATE NUMBER</label>
-                      <input type="text" value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} required placeholder="MH-12-QW-5678" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                      <input type="text" value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} required placeholder="e.g. KA-01-EQ-9999" className="rl-input" style={{ width: '100%', boxSizing: 'border-box' }} />
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                       <label style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>LEAD PARAMEDIC / DRIVER NAME</label>
@@ -2875,44 +2874,37 @@ function SecurityModal({ isOpen, onClose, token }) {
 /* ─── Main App ──────────────────────────────────────────────────────────── */
 export default function App() {
   const [token, setToken] = useState(() => {
+    // Purge persistent localStorage tokens to ensure new browser sessions always require explicit login
+    localStorage.removeItem('rescuelink_token');
+    localStorage.removeItem('rescuelink_user');
+    localStorage.removeItem('rescueLinkRole');
+    localStorage.removeItem('hospital_auth');
+
+    const savedUserStr = sessionStorage.getItem('rescuelink_user');
+    if (savedUserStr && (savedUserStr.includes('MH12') || savedUserStr.includes('AMB-10') || savedUserStr.includes('mh12ab1234'))) {
+      sessionStorage.removeItem('rescuelink_token');
+      sessionStorage.removeItem('rescuelink_user');
+      sessionStorage.removeItem('rescueLinkRole');
+    }
+
     const urlParams = new URLSearchParams(window.location.search);
     const urlToken = urlParams.get('token');
     if (urlToken) {
       sessionStorage.setItem('rescuelink_token', urlToken);
-      localStorage.setItem('rescuelink_token', urlToken);
       return urlToken;
     }
-    const savedToken = sessionStorage.getItem('rescuelink_token') || localStorage.getItem('rescuelink_token');
-    const savedUser = sessionStorage.getItem('rescuelink_user') || localStorage.getItem('rescuelink_user');
+    const savedToken = sessionStorage.getItem('rescuelink_token');
+    const savedUser = sessionStorage.getItem('rescuelink_user');
     if (savedToken && savedUser) {
-      if (!sessionStorage.getItem('rescuelink_token')) {
-        sessionStorage.setItem('rescuelink_token', savedToken);
-      }
-      if (!sessionStorage.getItem('rescuelink_user')) {
-        sessionStorage.setItem('rescuelink_user', savedUser);
-      }
       return savedToken;
     }
     sessionStorage.removeItem('rescuelink_token');
     sessionStorage.removeItem('rescuelink_user');
-    localStorage.removeItem('rescuelink_token');
-    localStorage.removeItem('rescuelink_user');
     return null;
   });
 
   const [role, setRole] = useState(() => {
-    const hash = window.location.hash.replace('#', '').split('/')[0];
-    if (['user', 'ambulance', 'hospital', 'admin', 'family', 'corridor'].includes(hash)) {
-      return hash;
-    }
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlRole = urlParams.get('role');
-    if (urlRole) {
-      sessionStorage.setItem('rescueLinkRole', urlRole);
-      localStorage.setItem('rescueLinkRole', urlRole);
-      return urlRole;
-    }
-    const savedUserStr = sessionStorage.getItem('rescuelink_user') || localStorage.getItem('rescuelink_user');
+    const savedUserStr = sessionStorage.getItem('rescuelink_user');
     if (savedUserStr) {
       try {
         const u = JSON.parse(savedUserStr);
@@ -2923,11 +2915,11 @@ export default function App() {
         else if (u.role === 'family') derivedRole = 'family';
         else if (u.role === 'patient') derivedRole = 'user';
         sessionStorage.setItem('rescueLinkRole', derivedRole);
-        localStorage.setItem('rescueLinkRole', derivedRole);
         return derivedRole;
       } catch (e) {}
     }
-    return sessionStorage.getItem('rescueLinkRole') || localStorage.getItem('rescueLinkRole') || null;
+    const savedRole = sessionStorage.getItem('rescueLinkRole');
+    return savedRole || null;
   });
 
   const [familyReqId] = useState(() => new URLSearchParams(window.location.search).get('reqId'));
@@ -2991,8 +2983,8 @@ export default function App() {
         setRole(parsedRole);
         sessionStorage.setItem('rescueLinkRole', parsedRole);
       } else if (!hash) {
-        const savedRole = sessionStorage.getItem('rescueLinkRole') || localStorage.getItem('rescueLinkRole');
-        const savedToken = sessionStorage.getItem('rescuelink_token') || localStorage.getItem('rescuelink_token');
+        const savedRole = sessionStorage.getItem('rescueLinkRole');
+        const savedToken = sessionStorage.getItem('rescuelink_token');
         if (savedRole && savedToken) {
           window.location.hash = savedRole;
           setRole(savedRole);
@@ -3058,12 +3050,13 @@ export default function App() {
     setToken(userToken);
     setRole(viewRole);
     sessionStorage.setItem('rescueLinkRole', viewRole);
-    localStorage.setItem('rescueLinkRole', viewRole);
-    localStorage.setItem('rescuelink_token', userToken);
+    sessionStorage.setItem('rescuelink_token', userToken);
     if (user) {
       sessionStorage.setItem('rescuelink_user', JSON.stringify(user));
-      localStorage.setItem('rescuelink_user', JSON.stringify(user));
     }
+    localStorage.removeItem('rescuelink_token');
+    localStorage.removeItem('rescuelink_user');
+    localStorage.removeItem('rescueLinkRole');
     setMfaVerifyToken(null);
     window.location.hash = viewRole;
   };
@@ -3078,12 +3071,9 @@ export default function App() {
     } catch (err) {
       console.error('Logout failed:', err);
     }
-    sessionStorage.removeItem('rescuelink_token');
-    sessionStorage.removeItem('rescuelink_user');
-    sessionStorage.removeItem('rescueLinkRole');
-    localStorage.removeItem('rescuelink_token');
-    localStorage.removeItem('rescuelink_user');
-    localStorage.removeItem('rescueLinkRole');
+    sessionStorage.clear();
+    localStorage.clear();
+    window.location.hash = '';
     setRole(null);
     setToken(null);
   };

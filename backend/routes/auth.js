@@ -123,62 +123,14 @@ router.post('/login', validate(loginBody), async (req, res) => {
       'amb-104': 'gJ2(sD8^pW',
       'amb-105': 'bM4%aV7)eK'
     };
-    const cleanIdUpper = (loginIdentifier || '').replace(/[\s\-]+/g, '').toUpperCase();
-    const isStaticAmbulanceId = /^AMB-10[1-5]$/i.test(loginIdentifier) || cleanIdUpper === 'MH12AB1234' || cleanIdUpper === 'AMB101';
-    const isHospitalLoginReq = req.body.role === 'hospital' || loginIdentifier.includes('hospital') || loginIdentifier.includes('clinic');
-
-    if (!user && !ambulanceUnit && !hospitalUnit && isStaticAmbulanceId) {
-      isAmbulanceTableLogin = true;
-      ambulanceUnit = {
-        id: 'amb_demo_unit_1',
-        vehicleNo: loginIdentifier.toUpperCase(),
-        driverName: 'Emergency Paramedic Unit',
-        contactInfo: '+91-9876543210',
-        type: 'ALS',
-        is_active: true,
-        password: password
-      };
-    } else if (!user && !ambulanceUnit && !hospitalUnit && isHospitalLoginReq) {
-      isHospitalTableLogin = true;
-      hospitalUnit = {
-        id: 'hosp_demo_center_1',
-        name: 'City Emergency Command Center',
-        email: loginEmail,
-        contact_number: '+91-7766554433',
-        city: 'Mumbai',
-        state: 'Maharashtra',
-        total_beds: 100,
-        icu_beds: 25,
-        ventilators: 12,
-        is_active: true,
-        password: password
-      };
-    }
-
-    if (!user && !ambulanceUnit && !hospitalUnit && req.body.role === 'user') {
-      console.log(`[AUTH] Auto-creating demo user for: ${loginEmail}`);
-      const demoHashedPassword = await bcrypt.hash(password || 'password123', 10);
-      user = {
-        id: `demo_user_${Date.now()}`,
-        name: 'Demo Citizen',
-        email: loginEmail,
-        password: demoHashedPassword,
-        role: 'user',
-        mobile: '+91-9988776655',
-        is_active: true
-      };
-    }
-
     if (!user && !ambulanceUnit && !hospitalUnit) {
-      console.log(`[AUTH] User not found: ${loginIdentifier}`);
-      return res.status(404).json({ error: 'Account not found. Please register first.' });
+      console.log(`[AUTH] Account not found in database: ${loginIdentifier}`);
+      return res.status(404).json({ error: 'Account not found in database. Please register first.' });
     }
 
     let isMatch = false;
     if (isAmbulanceTableLogin) {
-      if (isStaticAmbulanceId && ambulanceUnit.id === 'amb_demo_unit_1') {
-        isMatch = true;
-      } else if (!ambulanceUnit.password) {
+      if (!ambulanceUnit || !ambulanceUnit.password) {
         isMatch = false;
       } else if (typeof ambulanceUnit.password === 'string' && (ambulanceUnit.password.startsWith('$2a$') || ambulanceUnit.password.startsWith('$2b$'))) {
         isMatch = await bcrypt.compare(password, ambulanceUnit.password);
@@ -186,8 +138,8 @@ router.post('/login', validate(loginBody), async (req, res) => {
         isMatch = (password === ambulanceUnit.password);
       }
     } else if (isHospitalTableLogin) {
-      if (hospitalUnit.id === 'hosp_demo_center_1' || !hospitalUnit.password) {
-        isMatch = true; // Auto-pass for demo hospital logins
+      if (!hospitalUnit || !hospitalUnit.password) {
+        isMatch = false;
       } else if (typeof hospitalUnit.password === 'string' && (hospitalUnit.password.startsWith('$2a$') || hospitalUnit.password.startsWith('$2b$'))) {
         isMatch = await bcrypt.compare(password, hospitalUnit.password);
       } else {
@@ -217,13 +169,13 @@ router.post('/login', validate(loginBody), async (req, res) => {
     }
 
     const isActive = isAmbulanceTableLogin ? ambulanceUnit.is_active : isHospitalTableLogin ? hospitalUnit.is_active : user.is_active;
-    if (isActive === false && isMfaFullySetup) {
+    if (isActive === false) {
       console.log(`[AUTH] Login blocked: Account pending approval for ${loginIdentifier}`);
       return res.status(403).json({ error: 'PENDING_APPROVAL: Account registration is pending administrative approval.' });
     }
 
-    // Enforce MFA setup check for roles requiring MFA (doctor, admin, paramedic)
-    const roleRequiresMfa = !isAmbulanceTableLogin && !isHospitalTableLogin && (user && ['doctor', 'hospital_admin', 'city_admin', 'paramedic'].includes(user.role));
+    // Enforce MFA setup check for roles requiring MFA (doctor, admin, paramedic, hospital)
+    const roleRequiresMfa = isAmbulanceTableLogin || isHospitalTableLogin || (user && ['doctor', 'hospital_admin', 'city_admin', 'paramedic'].includes(user.role));
     const requiresMfaEnforcement = roleRequiresMfa && process.env.DISABLE_MFA !== 'true' && req.body.bypassMFA !== true && process.env.NODE_ENV !== 'test';
     
     if (requiresMfaEnforcement && (!mfaSecret || !isMfaFullySetup)) {
@@ -382,6 +334,8 @@ router.post('/login', validate(loginBody), async (req, res) => {
         hospitalName: isHospitalTableLogin ? hospitalUnit.name : targetName,
         email: targetEmail,
         role: targetRole,
+        vehicleNo: isAmbulanceTableLogin ? ambulanceUnit.vehicleNo : (extraData?.vehicleNo || (targetRole === 'paramedic' ? (targetEmail?.includes('@') ? targetEmail.split('@')[0].toUpperCase() : targetEmail) : null)),
+        unitId: isAmbulanceTableLogin ? ambulanceUnit.vehicleNo : (extraData?.unitId || extraData?.vehicleNo || targetId),
         hospital_id: targetHospitalId,
         mobile: isAmbulanceTableLogin ? ambulanceUnit.contactInfo : isHospitalTableLogin ? hospitalUnit.contact_number : user?.mobile,
         city: isAmbulanceTableLogin ? null : isHospitalTableLogin ? hospitalUnit.city : user?.city,
@@ -438,18 +392,6 @@ router.post('/verify-mfa', async (req, res) => {
           if (hospitalUnit) isHospital = true;
         } catch (e) {}
       }
-    }
-
-    // Demo/Static unit fallback lookup
-    if (!user && !ambulanceUnit && !hospitalUnit && isAmbulance && decoded.id === 'amb_demo_unit_1') {
-      ambulanceUnit = {
-        id: 'amb_demo_unit_1',
-        vehicleNo: 'MH12AB1234',
-        driverName: 'Emergency Paramedic Unit',
-        contactInfo: '+91-9876543210',
-        type: 'ALS',
-        is_active: true
-      };
     }
 
     const activeEntity = isAmbulance ? ambulanceUnit : isHospital ? hospitalUnit : user;

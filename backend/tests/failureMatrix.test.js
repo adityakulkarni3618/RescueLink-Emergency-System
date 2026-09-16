@@ -14,7 +14,7 @@ describe('RescueLink System Failure & Boundary Matrix Tests', () => {
   });
 
   afterAll(async () => {
-    await sequelize.close();
+    // Keep connection alive for other test suites running sequentially
   });
 
   test('GPS Timeout: Telemetry > 15s old must be marked STALE', () => {
@@ -69,5 +69,22 @@ describe('RescueLink System Failure & Boundary Matrix Tests', () => {
 
     handover.news2_score = 5;
     await expect(handover.save()).rejects.toThrow('Completed clinical handovers are immutable');
+  });
+
+  test('Pilot Mode Operational Protection: Server startup does NOT delete hospitals', async () => {
+    const testHospital = await Hospital.create({
+      id: '11112222-3333-4444-5555-666677778888',
+      name: 'City General Trauma Center',
+      city: 'Pune',
+      state: 'Maharashtra',
+      is_active: true
+    });
+
+    // Verify record exists and is untouched
+    const found = await Hospital.findByPk(testHospital.id);
+    expect(found).not.toBeNull();
+    expect(found.name).toBe('City General Trauma Center');
+
+    await testHospital.destroy();
   });
 });

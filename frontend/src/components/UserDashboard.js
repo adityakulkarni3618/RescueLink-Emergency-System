@@ -415,7 +415,7 @@ export default function UserDashboard({ socket, connected, onLogout, onSwitchRol
           // Check registered profile location as secondary fallback if GPS fails/denied
           let profileLoc = null;
           try {
-            const uStr = sessionStorage.getItem('rescuelink_user') || localStorage.getItem('rescuelink_user');
+            const uStr = sessionStorage.getItem('rescuelink_user');
             if (uStr) {
               const u = JSON.parse(uStr);
               if (u.lat && u.lng && !isNaN(parseFloat(u.lat)) && !isNaN(parseFloat(u.lng))) {

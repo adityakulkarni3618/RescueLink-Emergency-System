@@ -12,7 +12,9 @@ class ABDMService {
     this.clientId = process.env.ABDM_CLIENT_ID || 'SBX_000000';
     this.clientSecret = process.env.ABDM_CLIENT_SECRET || 'xxxx-xxxx-xxxx-xxxx';
     this.gatewayUrl = 'https://dev.abdm.gov.in/gateway';
-    this.isLive = !!(process.env.ABDM_CLIENT_ID && process.env.ABDM_CLIENT_SECRET && process.env.ABDM_CLIENT_ID !== 'SBX_000000');
+    const id = process.env.ABDM_CLIENT_ID || '';
+    const secret = process.env.ABDM_CLIENT_SECRET || '';
+    this.isLive = !!(id && secret && !id.includes('your_') && !id.includes('SBX_000000') && !id.includes('SBX_00XXXX'));
     this.accessToken = null;
     this.tokenExpiry = null;
   }
@@ -51,8 +53,10 @@ class ABDMService {
    */
   async verifyAbhaAddress(abhaAddress) {
     const { APP_MODE } = require('./config');
+    const currentMode = (process.env.APP_MODE || APP_MODE || '').toLowerCase();
+
     if (!this.isLive) {
-      if (APP_MODE === 'pilot' || APP_MODE === 'production') {
+      if (currentMode === 'pilot' || currentMode === 'production') {
         return {
           verified: false,
           status: 'UNAVAILABLE',
