@@ -9,7 +9,7 @@ describe('Concurrency Hospital Bed Reservation Test', () => {
   });
 
   afterAll(async () => {
-    await sequelize.close();
+    // Keep connection alive for other test suites running sequentially
   });
 
   test('should safely handle concurrent bed reservation requests', async () => {

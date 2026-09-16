@@ -193,23 +193,26 @@ async function syncDatabase() {
       console.log('[DB] Connected to PostgreSQL');
     }
 
-    // Ensure model structures and SQL migrations run safely across environments
-    await sequelize.sync();
-    await EmergencyCorridor.sync({ alter: true }).catch(e => console.warn('[DB] EmergencyCorridor alter sync:', e.message));
-    await Incident.sync({ alter: true }).catch(e => console.warn('[DB] Incident alter sync:', e.message));
-    await Hospital.sync({ alter: true }).catch(e => console.warn('[DB] Hospital alter sync:', e.message));
-    await ClinicalHandover.sync({ alter: true }).catch(e => console.warn('[DB] ClinicalHandover alter sync:', e.message));
-
-    // Run SQL DDL Migrations
+    // 1. Run SQL DDL Migrations first to ensure ENUMs and table schemas are aligned
     const runMigrations = require('../scripts/run-migrations');
     await runMigrations();
+
+    // 2. Ensure model structures sync safely across environments
+    await sequelize.sync();
+    if (!useSqlite) {
+      await EmergencyCorridor.sync({ alter: true });
+      await Incident.sync({ alter: true });
+      await Hospital.sync({ alter: true });
+      await ClinicalHandover.sync({ alter: true });
+    }
+
     console.log('[DB] Database synchronized.');
   } catch (err) {
     const { triggerCriticalAlert } = require('./alerting');
     await triggerCriticalAlert('DATABASE_CONNECT_FAIL', {
       error: err.message,
-      host: dbHost,
-      port: dbPort
+      host: process.env.DB_HOST || 'localhost',
+      port: process.env.DB_PORT || 5432
     });
     console.error('[DB] Connection or Sync failed:', err);
   }

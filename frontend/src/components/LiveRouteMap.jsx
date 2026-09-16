@@ -245,16 +245,42 @@ export default function LiveRouteMap({
       Object.values(extraAmbulances).forEach(a => {
         const aLoc = a.location || a.pos || (a.latitude && a.longitude ? { lat: a.latitude, lng: a.longitude } : (a.lat && a.lng ? { lat: a.lat, lng: a.lng } : null));
         if (isValidLatLng(aLoc)) {
-          const key = `amb_${a.id || a.vehicleNo}`;
+          const key = `amb_${a.id || a.vehicleNo || a.unitId}`;
           const pos = parseLatLng(aLoc);
-          const iconHtml = `<div style="font-size: 24px; filter: drop-shadow(0 0 8px #00ff88); text-align: center;">🚑</div>`;
+          const now = Date.now();
+          const lastUpdateSec = a.timestamp || a.location?.timestamp ? Math.max(0, Math.round((now - (a.timestamp || a.location?.timestamp)) / 1000)) : 0;
+          const status = a.status || a.location?.status || (lastUpdateSec > 15 ? 'STALE' : 'LIVE');
+          const source = a.source || a.location?.source || 'MOBILE_BROWSER_GPS';
+          const sourceLabel = source === 'MOBILE_BROWSER_GPS' ? 'Mobile Phone' : (source === 'SIMULATOR' ? 'Simulator' : 'GPS');
+          const accuracyVal = a.accuracy !== undefined && a.accuracy !== null ? a.accuracy : (a.location?.accuracy !== undefined && a.location?.accuracy !== null ? a.location?.accuracy : null);
+          const accuracyText = accuracyVal !== null ? `±${accuracyVal} m` : 'N/A';
+          const speedVal = a.speed !== undefined && a.speed !== null ? a.speed : (a.location?.speed !== undefined && a.location?.speed !== null ? a.location?.speed : null);
+          const speedText = speedVal !== null ? `${Math.round(speedVal)} km/h` : 'N/A';
+          const statusColor = status === 'LIVE' ? '#00ff88' : status === 'STALE' ? '#ffb800' : '#ff4444';
+
+          const iconHtml = `<div style="font-size: 24px; filter: drop-shadow(0 0 8px ${statusColor}); text-align: center;">🚑</div>`;
           const icon = L.divIcon({ html: iconHtml, className: '', iconSize: [28, 28], iconAnchor: [14, 14] });
+
+          const popupContent = `
+            <div style="font-family: sans-serif; font-size: 11px; color: #111;">
+              <strong style="color: #0088cc;">🚑 Unit: ${a.vehicleNo || a.unitId || 'Ambulance'}</strong><br/>
+              <strong>Driver:</strong> ${a.driverName || 'Paramedic'}<br/>
+              <strong>GPS:</strong> <span style="font-weight: bold; color: ${statusColor === '#00ff88' ? '#00aa44' : statusColor}">${status}</span><br/>
+              <strong>Source:</strong> ${sourceLabel}<br/>
+              <strong>Accuracy:</strong> ${accuracyText}<br/>
+              <strong>Speed:</strong> ${speedText}<br/>
+              <strong>Last update:</strong> ${lastUpdateSec} sec ago
+            </div>
+          `;
+
           if (!extraMarkersRef.current[key]) {
             const m = L.marker(pos, { icon }).addTo(map);
-            m.bindPopup(`<strong style="color:#00ff88;">🚑 Unit: ${a.vehicleNo}</strong><br/>Driver: ${a.driverName || 'Paramedic'}<br/>Type: ${a.type || 'ALS'}`);
+            m.bindPopup(popupContent);
             extraMarkersRef.current[key] = m;
           } else {
             extraMarkersRef.current[key].setLatLng(pos);
+            extraMarkersRef.current[key].setIcon(icon);
+            extraMarkersRef.current[key].getPopup().setContent(popupContent);
           }
         }
       });

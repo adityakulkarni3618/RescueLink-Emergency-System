@@ -1038,21 +1038,46 @@ export default function WarRoom({ socket, connected, onLogout, onSwitchRole, onS
                 No live ambulances connected yet.
               </div>
             ) : (
-              liveAmbs.map(([id, amb]) => (
-                <div key={id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid rgba(0,200,255,0.05)' }}>
-                  <div>
-                    <div style={{ fontSize: 12, color: '#e0eaff', fontWeight: 'bold' }}>{amb.unitId || id.slice(-8)}</div>
-                    <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.4)' }}>{amb.driverName || 'On Duty'}</div>
+              liveAmbs.map(([id, amb]) => {
+                const now = Date.now();
+                const lastUpdateSec = amb.timestamp || amb.location?.timestamp ? Math.max(0, Math.round((now - (amb.timestamp || amb.location?.timestamp)) / 1000)) : 0;
+                const gpsStatus = amb.status || amb.location?.status || (lastUpdateSec > 15 ? 'STALE' : 'LIVE');
+                const gpsSource = amb.source || amb.location?.source || 'MOBILE_BROWSER_GPS';
+                const sourceTag = gpsSource === 'MOBILE_BROWSER_GPS' ? '📱 Mobile GPS' : (gpsSource === 'SIMULATOR' ? '🤖 Simulator' : '🛰️ GPS');
+                const accuracyVal = amb.accuracy !== undefined && amb.accuracy !== null ? amb.accuracy : (amb.location?.accuracy !== undefined && amb.location?.accuracy !== null ? amb.location?.accuracy : null);
+                const accuracyTag = accuracyVal !== null ? `±${accuracyVal}m` : '';
+
+                return (
+                  <div key={id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(0,200,255,0.08)' }}>
+                    <div>
+                      <div style={{ fontSize: 12, color: '#e0eaff', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span>{amb.vehicleNo || amb.unitId || id.slice(-8)}</span>
+                        <span style={{ fontSize: 9, color: 'rgba(160,200,255,0.6)', fontFamily: "'Share Tech Mono'" }}>{sourceTag}</span>
+                      </div>
+                      <div style={{ fontSize: 10, color: 'rgba(160,200,255,0.5)', marginTop: 2 }}>
+                        {amb.driverName || 'Paramedic'} {accuracyTag ? `• ${accuracyTag}` : ''} • {lastUpdateSec}s ago
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                      <span style={{
+                        padding: '2px 7px', borderRadius: 10, fontSize: 9, fontWeight: 'bold',
+                        background: gpsStatus === 'LIVE' ? 'rgba(0,255,136,0.15)' : gpsStatus === 'STALE' ? 'rgba(255,184,0,0.15)' : 'rgba(255,68,68,0.15)',
+                        color: gpsStatus === 'LIVE' ? '#00ff88' : gpsStatus === 'STALE' ? '#ffb800' : '#ff4444',
+                        border: `1px solid ${gpsStatus === 'LIVE' ? 'rgba(0,255,136,0.3)' : gpsStatus === 'STALE' ? 'rgba(255,184,0,0.3)' : 'rgba(255,68,68,0.3)'}`
+                      }}>
+                        GPS: {gpsStatus}
+                      </span>
+                      <span style={{
+                        padding: '1px 6px', borderRadius: 8, fontSize: 8, fontWeight: 'bold',
+                        background: amb.available ? 'rgba(0,200,255,0.1)' : 'rgba(255,107,53,0.15)',
+                        color: amb.available ? '#00c8ff' : '#ff6b35',
+                      }}>
+                        {amb.available ? 'AVAILABLE' : 'DISPATCHED'}
+                      </span>
+                    </div>
                   </div>
-                  <span style={{
-                    padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 'bold',
-                    background: amb.available ? 'rgba(0,255,136,0.15)' : 'rgba(255,107,53,0.15)',
-                    color: amb.available ? '#00ff88' : '#ff6b35',
-                  }}>
-                    {amb.available ? 'AVAILABLE' : 'DISPATCHED'}
-                  </span>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

@@ -1790,42 +1790,31 @@ function HandoverModal({ patient, vitals, notes, onClose, previousReports, onSav
 }
 
 export default function HospitalDashboard({ socket, connected, onLogout, onSwitchRole, onShowSecurity }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    const token = sessionStorage.getItem('rescuelink_token');
+    const userStr = sessionStorage.getItem('rescuelink_user');
+    return !!(token && userStr);
+  });
 
   const [authHospital, setAuthHospital] = useState(() => {
-    const token = sessionStorage.getItem('rescuelink_token') || localStorage.getItem('rescuelink_token');
-    const userStr = sessionStorage.getItem('rescuelink_user') || localStorage.getItem('rescuelink_user');
+    const token = sessionStorage.getItem('rescuelink_token');
+    const userStr = sessionStorage.getItem('rescuelink_user');
     if (token && userStr) {
       try {
         const user = JSON.parse(userStr);
-        const displayName = user.hospitalName || (user.name ? user.name.replace(/\s+Administrator$/i, '') : null) || 'City Emergency Command Center';
+        const displayName = user.hospitalName || (user.name ? user.name.replace(/\s+Administrator$/i, '') : null) || 'Hospital Command';
         return {
-          hospitalId: user.hospital_id || user.id || 'hosp_demo_center_1',
+          hospitalId: user.hospital_id || user.id,
           name: displayName,
           adminName: user.name || 'Hospital Coordinator',
-          internalId: (user.hospital_id || user.id || 'hosp_demo_center_1').toString().toLowerCase(),
+          internalId: (user.hospital_id || user.id || '').toString().toLowerCase(),
           lat: user.lat,
           lng: user.lng,
           ...user
         };
       } catch (e) {}
     }
-    const saved = localStorage.getItem('hospital_auth');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed && parsed.name && parsed.name !== 'City Emergency Command Center') return parsed;
-      } catch (e) {}
-    }
-    // Dynamic fallback for demo mode
-    return {
-      hospitalId: 'hosp_demo_center_1',
-      name: 'City Emergency Command Center',
-      adminName: 'Hospital Coordinator',
-      internalId: 'hosp_demo_center_1',
-      lat: 18.5204,
-      lng: 73.8567
-    };
+    return null;
   });
 
   useEffect(() => {
@@ -1844,10 +1833,10 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
         const displayName = u.hospitalName || u.name;
         if (displayName) {
           const newAuth = {
-            hospitalId: u.hospital_id || u.id || 'hosp_demo_center_1',
+            hospitalId: u.hospital_id || u.id || '',
             name: displayName,
             adminName: u.name || 'Hospital Coordinator',
-            internalId: (u.hospital_id || u.id || 'hosp_demo_center_1').toString().toLowerCase(),
+            internalId: (u.hospital_id || u.id || '').toString().toLowerCase(),
             lat: u.lat,
             lng: u.lng,
             ...u
@@ -2122,7 +2111,7 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
         sessionStorage.setItem('rescuelink_token', data.token);
         if (data.user) {
           sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
-          localStorage.setItem('rescuelink_user', JSON.stringify(data.user));
+          localStorage.removeItem('rescuelink_user');
         }
 
         const found = {
@@ -2211,7 +2200,7 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
       user = userStr ? JSON.parse(userStr) : {};
     } else {
       sessionStorage.setItem('rescuelink_user', JSON.stringify(userData));
-      localStorage.setItem('rescuelink_user', JSON.stringify(userData));
+      localStorage.removeItem('rescuelink_user');
     }
 
     sessionStorage.setItem('rescuelink_token', token);

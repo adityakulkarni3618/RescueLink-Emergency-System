@@ -9,6 +9,7 @@ import PhysiologicalWaveforms from './PhysiologicalWaveforms';
 import CorridorPanel from './CorridorPanel';
 import LiveRouteMap from './LiveRouteMap';
 import { API_BASE_URL } from '../config/api';
+import { MfaVerifyScreen } from './MfaVerifyScreen';
 
 let audioCtx = null;
 
@@ -573,39 +574,67 @@ function MapUpdater({ center }) {
 
 export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitchRole, onShowSecurity }) {
   // ── Auth State ──
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
-  const [authUnit, setAuthUnit] = useState(() => {
-    const userStr = sessionStorage.getItem('rescuelink_user') || localStorage.getItem('rescuelink_user');
-    if (userStr) {
-      const user = JSON.parse(userStr);
-      const emailUpper = (user.email || user.username || user.id || '').toUpperCase();
-      const found = AMBULANCE_CREDENTIALS.find(c => c.unitId === emailUpper) || {};
-      return {
-        unitId: user.id || found.unitId || 'AMB-101',
-        driverName: user.name || found.driverName || 'Unit 101 Lead Paramedic',
-        vehicleNo: user.vehicleNo || found.vehicleNo || (user.email?.includes('@') ? user.email.split('@')[0].toUpperCase() : (user.email || 'EMG-RL-0101')),
-        type: user.type || found.type || 'ALS',
-        contactInfo: user.mobile || user.contactInfo || '',
-        equipment_checklist: user.equipment_checklist,
-        crew_members: user.crew_members,
-        license_number: user.license_number,
-        license_expiry: user.license_expiry,
-        is_system_standard: user.is_system_standard,
-        oxygen_capacity_liters: user.oxygen_capacity_liters,
-        ...user
-      };
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    const token = sessionStorage.getItem('rescuelink_token');
+    const userStr = sessionStorage.getItem('rescuelink_user');
+    if (userStr && (userStr.includes('MH12') || userStr.includes('AMB-10') || userStr.includes('mh12ab1234'))) {
+      sessionStorage.removeItem('rescuelink_token');
+      sessionStorage.removeItem('rescuelink_user');
+      sessionStorage.removeItem('rescueLinkRole');
+      localStorage.clear();
+      return false;
     }
-    // Fallback default so it doesn't crash
+    return !!(token && userStr);
+  });
+  const [authUnit, setAuthUnit] = useState(() => {
+    const token = sessionStorage.getItem('rescuelink_token');
+    const userStr = sessionStorage.getItem('rescuelink_user');
+    if (userStr && (userStr.includes('MH12') || userStr.includes('AMB-10') || userStr.includes('mh12ab1234'))) {
+      sessionStorage.removeItem('rescuelink_token');
+      sessionStorage.removeItem('rescuelink_user');
+      sessionStorage.removeItem('rescueLinkRole');
+      localStorage.clear();
+      return { unitId: '', driverName: '', vehicleNo: '', type: 'ALS' };
+    }
+    if (token && userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        if (user.vehicleNo === 'MH12AB1234' || user.vehicleNo?.startsWith('MH12') || user.email?.includes('mh12ab1234')) {
+          sessionStorage.removeItem('rescuelink_token');
+          sessionStorage.removeItem('rescuelink_user');
+          sessionStorage.removeItem('rescueLinkRole');
+          localStorage.clear();
+          return { unitId: '', driverName: '', vehicleNo: '', type: 'ALS' };
+        }
+        return {
+          unitId: user.unitId || user.vehicleNo || user.id || '',
+          driverName: user.driverName || user.name || '',
+          vehicleNo: user.vehicleNo || user.unitId || '',
+          type: user.type || 'ALS',
+          contactInfo: user.contactInfo || user.mobile || '',
+          equipment_checklist: user.equipment_checklist,
+          crew_members: user.crew_members,
+          license_number: user.license_number,
+          license_expiry: user.license_expiry,
+          is_system_standard: user.is_system_standard,
+          oxygen_capacity_liters: user.oxygen_capacity_liters,
+          ...user
+        };
+      } catch (e) {
+        console.error('Failed to parse rescuelink_user', e);
+      }
+    }
     return {
-      unitId: 'AMB-101',
-      driverName: 'Unit 101 Lead Paramedic',
-      vehicleNo: 'EMG-RL-0101',
+      unitId: '',
+      driverName: '',
+      vehicleNo: '',
       type: 'ALS'
     };
   });
   const [loginId, setLoginId] = useState('');
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [mfaToken, setMfaToken] = useState(null);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [activeMissionId, setActiveMissionId] = useState(() => localStorage.getItem('activeMissionId') || null);
   const [activeTab, setActiveTab] = useState('mission'); // mission, vitals, comms, settings
@@ -998,13 +1027,24 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
   const handleLogin = async () => {
     try {
       const cleanId = loginId.trim().toLowerCase();
-      // ENTERPRISE AUTH: Request cryptographic JWT from backend
+      // ENTERPRISE AUTH: Request cryptographic JWT from backend with 2FA
       const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: cleanId, password: loginPass, role: 'ambulance', bypassMFA: true })
+        body: JSON.stringify({ id: cleanId, password: loginPass, role: 'ambulance' })
       });
       const data = await res.json();
+      
+      if (data.requiresMFA) {
+        setMfaToken(data.mfaToken);
+        setLoginError('');
+        return;
+      }
+
+      if (res.status === 403 && data.requiresMfaSetup) {
+        setLoginError('2FA Setup Required. Please log in via the Main Gateway to set up your Authenticator app.');
+        return;
+      }
       
       if (res.ok && data.token) {
         // Securely store JWT for future API calls
@@ -1013,28 +1053,29 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
         // Always store user details for session persistence upon refresh
         if (data.user) {
           sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
-          localStorage.setItem('rescuelink_user', JSON.stringify(data.user));
+          localStorage.removeItem('rescuelink_user');
         }
         
         console.log('[ENTERPRISE SEC] JWT Successfully obtained and stored in session.');
         
-        // Hydrate frontend profile (Fallback to mock details if purely DB-driven)
+        // Hydrate frontend profile with real database registered paramedic details
+        const registeredUser = data.user || {};
+        const cleanIdUpper = loginId.trim().toUpperCase();
+        const staticMatch = AMBULANCE_CREDENTIALS.find(c => c.unitId === cleanIdUpper || c.vehicleNo === cleanIdUpper) || {};
+
         const found = {
-          ...(AMBULANCE_CREDENTIALS.find(c => c.unitId === loginId.toUpperCase()) || { 
-            driverName: data.user?.name || 'Paramedic Lead', 
-            vehicleNo: 'MH-14-EM-0001', 
-            type: 'ALS Unit' 
-          })
+          unitId: registeredUser.unitId || registeredUser.vehicleNo || registeredUser.id || staticMatch.unitId || cleanIdUpper,
+          driverName: registeredUser.driverName || registeredUser.name || staticMatch.driverName || 'Paramedic Lead',
+          vehicleNo: registeredUser.vehicleNo || staticMatch.vehicleNo || cleanIdUpper,
+          type: registeredUser.type || staticMatch.type || 'ALS',
+          contactInfo: registeredUser.contactInfo || registeredUser.mobile || staticMatch.contactInfo || '',
+          ...registeredUser
         };
-        
-        // Always use the real database UUID returned by the server for API requests
-        if (data.user?.id) {
-          found.id = data.user.id;
-          found.unitId = data.user.id;
-        } else {
-          found.unitId = cleanId;
+
+        if (registeredUser.id) {
+          found.id = registeredUser.id;
         }
-        
+
         setAuthUnit(found);
         setIsAuthenticated(true);
         setLoginError('');
@@ -1682,80 +1723,102 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
     }
   }, [patientLoaded]);
 
-  // GPS tracking loop - independent of streaming (PRODUCTION READY)
+  // GPS tracking loop - continuous real HTML5 mobile phone GPS (PRODUCTION READY)
   useEffect(() => {
     if (gpsOverride) {
-      if (geoWatchIdRef.current !== null && navigator.geolocation) {
+      if (geoWatchIdRef.current !== null && typeof window !== 'undefined' && navigator.geolocation) {
         navigator.geolocation.clearWatch(geoWatchIdRef.current);
         geoWatchIdRef.current = null;
       }
       return;
     }
 
-    if (navigator.geolocation) {
+    if (typeof window !== 'undefined' && navigator.geolocation) {
       geoWatchIdRef.current = navigator.geolocation.watchPosition(
         (pos) => {
-          const newPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-          setGpsAccuracy(pos.coords.accuracy);
-          setGpsSpeed(pos.coords.speed !== null && pos.coords.speed >= 0 ? Math.round(pos.coords.speed * 3.6) : 0);
-          setGpsHeading(pos.coords.heading);
-          setGpsError(null);
+          const { latitude, longitude, accuracy, speed, heading } = pos.coords;
+          const newPos = { lat: latitude, lng: longitude };
           
+          setGpsAccuracy(accuracy ? Math.round(accuracy) : null);
+          setGpsSpeed(speed !== null && speed >= 0 ? Math.round(speed * 3.6) : null);
+          setGpsHeading(heading !== null && !isNaN(heading) ? Math.round(heading) : null);
+          setLocationMethod('Native Mobile GPS');
+          setGpsError(null);
+
+          const telemetryPayload = {
+            latitude,
+            longitude,
+            lat: latitude,
+            lng: longitude,
+            accuracy: accuracy ? Math.round(accuracy * 10) / 10 : null,
+            speed: speed !== null && speed >= 0 ? Math.round(speed * 3.6 * 10) / 10 : null,
+            heading: heading !== null && !isNaN(heading) ? Math.round(heading) : null,
+            timestamp: pos.timestamp || Date.now(),
+            unitId: authUnit?.unitId,
+            reqId: assignedUserRef.current?.id,
+            source: 'MOBILE_BROWSER_GPS',
+            status: 'LIVE',
+            provenance: 'REAL',
+            arrivedAtUser: arrivedRef.current,
+            destinationId: hospitalRef.current?.hospitalId || hospitalRef.current?.id
+          };
+
           // Check for Hospital Arrival (within ~100m)
-          if (hospitalRef.current && !arrivedHospitalRef.current) {
+          if (hospitalRef.current && !arrivedHospitalRef.current && hospitalRef.current.pos) {
             const dist = calcDist(newPos, hospitalRef.current.pos);
             if (dist < 0.1) {
               arrivedHospitalRef.current = true;
-              if (socket) socket.emit('ambulance-at-hospital', { reqId: assignedUser?.id });
+              if (socket) socket.emit('ambulance-at-hospital', { reqId: assignedUserRef.current?.id });
             }
           }
 
-          // Only update if moved significantly (> 5 meters approx) to save battery/bandwidth
-          setLocation(prev => {
-            if (prev && Math.abs(prev.lat - newPos.lat) < 0.00005 && Math.abs(prev.lng - newPos.lng) < 0.00005) {
-              return prev; 
-            }
-            
-            // Broadcast the real automatic movement
-            if (socket && connected && !isOfflineRef.current) {
-              socket.emit('location-update', {
-                ...newPos,
-                accuracy: pos.coords.accuracy,
-                speed: pos.coords.speed,
-                heading: pos.coords.heading,
-                timestamp: pos.timestamp,
-                trafficDelay: trafficRef.current,
-                arrivedAtUser: arrivedRef.current,
-                selectedPatient: patientRef.current,
-                destinationId: hospitalRef.current?.hospitalId || hospitalRef.current?.id,
-                simulationOn: false 
-              });
-            }
-            
-            return newPos;
-          });
+          setLocation(newPos);
+
+          if (socket && connected && !isOfflineRef.current) {
+            socket.emit('location-update', telemetryPayload);
+            socket.emit('ambulance:location-update', telemetryPayload);
+          }
 
           setLocationHistory(h => [...h.slice(-99), [newPos.lat, newPos.lng]]);
         },
         (err) => {
-          console.warn('[GPS] Hardware Error:', err);
-          let errMsg = 'GPS Error: ';
-          if (err.code === 1) errMsg += 'Permission denied';
-          else if (err.code === 2) errMsg += 'Position unavailable';
-          else if (err.code === 3) errMsg += 'Timeout';
-          else errMsg += err.message;
+          console.warn('[GPS] Mobile Hardware Error:', err);
+          let errMsg = '';
+          if (err.code === 1) { // PERMISSION_DENIED
+            errMsg = 'Location permission is required for live ambulance tracking. Please enable location permission for this browser.';
+            setLocationMethod('UNAVAILABLE');
+          } else if (err.code === 2) { // POSITION_UNAVAILABLE
+            errMsg = 'GPS position unavailable. Ensure device location service is active.';
+            setLocationMethod('UNAVAILABLE');
+          } else if (err.code === 3) { // TIMEOUT
+            errMsg = 'GPS fix timed out. Retaining last fix state.';
+            setLocationMethod('STALE');
+          } else {
+            errMsg = `GPS Error: ${err.message}`;
+          }
           setGpsError(errMsg);
+
+          if (socket && connected) {
+            socket.emit('ambulance:location-update', {
+              source: 'MOBILE_BROWSER_GPS',
+              status: err.code === 3 ? 'STALE' : 'UNAVAILABLE',
+              provenance: 'REAL',
+              reqId: assignedUserRef.current?.id,
+              error: errMsg
+            });
+          }
         },
-        { enableHighAccuracy: true, maximumAge: 1000, timeout: 5000 }
+        { enableHighAccuracy: true, maximumAge: 3000, timeout: 15000 }
       );
     }
 
     return () => {
-      if (geoWatchIdRef.current !== null && navigator.geolocation) {
+      if (geoWatchIdRef.current !== null && typeof window !== 'undefined' && navigator.geolocation) {
         navigator.geolocation.clearWatch(geoWatchIdRef.current);
+        geoWatchIdRef.current = null;
       }
     };
-  }, [socket, connected, gpsOverride]); // removed selectedHospital dependency
+  }, [socket, connected, gpsOverride, authUnit]);
 
   const sendHospitalRequest = (directPatientId = null, isForce = false, directDetails = null, isPhase2 = false) => {
     if (!socket) return;
@@ -2030,6 +2093,26 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
     }
   }, [assignedHospital]);
   if (!isAuthenticated) {
+    if (mfaToken) {
+      return (
+        <MfaVerifyScreen
+          mfaToken={mfaToken}
+          defaultRole="ambulance"
+          onLoginSuccess={(viewRole, token, userData) => {
+            sessionStorage.setItem('rescuelink_token', token);
+            sessionStorage.setItem('rescuelink_user', JSON.stringify(userData));
+            localStorage.removeItem('rescuelink_token');
+            localStorage.removeItem('rescuelink_user');
+            if (userData) {
+              setAuthUnit(userData);
+            }
+            setIsAuthenticated(true);
+            setMfaToken(null);
+          }}
+          onCancel={() => setMfaToken(null)}
+        />
+      );
+    }
     return (
       <div style={{ minHeight: '100vh', background: 'radial-gradient(ellipse at 20% 20%, #0f1e0a 0%, #050d1a 60%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Rajdhani', sans-serif", position: 'relative', zIndex: 10001 }}>
         <div style={{ background: 'rgba(5,20,45,0.9)', border: '2px solid rgba(0,255,136,0.3)', borderRadius: 16, padding: 40, width: 420, boxShadow: '0 0 40px rgba(0,255,136,0.1)', position: 'relative', zIndex: 10002 }}>
@@ -2040,32 +2123,27 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
-              <label style={{ fontSize: 11, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>UNIT ID</label>
-              <input value={loginId} onChange={e => setLoginId(e.target.value)} placeholder="e.g. AMB-101" style={{ width: '100%', padding: '10px 14px', background: 'rgba(0,255,136,0.05)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 6, color: '#e0eaff', fontSize: 14, fontFamily: "'Share Tech Mono'", outline: 'none', boxSizing: 'border-box' }} />
+              <label style={{ fontSize: 11, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>VEHICLE ID / PLATE NUMBER</label>
+              <input value={loginId} onChange={e => setLoginId(e.target.value)} placeholder="e.g. KA-01-EQ-9999 or vehicle email" style={{ width: '100%', padding: '10px 14px', background: 'rgba(0,255,136,0.05)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 6, color: '#e0eaff', fontSize: 14, fontFamily: "'Share Tech Mono'", outline: 'none', boxSizing: 'border-box' }} />
             </div>
             <div>
               <label style={{ fontSize: 11, color: 'rgba(160,200,255,0.5)', fontFamily: "'Orbitron'", letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>PASSWORD</label>
-              <input type="password" value={loginPass} onChange={e => setLoginPass(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} placeholder="Enter unit password" style={{ width: '100%', padding: '10px 14px', background: 'rgba(0,255,136,0.05)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 6, color: '#e0eaff', fontSize: 14, fontFamily: "'Share Tech Mono'", outline: 'none', boxSizing: 'border-box' }} />
+              <input type="password" value={loginPass} onChange={e => setLoginPass(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} placeholder="Enter registered password" style={{ width: '100%', padding: '10px 14px', background: 'rgba(0,255,136,0.05)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 6, color: '#e0eaff', fontSize: 14, fontFamily: "'Share Tech Mono'", outline: 'none', boxSizing: 'border-box' }} />
             </div>
             {loginError && <div style={{ color: '#ff4444', fontSize: 12, fontFamily: "'Share Tech Mono'", textAlign: 'center' }}>⚠ {loginError}</div>}
             <button onClick={handleLogin} style={{ padding: '12px', background: 'rgba(0,255,136,0.15)', border: '1px solid rgba(0,255,136,0.4)', borderRadius: 8, color: '#00ff88', fontFamily: "'Orbitron'", fontSize: 13, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.1em', transition: 'all 0.2s' }}>AUTHENTICATE & CONNECT</button>
             <button onClick={() => {
-              // Simulated Biometric Login via WebAuthn
-              const targetId = loginId.trim() || "AMB-101";
-              setLoginId(targetId.toUpperCase());
-              let password = loginPass;
-              if (!password) {
-                const match = targetId.match(/\d+$/);
-                password = match ? `rescue${match[0]}` : 'rescue101';
-                setLoginPass(password);
+              if (!loginId.trim() || !loginPass.trim()) {
+                setLoginError('Please enter your registered Vehicle ID and Password above.');
+                return;
               }
-              setTimeout(handleLogin, 500);
+              handleLogin();
             }} style={{ padding: '12px', background: 'rgba(0,200,255,0.1)', border: '1px solid rgba(0,200,255,0.4)', borderRadius: 8, color: '#00c8ff', fontFamily: "'Orbitron'", fontSize: 13, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.1em', transition: 'all 0.2s', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 16 }}>👤</span> FACE-ID BIOMETRIC LOGIN
+              <span style={{ fontSize: 16 }}>👤</span> BIOMETRIC AUTHENTICATION
             </button>
           </div>
-          <div style={{ marginTop: 20, fontSize: 10, color: 'rgba(160,200,255,0.25)', fontFamily: "'Share Tech Mono'", textAlign: 'center', lineHeight: 1.6 }}>
-            Demo Units: AMB-101 to AMB-105<br />Password: rescue + unit number (e.g. rescue101)
+          <div style={{ marginTop: 20, fontSize: 10, color: 'rgba(160,200,255,0.4)', fontFamily: "'Share Tech Mono'", textAlign: 'center', lineHeight: 1.6 }}>
+            Enter your manually registered Vehicle Plate Number & Password.<br />New unit? Register via the Gateway Modal.
           </div>
         </div>
       </div>
@@ -3300,8 +3378,14 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto' }}>
                         {(() => {
                           const incidentAnchor = assignedUser?.userLocation || location;
-                          const realHospitals = Object.values(networkHospitals);
-                          const list = realHospitals.length > 0 ? realHospitals : generateGlobalHospitals(incidentAnchor);
+                          const list = realHospitals;
+                          if (!list || list.length === 0) {
+                            return (
+                              <div style={{ padding: 12, background: 'rgba(255,100,100,0.05)', border: '1px solid rgba(255,100,100,0.2)', borderRadius: 6, color: '#ff8888', fontSize: 11, textAlign: 'center', fontFamily: "'Share Tech Mono'" }}>
+                                ⚠️ No registered hospitals found in system. Please register a hospital via the Hospital Gateway.
+                              </div>
+                            );
+                          }
 
                           return list.map(h => {
                             const dist = incidentAnchor && (h.pos || h.location || h) ? calcDist(incidentAnchor, h.pos || h.location || h) : 0;
@@ -4291,14 +4375,14 @@ function AmbProfileSettings({
       const d = await res.json();
       setUnitStatus({ ok: res.ok, msg: res.ok ? 'Unit profile updated!' : (d.error || 'Update failed') });
       if (res.ok) {
-        const userStr = sessionStorage.getItem('rescuelink_user') || localStorage.getItem('rescuelink_user');
+        const userStr = sessionStorage.getItem('rescuelink_user');
         if (userStr) {
           const u = JSON.parse(userStr);
           u.name = d.driverName;
           u.email = d.vehicleNo;
           u.mobile = d.contactInfo;
           sessionStorage.setItem('rescuelink_user', JSON.stringify(u));
-          localStorage.setItem('rescuelink_user', JSON.stringify(u));
+          localStorage.removeItem('rescuelink_user');
         }
         setAuthUnit({
           unitId: d.id,
@@ -4382,7 +4466,7 @@ function AmbProfileSettings({
           </div>
           <div>
             <label style={S.label}>Vehicle Plate Number</label>
-            <input style={S.input} value={unitForm.vehicleNo} onChange={e => setUnitForm(p => ({ ...p, vehicleNo: e.target.value }))} placeholder="MH-12-QW-5678" />
+            <input style={S.input} value={unitForm.vehicleNo} onChange={e => setUnitForm(p => ({ ...p, vehicleNo: e.target.value }))} placeholder="e.g. KA-01-EQ-9999" />
           </div>
           <div>
             <label style={S.label}>Unit Type</label>

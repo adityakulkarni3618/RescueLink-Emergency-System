@@ -19,7 +19,9 @@ class VitalsProvider {
     const isStale = (now - (vitalsData.timestamp || now)) > 15000;
 
     let status = 'SIMULATED';
-    if (source === 'DEVICE' || source === 'MANUAL') {
+    if (!vitalsData.heartRate && !vitalsData.spo2) {
+      status = 'UNAVAILABLE';
+    } else if (source === 'DEVICE' || source === 'MANUAL') {
       status = 'LIVE';
     } else if (isStale) {
       status = 'STALE';

@@ -47,8 +47,8 @@ export function MfaVerifyScreen({ mfaToken, defaultRole, onLoginSuccess, onCance
 
       sessionStorage.setItem('rescuelink_token', data.token);
       sessionStorage.setItem('rescuelink_user', JSON.stringify(data.user));
-      localStorage.setItem('rescuelink_token', data.token);
-      localStorage.setItem('rescuelink_user', JSON.stringify(data.user));
+      localStorage.removeItem('rescuelink_token');
+      localStorage.removeItem('rescuelink_user');
 
       onLoginSuccess(viewRole, data.token, data.user);
     } catch (err) {

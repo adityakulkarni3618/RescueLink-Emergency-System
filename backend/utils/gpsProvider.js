@@ -32,15 +32,18 @@ class GPSProvider {
       }
     }
 
+    const defaultSource = this.type === 'REAL' ? 'GPS' : (this.type === 'MOBILE' ? 'MOBILE_BROWSER_GPS' : 'SIMULATOR');
+
     return {
-      latitude: parseFloat(data.latitude),
-      longitude: parseFloat(data.longitude),
+      latitude: data.latitude !== null && data.latitude !== undefined ? parseFloat(data.latitude) : null,
+      longitude: data.longitude !== null && data.longitude !== undefined ? parseFloat(data.longitude) : null,
       timestamp: lastTimestamp,
-      speed: data.speed !== undefined ? parseFloat(data.speed) : 0,
-      heading: data.heading !== undefined ? parseFloat(data.heading) : 0,
-      accuracy: data.accuracy !== undefined ? parseFloat(data.accuracy) : 5,
-      source: data.source || (this.type === 'REAL' ? 'GPS' : (this.type === 'MOBILE' ? 'DEVICE' : 'SIMULATOR')),
-      status: isStale ? 'STALE' : status
+      speed: data.speed !== undefined && data.speed !== null && !isNaN(data.speed) ? parseFloat(data.speed) : null,
+      heading: data.heading !== undefined && data.heading !== null && !isNaN(data.heading) ? parseFloat(data.heading) : null,
+      accuracy: data.accuracy !== undefined && data.accuracy !== null && !isNaN(data.accuracy) ? parseFloat(data.accuracy) : null,
+      source: data.source || defaultSource,
+      status: isStale ? 'STALE' : status,
+      provenance: (this.type === 'REAL' || this.type === 'MOBILE') ? 'REAL' : 'SIMULATED'
     };
   }
 }
@@ -56,11 +59,12 @@ class RealGPSProvider extends GPSProvider {
         latitude: null,
         longitude: null,
         timestamp: Date.now(),
-        speed: 0,
-        heading: 0,
+        speed: null,
+        heading: null,
         accuracy: null,
         source: 'GPS',
-        status: 'UNAVAILABLE'
+        status: 'UNAVAILABLE',
+        provenance: 'REAL'
       };
     }
 
@@ -88,11 +92,12 @@ class MobileBrowserGPSProvider extends GPSProvider {
         latitude: null,
         longitude: null,
         timestamp: Date.now(),
-        speed: 0,
-        heading: 0,
+        speed: null,
+        heading: null,
         accuracy: null,
-        source: 'DEVICE',
-        status: 'UNAVAILABLE'
+        source: 'MOBILE_BROWSER_GPS',
+        status: 'UNAVAILABLE',
+        provenance: 'REAL'
       };
     }
 
@@ -100,12 +105,46 @@ class MobileBrowserGPSProvider extends GPSProvider {
       latitude: pos.coords.latitude,
       longitude: pos.coords.longitude,
       timestamp: pos.timestamp || Date.now(),
-      speed: pos.coords.speed || 0,
-      heading: pos.coords.heading || 0,
-      accuracy: pos.coords.accuracy || 10,
-      source: 'DEVICE',
+      speed: pos.coords.speed,
+      heading: pos.coords.heading,
+      accuracy: pos.coords.accuracy,
+      source: 'MOBILE_BROWSER_GPS',
       status: 'LIVE'
     });
+  }
+
+  processBrowserError(err, lastFix = null) {
+    const now = Date.now();
+    let status = 'UNAVAILABLE';
+    let errorMessage = 'GPS unavailable';
+
+    if (err && err.code === 1) { // PERMISSION_DENIED
+      status = 'UNAVAILABLE';
+      errorMessage = 'Location permission is required for live ambulance tracking. Please enable location permission for this browser.';
+    } else if (err && err.code === 2) { // POSITION_UNAVAILABLE
+      status = lastFix ? 'STALE' : 'UNAVAILABLE';
+      errorMessage = 'GPS position unavailable. Ensure device location service is active.';
+    } else if (err && err.code === 3) { // TIMEOUT
+      if (lastFix && (now - lastFix.timestamp) <= 15000) {
+        status = 'LIVE';
+      } else {
+        status = lastFix ? 'STALE' : 'UNAVAILABLE';
+      }
+      errorMessage = 'GPS fix request timed out.';
+    }
+
+    return {
+      latitude: lastFix ? lastFix.latitude : null,
+      longitude: lastFix ? lastFix.longitude : null,
+      timestamp: lastFix ? lastFix.timestamp : now,
+      speed: lastFix ? lastFix.speed : null,
+      heading: lastFix ? lastFix.heading : null,
+      accuracy: lastFix ? lastFix.accuracy : null,
+      source: 'MOBILE_BROWSER_GPS',
+      status,
+      provenance: 'REAL',
+      error: errorMessage
+    };
   }
 }
 

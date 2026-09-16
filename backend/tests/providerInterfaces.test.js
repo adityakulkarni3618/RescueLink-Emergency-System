@@ -1,4 +1,4 @@
-const { RealGPSProvider, SimulatorGPSProvider } = require('../utils/gpsProvider');
+const { RealGPSProvider, MobileBrowserGPSProvider, SimulatorGPSProvider } = require('../utils/gpsProvider');
 const { RoutingProvider } = require('../utils/routingProvider');
 const { RealDeviceProvider, SimulatorVitalsProvider } = require('../utils/vitalsProvider');
 const { SimulatorTrafficProvider, MunicipalAPIProvider } = require('../utils/trafficIntelligenceProvider');
@@ -10,6 +10,7 @@ describe('Provider Interfaces & Truth Label Verification', () => {
     const fix = provider.generateSimulatedFix(12.9716, 77.5946, 45, 180);
     expect(fix.source).toBe('SIMULATOR');
     expect(fix.status).toBe('SIMULATED');
+    expect(fix.provenance).toBe('SIMULATED');
     expect(fix.latitude).toBe(12.9716);
   });
 
@@ -22,6 +23,61 @@ describe('Provider Interfaces & Truth Label Verification', () => {
       speed: 10
     });
     expect(staleFix.status).toBe('STALE');
+    expect(staleFix.provenance).toBe('REAL');
+  });
+
+  test('MobileBrowserGPSProvider should process position with MOBILE_BROWSER_GPS source and REAL provenance', () => {
+    const provider = new MobileBrowserGPSProvider();
+    const fix = provider.processBrowserPosition({
+      coords: {
+        latitude: 19.1234,
+        longitude: 74.1234,
+        accuracy: 8.5,
+        speed: 12.4,
+        heading: 270
+      },
+      timestamp: Date.now()
+    });
+    expect(fix.source).toBe('MOBILE_BROWSER_GPS');
+    expect(fix.provenance).toBe('REAL');
+    expect(fix.status).toBe('LIVE');
+    expect(fix.latitude).toBe(19.1234);
+    expect(fix.accuracy).toBe(8.5);
+  });
+
+  test('MobileBrowserGPSProvider should preserve null for missing speed/heading/accuracy without fabricating defaults', () => {
+    const provider = new MobileBrowserGPSProvider();
+    const fix = provider.processBrowserPosition({
+      coords: {
+        latitude: 19.1234,
+        longitude: 74.1234,
+        accuracy: null,
+        speed: null,
+        heading: null
+      },
+      timestamp: Date.now()
+    });
+    expect(fix.speed).toBeNull();
+    expect(fix.heading).toBeNull();
+    expect(fix.accuracy).toBeNull();
+    expect(fix.status).toBe('LIVE');
+  });
+
+  test('MobileBrowserGPSProvider should handle PERMISSION_DENIED explicitly as UNAVAILABLE', () => {
+    const provider = new MobileBrowserGPSProvider();
+    const res = provider.processBrowserError({ code: 1, message: 'User denied Geolocation' });
+    expect(res.status).toBe('UNAVAILABLE');
+    expect(res.source).toBe('MOBILE_BROWSER_GPS');
+    expect(res.provenance).toBe('REAL');
+    expect(res.error).toContain('Location permission is required');
+  });
+
+  test('MobileBrowserGPSProvider should handle TIMEOUT as STALE when last fix is older', () => {
+    const provider = new MobileBrowserGPSProvider();
+    const oldFix = { latitude: 19.123, longitude: 74.123, timestamp: Date.now() - 20000, speed: null, heading: null, accuracy: null };
+    const res = provider.processBrowserError({ code: 3, message: 'Timeout' }, oldFix);
+    expect(res.status).toBe('STALE');
+    expect(res.source).toBe('MOBILE_BROWSER_GPS');
   });
 
   test('RoutingProvider should tag fallback routes with source ESTIMATED', async () => {
