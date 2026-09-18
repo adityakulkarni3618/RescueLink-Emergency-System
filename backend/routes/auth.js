@@ -414,7 +414,11 @@ router.post('/verify-mfa', async (req, res) => {
     } 
     // 2. Check if it's an 8-character recovery code (User only)
     else if (totpCode.length === 8 && user) {
-      const backupCodes = user.backup_codes || [];
+      let backupCodes = user.backup_codes || [];
+      if (typeof backupCodes === 'string') {
+        try { backupCodes = JSON.parse(backupCodes); } catch (e) { backupCodes = []; }
+      }
+      if (!Array.isArray(backupCodes)) backupCodes = [];
       for (let i = 0; i < backupCodes.length; i++) {
         const match = await bcrypt.compare(totpCode.toUpperCase(), backupCodes[i]);
         if (match) {

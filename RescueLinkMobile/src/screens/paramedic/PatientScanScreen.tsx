@@ -4,7 +4,9 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const SERVER_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://localhost:5000';
+import { API_BASE_URL } from '../../config/api';
+
+const SERVER_URL = API_BASE_URL;
 
 export default function PatientScanScreen({ navigation }: any) {
   const [permission, requestPermission] = useCameraPermissions();

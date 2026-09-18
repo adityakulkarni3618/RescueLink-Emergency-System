@@ -11,7 +11,9 @@ import * as Notifications from 'expo-notifications';
 import { Audio } from 'expo-av';
 
 // Route endpoints from .env
-const SERVER_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://localhost:5000';
+import { API_BASE_URL } from '../config/api';
+
+const SERVER_URL = API_BASE_URL;
 
 // Import Screens (we will implement the actual screen components)
 import LoginScreen from '../screens/auth/LoginScreen';

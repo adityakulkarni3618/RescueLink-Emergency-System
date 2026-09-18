@@ -3,7 +3,9 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
-const SERVER_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://localhost:5000';
+import { API_BASE_URL } from '../../config/api';
+
+const SERVER_URL = API_BASE_URL;
 
 export default function DriverHomeScreen({ navigation }: any) {
   const [jobs, setJobs] = useState<any[]>([]);

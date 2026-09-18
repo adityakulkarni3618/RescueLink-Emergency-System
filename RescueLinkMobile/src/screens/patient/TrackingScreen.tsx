@@ -3,7 +3,9 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert, Share } from 'react-na
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import io from 'socket.io-client';
 
-const SERVER_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://localhost:5000';
+import { API_BASE_URL } from '../../config/api';
+
+const SERVER_URL = API_BASE_URL;
 
 export default function TrackingScreen({ route, navigation }: any) {
   const { incidentId } = route.params || { incidentId: 'REQ-MOCK' };
