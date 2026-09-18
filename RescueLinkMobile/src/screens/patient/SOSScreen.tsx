@@ -5,9 +5,9 @@ import * as Speech from 'expo-speech';
 import MapView, { Marker } from 'react-native-maps';
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Storage helper hook
 import axios from 'axios';
-import io from 'socket.io-client';
+import { API_BASE_URL, SOCKET_URL } from '../../config/api';
 
-const SERVER_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://localhost:5000';
+const SERVER_URL = API_BASE_URL;
 
 export default function PatientHomeScreen({ navigation }: any) {
   const [loading, setLoading] = useState(false);

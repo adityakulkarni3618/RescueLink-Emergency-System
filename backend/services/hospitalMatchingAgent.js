@@ -1,5 +1,6 @@
 const { Hospital } = require('../utils/db');
 const { getRealRoute } = require('./routing');
+const { Op } = require('sequelize');
 
 const calcDist = (pos1, pos2) => {
   if (!pos1 || !pos2) return 999;
@@ -19,7 +20,14 @@ const calcDist = (pos1, pos2) => {
 };
 
 async function rankHospitals(pickupLat, pickupLng) {
-  const registeredHospitals = await Hospital.findAll({ where: { is_active: true } });
+  const registeredHospitals = await Hospital.findAll({
+    where: {
+      [Op.or]: [
+        { is_active: true },
+        { verification_status: 'APPROVED' }
+      ]
+    }
+  });
   
   const ranked = await Promise.all(registeredHospitals.map(async (h) => {
     const route = await getRealRoute(pickupLat, pickupLng, h.lat, h.lng);
@@ -44,6 +52,75 @@ async function rankHospitals(pickupLat, pickupLng) {
   }));
 
   return ranked.sort((a, b) => b.score - a.score);
+}
+
+async function broadcastToNearbyHospitals(request, io = null) {
+  const pickupLat = request.pickup_lat || request.userLocation?.lat;
+  const pickupLng = request.pickup_lng || request.userLocation?.lng;
+  if (!pickupLat || !pickupLng) return [];
+
+  const ranked = await rankHospitals(pickupLat, pickupLng);
+  const { notifyEntity } = require('../utils/systemNotifications');
+
+  for (const { hospital } of ranked.slice(0, 5)) {
+    await notifyEntity(hospital, 'incoming-case-availability-check', {
+      requestId: request.id,
+      pickupLat,
+      pickupLng
+    }, io);
+  }
+  return ranked.slice(0, 5);
+}
+
+async function checkContinuousHospitalSearch(missionId, io, activeRequests) {
+  const req = activeRequests ? activeRequests[missionId] : null;
+  if (!req || ['hospital_confirmed', 'closed', 'cancelled'].includes(req.status)) {
+    return false;
+  }
+  if (req.status !== 'en_route_to_hospital' || !req.hospitalId || !req.assignedHospital) {
+    return true;
+  }
+
+  try {
+    const currentLat = (req.ambulanceLocation?.lat) || req.userLocation?.lat;
+    const currentLng = (req.ambulanceLocation?.lng) || req.userLocation?.lng;
+    if (!currentLat || !currentLng) return true;
+
+    const currentRoute = await getRealRoute(currentLat, currentLng, req.assignedHospital.lat, req.assignedHospital.lng);
+    const currentEta = currentRoute ? currentRoute.durationSeconds : (req.confirmed_eta_seconds || 600);
+
+    const ranked = await rankHospitals(currentLat, currentLng);
+    const better = ranked.find(r =>
+      String(r.hospital.id) !== String(req.hospitalId) && r.etaSeconds < currentEta * 0.85
+    );
+
+    if (better && io) {
+      console.log(`[CONTINUOUS HOSPITAL SEARCH] Better option found: ${better.hospital.name} for mission ${missionId}`);
+      io.to(`mission_${missionId}`).emit('hospital:better-option-found', {
+        currentHospital: req.hospitalId,
+        suggestedHospital: {
+          id: better.hospital.id,
+          name: better.hospital.name,
+          lat: better.hospital.lat,
+          lng: better.hospital.lng,
+          icuBeds: better.icuBeds,
+          ventilators: better.ventilators
+        },
+        etaSaved: currentEta - better.etaSeconds
+      });
+    }
+  } catch (err) {
+    console.error('[CONTINUOUS HOSPITAL SEARCH ERROR]', err.message);
+  }
+  return true;
+}
+
+function startContinuousHospitalSearch(missionId, io, activeRequests, checkIntervalMs = 45000) {
+  checkContinuousHospitalSearch(missionId, io, activeRequests);
+  const interval = setInterval(() => {
+    checkContinuousHospitalSearch(missionId, io, activeRequests);
+  }, checkIntervalMs);
+  return interval;
 }
 
 function startHospitalMatchingAgent(missionId, io, activeRequests) {
@@ -113,4 +190,11 @@ async function checkForBetterHospitalMidTransport(missionId, currentLat, current
   }
 }
 
-module.exports = { rankHospitals, startHospitalMatchingAgent, checkForBetterHospitalMidTransport };
+module.exports = {
+  rankHospitals,
+  broadcastToNearbyHospitals,
+  checkContinuousHospitalSearch,
+  startContinuousHospitalSearch,
+  startHospitalMatchingAgent,
+  checkForBetterHospitalMidTransport
+};

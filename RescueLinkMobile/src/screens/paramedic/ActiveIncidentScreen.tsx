@@ -10,7 +10,9 @@ import axios from 'axios';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import BleManager from 'react-native-ble-manager';
 
-const SERVER_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://localhost:5000';
+import { API_BASE_URL } from '../../config/api';
+
+const SERVER_URL = API_BASE_URL;
 const BACKGROUND_GPS_TASK = 'RESCUELINK_BACKGROUND_GPS';
 
 // Register background location task

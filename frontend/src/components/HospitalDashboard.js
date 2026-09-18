@@ -807,14 +807,14 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
               </div>
 
               <div style={{ fontSize: 11, color: '#ff8888', marginBottom: 6, fontWeight: 'bold' }}>ALERTS:</div>
-              {aiPrediction.alerts.map((al, idx) => (
+              {(aiPrediction.alerts || []).map((al, idx) => (
                 <div key={idx} style={{ fontSize: 11, color: 'rgba(255,255,255,0.9)', paddingLeft: 10, borderLeft: '2px solid #ff4444', marginBottom: 4 }}>
                   ⚠️ {al}
                 </div>
               ))}
 
               <div style={{ fontSize: 11, color: '#00ff88', marginTop: 10, marginBottom: 6, fontWeight: 'bold' }}>REC:</div>
-              {aiPrediction.recommendations.map((rec, idx) => (
+              {(aiPrediction.recommendations || []).map((rec, idx) => (
                 <div key={idx} style={{ fontSize: 11, color: 'rgba(200,240,255,0.95)', paddingLeft: 10, borderLeft: '2px solid #00ff88', marginBottom: 4 }}>
                   • {rec}
                 </div>
