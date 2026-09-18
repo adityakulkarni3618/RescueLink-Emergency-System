@@ -88,6 +88,10 @@ module.exports = (sequelize) => {
     totp_secret: {
       type: DataTypes.TEXT,
       allowNull: true
+    },
+    push_subscription: {
+      type: DataTypes.TEXT,
+      allowNull: true
     }
   }, {
     tableName: 'hospitals',

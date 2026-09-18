@@ -2642,9 +2642,13 @@ io.on('connection', (socket) => {
       console.error('[DISPATCH] Failed to broadcast to hospital rooms from DB:', hospBroadcastErr.message);
     }
 
-    // Call tiered dispatch agent
+    // Call parallel broadcast for both ambulances and hospitals simultaneously
     const { dispatchTiered } = require('./services/dispatchAgent');
-    dispatchTiered(reqId, userLocation.lat, userLocation.lng, io, ambulances, activeRequests);
+    const { broadcastToNearbyHospitals } = require('./services/hospitalMatchingAgent');
+    Promise.all([
+      dispatchTiered(reqId, userLocation.lat, userLocation.lng, io, ambulances, activeRequests),
+      broadcastToNearbyHospitals({ id: reqId, pickup_lat: userLocation.lat, pickup_lng: userLocation.lng, userLocation }, io)
+    ]).catch(err => console.error('[PARALLEL BROADCAST ERROR]', err.message));
 
     // FCM Push Notifications & Topic notifications
     if (data.userId) {
@@ -2718,6 +2722,63 @@ io.on('connection', (socket) => {
 
       io.to(`mission_${reqId}`).emit('patient-onboard', data);
       console.log(`[CORRIDOR LOCK] Corridor locked for request ${reqId} to hospital ${req.assignedHospital.name}`);
+
+      // Part 6: Start continuous background hospital search after pickup
+      const { startContinuousHospitalSearch } = require('./services/hospitalMatchingAgent');
+      startContinuousHospitalSearch(reqId, io, activeRequests);
+    }
+  });
+
+  socket.on('hospital:accept-switch', async (data) => {
+    const { reqId, hospitalId } = data;
+    const req = activeRequests[reqId];
+    if (!req) return;
+
+    try {
+      const { Hospital, Incident } = require('./utils/db');
+      const newHospital = await Hospital.findByPk(hospitalId);
+      if (!newHospital) return;
+
+      req.hospitalId = newHospital.id;
+      req.assignedHospital = {
+        id: newHospital.id,
+        name: newHospital.name,
+        lat: newHospital.lat,
+        lng: newHospital.lng,
+        contactInfo: newHospital.contact_number
+      };
+
+      const ambSocketObj = ambulances[req.ambulanceSocket];
+      const currentLat = (ambSocketObj && ambSocketObj.location && ambSocketObj.location.lat) || req.userLocation.lat;
+      const currentLng = (ambSocketObj && ambSocketObj.location && ambSocketObj.location.lng) || req.userLocation.lng;
+
+      const { getRealRoute } = require('./services/routing');
+      const routeData = await getRealRoute(currentLat, currentLng, newHospital.lat, newHospital.lng);
+
+      if (routeData) {
+        req.routePath = routeData.geometry.coordinates.map(c => ({ lat: c[1], lng: c[0] }));
+        req.corridor_junctions = routeData.steps;
+
+        const { initializeCorridorForRoute } = require('./utils/emergencyCorridor');
+        const currentVersion = (req.routeVersion || 1) + 1;
+        req.routeVersion = currentVersion;
+
+        await initializeCorridorForRoute(reqId, req.routePath, currentVersion);
+
+        io.to(`mission_${reqId}`).emit('route-update', { reqId, routePath: req.routePath });
+        io.to(`mission_${reqId}`).emit('corridor:activated', { route: routeData, hospital: req.assignedHospital, routeVersion: currentVersion });
+        io.to(`mission_${reqId}`).emit('hospital:switch-confirmed', {
+          reqId,
+          hospital: req.assignedHospital,
+          routeVersion: currentVersion,
+          routePath: req.routePath
+        });
+      }
+
+      await Incident.update({ hospital_id: newHospital.id }, { where: { id: reqId } });
+      console.log(`[DYNAMIC CORRIDOR REGEN] Mission ${reqId} switched to hospital ${newHospital.name} (v${req.routeVersion})`);
+    } catch (err) {
+      console.error('[HOSPITAL SWITCH REGEN ERROR]', err.message);
     }
   });
 

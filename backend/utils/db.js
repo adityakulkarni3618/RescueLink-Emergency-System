@@ -79,6 +79,7 @@ const GoodSamaritan = require('../models/GoodSamaritan')(sequelize);
 const MciTriageTag = require('../models/MciTriageTag')(sequelize);
 const MedicalDrone = require('../models/MedicalDrone')(sequelize);
 const ClinicalHandover = require('../models/ClinicalHandover')(sequelize);
+const NotificationQueue = require('../models/NotificationQueue')(sequelize);
 
 Incident.hasMany(ClinicalHandover, { foreignKey: 'incident_id', as: 'clinicalHandovers' });
 ClinicalHandover.belongsTo(Incident, { foreignKey: 'incident_id', as: 'incident' });
@@ -239,6 +240,7 @@ module.exports = {
   MciTriageTag,
   MedicalDrone,
   ClinicalHandover,
+  NotificationQueue,
   syncDatabase,
   healthCheck,
   closeDatabase

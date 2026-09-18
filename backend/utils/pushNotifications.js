@@ -81,7 +81,16 @@ async function sendTopicNotification(topic, title, body, data = {}) {
   }
 }
 
+/**
+ * Sends web push notification wrapper
+ */
+async function sendWebPush(subscription, notificationData) {
+  const token = typeof subscription === 'string' ? subscription : (subscription?.endpoint || subscription?.token || 'mock-web-push-token');
+  return sendPushNotification(token, notificationData.title, notificationData.body, notificationData.data || {});
+}
+
 module.exports = {
   sendPushNotification,
-  sendTopicNotification
+  sendTopicNotification,
+  sendWebPush
 };

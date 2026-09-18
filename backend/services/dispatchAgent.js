@@ -2,15 +2,23 @@ const { getRealRoute } = require('./routing');
 const { haversineDistance } = require('../utils/maps');
 const whatsappService = require('../utils/whatsapp');
 const { createSystemNotification } = require('../utils/systemNotifications');
+const { Ambulance } = require('../utils/db');
+const { Op } = require('sequelize');
 
 const MAX_DISPATCH_RADIUS_KM = parseFloat(process.env.MAX_DISPATCH_RADIUS_KM) || 35; // Default 35 km max operating radius
 
 async function rankAmbulancesByRealETA(pickupLat, pickupLng, liveAmbulancesList = [], maxCandidates = 15) {
-  // 1. Fetch ALL DB registered ambulances (regardless of active toggle status)
+  // 1. Fetch DB registered & verified ambulances
   let dbAmbulances = [];
   try {
-    const { Ambulance } = require('../utils/db');
-    const records = await Ambulance.findAll();
+    const records = await Ambulance.findAll({
+      where: {
+        [Op.or]: [
+          { is_active: true },
+          { verification_status: 'APPROVED' }
+        ]
+      }
+    });
     dbAmbulances = records.map(r => typeof r.toJSON === 'function' ? r.toJSON() : r);
   } catch (err) {
     console.error('[DISPATCH AGENT DB FETCH ERROR]', err.message);
