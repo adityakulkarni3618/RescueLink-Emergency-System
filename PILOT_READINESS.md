@@ -8,7 +8,7 @@ This checklist documents the security, environment, database, and operational cr
 
 | System Component | Readiness Status | Empirical Verification Evidence | Required Action Before Live Launch |
 | :--- | :--- | :--- | :--- |
-| **Core Emergency Workflow** | `READY` | 16/16 Jest test suites passed (71/71 tests passing cleanly) | Deploy to production Node.js cluster |
+| **Core Emergency Workflow** | `READY` | 19/19 Jest test suites passed (83/83 tests passing cleanly; see `REAL_WORLD_VALIDATION_REPORT.md`) | Deploy to production Node.js cluster |
 | **Database Transactions & Locking** | `READY` | Row-locking concurrent bed reservation verified (`concurrencyBedReservation.test.js`) | Configure production PostgreSQL cluster |
 | **Ambulance State Machine** | `READY` | Strict server-side transition validator (`ambulanceStateMachine.test.js`) | None |
 | **Clinical SBAR Handover** | `READY` | Append-only immutability verified (`handoverImmutability.test.js`) | None |
