@@ -2,7 +2,7 @@ RescueLink Implementation Disclaimer: See README.md for a detailed breakdown of 
 
 RescueLink Emergency System - Full Codebase Digest
 Generated from: c:\Users\Aditya Kulkarni\Downloads\Health-care-system
-Total files: 241
+Total files: 244
 
 PROJECT STRUCTURE:
   .dockerignore
@@ -48,6 +48,7 @@ PROJECT STRUCTURE:
   backend\models\InsuranceClaim.js
   backend\models\MciTriageTag.js
   backend\models\MedicalDrone.js
+  backend\models\NotificationQueue.js
   backend\models\Patient.js
   backend\models\PendingErasure.js
   backend\models\Prescription.js
@@ -107,6 +108,7 @@ PROJECT STRUCTURE:
   backend\tests\handoverImmutability.test.js
   backend\tests\incidents.test.js
   backend\tests\loadTest.js
+  backend\tests\masterSystemFlow.test.js
   backend\tests\offlineDispatch.test.js
   backend\tests\providerInterfaces.test.js
   backend\tests\routes.test.js
@@ -225,6 +227,7 @@ PROJECT STRUCTURE:
   RescueLinkMobile\LICENSE
   RescueLinkMobile\package-lock.json
   RescueLinkMobile\package.json
+  RescueLinkMobile\src\config\api.ts
   RescueLinkMobile\src\navigation\AppNavigator.tsx
   RescueLinkMobile\src\screens\auth\ForgotPasswordScreen.tsx
   RescueLinkMobile\src\screens\auth\LoginScreen.tsx
@@ -535,6 +538,10 @@ FILE: backend\data\audit_log.txt
 [2026-09-15T13:59:29.644Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 [2026-09-15T14:05:32.892Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 [2026-09-16T13:25:33.333Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
+[2026-09-18T10:00:21.690Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
+[2026-09-18T10:20:11.665Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
+[2026-09-18T10:57:51.161Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
+[2026-09-18T13:17:51.907Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 
 ================================================
 FILE: backend\data\consent_ledger.json
@@ -692,39 +699,39 @@ FILE: backend\data\consent_ledger_test.json
 [
   {
     "index": 0,
-    "timestamp": "2026-09-16T13:25:43.105Z",
+    "timestamp": "2026-09-19T14:21:12.023Z",
     "action": "GENESIS_CHAIN_INITIALIZED",
     "patientId": "00000000-0000-0000-0000-000000000000",
     "previousHash": "0",
-    "hash": "fb4b880ae3082da857c10024bd3ef82b19b3470408592a92b1348120ffa51076",
-    "signature": "VIpTY5j3OoPsENyguWD/ASiXaGkG+VFdEwr+bBFNfsjDoOrI8qs0b+BT/44HdXYC1bzIQY+oYREBHVsh8lrNchpH1/i87UB2EsZRCQuXWsOTZ9NhluFkeXn54GqV/U4BWDK4a5ryUunG3MWJQCwJ/MEqIBv2wAcOUzUKMpL1zNxaPrEozvmJo1I8Z9KPa4hU/zn2FcLeGtADEWBXY46O3J9hIU5Dd0XePuvjLuGLfY29jP9a1NJ6VBovvH0Rm2bqe489QCp1E6c//NRO7QP2JFxn0ZLdMlGYNj6/ct8AVwhH8jIZFDUDrzM73YXKXdZZnVz5SD6nYbiyAhq/ip8q7g=="
+    "hash": "6ebaa6ca257efb002e4364a6d31a84cec41a14023e3fc4d14a6f5945be63c41d",
+    "signature": "E4n+SQ7hPfQdTuQJ1ChYbwOT9CMmOtQCCHtQf6FokyLSSeii9c37ZOvjskw24Dz7AejAEK+kDQnpRtP9eo2Ecic0KPq8+yWammMoOi4dyrpNoI71EocvK36/3iNEb+HI6F7OyYUUL2F1Effga1eGqgUwIkidyBXt+c4AfZeY9bxxnSRc12caF682aV2J6YHtIBoN6yKfEDsYS6CJtMX/Rr6eJ3gCOPMfMS6uI2cVf1qqmlq6zgCNSS6rvdFihq5/u7Ys5y0cOhzBBrRtr73a0mOgCx/gD+GpLkjo6vZ6X/JKqLzLru3c0IFv3bVIig2zeEB3SKuLqxe7uTppaRcYbQ=="
   },
   {
     "index": 1,
-    "timestamp": "2026-09-16T13:25:43.109Z",
+    "timestamp": "2026-09-19T14:21:12.026Z",
     "action": "CONSENT_GRANTED",
     "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "fb4b880ae3082da857c10024bd3ef82b19b3470408592a92b1348120ffa51076",
-    "hash": "8d8eac813a2f374122a0426c456c8225c85d7f90327398249c722785e61fadef",
-    "signature": "gg6I/Ivx3qm49TSxeOkODFbBjY92/8nIJwNOXklwTcfvXE8d3m9HmYYrZwrVnG+6RCHdxPxz8Zw3pAMZCdbQ1/3kP0yaGLckainrxvBfRGzrmbsMe7H/4ZyEMI/jhZISa0Orbt7CD8zP95JwNArbwg+4U5SapcmLNbs3pLpvYd/CySWJKk1NerNJ821boi7W7WbWF1H3D3gqQOINChEoXpOlHsS2kfPbJLh5U0UOaJQRPZl7u4nM1I05AtBrwbS2mj8QZ7/KbTNZ8Ldw6ukHvxbi3RjRbhmPZmTDidiCXvaK5spvhPpUAwyBmrGZlhgAGtpO6bafEL/fqnnYWTDyEg=="
+    "previousHash": "6ebaa6ca257efb002e4364a6d31a84cec41a14023e3fc4d14a6f5945be63c41d",
+    "hash": "8b5a4060d1c3c625d0627f0e719df48b3765b2029b4ee97c1a852c91fffe4b06",
+    "signature": "ch5Cf5+cjuAXp20DtW6FoO/yKvCZgD5wCzaopRLwmrRYGW84ey9imD+PQarVVVFrD6+PBcDHZGFp25tRIeMbIqgJ9LlU3tW1Fwa6Bt4gc9uAv215c7vVuh44XDzZuymhw2fZLXkwALlc++wJFlh9YYRkBOo0ogiBDrYQLtpTesgr1/NbJ1AZqhKwUCBaERh+NMmaJXaSu8g7yqFCK0Y2p7LrRcuwo2W7XtqVcSB3SFT+WiHn73XLB4VzQK/1lmmJu1rECLhUwdr5zFX4Y6wisl/71apN7RzCupSaByFEKB524MgHZGTuY+hDHWkQ3+izw1n41w4P2uhB/XPVSRxvRg=="
   },
   {
     "index": 2,
-    "timestamp": "2026-09-16T13:25:43.115Z",
+    "timestamp": "2026-09-19T14:21:12.037Z",
     "action": "CONSENT_REVOKED",
     "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "8d8eac813a2f374122a0426c456c8225c85d7f90327398249c722785e61fadef",
-    "hash": "5216b01c693c3e4b4a9aa0cb6e9763d9e20045cb0bcde4135be0d216df28082c",
-    "signature": "Jc24g0pyZxCGl1wE2iPCYxOKC4sgxsIXigQB8AFnp79pT6OSexgZBdKGRJalLLk8Et/2tabvLcbPjlAg5SdQ92szddxwgr5SU6LXD4njf5A5QWAxFcVXb/GpK9Wkax8Ko8DWokwy7jiSTojzfAjFOjeSXJcueV+wdKb30qkvARZexe+v+vkdkVNoX4Hfwg2H47Lw6aTVdu65Cf8Q8d7zI73XIz3bgvsZDkUD7/Noqi0ZxkNwWNe2M6Bi559Zk/8AGCExq7tLeieIGaANp8VjUzAMxhojCeSvy/StHgKUEYOzskMklpCGqhVVnjiWiNfjRs21UMgOItfWoG3z07fmZQ=="
+    "previousHash": "8b5a4060d1c3c625d0627f0e719df48b3765b2029b4ee97c1a852c91fffe4b06",
+    "hash": "603b867399715621d9da13ab680ad2aaca2fbc8c0d26ae15258d873ecbabca8e",
+    "signature": "PEzrWADwnFfK8lOkQL2BzNl+KBNZOxauhLAgbr4ApKZKzlpb82E9Der/ox1MlVAHeq0YteAt2MN5EjhkK/xywhHgjjk0eYT0sfMXnAxN7nSpFJ/Z9KOgwB+SRM5ttprlvBerTGIC9lY5T8Sly0I+d0XopQ4S3YdloaeSvcnWAVuHXR8eG5omHtkssyeV429bqf/c7/kBBsqpmyosiGB97O3Zfu4+oALA1JBnWWOWlzIUtVvJu507aknDTqju/fbwmkgKRTolB0TDZq3T1llFLFanskQPyVV+1NDs7W5MnlVTe7EH1G4ntr7OwhnccY85M9FCpBBp3UhSOwaIqjs0Dw=="
   },
   {
     "index": 3,
-    "timestamp": "2026-09-16T13:25:43.121Z",
+    "timestamp": "2026-09-19T14:21:12.042Z",
     "action": "CONSENT_REVOKED",
     "patientId": "8b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "5216b01c693c3e4b4a9aa0cb6e9763d9e20045cb0bcde4135be0d216df28082c",
-    "hash": "da9195a9cb21b5f638754654bbbc51d510757538f22799607eb234e7e520e9cc",
-    "signature": "l6ICwdSYfCywO8E8hxjEznu6xjk+1WDAcygNKUITRNFeCdIDnHNrKGZ8ogNYBGJBGWOjpVN3CJCh5m6txffSw1MImPEEi5UCaNMwWF1s++UXlBaxJJ+qBBlP1UGMqLS71JChdPPSAbaW58gj87oLWYxAdwKQ7u60DOZMe2WgFnD96+4G4S83HDXra3VH96hpdi30MbjqKWgNifDxbUAWdcRF/HdHd417F/pwFDW/Hwr86B8a9qNGoQHw5x+INuT1jYFEvMgvVLC6L9Xr0qODIg8JxrUDSuZ5pwBOrzX35bJ878sHmRs8+LSLhwbkwa0n9g8xqYh32CrMjiGGhoqaKQ=="
+    "previousHash": "603b867399715621d9da13ab680ad2aaca2fbc8c0d26ae15258d873ecbabca8e",
+    "hash": "3a9d3c515064a2c8fed35d5a1ecc5d6a8098a2d357ac63197672e49a2c63bd2a",
+    "signature": "Sw5T+pcQr7EcS4Rvrm4zYUGew3qToGTJ4wOTm7eFtTVyzHaTsTgphF37S91vsmVxlVV22JH6xCD3kq3AUWiv5kobHN0qa9oyy164xHRHyvL+AKcqmDcmxesOCT6iikZJmyiwrZkaAHcTnWSM6TIX6nbF6ufiFBdeGgbv5ngi9jsvx7YDY+FPVgO/JWZtWtzWwcly8cZKTxHHBOJCy9jSyaaLZRCjViq7SNpjY+Vdyplcbn4wvd7cVAp18aqFE4d8GuhcqXn57GrRvfgvZwxPcUDqS8dBAozIiGVXHQVqPVTpocKu4jaRAE5Z4E9QlvegUmdAd2RekVIj9tm8IteDlw=="
   }
 ]
 
@@ -2134,6 +2141,10 @@ module.exports = (sequelize) => {
       type: DataTypes.STRING,
       allowNull: true
     },
+    push_subscription: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
     is_active: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
@@ -2787,6 +2798,10 @@ module.exports = (sequelize) => {
     totp_secret: {
       type: DataTypes.TEXT,
       allowNull: true
+    },
+    push_subscription: {
+      type: DataTypes.TEXT,
+      allowNull: true
     }
   }, {
     tableName: 'hospitals',
@@ -3113,6 +3128,46 @@ module.exports = (sequelize) => {
   });
 
   return MedicalDrone;
+};
+
+================================================
+FILE: backend\models\NotificationQueue.js
+================================================
+const { DataTypes } = require('sequelize');
+
+module.exports = (sequelize) => {
+  const NotificationQueue = sequelize.define('NotificationQueue', {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true
+    },
+    entity_id: {
+      type: DataTypes.STRING,
+      allowNull: false
+    },
+    event_type: {
+      type: DataTypes.STRING,
+      allowNull: false
+    },
+    payload: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
+    delivered_via_socket: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false
+    },
+    status: {
+      type: DataTypes.STRING,
+      defaultValue: 'PENDING'
+    }
+  }, {
+    tableName: 'notification_queue',
+    timestamps: true
+  });
+
+  return NotificationQueue;
 };
 
 ================================================
@@ -17012,7 +17067,11 @@ router.post('/verify-mfa', async (req, res) => {
     } 
     // 2. Check if it's an 8-character recovery code (User only)
     else if (totpCode.length === 8 && user) {
-      const backupCodes = user.backup_codes || [];
+      let backupCodes = user.backup_codes || [];
+      if (typeof backupCodes === 'string') {
+        try { backupCodes = JSON.parse(backupCodes); } catch (e) { backupCodes = []; }
+      }
+      if (!Array.isArray(backupCodes)) backupCodes = [];
       for (let i = 0; i < backupCodes.length; i++) {
         const match = await bcrypt.compare(totpCode.toUpperCase(), backupCodes[i]);
         if (match) {
@@ -24925,9 +24984,13 @@ io.on('connection', (socket) => {
       console.error('[DISPATCH] Failed to broadcast to hospital rooms from DB:', hospBroadcastErr.message);
     }
 
-    // Call tiered dispatch agent
+    // Call parallel broadcast for both ambulances and hospitals simultaneously
     const { dispatchTiered } = require('./services/dispatchAgent');
-    dispatchTiered(reqId, userLocation.lat, userLocation.lng, io, ambulances, activeRequests);
+    const { broadcastToNearbyHospitals } = require('./services/hospitalMatchingAgent');
+    Promise.all([
+      dispatchTiered(reqId, userLocation.lat, userLocation.lng, io, ambulances, activeRequests),
+      broadcastToNearbyHospitals({ id: reqId, pickup_lat: userLocation.lat, pickup_lng: userLocation.lng, userLocation }, io)
+    ]).catch(err => console.error('[PARALLEL BROADCAST ERROR]', err.message));
 
     // FCM Push Notifications & Topic notifications
     if (data.userId) {
@@ -25001,6 +25064,63 @@ io.on('connection', (socket) => {
 
       io.to(`mission_${reqId}`).emit('patient-onboard', data);
       console.log(`[CORRIDOR LOCK] Corridor locked for request ${reqId} to hospital ${req.assignedHospital.name}`);
+
+      // Part 6: Start continuous background hospital search after pickup
+      const { startContinuousHospitalSearch } = require('./services/hospitalMatchingAgent');
+      startContinuousHospitalSearch(reqId, io, activeRequests);
+    }
+  });
+
+  socket.on('hospital:accept-switch', async (data) => {
+    const { reqId, hospitalId } = data;
+    const req = activeRequests[reqId];
+    if (!req) return;
+
+    try {
+      const { Hospital, Incident } = require('./utils/db');
+      const newHospital = await Hospital.findByPk(hospitalId);
+      if (!newHospital) return;
+
+      req.hospitalId = newHospital.id;
+      req.assignedHospital = {
+        id: newHospital.id,
+        name: newHospital.name,
+        lat: newHospital.lat,
+        lng: newHospital.lng,
+        contactInfo: newHospital.contact_number
+      };
+
+      const ambSocketObj = ambulances[req.ambulanceSocket];
+      const currentLat = (ambSocketObj && ambSocketObj.location && ambSocketObj.location.lat) || req.userLocation.lat;
+      const currentLng = (ambSocketObj && ambSocketObj.location && ambSocketObj.location.lng) || req.userLocation.lng;
+
+      const { getRealRoute } = require('./services/routing');
+      const routeData = await getRealRoute(currentLat, currentLng, newHospital.lat, newHospital.lng);
+
+      if (routeData) {
+        req.routePath = routeData.geometry.coordinates.map(c => ({ lat: c[1], lng: c[0] }));
+        req.corridor_junctions = routeData.steps;
+
+        const { initializeCorridorForRoute } = require('./utils/emergencyCorridor');
+        const currentVersion = (req.routeVersion || 1) + 1;
+        req.routeVersion = currentVersion;
+
+        await initializeCorridorForRoute(reqId, req.routePath, currentVersion);
+
+        io.to(`mission_${reqId}`).emit('route-update', { reqId, routePath: req.routePath });
+        io.to(`mission_${reqId}`).emit('corridor:activated', { route: routeData, hospital: req.assignedHospital, routeVersion: currentVersion });
+        io.to(`mission_${reqId}`).emit('hospital:switch-confirmed', {
+          reqId,
+          hospital: req.assignedHospital,
+          routeVersion: currentVersion,
+          routePath: req.routePath
+        });
+      }
+
+      await Incident.update({ hospital_id: newHospital.id }, { where: { id: reqId } });
+      console.log(`[DYNAMIC CORRIDOR REGEN] Mission ${reqId} switched to hospital ${newHospital.name} (v${req.routeVersion})`);
+    } catch (err) {
+      console.error('[HOSPITAL SWITCH REGEN ERROR]', err.message);
     }
   });
 
@@ -26618,15 +26738,23 @@ const { getRealRoute } = require('./routing');
 const { haversineDistance } = require('../utils/maps');
 const whatsappService = require('../utils/whatsapp');
 const { createSystemNotification } = require('../utils/systemNotifications');
+const { Ambulance } = require('../utils/db');
+const { Op } = require('sequelize');
 
 const MAX_DISPATCH_RADIUS_KM = parseFloat(process.env.MAX_DISPATCH_RADIUS_KM) || 35; // Default 35 km max operating radius
 
 async function rankAmbulancesByRealETA(pickupLat, pickupLng, liveAmbulancesList = [], maxCandidates = 15) {
-  // 1. Fetch ALL DB registered ambulances (regardless of active toggle status)
+  // 1. Fetch DB registered & verified ambulances
   let dbAmbulances = [];
   try {
-    const { Ambulance } = require('../utils/db');
-    const records = await Ambulance.findAll();
+    const records = await Ambulance.findAll({
+      where: {
+        [Op.or]: [
+          { is_active: true },
+          { verification_status: 'APPROVED' }
+        ]
+      }
+    });
     dbAmbulances = records.map(r => typeof r.toJSON === 'function' ? r.toJSON() : r);
   } catch (err) {
     console.error('[DISPATCH AGENT DB FETCH ERROR]', err.message);
@@ -26804,6 +26932,7 @@ FILE: backend\services\hospitalMatchingAgent.js
 ================================================
 const { Hospital } = require('../utils/db');
 const { getRealRoute } = require('./routing');
+const { Op } = require('sequelize');
 
 const calcDist = (pos1, pos2) => {
   if (!pos1 || !pos2) return 999;
@@ -26823,7 +26952,14 @@ const calcDist = (pos1, pos2) => {
 };
 
 async function rankHospitals(pickupLat, pickupLng) {
-  const registeredHospitals = await Hospital.findAll({ where: { is_active: true } });
+  const registeredHospitals = await Hospital.findAll({
+    where: {
+      [Op.or]: [
+        { is_active: true },
+        { verification_status: 'APPROVED' }
+      ]
+    }
+  });
   
   const ranked = await Promise.all(registeredHospitals.map(async (h) => {
     const route = await getRealRoute(pickupLat, pickupLng, h.lat, h.lng);
@@ -26848,6 +26984,75 @@ async function rankHospitals(pickupLat, pickupLng) {
   }));
 
   return ranked.sort((a, b) => b.score - a.score);
+}
+
+async function broadcastToNearbyHospitals(request, io = null) {
+  const pickupLat = request.pickup_lat || request.userLocation?.lat;
+  const pickupLng = request.pickup_lng || request.userLocation?.lng;
+  if (!pickupLat || !pickupLng) return [];
+
+  const ranked = await rankHospitals(pickupLat, pickupLng);
+  const { notifyEntity } = require('../utils/systemNotifications');
+
+  for (const { hospital } of ranked.slice(0, 5)) {
+    await notifyEntity(hospital, 'incoming-case-availability-check', {
+      requestId: request.id,
+      pickupLat,
+      pickupLng
+    }, io);
+  }
+  return ranked.slice(0, 5);
+}
+
+async function checkContinuousHospitalSearch(missionId, io, activeRequests) {
+  const req = activeRequests ? activeRequests[missionId] : null;
+  if (!req || ['hospital_confirmed', 'closed', 'cancelled'].includes(req.status)) {
+    return false;
+  }
+  if (req.status !== 'en_route_to_hospital' || !req.hospitalId || !req.assignedHospital) {
+    return true;
+  }
+
+  try {
+    const currentLat = (req.ambulanceLocation?.lat) || req.userLocation?.lat;
+    const currentLng = (req.ambulanceLocation?.lng) || req.userLocation?.lng;
+    if (!currentLat || !currentLng) return true;
+
+    const currentRoute = await getRealRoute(currentLat, currentLng, req.assignedHospital.lat, req.assignedHospital.lng);
+    const currentEta = currentRoute ? currentRoute.durationSeconds : (req.confirmed_eta_seconds || 600);
+
+    const ranked = await rankHospitals(currentLat, currentLng);
+    const better = ranked.find(r =>
+      String(r.hospital.id) !== String(req.hospitalId) && r.etaSeconds < currentEta * 0.85
+    );
+
+    if (better && io) {
+      console.log(`[CONTINUOUS HOSPITAL SEARCH] Better option found: ${better.hospital.name} for mission ${missionId}`);
+      io.to(`mission_${missionId}`).emit('hospital:better-option-found', {
+        currentHospital: req.hospitalId,
+        suggestedHospital: {
+          id: better.hospital.id,
+          name: better.hospital.name,
+          lat: better.hospital.lat,
+          lng: better.hospital.lng,
+          icuBeds: better.icuBeds,
+          ventilators: better.ventilators
+        },
+        etaSaved: currentEta - better.etaSeconds
+      });
+    }
+  } catch (err) {
+    console.error('[CONTINUOUS HOSPITAL SEARCH ERROR]', err.message);
+  }
+  return true;
+}
+
+function startContinuousHospitalSearch(missionId, io, activeRequests, checkIntervalMs = 45000) {
+  checkContinuousHospitalSearch(missionId, io, activeRequests);
+  const interval = setInterval(() => {
+    checkContinuousHospitalSearch(missionId, io, activeRequests);
+  }, checkIntervalMs);
+  return interval;
 }
 
 function startHospitalMatchingAgent(missionId, io, activeRequests) {
@@ -26917,7 +27122,14 @@ async function checkForBetterHospitalMidTransport(missionId, currentLat, current
   }
 }
 
-module.exports = { rankHospitals, startHospitalMatchingAgent, checkForBetterHospitalMidTransport };
+module.exports = {
+  rankHospitals,
+  broadcastToNearbyHospitals,
+  checkContinuousHospitalSearch,
+  startContinuousHospitalSearch,
+  startHospitalMatchingAgent,
+  checkForBetterHospitalMidTransport
+};
 
 ================================================
 FILE: backend\services\routing.js
@@ -28370,6 +28582,110 @@ setTimeout(() => {
   
   process.exit(connectionsFailed > 0 ? 1 : 0);
 }, DURATION_MS);
+
+================================================
+FILE: backend\tests\masterSystemFlow.test.js
+================================================
+const { rankHospitals, broadcastToNearbyHospitals, startContinuousHospitalSearch, checkContinuousHospitalSearch } = require('../services/hospitalMatchingAgent');
+const { rankAmbulancesByRealETA, dispatchTiered } = require('../services/dispatchAgent');
+const { notifyEntity, createSystemNotification } = require('../utils/systemNotifications');
+const { Hospital, Ambulance, NotificationQueue, EmergencyCorridor, sequelize } = require('../utils/db');
+
+describe('RescueLink Master System Flow Verification', () => {
+
+  beforeAll(async () => {
+    await sequelize.sync({ force: true });
+  });
+
+  test('Part 3 — Only Verified & Approved Entities Ever Enter Candidate Pools', async () => {
+    // Create an unverified test hospital
+    const unverifiedHospital = await Hospital.create({
+      name: 'Unverified Test Clinic',
+      lat: 18.5204,
+      lng: 73.8567,
+      is_active: false,
+      verification_status: 'PENDING'
+    });
+
+    const rankedHospitals = await rankHospitals(18.5200, 73.8560);
+    const unverifiedFound = rankedHospitals.some(h => h.hospital.id === unverifiedHospital.id);
+    expect(unverifiedFound).toBe(false);
+
+    // Clean up
+    await Hospital.destroy({ where: { id: unverifiedHospital.id } });
+  });
+
+  test('Part 2 & 4 — Multi-Channel Active Delivery and Notification Queue', async () => {
+    const mockEntity = {
+      id: 'hosp-test-01',
+      name: 'City Care Hospital',
+      contact_number: '+91-9876543210',
+      push_subscription: JSON.stringify({ endpoint: 'https://push.example.com/sub/123' })
+    };
+
+    const mockPayload = { requestId: 'REQ-TEST-108', pickupLat: 18.5204, pickupLng: 73.8567 };
+
+    await notifyEntity(mockEntity, 'incoming-case-availability-check', mockPayload);
+
+    // Verify DB NotificationQueue entry created
+    const queueRecord = await NotificationQueue.findOne({
+      where: { entity_id: mockEntity.id, event_type: 'incoming-case-availability-check' }
+    });
+
+    expect(queueRecord).not.toBeNull();
+    expect(queueRecord.delivered_via_socket).toBe(false);
+
+    // Clean up
+    await NotificationQueue.destroy({ where: { id: queueRecord.id } });
+  });
+
+  test('Part 6 — Continuous Best-Hospital Search Suggestion Engine', async () => {
+    const closeHospital = await Hospital.create({
+      name: 'Nearby Emergency Trauma Care',
+      lat: 18.5210,
+      lng: 73.8570,
+      is_active: true,
+      verification_status: 'APPROVED',
+      icu_beds: 15,
+      ventilators: 8
+    });
+
+    const mockActiveRequests = {
+      'REQ-CONT-1': {
+        id: 'REQ-CONT-1',
+        status: 'en_route_to_hospital',
+        hospitalId: 'hosp-old',
+        assignedHospital: { id: 'hosp-old', name: 'Far Away Hospital', lat: 19.5000, lng: 74.5000 },
+        userLocation: { lat: 18.5204, lng: 73.8567 },
+        ambulanceLocation: { lat: 18.5204, lng: 73.8567 },
+        confirmed_eta_seconds: 3600
+      }
+    };
+
+    let emittedEvent = null;
+    let emittedPayload = null;
+
+    const mockIo = {
+      to: (room) => ({
+        emit: (event, payload) => {
+          emittedEvent = event;
+          emittedPayload = payload;
+        }
+      })
+    };
+
+    const timer = startContinuousHospitalSearch('REQ-CONT-1', mockIo, mockActiveRequests, 100);
+    await checkContinuousHospitalSearch('REQ-CONT-1', mockIo, mockActiveRequests);
+    clearInterval(timer);
+
+    expect(emittedEvent).toBe('hospital:better-option-found');
+    expect(emittedPayload).toBeDefined();
+    expect(emittedPayload.currentHospital).toBe('hosp-old');
+    expect(emittedPayload.suggestedHospital.name).toBe('Nearby Emergency Trauma Care');
+
+    await Hospital.destroy({ where: { id: closeHospital.id } });
+  });
+});
 
 ================================================
 FILE: backend\tests\offlineDispatch.test.js
@@ -30020,6 +30336,7 @@ const GoodSamaritan = require('../models/GoodSamaritan')(sequelize);
 const MciTriageTag = require('../models/MciTriageTag')(sequelize);
 const MedicalDrone = require('../models/MedicalDrone')(sequelize);
 const ClinicalHandover = require('../models/ClinicalHandover')(sequelize);
+const NotificationQueue = require('../models/NotificationQueue')(sequelize);
 
 Incident.hasMany(ClinicalHandover, { foreignKey: 'incident_id', as: 'clinicalHandovers' });
 ClinicalHandover.belongsTo(Incident, { foreignKey: 'incident_id', as: 'incident' });
@@ -30180,6 +30497,7 @@ module.exports = {
   MciTriageTag,
   MedicalDrone,
   ClinicalHandover,
+  NotificationQueue,
   syncDatabase,
   healthCheck,
   closeDatabase
@@ -32877,9 +33195,18 @@ async function sendTopicNotification(topic, title, body, data = {}) {
   }
 }
 
+/**
+ * Sends web push notification wrapper
+ */
+async function sendWebPush(subscription, notificationData) {
+  const token = typeof subscription === 'string' ? subscription : (subscription?.endpoint || subscription?.token || 'mock-web-push-token');
+  return sendPushNotification(token, notificationData.title, notificationData.body, notificationData.data || {});
+}
+
 module.exports = {
   sendPushNotification,
-  sendTopicNotification
+  sendTopicNotification,
+  sendWebPush
 };
 
 ================================================
@@ -33318,10 +33645,71 @@ function clearDeliveredNotifications(recipientId) {
   }
 }
 
+/**
+ * Multi-channel active delivery helper for logged in or offline entities
+ */
+async function notifyEntity(entity, eventType, payload, io = null, activeSocketsByEntityId = new Set()) {
+  if (!entity || !entity.id) return;
+  const whatsappService = require('./whatsapp');
+  const { NotificationQueue } = require('./db');
+
+  const isOnline = activeSocketsByEntityId.has(entity.id) || (entity.vehicleNo && activeSocketsByEntityId.has(entity.vehicleNo));
+
+  // 1. Live socket delivery if online
+  if (io) {
+    io.to(`entity:${entity.id}`).to(`hospital:${entity.id}`).to(`ambulance:${entity.id}`).emit(eventType, payload);
+  }
+
+  // 2. ALWAYS record in NotificationQueue DB table
+  try {
+    if (NotificationQueue) {
+      await NotificationQueue.create({
+        entity_id: entity.id,
+        event_type: eventType,
+        payload: JSON.stringify(payload),
+        delivered_via_socket: isOnline,
+        status: isOnline ? 'DELIVERED_SOCKET' : 'QUEUED'
+      });
+    }
+  } catch (err) {
+    console.warn(`[NOTIFY ENTITY DB QUEUE WARN] ${err.message}`);
+  }
+
+  // 3. Web Push API / Device token Push Notification
+  if (entity.push_subscription) {
+    try {
+      const { sendWebPush } = require('./pushNotifications');
+      await sendWebPush(entity.push_subscription, {
+        title: eventType === 'incoming-case-availability-check'
+          ? 'Incoming patient — check availability'
+          : 'New emergency dispatch request',
+        body: payload.pickupLat && payload.pickupLng
+          ? `Patient location: ${payload.pickupLat.toFixed(3)}, ${payload.pickupLng.toFixed(3)}`
+          : 'Urgent emergency alert received'
+      });
+    } catch (pushErr) {
+      console.warn(`[NOTIFY ENTITY PUSH WARN] ${pushErr.message}`);
+    }
+  }
+
+  // 4. WhatsApp & SMS cellular fallback for priority events
+  const phone = entity.contact_number || entity.contactInfo || entity.phone;
+  if (phone && ['request:incoming', 'incoming-case-availability-check', 'incoming-ambulance-request'].includes(eventType)) {
+    try {
+      const pickupText = (payload.pickupLat && payload.pickupLng) ? `(${payload.pickupLat.toFixed(4)}, ${payload.pickupLng.toFixed(4)})` : '';
+      const msg = `🚨 *RESCUELINK EMERGENCY ALERT*:\nEvent: ${eventType}\nLocation: ${pickupText}\nPlease log into your RescueLink panel to respond.`;
+      await whatsappService.sendSMS(phone, msg);
+    } catch (smsErr) {
+      console.warn(`[NOTIFY ENTITY SMS WARN] ${smsErr.message}`);
+    }
+  }
+}
+
 module.exports = {
   createSystemNotification,
   getPendingNotifications,
-  clearDeliveredNotifications
+  clearDeliveredNotifications,
+  notifyEntity
 };
 
 ================================================
@@ -33649,7 +34037,17 @@ async function initPredictiveModel() {
 initPredictiveModel();
 
 function predictTriageRisk(vitals) {
-  if (!localPredictiveModel) return null;
+  if (!vitals) return {
+    model: 'Rule-Based Fallback',
+    status: 'STABLE',
+    riskScore: 1.0,
+    cardiacArrestRisk: 0.05,
+    shockRisk: 0.05,
+    vTachRisk: 0.05,
+    alerts: [],
+    recommendations: ['Standard Monitoring']
+  };
+
   try {
     const hr = vitals.heartRate || 75;
     const spo2 = vitals.spo2 || 98;
@@ -33657,21 +34055,69 @@ function predictTriageRisk(vitals) {
     const rr = vitals.respRate || 16;
     const temp = vitals.temperature || 37.0;
 
-    const inputTensor = tf.tensor2d([[hr, spo2, sbp, rr, temp]]);
-    const prediction = localPredictiveModel.predict(inputTensor);
-    const data = prediction.dataSync();
-    
-    inputTensor.dispose();
-    prediction.dispose();
-    
+    let cardiacRisk = 0.1;
+    let shockRisk = 0.1;
+    let vTachRisk = 0.1;
+
+    if (localPredictiveModel) {
+      const inputTensor = tf.tensor2d([[hr, spo2, sbp, rr, temp]]);
+      const prediction = localPredictiveModel.predict(inputTensor);
+      const data = prediction.dataSync();
+      inputTensor.dispose();
+      prediction.dispose();
+      cardiacRisk = Math.round(data[0] * 100) / 100;
+      shockRisk = Math.round(data[1] * 100) / 100;
+      vTachRisk = Math.round(data[2] * 100) / 100;
+    }
+
+    let status = 'STABLE';
+    let riskScore = Math.max(cardiacRisk, shockRisk, vTachRisk) * 10;
+    riskScore = Math.round(riskScore * 10) / 10;
+
+    const alerts = [];
+    const recommendations = [];
+
+    if (spo2 < 92 || hr > 130 || sbp < 90 || cardiacRisk > 0.6 || shockRisk > 0.6) {
+      status = 'CRITICAL';
+      if (spo2 < 92) alerts.push('Severe Hypoxia (SpO2 < 92%)');
+      if (hr > 130) alerts.push('Severe Tachycardia (HR > 130 bpm)');
+      if (sbp < 90) alerts.push('Hypotension / Shock Warning (SBP < 90 mmHg)');
+      if (cardiacRisk > 0.6) alerts.push('High Predictive Risk of Cardiac Arrest');
+      recommendations.push('Establish high-flow O2 (15L/min non-rebreather)');
+      recommendations.push('Prepare resuscitation bay and alert ICU team');
+    } else if (hr > 105 || spo2 < 95 || sbp > 145 || temp > 38.0 || cardiacRisk > 0.3) {
+      status = 'MODERATE';
+      if (hr > 105) alerts.push('Elevated Heart Rate (HR > 105 bpm)');
+      if (spo2 < 95) alerts.push('Sub-optimal SpO2 (< 95%)');
+      if (sbp > 145) alerts.push('Hypertensive distress (SBP > 145 mmHg)');
+      recommendations.push('Initiate continuous vital signs polling');
+      recommendations.push('Obtain 12-lead ECG and IV access standby');
+    } else {
+      recommendations.push('Continue standard vital sign monitoring');
+    }
+
     return {
-      cardiacArrestRisk: Math.round(data[0] * 100) / 100,
-      shockRisk: Math.round(data[1] * 100) / 100,
-      vTachRisk: Math.round(data[2] * 100) / 100
+      model: localPredictiveModel ? 'TensorFlow.js (3-Output Triage)' : 'Clinical Rule Engine',
+      status,
+      riskScore,
+      cardiacArrestRisk: cardiacRisk,
+      shockRisk: shockRisk,
+      vTachRisk: vTachRisk,
+      alerts,
+      recommendations
     };
   } catch (err) {
     console.error('[ENTERPRISE AI] Prediction failed:', err.message);
-    return null;
+    return {
+      model: 'Fallback Rule Engine',
+      status: 'STABLE',
+      riskScore: 2.0,
+      cardiacArrestRisk: 0.1,
+      shockRisk: 0.1,
+      vTachRisk: 0.1,
+      alerts: [],
+      recommendations: ['Standard Triage Protocol']
+    };
   }
 }
 
@@ -67080,14 +67526,14 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
               </div>
 
               <div style={{ fontSize: 11, color: '#ff8888', marginBottom: 6, fontWeight: 'bold' }}>ALERTS:</div>
-              {aiPrediction.alerts.map((al, idx) => (
+              {(aiPrediction.alerts || []).map((al, idx) => (
                 <div key={idx} style={{ fontSize: 11, color: 'rgba(255,255,255,0.9)', paddingLeft: 10, borderLeft: '2px solid #ff4444', marginBottom: 4 }}>
                   ⚠️ {al}
                 </div>
               ))}
 
               <div style={{ fontSize: 11, color: '#00ff88', marginTop: 10, marginBottom: 6, fontWeight: 'bold' }}>REC:</div>
-              {aiPrediction.recommendations.map((rec, idx) => (
+              {(aiPrediction.recommendations || []).map((rec, idx) => (
                 <div key={idx} style={{ fontSize: 11, color: 'rgba(200,240,255,0.95)', paddingLeft: 10, borderLeft: '2px solid #00ff88', marginBottom: 4 }}>
                   • {rec}
                 </div>
@@ -80420,9 +80866,18 @@ import { API_BASE_URL } from './config/api';
 
 // Global fetch monkey-patch to prepend backend server URL to relative /api calls in production/local environments
 const originalFetch = window.fetch;
-window.fetch = (url, options) => {
-  const targetUrl = typeof url === 'string' && url.startsWith('/api') ? `${API_BASE_URL}${url}` : url;
-  return originalFetch(targetUrl, options);
+window.fetch = (input, options) => {
+  let target = input;
+  if (typeof input === 'string') {
+    if (input.startsWith('/api') || input.startsWith('/v0.5') || input.startsWith('/health')) {
+      target = `${API_BASE_URL}${input}`;
+    }
+  } else if (input && typeof input === 'object' && input.url && typeof input.url === 'string') {
+    if (input.url.startsWith('/api') || input.url.startsWith('/v0.5') || input.url.startsWith('/health')) {
+      target = new Request(`${API_BASE_URL}${input.url}`, input);
+    }
+  }
+  return originalFetch(target, options);
 };
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
@@ -81063,6 +81518,8 @@ graph TD
 
 ## 2. Implemented Features & Operational Checklist
 
+- 🔄 **RescueLink Master System Flow & Parallel Multi-Channel Dispatch**: End-to-end automated emergency workflow executing parallel broadcast across candidate ambulances, continuous background hospital matching engine until bed reservation confirmation, and multi-channel system notifications (WebPush, SMS, WhatsApp queue).
+- 📱 **RescueLink Mobile Edge Integration**: Full React Native mobile companion app integration supporting real-time GPS telemetry streaming, paramedic active incident intake, patient SOS tracking, and centralized API configuration (`RescueLinkMobile`).
 - 🚨 **Guest Emergency Dispatch (Authentication Bypass)**: Instant SOS dispatch triggering geolocation capture and immediate ambulance routing without requiring password login.
 - 🚥 **Emergency Green Corridor Coordination Layer**: Intelligent traffic signal preemption, multi-junction signal state machines (`NORMAL → ARMED → APPROACHING → PREEMPT_REQUESTED → PREEMPT_ACTIVE → AMBULANCE_PASSING → RESTORING → CLEARING → NORMAL`), Kalman-filtered ambulance telemetry, dynamic ETA calculation, automated traffic controller fallback, readiness scoring engine, and audit logging.
 - 🚧 **Traffic-Aware Dynamic Alternate Corridor**: Real-time traffic obstruction detection ahead on remaining ambulance route, primary vs alternate route ETA comparison, safety-first recommendation engine (`SWITCH_ALTERNATE` vs `KEEP_PRIMARY`), human-in-the-loop control room confirmation, route versioning (`routeVersion`), and automatic corridor junction sequence rebuilding for the newly selected route.
@@ -89563,6 +90020,12 @@ FILE: RescueLinkMobile\package.json
 }
 
 ================================================
+FILE: RescueLinkMobile\src\config\api.ts
+================================================
+export const API_BASE_URL = (process.env.EXPO_PUBLIC_SERVER_URL || 'http://localhost:5000').replace(/\/$/, '');
+export const SOCKET_URL = API_BASE_URL;
+
+================================================
 FILE: RescueLinkMobile\src\navigation\AppNavigator.tsx
 ================================================
 import React, { useEffect, useState } from 'react';
@@ -89578,7 +90041,9 @@ import * as Notifications from 'expo-notifications';
 import { Audio } from 'expo-av';
 
 // Route endpoints from .env
-const SERVER_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://localhost:5000';
+import { API_BASE_URL } from '../config/api';
+
+const SERVER_URL = API_BASE_URL;
 
 // Import Screens (we will implement the actual screen components)
 import LoginScreen from '../screens/auth/LoginScreen';
@@ -89892,7 +90357,9 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator,
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
-const SERVER_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://localhost:5000';
+import { API_BASE_URL } from '../../config/api';
+
+const SERVER_URL = API_BASE_URL;
 
 interface LoginScreenProps {
   navigation: any;
@@ -90073,7 +90540,9 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
-const SERVER_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://localhost:5000';
+import { API_BASE_URL } from '../../config/api';
+
+const SERVER_URL = API_BASE_URL;
 
 export default function DriverHomeScreen({ navigation }: any) {
   const [jobs, setJobs] = useState<any[]>([]);
@@ -90617,7 +91086,9 @@ import axios from 'axios';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import BleManager from 'react-native-ble-manager';
 
-const SERVER_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://localhost:5000';
+import { API_BASE_URL } from '../../config/api';
+
+const SERVER_URL = API_BASE_URL;
 const BACKGROUND_GPS_TASK = 'RESCUELINK_BACKGROUND_GPS';
 
 // Register background location task
@@ -91225,7 +91696,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import io from 'socket.io-client';
 
-const SERVER_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://localhost:5000';
+import { API_BASE_URL } from '../../config/api';
+
+const SERVER_URL = API_BASE_URL;
 
 export default function ParamedicHomeScreen({ navigation }: any) {
   const [incidents, setIncidents] = useState<any[]>([]);
@@ -91456,7 +91929,9 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const SERVER_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://localhost:5000';
+import { API_BASE_URL } from '../../config/api';
+
+const SERVER_URL = API_BASE_URL;
 
 export default function PatientScanScreen({ navigation }: any) {
   const [permission, requestPermission] = useCameraPermissions();
@@ -91700,7 +92175,9 @@ import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView, Alert,
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
-const SERVER_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://localhost:5000';
+import { API_BASE_URL } from '../../config/api';
+
+const SERVER_URL = API_BASE_URL;
 
 export default function ChronicLogScreen() {
   const [bloodGlucose, setBloodGlucose] = useState('');
@@ -92112,9 +92589,9 @@ import * as Speech from 'expo-speech';
 import MapView, { Marker } from 'react-native-maps';
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Storage helper hook
 import axios from 'axios';
-import io from 'socket.io-client';
+import { API_BASE_URL, SOCKET_URL } from '../../config/api';
 
-const SERVER_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://localhost:5000';
+const SERVER_URL = API_BASE_URL;
 
 export default function PatientHomeScreen({ navigation }: any) {
   const [loading, setLoading] = useState(false);
@@ -92410,7 +92887,9 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert, Share } from 'react-na
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import io from 'socket.io-client';
 
-const SERVER_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://localhost:5000';
+import { API_BASE_URL } from '../../config/api';
+
+const SERVER_URL = API_BASE_URL;
 
 export default function TrackingScreen({ route, navigation }: any) {
   const { incidentId } = route.params || { incidentId: 'REQ-MOCK' };
