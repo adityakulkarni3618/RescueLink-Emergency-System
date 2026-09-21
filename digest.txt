@@ -542,7 +542,7 @@ FILE: backend\data\audit_log.txt
 [2026-09-18T10:20:11.665Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 [2026-09-18T10:57:51.161Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 [2026-09-18T13:17:51.907Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
-[2026-09-21T12:59:38.133Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
+[2026-09-21T13:30:26.070Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 
 ================================================
 FILE: backend\data\consent_ledger.json
@@ -700,39 +700,39 @@ FILE: backend\data\consent_ledger_test.json
 [
   {
     "index": 0,
-    "timestamp": "2026-09-21T13:00:02.456Z",
+    "timestamp": "2026-09-21T13:30:49.674Z",
     "action": "GENESIS_CHAIN_INITIALIZED",
     "patientId": "00000000-0000-0000-0000-000000000000",
     "previousHash": "0",
-    "hash": "f81653f5e5e6ea615754bc3b7f8e91cb0204cf8183b6f8746e0a488269fdef4f",
-    "signature": "RWS57Ug4b8R/uHj1XvhrtYodYJ9UqlCbMFJutDWuyfAhnyAQno+3AAu8vn4/FXGBqIV/qF6TvYjnn45OuP4tvBuZv1KOKT6KEqs52iG2QzBYTsoL/40ulZ3N3nbjW8CUn8EN7V3x47GeHsr9b9IIvueQxcBhztmmimIxkidFZ4wYafujvIyD133jzjAlgWMzKPI5RCtJrOKaS5hhbUZ2R7vUxWXfvAsIMYexXym/SILM4AEq13i1FsNyIN3GRPPjfYKRwDVw4NtbAUzfpXCdF0WdEFIvC91P8Nmq9YcTGpazTuwLmZdNYvzdmyZmzqjd2m52P8442+a4DYqeKL5uMA=="
+    "hash": "0b16f9ca333de338e7a86270ecf152fb0395a9d3ce590a5397295654215875fc",
+    "signature": "P+hSPdBdnFNDyDq2X29tPXh6xYpWmdL0UqwWzJCmQIjSx0bx3DIpJQ9HinL9qj99thhsAQ8QVcuM/lRjsI8XYExJtsLeJpUK/QKGtFpVvltV33qfCx53XMnxMpsRA9E0j4VdinMQOqSEabwbTXbUcYtuk0UBy01CfCgZtkujP1Klz1BqO2PaFdtH9DpLPxVear/1pki5qUCFIQwHCdsUJPckWnG+amLRpbarCOpx4aZftfn2QWAhj8JEJuGZJiTYYRA42gAEuYD2C7vsUE6018gYfH4XiDLjqYpLQJ7XcUFX5INj6U0/d70B7Z8uSc2knRXdjp0rqh91g89DjLMjHA=="
   },
   {
     "index": 1,
-    "timestamp": "2026-09-21T13:00:02.472Z",
+    "timestamp": "2026-09-21T13:30:49.677Z",
     "action": "CONSENT_GRANTED",
     "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "f81653f5e5e6ea615754bc3b7f8e91cb0204cf8183b6f8746e0a488269fdef4f",
-    "hash": "89afb63929407473e64315b5dd9822ad7a6dc41fc78c651ced24d4dd5f5679ad",
-    "signature": "hrqmvU4lv6TbSnLuJR5bYjs7kYiMQvSIi60scP+nDss8SDhqw4EbS7a7K2kF8Cz0QdhaW+pdJDOzlXPbJxWpMVwpmBzEq70aQekh2TUgG/zue7a/4cdPeKVjwhF9j32epR06wlqbMf5u6y1yktw/P2kLN0Sww3BbelkHGd8D2kqx5tW1LJ/OawpBAdxK/NeT3VcdG87B41esponcJrGB/1xPQoF2VLfnBEmPFyR+qi75II2S8XfYWLvbrPDSzauWw2eJUqbG1xLJNkSb0J0A0Bz5PZe6wqqv08dPvI9tWLOVYm5HYBOyjr194gH83f7mkWDAzTMZ/80fnswnMUwPwQ=="
+    "previousHash": "0b16f9ca333de338e7a86270ecf152fb0395a9d3ce590a5397295654215875fc",
+    "hash": "5c24c8f1495df73ec6a8d4c4d31c313207454d82af69e07248ab9af9c18b3ca2",
+    "signature": "ALRv0uF+oqZ/PLza716b0doGw0sop/MyWpKdS/QQ0STUCeEO/2nLEbbSdRac+vDEK05DL4IT3VFUA+k/xQNhilKaFn25mqSWP3xmGqUcJctGoKp2xyvJVEmNmB3X3jtD3XN8Rx97Rp3jL4uI0cN8d7AhsQwh/Kz4PNgaLoctD8rSe7NXoxGIE51VOCgobJLFWdmVqVlDFzHCkgzlV7t84zpxwzyQY1Fgy+1W7RL9wjcgDuyMGHWhS6B6kt69Ke3xqQC+m+8oJyoaJRpiqK0YXsVTnihnITwwmN0nEjA3MtTtSvsjtrbLeKtxQ8lhqrj4SOGHnO3WltUhPGz03ntYaw=="
   },
   {
     "index": 2,
-    "timestamp": "2026-09-21T13:00:02.492Z",
+    "timestamp": "2026-09-21T13:30:49.681Z",
     "action": "CONSENT_REVOKED",
     "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "89afb63929407473e64315b5dd9822ad7a6dc41fc78c651ced24d4dd5f5679ad",
-    "hash": "f61cc5bd3446645bfaa93389e226b40b52b02d6f152ee5906e0b11f1dee28c30",
-    "signature": "HnS7ZQH0j3OkqKMutmjinXFRp73pwdbirGKdJkp1YJf5O/jSS4hlrIf9Z2TSynwkmjyfkg6P0h8U8Qx/R6PaocY0eJzh80SuT+W8hSK8pA9TTgQF3iylUgqgIksbCWYrA31ZXhyM3JFdwyS2AeGw5Lfa7s/Gftuz1LD5TuL5mvVduw89/ZEpXUu4EN99oHDyQrJF9FgyaCxkj+yi7z05RludBl+WFyZbw6cofo28/UC3UZ7TL88gEV0kIwwRt8SV03jscs5U705ClWaxYRGfOh9PAIo3INCmyJFtNqSP9hL0qCmNd26ro0/iypHIbIvL0+yuVaCYpFbS/Gn8E3Ycbg=="
+    "previousHash": "5c24c8f1495df73ec6a8d4c4d31c313207454d82af69e07248ab9af9c18b3ca2",
+    "hash": "1001a67bcaecb543a4e3150d714f28fd5138b89af9bfe7355a44085599caa0fa",
+    "signature": "WrFTkfmFFhCF/f8kfXtARbzz7Ax6hfnHYiGdn/Sd1vXbnujhq4LWg4DqyFuNJTpTZ+2ea7QQ3OrcZX6i5yYRovirgJk3UT5Q90o+1jA70PF8LgoW5MbdaR/A3zZdDG+vzBWoeTSDmsppolcFxqfWE2wiNVX/ZRCTC7xg0srFP5XQ5RR54x6ghSeVAw86EvyZKBkNSYO5y/MMmgbG1lNf1prD2jymK/+xblYQ4crBQTaqrL2wDwjhaHnxDX3F3MLkjgxKdaa3U3d93jo5ZxQwmVS2wo/OrXt5Wa5KWZ3W6PZ+HeQQ8jnFx4TBDpxb1Tp7SBbSxnyWUsckKxv5jY0aXg=="
   },
   {
     "index": 3,
-    "timestamp": "2026-09-21T13:00:02.511Z",
+    "timestamp": "2026-09-21T13:30:49.685Z",
     "action": "CONSENT_REVOKED",
     "patientId": "8b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "f61cc5bd3446645bfaa93389e226b40b52b02d6f152ee5906e0b11f1dee28c30",
-    "hash": "c3aae24e62e20926642a54af20f1d53c9e86f2a857bffb5a70485eaad99c97cf",
-    "signature": "YTft7jkbHuSMG0URXVJ65qi4KoTTIgYR02Ydi5XDjAfmDZaD/8DQeZgXG/yd8I+DKxF6+lX/Nf7lVz5yqIof80G7rXZcVVzTzLojxlqatK9qouYNcGl78kyJah+INCihzyVz1MT1oFQiI6KlL0Y8x/usSEnKWGmUJoqG+XDklI4jGVgm5uFM5bgxSgM3qe7mDyubAXfyiBYba5w/6l6Reof3TohEBAoAJm9gNsGcev841zfPWUT7qan67z7snBPynnYXk4GHb8lnEYEDJnHjCU+Ou2e3ByhR6hW2dJjUgllT2GQNImUHKz1+rrQuTi1EFpDXwotktVTDBPNQ0VP6SA=="
+    "previousHash": "1001a67bcaecb543a4e3150d714f28fd5138b89af9bfe7355a44085599caa0fa",
+    "hash": "eea5c703ba78c1f85be8975cc8c0d769ea0df7685cead0bc78503bc99f2693fc",
+    "signature": "IaOE8k8OGefN7q/6Pm99xpMTQ2e4aR4oG+h/EVAbR3ZL+oN2H1hxkaSwKZrfIrN5smkOSteoklWQeukhkxRQLIJi3IE+Q/V/xq/Ob5+WCpYV/Kef1K65EVAauzKcSbXyrrR2WRIEVW3iTgbDAe0shSSCqkObPqvo63QgXnd+fW+L/2TgOkyqI+V9/rxz9Jya9QmIrP1kkKXLgcmHon47Np9kOw3/vml2GEqWBLKVKOoozAImTSeUo1YX9xJm3e+tOvNVvfrTv8oNOUPO8BIXUJ797pjJfJ6SUrn2AEN7g6anNXux3ccer5hz9VHiNZ+pDvpEsn1ulcTwH9TYLVrWQw=="
   }
 ]
 
