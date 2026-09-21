@@ -542,6 +542,7 @@ FILE: backend\data\audit_log.txt
 [2026-09-18T10:20:11.665Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 [2026-09-18T10:57:51.161Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 [2026-09-18T13:17:51.907Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
+[2026-09-21T13:30:26.070Z] [INSURANCE] [INFO] INSURANCE_PRE_AUTH | User: user-uuid-12345 | IP: ::ffff:127.0.0.1 | Details: {"patientName":"Jane Doe","estimatedCost":150000,"status":"submitted"}
 
 ================================================
 FILE: backend\data\consent_ledger.json
@@ -699,39 +700,39 @@ FILE: backend\data\consent_ledger_test.json
 [
   {
     "index": 0,
-    "timestamp": "2026-09-19T14:21:12.023Z",
+    "timestamp": "2026-09-21T13:30:49.674Z",
     "action": "GENESIS_CHAIN_INITIALIZED",
     "patientId": "00000000-0000-0000-0000-000000000000",
     "previousHash": "0",
-    "hash": "6ebaa6ca257efb002e4364a6d31a84cec41a14023e3fc4d14a6f5945be63c41d",
-    "signature": "E4n+SQ7hPfQdTuQJ1ChYbwOT9CMmOtQCCHtQf6FokyLSSeii9c37ZOvjskw24Dz7AejAEK+kDQnpRtP9eo2Ecic0KPq8+yWammMoOi4dyrpNoI71EocvK36/3iNEb+HI6F7OyYUUL2F1Effga1eGqgUwIkidyBXt+c4AfZeY9bxxnSRc12caF682aV2J6YHtIBoN6yKfEDsYS6CJtMX/Rr6eJ3gCOPMfMS6uI2cVf1qqmlq6zgCNSS6rvdFihq5/u7Ys5y0cOhzBBrRtr73a0mOgCx/gD+GpLkjo6vZ6X/JKqLzLru3c0IFv3bVIig2zeEB3SKuLqxe7uTppaRcYbQ=="
+    "hash": "0b16f9ca333de338e7a86270ecf152fb0395a9d3ce590a5397295654215875fc",
+    "signature": "P+hSPdBdnFNDyDq2X29tPXh6xYpWmdL0UqwWzJCmQIjSx0bx3DIpJQ9HinL9qj99thhsAQ8QVcuM/lRjsI8XYExJtsLeJpUK/QKGtFpVvltV33qfCx53XMnxMpsRA9E0j4VdinMQOqSEabwbTXbUcYtuk0UBy01CfCgZtkujP1Klz1BqO2PaFdtH9DpLPxVear/1pki5qUCFIQwHCdsUJPckWnG+amLRpbarCOpx4aZftfn2QWAhj8JEJuGZJiTYYRA42gAEuYD2C7vsUE6018gYfH4XiDLjqYpLQJ7XcUFX5INj6U0/d70B7Z8uSc2knRXdjp0rqh91g89DjLMjHA=="
   },
   {
     "index": 1,
-    "timestamp": "2026-09-19T14:21:12.026Z",
+    "timestamp": "2026-09-21T13:30:49.677Z",
     "action": "CONSENT_GRANTED",
     "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "6ebaa6ca257efb002e4364a6d31a84cec41a14023e3fc4d14a6f5945be63c41d",
-    "hash": "8b5a4060d1c3c625d0627f0e719df48b3765b2029b4ee97c1a852c91fffe4b06",
-    "signature": "ch5Cf5+cjuAXp20DtW6FoO/yKvCZgD5wCzaopRLwmrRYGW84ey9imD+PQarVVVFrD6+PBcDHZGFp25tRIeMbIqgJ9LlU3tW1Fwa6Bt4gc9uAv215c7vVuh44XDzZuymhw2fZLXkwALlc++wJFlh9YYRkBOo0ogiBDrYQLtpTesgr1/NbJ1AZqhKwUCBaERh+NMmaJXaSu8g7yqFCK0Y2p7LrRcuwo2W7XtqVcSB3SFT+WiHn73XLB4VzQK/1lmmJu1rECLhUwdr5zFX4Y6wisl/71apN7RzCupSaByFEKB524MgHZGTuY+hDHWkQ3+izw1n41w4P2uhB/XPVSRxvRg=="
+    "previousHash": "0b16f9ca333de338e7a86270ecf152fb0395a9d3ce590a5397295654215875fc",
+    "hash": "5c24c8f1495df73ec6a8d4c4d31c313207454d82af69e07248ab9af9c18b3ca2",
+    "signature": "ALRv0uF+oqZ/PLza716b0doGw0sop/MyWpKdS/QQ0STUCeEO/2nLEbbSdRac+vDEK05DL4IT3VFUA+k/xQNhilKaFn25mqSWP3xmGqUcJctGoKp2xyvJVEmNmB3X3jtD3XN8Rx97Rp3jL4uI0cN8d7AhsQwh/Kz4PNgaLoctD8rSe7NXoxGIE51VOCgobJLFWdmVqVlDFzHCkgzlV7t84zpxwzyQY1Fgy+1W7RL9wjcgDuyMGHWhS6B6kt69Ke3xqQC+m+8oJyoaJRpiqK0YXsVTnihnITwwmN0nEjA3MtTtSvsjtrbLeKtxQ8lhqrj4SOGHnO3WltUhPGz03ntYaw=="
   },
   {
     "index": 2,
-    "timestamp": "2026-09-19T14:21:12.037Z",
+    "timestamp": "2026-09-21T13:30:49.681Z",
     "action": "CONSENT_REVOKED",
     "patientId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "8b5a4060d1c3c625d0627f0e719df48b3765b2029b4ee97c1a852c91fffe4b06",
-    "hash": "603b867399715621d9da13ab680ad2aaca2fbc8c0d26ae15258d873ecbabca8e",
-    "signature": "PEzrWADwnFfK8lOkQL2BzNl+KBNZOxauhLAgbr4ApKZKzlpb82E9Der/ox1MlVAHeq0YteAt2MN5EjhkK/xywhHgjjk0eYT0sfMXnAxN7nSpFJ/Z9KOgwB+SRM5ttprlvBerTGIC9lY5T8Sly0I+d0XopQ4S3YdloaeSvcnWAVuHXR8eG5omHtkssyeV429bqf/c7/kBBsqpmyosiGB97O3Zfu4+oALA1JBnWWOWlzIUtVvJu507aknDTqju/fbwmkgKRTolB0TDZq3T1llFLFanskQPyVV+1NDs7W5MnlVTe7EH1G4ntr7OwhnccY85M9FCpBBp3UhSOwaIqjs0Dw=="
+    "previousHash": "5c24c8f1495df73ec6a8d4c4d31c313207454d82af69e07248ab9af9c18b3ca2",
+    "hash": "1001a67bcaecb543a4e3150d714f28fd5138b89af9bfe7355a44085599caa0fa",
+    "signature": "WrFTkfmFFhCF/f8kfXtARbzz7Ax6hfnHYiGdn/Sd1vXbnujhq4LWg4DqyFuNJTpTZ+2ea7QQ3OrcZX6i5yYRovirgJk3UT5Q90o+1jA70PF8LgoW5MbdaR/A3zZdDG+vzBWoeTSDmsppolcFxqfWE2wiNVX/ZRCTC7xg0srFP5XQ5RR54x6ghSeVAw86EvyZKBkNSYO5y/MMmgbG1lNf1prD2jymK/+xblYQ4crBQTaqrL2wDwjhaHnxDX3F3MLkjgxKdaa3U3d93jo5ZxQwmVS2wo/OrXt5Wa5KWZ3W6PZ+HeQQ8jnFx4TBDpxb1Tp7SBbSxnyWUsckKxv5jY0aXg=="
   },
   {
     "index": 3,
-    "timestamp": "2026-09-19T14:21:12.042Z",
+    "timestamp": "2026-09-21T13:30:49.685Z",
     "action": "CONSENT_REVOKED",
     "patientId": "8b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b1d",
-    "previousHash": "603b867399715621d9da13ab680ad2aaca2fbc8c0d26ae15258d873ecbabca8e",
-    "hash": "3a9d3c515064a2c8fed35d5a1ecc5d6a8098a2d357ac63197672e49a2c63bd2a",
-    "signature": "Sw5T+pcQr7EcS4Rvrm4zYUGew3qToGTJ4wOTm7eFtTVyzHaTsTgphF37S91vsmVxlVV22JH6xCD3kq3AUWiv5kobHN0qa9oyy164xHRHyvL+AKcqmDcmxesOCT6iikZJmyiwrZkaAHcTnWSM6TIX6nbF6ufiFBdeGgbv5ngi9jsvx7YDY+FPVgO/JWZtWtzWwcly8cZKTxHHBOJCy9jSyaaLZRCjViq7SNpjY+Vdyplcbn4wvd7cVAp18aqFE4d8GuhcqXn57GrRvfgvZwxPcUDqS8dBAozIiGVXHQVqPVTpocKu4jaRAE5Z4E9QlvegUmdAd2RekVIj9tm8IteDlw=="
+    "previousHash": "1001a67bcaecb543a4e3150d714f28fd5138b89af9bfe7355a44085599caa0fa",
+    "hash": "eea5c703ba78c1f85be8975cc8c0d769ea0df7685cead0bc78503bc99f2693fc",
+    "signature": "IaOE8k8OGefN7q/6Pm99xpMTQ2e4aR4oG+h/EVAbR3ZL+oN2H1hxkaSwKZrfIrN5smkOSteoklWQeukhkxRQLIJi3IE+Q/V/xq/Ob5+WCpYV/Kef1K65EVAauzKcSbXyrrR2WRIEVW3iTgbDAe0shSSCqkObPqvo63QgXnd+fW+L/2TgOkyqI+V9/rxz9Jya9QmIrP1kkKXLgcmHon47Np9kOw3/vml2GEqWBLKVKOoozAImTSeUo1YX9xJm3e+tOvNVvfrTv8oNOUPO8BIXUJ797pjJfJ6SUrn2AEN7g6anNXux3ccer5hz9VHiNZ+pDvpEsn1ulcTwH9TYLVrWQw=="
   }
 ]
 
@@ -30258,13 +30259,11 @@ FILE: backend\utils\db.js
 const { Sequelize } = require('sequelize');
 const { execSync } = require('child_process');
 
-const NEON_URL = "postgresql://neondb_owner:npg_YlSeb1kgv6PB@ep-shiny-dust-axomvx38-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require";
-
-// Authoritative Production Database: Always use Neon PostgreSQL unless running Jest unit tests
+// Authoritative Database Connection: Uses process.env.DATABASE_URL or SQLite for local tests
 let useSqlite = process.env.NODE_ENV === 'test';
-const databaseUrl = (process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('postgres'))
-  ? process.env.DATABASE_URL
-  : NEON_URL;
+const databaseUrl = process.env.DATABASE_URL;
+const dbHost = process.env.DB_HOST || 'localhost';
+const dbPort = process.env.DB_PORT || 5432;
 
 const sequelize = useSqlite
   ? new Sequelize({
