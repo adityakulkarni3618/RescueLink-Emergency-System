@@ -99,6 +99,7 @@ RescueLink is built from the ground up for healthcare compliance audits:
 - **Interactive Demo Script & Guide**: [DEMO_GUIDE.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/DEMO_GUIDE.md)
 - **Real vs Simulated Integrations Matrix**: [REAL_INTEGRATIONS.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/REAL_INTEGRATIONS.md)
 - **Municipal Pilot Readiness Assessment**: [PILOT_READINESS.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/PILOT_READINESS.md)
+- **End-to-End Real-World Validation Report**: [REAL_WORLD_VALIDATION_REPORT.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/REAL_WORLD_VALIDATION_REPORT.md)
 
 ---
 
