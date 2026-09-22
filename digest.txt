@@ -101,6 +101,7 @@ PROJECT STRUCTURE:
   backend\tests\consentLedger.test.js
   backend\tests\db.test.js
   backend\tests\dispatch.test.js
+  backend\tests\e2eEmergencyJourney.test.js
   backend\tests\emergencyCorridor.test.js
   backend\tests\endToEndScenario.test.js
   backend\tests\failureMatrix.test.js

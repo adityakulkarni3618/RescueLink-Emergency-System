@@ -63,6 +63,7 @@ graph TD
 - 🧹 **Automatic Session Auto-Purge & Storage Isolation**: Session handling isolated to `sessionStorage` with on-mount auto-purging of legacy tokens to ensure clean state isolation across reloads.
 - 🚑 **Real DB Indian Vehicle & Unit Preservation**: Native persistence and full API visibility for user-registered Indian vehicle numbers (including `MH12` regional vehicle formats) in the PostgreSQL database without synthetic filtering.
 - 📜 **Emergency Corridor Schema Synchronization**: Migration scripts (`012_fix_emergency_corridor_enum.sql`) ensuring strict database enum type safety for corridor state machines and dynamic alternate route options.
+- 🧪 **Full End-to-End Emergency Journey Validation & System Proof**: Automated 21-stage E2E test suite (`backend/tests/e2eEmergencyJourney.test.js` / scenario `E2E-EMERGENCY-001`) validating complete lifecycle coordination from patient SOS to hospital admission, SBAR clinical handover sign-off, atomic bed reservation, 9-stage green corridor progression, RBAC enforcement, failure matrix, and 3-incident multi-tenant isolation.
 
 ---
 
@@ -100,6 +101,7 @@ RescueLink is built from the ground up for healthcare compliance audits:
 - **Real vs Simulated Integrations Matrix**: [REAL_INTEGRATIONS.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/REAL_INTEGRATIONS.md)
 - **Municipal Pilot Readiness Assessment**: [PILOT_READINESS.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/PILOT_READINESS.md)
 - **End-to-End Real-World Validation Report**: [REAL_WORLD_VALIDATION_REPORT.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/REAL_WORLD_VALIDATION_REPORT.md)
+- **Full Emergency Journey E2E Validation & System Proof**: [E2E_EMERGENCY_VALIDATION_REPORT.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/E2E_EMERGENCY_VALIDATION_REPORT.md)
 
 ---
 
