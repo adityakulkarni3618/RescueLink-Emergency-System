@@ -2,7 +2,7 @@ RescueLink Implementation Disclaimer: See README.md for a detailed breakdown of 
 
 RescueLink Emergency System - Full Codebase Digest
 Generated from: c:\Users\Aditya Kulkarni\Downloads\Health-care-system
-Total files: 248
+Total files: 250
 
 PROJECT STRUCTURE:
   .dockerignore
@@ -112,6 +112,7 @@ PROJECT STRUCTURE:
   backend\tests\masterSystemFlow.test.js
   backend\tests\offlineDispatch.test.js
   backend\tests\providerInterfaces.test.js
+  backend\tests\pushSubscription.test.js
   backend\tests\realWorldValidation.test.js
   backend\tests\routes.test.js
   backend\tests\securityStartupValidation.test.js
@@ -127,7 +128,7 @@ PROJECT STRUCTURE:
   backend\utils\consentLedger.js
   backend\utils\controlRoomBridge.js
   backend\utils\db.js
-  backend\utils\dispatchAgent.js
+  backend\utils\dispatchEligibility.js
   backend\utils\emergencyCorridor.js
   backend\utils\encryption.js
   backend\utils\eraktKosh.js
@@ -207,6 +208,7 @@ PROJECT STRUCTURE:
   frontend\src\utils\alert.js
   frontend\src\utils\excelExporter.js
   frontend\src\utils\IndexedDBBridge.js
+  frontend\src\utils\pushSubscriber.js
   frontend\src\utils\reportGenerator.js
   frontend\vercel.json
   frontend\vercel_main.js
@@ -16071,6 +16073,30 @@ router.put('/:id/settings', async (req, res) => {
 });
 
 /**
+ * @route PUT /api/ambulances/:id/push-subscription
+ * @desc Store Web Push subscription for ambulance entity
+ */
+router.put('/:id/push-subscription', async (req, res) => {
+  const { subscription } = req.body;
+  if (!subscription) {
+    return res.status(400).json({ error: 'Push subscription object is required' });
+  }
+  try {
+    const amb = await findAmbulanceByPkOrUser(req.params.id);
+    if (!amb) {
+      return res.status(404).json({ error: 'Ambulance not found' });
+    }
+    amb.push_subscription = typeof subscription === 'string' ? subscription : JSON.stringify(subscription);
+    await amb.save();
+    console.log(`[PUSH SUBSCRIPTION] Saved push subscription for Ambulance ${amb.vehicleNo || amb.id}`);
+    return res.json({ success: true, message: 'Push subscription updated successfully' });
+  } catch (err) {
+    console.error('[PUSH SUBSCRIPTION ERROR]', err.message);
+    return res.status(500).json({ error: 'Failed to update push subscription' });
+  }
+});
+
+/**
  * @route DELETE /api/ambulances/:id
  * @desc Delete an ambulance and its associated paramedic user (Admin only)
  */
@@ -19444,6 +19470,30 @@ router.put('/:id', verifyToken(['hospital_admin', 'city_admin']), async (req, re
   } catch (err) {
     console.error('[HOSPITALS API] Error updating hospital:', err.message);
     return res.status(500).json({ error: 'Failed to update hospital details' });
+  }
+});
+
+/**
+ * @route PUT /api/hospitals/:id/push-subscription
+ * @desc Store Web Push subscription for hospital entity
+ */
+router.put('/:id/push-subscription', async (req, res) => {
+  const { subscription } = req.body;
+  if (!subscription) {
+    return res.status(400).json({ error: 'Push subscription object is required' });
+  }
+  try {
+    const hospital = await Hospital.findByPk(req.params.id);
+    if (!hospital) {
+      return res.status(404).json({ error: 'Hospital not found' });
+    }
+    hospital.push_subscription = typeof subscription === 'string' ? subscription : JSON.stringify(subscription);
+    await hospital.save();
+    console.log(`[PUSH SUBSCRIPTION] Saved push subscription for Hospital ${hospital.id}`);
+    return res.json({ success: true, message: 'Push subscription updated successfully' });
+  } catch (err) {
+    console.error('[PUSH SUBSCRIPTION ERROR]', err.message);
+    return res.status(500).json({ error: 'Failed to update push subscription' });
   }
 });
 
@@ -29338,6 +29388,71 @@ describe('Provider Interfaces & Truth Label Verification', () => {
 });
 
 ================================================
+FILE: backend\tests\pushSubscription.test.js
+================================================
+const request = require('supertest');
+const { Hospital, Ambulance, sequelize } = require('../utils/db');
+
+describe('Web Push Subscription Persistence Verification', () => {
+
+  beforeAll(async () => {
+    await sequelize.sync({ force: true });
+  });
+
+  test('should save push_subscription JSON to Hospital DB record', async () => {
+    const hospital = await Hospital.create({
+      name: 'Push Test Hospital',
+      lat: 18.5204,
+      lng: 73.8567,
+      is_active: true,
+      verification_status: 'APPROVED'
+    });
+
+    const mockSub = {
+      endpoint: 'https://updates.push.services.mozilla.com/wpush/v2/gAAAAAB...',
+      keys: { p256dh: 'BEl62iUYgU...', auth: 't7c385b0d...' }
+    };
+
+    const h = await Hospital.findByPk(hospital.id);
+    h.push_subscription = JSON.stringify(mockSub);
+    await h.save();
+
+    const updated = await Hospital.findByPk(hospital.id);
+    expect(updated.push_subscription).toBeDefined();
+    expect(JSON.parse(updated.push_subscription).endpoint).toBe(mockSub.endpoint);
+
+    await Hospital.destroy({ where: { id: hospital.id } });
+  });
+
+  test('should save push_subscription JSON to Ambulance DB record', async () => {
+    const ambulance = await Ambulance.create({
+      vehicleNo: 'MH12-PUSH-01',
+      driverName: 'Push Paramedic',
+      contactInfo: '+91-9999999999',
+      password: 'password123',
+      type: 'ALS',
+      is_active: true,
+      verification_status: 'APPROVED'
+    });
+
+    const mockSub = {
+      endpoint: 'https://fcm.googleapis.com/fcm/send/eX78a...',
+      keys: { p256dh: 'BN892j...', auth: 'u901a...' }
+    };
+
+    const amb = await Ambulance.findByPk(ambulance.id);
+    amb.push_subscription = JSON.stringify(mockSub);
+    await amb.save();
+
+    const updated = await Ambulance.findByPk(ambulance.id);
+    expect(updated.push_subscription).toBeDefined();
+    expect(JSON.parse(updated.push_subscription).endpoint).toBe(mockSub.endpoint);
+
+    await Ambulance.destroy({ where: { id: ambulance.id } });
+  });
+});
+
+================================================
 FILE: backend\tests\realWorldValidation.test.js
 ================================================
 const { isValidStateTransition, transitionAmbulanceState } = require('../utils/ambulanceStateMachine');
@@ -31068,7 +31183,7 @@ module.exports = {
 };
 
 ================================================
-FILE: backend\utils\dispatchAgent.js
+FILE: backend\utils\dispatchEligibility.js
 ================================================
 const { Ambulance, Hospital, Incident, AuditLog } = require('./db');
 const { haversineDistance } = require('./maps');
@@ -59937,6 +60052,7 @@ import CorridorPanel from './CorridorPanel';
 import LiveRouteMap from './LiveRouteMap';
 import { API_BASE_URL } from '../config/api';
 import { MfaVerifyScreen } from './MfaVerifyScreen';
+import { registerWebPushSubscription } from '../utils/pushSubscriber';
 
 let audioCtx = null;
 
@@ -60574,6 +60690,7 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
   const [endMissionConfirm, setEndMissionConfirm] = useState(false);
   const [abortMissionConfirm, setAbortMissionConfirm] = useState(false);
   const [switchUnitConfirm, setSwitchUnitConfirm] = useState(false);
+  const [hospitalSuggestion, setHospitalSuggestion] = useState(null);
   const vitalsSourceRef = useRef(vitalsSource);
   useEffect(() => { vitalsSourceRef.current = vitalsSource; }, [vitalsSource]);
 
@@ -61006,6 +61123,9 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
         setAuthUnit(found);
         setIsAuthenticated(true);
         setLoginError('');
+        if (found.id || found.unitId) {
+          registerWebPushSubscription(found.id || found.unitId, 'ambulances').catch(() => {});
+        }
         if (socket) socket.emit('register-ambulance', { location: location || null, available: true, unitId: found.unitId, driverName: found.driverName, vehicleNo: found.vehicleNo, type: found.type, token: data.token });
       } else {
         setLoginError(data.error || 'Invalid Unit ID or Password');
@@ -61263,6 +61383,12 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
     });
     socket.on('traffic-incidents-update', (data) => {
       setTrafficIncidents(data || {});
+    });
+    socket.on('hospital:better-option-found', (data) => {
+      if (data && data.suggestedHospital) {
+        playAlertBeep();
+        setHospitalSuggestion(data);
+      }
     });
     socket.on('clinical-checklist-update', (data) => {
       if (assignedUserRef.current && data.reqId === assignedUserRef.current.id) {
@@ -62477,6 +62603,59 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
       flexDirection: 'row',
       overflow: 'hidden',
     }}>
+
+      {/* ── OPTIMAL HOSPITAL REROUTE SUGGESTION MODAL ── */}
+      {hospitalSuggestion && (
+        <div style={{
+          position: 'fixed', bottom: 30, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 999999, background: 'rgba(8,18,42,0.98)', border: '2px solid #00c8ff',
+          borderRadius: 12, padding: 20, maxWidth: 480, width: '90%',
+          boxShadow: '0 0 40px rgba(0,200,255,0.4)', textAlign: 'center',
+          backdropFilter: 'blur(10px)'
+        }}>
+          <div style={{ fontFamily: "'Orbitron'", fontSize: 13, color: '#00c8ff', fontWeight: 900, letterSpacing: '0.1em', marginBottom: 6 }}>
+            🏥 OPTIMAL HOSPITAL REROUTE SUGGESTION
+          </div>
+          <div style={{ fontSize: 12, color: '#e0eaff', marginBottom: 14, fontFamily: "'Share Tech Mono'", lineHeight: 1.5 }}>
+            Closer hospital available: <strong style={{ color: '#00ff88' }}>{hospitalSuggestion.suggestedHospital.name}</strong><br />
+            {hospitalSuggestion.etaSaved ? ` (Saves ~${Math.max(1, Math.round(hospitalSuggestion.etaSaved / 60))} mins transit time)` : ''}
+          </div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+            <button
+              onClick={() => {
+                const sug = hospitalSuggestion.suggestedHospital;
+                if (socket && assignedUserRef.current?.id) {
+                  socket.emit('hospital-reassign', {
+                    reqId: assignedUserRef.current.id,
+                    hospitalId: sug.id,
+                    hospital: sug
+                  });
+                  setAssignedHospital(sug);
+                  showAlert(`✅ Route updated to ${sug.name}`);
+                }
+                setHospitalSuggestion(null);
+              }}
+              style={{
+                background: 'linear-gradient(135deg, #00ff8822, #00ff8844)',
+                border: '1px solid #00ff88', borderRadius: 6, color: '#00ff88',
+                padding: '10px 18px', fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700, cursor: 'pointer'
+              }}
+            >
+              ACCEPT & REROUTE →
+            </button>
+            <button
+              onClick={() => setHospitalSuggestion(null)}
+              style={{
+                background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: 6, color: 'rgba(160,200,255,0.7)', padding: '10px 18px',
+                fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700, cursor: 'pointer'
+              }}
+            >
+              KEEP CURRENT
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── END MISSION CONFIRM MODAL ── */}
       {endMissionConfirm && (
@@ -81882,6 +82061,65 @@ export const mapTilesCache = {
   clear: (...args) => { if (!_mapTilesCache) _mapTilesCache = new IndexedDBBridge('RescueLinkMapsTiles', 'tile_cache', 'tileKey'); return _mapTilesCache.clear(...args); },
 };
 
+
+================================================
+FILE: frontend\src\utils\pushSubscriber.js
+================================================
+import { API_BASE_URL } from '../config/api';
+
+export async function registerWebPushSubscription(entityId, entityType = 'entities') {
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.warn('[WEB PUSH] Push notifications are unsupported in this environment.');
+    return null;
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    let subscription = await registration.pushManager.getSubscription();
+
+    if (!subscription) {
+      const VAPID_PUBLIC_KEY = process.env.REACT_APP_VAPID_PUBLIC_KEY || 'BEl62iUYgUivxIkv69yViEuiBIa45b77c385b0d6a2f76816174a72d3856b37d800d3a5a73e4a2d81577c';
+      const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+      
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey
+      });
+    }
+
+    if (subscription && entityId) {
+      const endpoint = `${API_BASE_URL}/api/${entityType}/${entityId}/push-subscription`;
+      const token = sessionStorage.getItem('rescuelink_token') || '';
+      
+      const res = await fetch(endpoint, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        },
+        body: JSON.stringify({ subscription })
+      });
+      if (res.ok) {
+        console.log(`[WEB PUSH] Saved push subscription for ${entityType}/${entityId}`);
+      }
+    }
+    return subscription;
+  } catch (err) {
+    console.warn('[WEB PUSH ERROR] Push subscription failed:', err.message);
+    return null;
+  }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
 
 ================================================
 FILE: frontend\src\utils\reportGenerator.js

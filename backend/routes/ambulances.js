@@ -174,6 +174,30 @@ router.put('/:id/settings', async (req, res) => {
 });
 
 /**
+ * @route PUT /api/ambulances/:id/push-subscription
+ * @desc Store Web Push subscription for ambulance entity
+ */
+router.put('/:id/push-subscription', async (req, res) => {
+  const { subscription } = req.body;
+  if (!subscription) {
+    return res.status(400).json({ error: 'Push subscription object is required' });
+  }
+  try {
+    const amb = await findAmbulanceByPkOrUser(req.params.id);
+    if (!amb) {
+      return res.status(404).json({ error: 'Ambulance not found' });
+    }
+    amb.push_subscription = typeof subscription === 'string' ? subscription : JSON.stringify(subscription);
+    await amb.save();
+    console.log(`[PUSH SUBSCRIPTION] Saved push subscription for Ambulance ${amb.vehicleNo || amb.id}`);
+    return res.json({ success: true, message: 'Push subscription updated successfully' });
+  } catch (err) {
+    console.error('[PUSH SUBSCRIPTION ERROR]', err.message);
+    return res.status(500).json({ error: 'Failed to update push subscription' });
+  }
+});
+
+/**
  * @route DELETE /api/ambulances/:id
  * @desc Delete an ambulance and its associated paramedic user (Admin only)
  */

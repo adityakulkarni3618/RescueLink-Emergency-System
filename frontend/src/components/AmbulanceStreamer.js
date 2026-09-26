@@ -10,6 +10,7 @@ import CorridorPanel from './CorridorPanel';
 import LiveRouteMap from './LiveRouteMap';
 import { API_BASE_URL } from '../config/api';
 import { MfaVerifyScreen } from './MfaVerifyScreen';
+import { registerWebPushSubscription } from '../utils/pushSubscriber';
 
 let audioCtx = null;
 
@@ -647,6 +648,7 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
   const [endMissionConfirm, setEndMissionConfirm] = useState(false);
   const [abortMissionConfirm, setAbortMissionConfirm] = useState(false);
   const [switchUnitConfirm, setSwitchUnitConfirm] = useState(false);
+  const [hospitalSuggestion, setHospitalSuggestion] = useState(null);
   const vitalsSourceRef = useRef(vitalsSource);
   useEffect(() => { vitalsSourceRef.current = vitalsSource; }, [vitalsSource]);
 
@@ -1079,6 +1081,9 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
         setAuthUnit(found);
         setIsAuthenticated(true);
         setLoginError('');
+        if (found.id || found.unitId) {
+          registerWebPushSubscription(found.id || found.unitId, 'ambulances').catch(() => {});
+        }
         if (socket) socket.emit('register-ambulance', { location: location || null, available: true, unitId: found.unitId, driverName: found.driverName, vehicleNo: found.vehicleNo, type: found.type, token: data.token });
       } else {
         setLoginError(data.error || 'Invalid Unit ID or Password');
@@ -1336,6 +1341,12 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
     });
     socket.on('traffic-incidents-update', (data) => {
       setTrafficIncidents(data || {});
+    });
+    socket.on('hospital:better-option-found', (data) => {
+      if (data && data.suggestedHospital) {
+        playAlertBeep();
+        setHospitalSuggestion(data);
+      }
     });
     socket.on('clinical-checklist-update', (data) => {
       if (assignedUserRef.current && data.reqId === assignedUserRef.current.id) {
@@ -2550,6 +2561,59 @@ export default function AmbulanceStreamer({ socket, connected, onLogout, onSwitc
       flexDirection: 'row',
       overflow: 'hidden',
     }}>
+
+      {/* ── OPTIMAL HOSPITAL REROUTE SUGGESTION MODAL ── */}
+      {hospitalSuggestion && (
+        <div style={{
+          position: 'fixed', bottom: 30, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 999999, background: 'rgba(8,18,42,0.98)', border: '2px solid #00c8ff',
+          borderRadius: 12, padding: 20, maxWidth: 480, width: '90%',
+          boxShadow: '0 0 40px rgba(0,200,255,0.4)', textAlign: 'center',
+          backdropFilter: 'blur(10px)'
+        }}>
+          <div style={{ fontFamily: "'Orbitron'", fontSize: 13, color: '#00c8ff', fontWeight: 900, letterSpacing: '0.1em', marginBottom: 6 }}>
+            🏥 OPTIMAL HOSPITAL REROUTE SUGGESTION
+          </div>
+          <div style={{ fontSize: 12, color: '#e0eaff', marginBottom: 14, fontFamily: "'Share Tech Mono'", lineHeight: 1.5 }}>
+            Closer hospital available: <strong style={{ color: '#00ff88' }}>{hospitalSuggestion.suggestedHospital.name}</strong><br />
+            {hospitalSuggestion.etaSaved ? ` (Saves ~${Math.max(1, Math.round(hospitalSuggestion.etaSaved / 60))} mins transit time)` : ''}
+          </div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+            <button
+              onClick={() => {
+                const sug = hospitalSuggestion.suggestedHospital;
+                if (socket && assignedUserRef.current?.id) {
+                  socket.emit('hospital-reassign', {
+                    reqId: assignedUserRef.current.id,
+                    hospitalId: sug.id,
+                    hospital: sug
+                  });
+                  setAssignedHospital(sug);
+                  showAlert(`✅ Route updated to ${sug.name}`);
+                }
+                setHospitalSuggestion(null);
+              }}
+              style={{
+                background: 'linear-gradient(135deg, #00ff8822, #00ff8844)',
+                border: '1px solid #00ff88', borderRadius: 6, color: '#00ff88',
+                padding: '10px 18px', fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700, cursor: 'pointer'
+              }}
+            >
+              ACCEPT & REROUTE →
+            </button>
+            <button
+              onClick={() => setHospitalSuggestion(null)}
+              style={{
+                background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: 6, color: 'rgba(160,200,255,0.7)', padding: '10px 18px',
+                fontFamily: "'Orbitron'", fontSize: 11, fontWeight: 700, cursor: 'pointer'
+              }}
+            >
+              KEEP CURRENT
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── END MISSION CONFIRM MODAL ── */}
       {endMissionConfirm && (
