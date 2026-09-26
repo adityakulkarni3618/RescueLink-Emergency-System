@@ -237,6 +237,30 @@ router.put('/:id', verifyToken(['hospital_admin', 'city_admin']), async (req, re
   }
 });
 
+/**
+ * @route PUT /api/hospitals/:id/push-subscription
+ * @desc Store Web Push subscription for hospital entity
+ */
+router.put('/:id/push-subscription', async (req, res) => {
+  const { subscription } = req.body;
+  if (!subscription) {
+    return res.status(400).json({ error: 'Push subscription object is required' });
+  }
+  try {
+    const hospital = await Hospital.findByPk(req.params.id);
+    if (!hospital) {
+      return res.status(404).json({ error: 'Hospital not found' });
+    }
+    hospital.push_subscription = typeof subscription === 'string' ? subscription : JSON.stringify(subscription);
+    await hospital.save();
+    console.log(`[PUSH SUBSCRIPTION] Saved push subscription for Hospital ${hospital.id}`);
+    return res.json({ success: true, message: 'Push subscription updated successfully' });
+  } catch (err) {
+    console.error('[PUSH SUBSCRIPTION ERROR]', err.message);
+    return res.status(500).json({ error: 'Failed to update push subscription' });
+  }
+});
+
 
 /**
  * @route PUT /api/hospitals/:id/suspend
