@@ -1,4 +1,5 @@
 const request = require('supertest');
+const { app } = require('../server');
 const { Hospital, Ambulance, sequelize } = require('../utils/db');
 
 describe('Web Push Subscription Persistence Verification', () => {
@@ -7,7 +8,7 @@ describe('Web Push Subscription Persistence Verification', () => {
     await sequelize.sync({ force: true });
   });
 
-  test('should save push_subscription JSON to Hospital DB record', async () => {
+  test('PUT /api/hospitals/:id/push-subscription - should return 200 and persist subscription to DB', async () => {
     const hospital = await Hospital.create({
       name: 'Push Test Hospital',
       lat: 18.5204,
@@ -21,18 +22,21 @@ describe('Web Push Subscription Persistence Verification', () => {
       keys: { p256dh: 'BEl62iUYgU...', auth: 't7c385b0d...' }
     };
 
-    const h = await Hospital.findByPk(hospital.id);
-    h.push_subscription = JSON.stringify(mockSub);
-    await h.save();
+    const res = await request(app)
+      .put(`/api/hospitals/${hospital.id}/push-subscription`)
+      .send({ subscription: mockSub });
 
-    const updated = await Hospital.findByPk(hospital.id);
-    expect(updated.push_subscription).toBeDefined();
-    expect(JSON.parse(updated.push_subscription).endpoint).toBe(mockSub.endpoint);
+    expect(res.statusCode).toBe(200);
+    expect(res.body.success).toBe(true);
+
+    const dbRecord = await Hospital.findByPk(hospital.id);
+    expect(dbRecord.push_subscription).toBeDefined();
+    expect(JSON.parse(dbRecord.push_subscription).endpoint).toBe(mockSub.endpoint);
 
     await Hospital.destroy({ where: { id: hospital.id } });
   });
 
-  test('should save push_subscription JSON to Ambulance DB record', async () => {
+  test('PUT /api/ambulances/:id/push-subscription - should return 200 and persist subscription to DB', async () => {
     const ambulance = await Ambulance.create({
       vehicleNo: 'MH12-PUSH-01',
       driverName: 'Push Paramedic',
@@ -48,14 +52,18 @@ describe('Web Push Subscription Persistence Verification', () => {
       keys: { p256dh: 'BN892j...', auth: 'u901a...' }
     };
 
-    const amb = await Ambulance.findByPk(ambulance.id);
-    amb.push_subscription = JSON.stringify(mockSub);
-    await amb.save();
+    const res = await request(app)
+      .put(`/api/ambulances/${ambulance.id}/push-subscription`)
+      .send({ subscription: mockSub });
 
-    const updated = await Ambulance.findByPk(ambulance.id);
-    expect(updated.push_subscription).toBeDefined();
-    expect(JSON.parse(updated.push_subscription).endpoint).toBe(mockSub.endpoint);
+    expect(res.statusCode).toBe(200);
+    expect(res.body.success).toBe(true);
+
+    const dbRecord = await Ambulance.findByPk(ambulance.id);
+    expect(dbRecord.push_subscription).toBeDefined();
+    expect(JSON.parse(dbRecord.push_subscription).endpoint).toBe(mockSub.endpoint);
 
     await Ambulance.destroy({ where: { id: ambulance.id } });
   });
 });
+
