@@ -310,10 +310,13 @@ function AbdmConnectModal({ patient, onClose, onLinked }) {
 }
 
 /* ─── Patient panel ───────────────────────────────────────────────────────── */
-function PatientPanel({ patient, vitals, activeMissionId }) {
+function PatientPanel({ patient, vitals, activeMissionId, onPatientUpdate, socket }) {
   const [alertData, setAlertData] = useState(null);
   const [showAbdmModal, setShowAbdmModal] = useState(false);
   const [abdmLinked, setAbdmLinked] = useState(false);
+  const [generatingPrognosis, setGeneratingPrognosis] = useState(false);
+  const [aiPrognosisReport, setAiPrognosisReport] = useState(null);
+  const [consentStatus, setConsentStatus] = useState('NOT_REQUESTED');
 
   // New HIS & Telemedicine states
   const [admission, setAdmission] = useState(null);
@@ -529,10 +532,10 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
     let details = "";
     let recommendations = [];
 
-    const hr = latestVitals?.heartRate || 75;
-    const o2 = latestVitals?.spo2 || 98;
-    const sys = latestVitals?.systolic || 120;
-    const temp = latestVitals?.temperature || 36.6;
+    const hr = vitals?.heartRate || 75;
+    const o2 = vitals?.spo2 || 98;
+    const sys = vitals?.systolic || 120;
+    const temp = vitals?.temperature || 36.6;
 
     if (o2 < 92 || hr > 130 || sys < 90) {
       condition = "High Risk: Acute Cardiorespiratory Crisis";
@@ -760,14 +763,17 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
                         const payload = await res.json();
                         if (payload.success && payload.data) {
                           const parsed = payload.data;
-                          setPatient(prev => ({
-                            ...prev,
-                            blood_group: parsed.bloodGroup || prev.blood_group,
-                            allergies: parsed.allergies.length > 0 ? parsed.allergies : prev.allergies,
-                            chronic_conditions: parsed.chronicConditions.length > 0 ? parsed.chronicConditions : prev.chronic_conditions,
-                            dob: parsed.dob || prev.dob,
-                            gender: parsed.gender || prev.gender
-                          }));
+                          const updated = {
+                            ...patient,
+                            blood_group: parsed.bloodGroup || patient?.blood_group,
+                            allergies: parsed.allergies && parsed.allergies.length > 0 ? parsed.allergies : patient?.allergies,
+                            chronic_conditions: parsed.chronicConditions && parsed.chronicConditions.length > 0 ? parsed.chronicConditions : patient?.chronic_conditions,
+                            dob: parsed.dob || patient?.dob,
+                            gender: parsed.gender || patient?.gender
+                          };
+                          if (onPatientUpdate) {
+                            onPatientUpdate(updated);
+                          }
                           showAlert('✅ Successfully extracted clinical parameters from scanned document text!');
                           e.target.value = '';
                         }
@@ -975,7 +981,7 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
             cursor: 'pointer', transition: 'all 0.2s',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
           }}>
-          <span>🩺</span> EVALUATE CLINICAL RISK ASSESSMENT
+          <span>🩺</span> {generatingPrognosis ? 'Generating Clinical Risk Summary...' : 'Generate Clinical Risk Summary'}
         </button>
 
         {aiPrognosisReport && (
@@ -1157,7 +1163,9 @@ function PatientPanel({ patient, vitals, activeMissionId }) {
           onClose={() => setShowAbdmModal(false)}
           onLinked={(abhaProfile) => {
             setAbdmLinked(true);
-            setPatient(prev => ({ ...prev, ...abhaProfile }));
+            if (onPatientUpdate) {
+              onPatientUpdate(prev => ({ ...prev, ...abhaProfile }));
+            }
             if (activeMissionId && socket) {
               socket.emit('patient-data', { reqId: activeMissionId, ...abhaProfile, isVerified: true });
             }
@@ -2209,7 +2217,7 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
 
     const found = {
       hospitalId: user.hospital_id || finalInputId,
-      name: user.hospitalName || user.name || (user.role === 'doctor' ? 'Manipal Global Trauma Center' : 'Emergency Center'),
+      name: user.hospitalName || user.name || 'Emergency Center',
       adminName: user.name || 'Dr. Command',
       internalId: (user.hospital_id || finalInputId).toString().toLowerCase(),
       lat: user.lat || 19.0760,
@@ -4268,7 +4276,7 @@ export default function HospitalDashboard({ socket, connected, onLogout, onSwitc
                       <div style={{ fontFamily: "'Orbitron'", fontSize: 11, color: '#00c8ff', letterSpacing: '0.1em', marginBottom: 12 }}>
                         📋 PATIENT RECORD
                       </div>
-                      <PatientPanel patient={patient} vitals={latestVitals} activeMissionId={activeMissionId} />
+                      <PatientPanel patient={patient} vitals={latestVitals} activeMissionId={activeMissionId} onPatientUpdate={setPatient} socket={socket} />
 
                       {patient && latestVitals && (
                         <div style={{ marginTop: 16 }}>
