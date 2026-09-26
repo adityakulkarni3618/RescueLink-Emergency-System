@@ -89,19 +89,23 @@ All new development work, bug fixes, and feature additions follow a strict git b
 ## 5. Compliance and Operational Index
 
 RescueLink is built from the ground up for healthcare compliance audits:
-- **Database Schema**: [SCHEMA.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/SCHEMA.md)
-- **Security hardening & Threat Model**: [SECURITY.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/SECURITY.md)
-- **Production Deployments**: [DEPLOYMENT.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/DEPLOYMENT.md)
-- **Data Erasure & Purge Specifications**: [DATA_HANDLING.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/DATA_HANDLING.md)
-- **DPDP Act 2023 Compliance**: [PRIVACY_POLICY.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/PRIVACY_POLICY.md)
-- **ABDM Sandbox Integration Guide**: [ABDM_INTEGRATION.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/docs/ABDM_INTEGRATION.md)
-- **Hardware Monitor Hookup**: [VITALS_HARDWARE_SETUP.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/docs/VITALS_HARDWARE_SETUP.md)
-- **Incident Response Manual**: [RUNBOOK.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/RUNBOOK.md)
-- **Interactive Demo Script & Guide**: [DEMO_GUIDE.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/DEMO_GUIDE.md)
-- **Real vs Simulated Integrations Matrix**: [REAL_INTEGRATIONS.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/REAL_INTEGRATIONS.md)
-- **Municipal Pilot Readiness Assessment**: [PILOT_READINESS.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/PILOT_READINESS.md)
-- **End-to-End Real-World Validation Report**: [REAL_WORLD_VALIDATION_REPORT.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/REAL_WORLD_VALIDATION_REPORT.md)
-- **Full Emergency Journey E2E Validation & System Proof**: [E2E_EMERGENCY_VALIDATION_REPORT.md](file:///c:/Users/Aditya%20Kulkarni/Downloads/Health-care-system/E2E_EMERGENCY_VALIDATION_REPORT.md)
+- **Database Schema**: [SCHEMA.md](SCHEMA.md)
+- **Security Hardening & Threat Model**: [SECURITY.md](SECURITY.md)
+- **Production Deployments**: [DEPLOYMENT.md](DEPLOYMENT.md)
+- **Data Erasure & Purge Specifications**: [DATA_HANDLING.md](DATA_HANDLING.md)
+- **DPDP Act 2023 Compliance**: [PRIVACY_POLICY.md](PRIVACY_POLICY.md)
+- **ABDM Sandbox Integration Guide**: [ABDM_INTEGRATION.md](docs/ABDM_INTEGRATION.md)
+- **Technical Summary & Pilot Proposal**: [TECHNICAL_SUMMARY.md](TECHNICAL_SUMMARY.md)
+- **Real-Time Architecture Specs**: [REALTIME_ARCHITECTURE.md](REALTIME_ARCHITECTURE.md)
+- **Enterprise Roadmap**: [RescueLink_Enterprise_Roadmap.md](RescueLink_Enterprise_Roadmap.md)
+- **Backend Production Readiness**: [BACKEND_PRODUCTION_READINESS.md](BACKEND_PRODUCTION_READINESS.md)
+- **Bandwidth & Render Readiness**: [RENDER_BANDWIDTH_READINESS_REPORT.md](RENDER_BANDWIDTH_READINESS_REPORT.md) / [BANDWIDTH_AUDIT_REPORT.md](BANDWIDTH_AUDIT_REPORT.md)
+- **Incident Response Manual**: [RUNBOOK.md](RUNBOOK.md)
+- **Interactive Demo Script & Guide**: [DEMO_GUIDE.md](DEMO_GUIDE.md)
+- **Real vs Simulated Integrations Matrix**: [REAL_INTEGRATIONS.md](REAL_INTEGRATIONS.md)
+- **Municipal Pilot Readiness Assessment**: [PILOT_READINESS.md](PILOT_READINESS.md)
+- **End-to-End Real-World Validation Report**: [REAL_WORLD_VALIDATION_REPORT.md](REAL_WORLD_VALIDATION_REPORT.md)
+- **Full Emergency Journey E2E Validation & System Proof**: [E2E_EMERGENCY_VALIDATION_REPORT.md](E2E_EMERGENCY_VALIDATION_REPORT.md)
 
 ---
 
